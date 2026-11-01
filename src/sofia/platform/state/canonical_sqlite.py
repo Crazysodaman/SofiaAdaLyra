@@ -31,6 +31,14 @@ def _reject_redirected_components(path: Path) -> None:
             raise CanonicalStateUnavailable(
                 f"canonical SQLite path is redirected by a symbolic link: {current}"
             )
+        # On Windows, NTFS directory junctions are reparse points but are
+        # not reliably reported by is_symlink(). A canonical writer must
+        # reject both before bootstrap and on every subsequent connection.
+        is_junction = getattr(current, "is_junction", None)
+        if is_junction is not None and is_junction():
+            raise CanonicalStateUnavailable(
+                f"canonical SQLite path is redirected by a junction: {current}"
+            )
         parent = current.parent
         if parent == current:
             return

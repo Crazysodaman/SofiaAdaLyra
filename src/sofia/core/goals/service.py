@@ -8,7 +8,9 @@ import json
 from typing import Callable
 from uuid import uuid4
 
-from sofia.platform.capability.model import CapabilityProposal
+from sofia.platform.capability.model import (
+    CapabilityDispatchContext, CapabilityProposal,
+)
 from sofia.modules.neuro.model import NeuralActivation
 from sofia.core.social.model import PrincipalContext
 from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
@@ -918,6 +920,7 @@ class GoalService:
         parameters: dict,
         requested_scope,
         rationale: str,
+        dispatch_context: CapabilityDispatchContext | None = None,
     ) -> GoalActionProposal:
         canonical = self.store.get(
             goal.id,
@@ -935,6 +938,7 @@ class GoalService:
                 parameters=parameters,
                 requested_scope=requested_scope,
                 rationale=rationale,
+                dispatch_context=dispatch_context,
             ),
         )
 

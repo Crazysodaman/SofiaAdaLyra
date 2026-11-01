@@ -1,11 +1,12 @@
 """Cognitive tools for authenticated remote Fleet observation and governed changes."""
 from __future__ import annotations
-from contextlib import contextmanager
+from contextlib import closing,contextmanager
 from dataclasses import dataclass
 from datetime import datetime,timezone,timedelta
 import os
 from pathlib import Path
 from time import perf_counter
+from hashlib import sha256
 from typing import Any,Callable
 from uuid import UUID,uuid4
 
@@ -17,11 +18,17 @@ from sofia.platform.ops.latency import FleetLatencyStore
 from sofia.platform.ops.state_registry import StatePlaneFleetRegistry
 from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.core.goals.evidence import GoalEvidence, GoalEvidenceLedger
+from sofia.core.goals.service import audience_scope
+from sofia.core.social.model import PrincipalContext
 
 from .authorization import remote_operation_is_read_only
 from .endpoint_policy_durable import DurableEndpointPolicy
 from .https_transport import PinnedHttpsRemoteTransport
-from .operations import RemoteOperationRequest
+from .operations import (
+    RemoteOperationRequest, RemoteOperationUncertain, RemoteOutcome,
+)
 from .remote_control import DurableRemoteControl
 from .state_paths import migrate_legacy_fleet_sidecars
 
@@ -49,6 +56,20 @@ class RemoteFleetToolService:
         self._max_inventory_age=max_inventory_age
         self._operator_stop=OperatorStopStore(self._state_path)
         self._latency=FleetLatencyStore(self._state_path)
+        self._guard=CanonicalSQLiteGuard(self._state_path)
+        with closing(self._guard.connect(timeout=10)) as db,db:
+            db.execute("""CREATE TABLE IF NOT EXISTS fleet_goal_dispatch(
+                dispatch_id TEXT PRIMARY KEY,
+                goal_id TEXT NOT NULL,
+                capability TEXT NOT NULL,
+                principal_id TEXT NOT NULL,
+                audience TEXT NOT NULL,
+                node_id TEXT NOT NULL,
+                request_id TEXT NOT NULL UNIQUE,
+                remote_capability TEXT NOT NULL,
+                remote_operation TEXT NOT NULL,
+                reserved_at TEXT NOT NULL
+            )""")
 
     def _ops_host_for_node(self, node_id: UUID):
         """Return the active trusted OPS Fleet host bound to this node."""
@@ -130,7 +151,10 @@ class RemoteFleetToolService:
                 })
         return tuple(out)
 
-    def invoke(self,node_id_text:str,capability:str,operation:str,parameters:dict[str,Any])->dict[str,Any]:
+    def invoke(
+        self,node_id_text:str,capability:str,operation:str,
+        parameters:dict[str,Any],*,dispatch_context=None,
+    )->dict[str,Any]:
         if capability not in {
             "system.inspect","vm.inspect","container.inspect","llm.inspect",
             "workshop.inspect",
@@ -248,7 +272,31 @@ class RemoteFleetToolService:
                 capability,
                 operation,
                 parameters,
+                dispatch_context,
             )
+            if dispatch_context is not None:
+                values=(
+                    dispatch_context.dispatch_id,dispatch_context.goal_id,
+                    dispatch_context.capability,dispatch_context.principal_id,
+                    dispatch_context.audience,str(node_id),str(request.request_id),
+                    capability,operation,now.isoformat(),
+                )
+                with closing(self._guard.connect(timeout=10)) as db,db:
+                    cursor=db.execute(
+                        "INSERT OR IGNORE INTO fleet_goal_dispatch VALUES(?,?,?,?,?,?,?,?,?,?)",
+                        values,
+                    )
+                    if cursor.rowcount==0:
+                        prior=db.execute(
+                            "SELECT dispatch_id,goal_id,capability,principal_id,audience,"
+                            "node_id,request_id,remote_capability,remote_operation,reserved_at "
+                            "FROM fleet_goal_dispatch WHERE dispatch_id=?",
+                            (dispatch_context.dispatch_id,),
+                        ).fetchone()
+                        if prior!=values:
+                            raise PermissionError(
+                                "GOALS dispatch is already bound to another remote operation"
+                            )
             started=perf_counter()
             result=control.invoke(
                 enrollment,
@@ -256,6 +304,11 @@ class RemoteFleetToolService:
                 request,
                 now=now,
             )
+            if result.outcome is not RemoteOutcome.REPORTED_SUCCESS:
+                raise RemoteOperationUncertain(
+                    "remote host did not return a verified successful operation; "
+                    "never retry automatically"
+                )
             elapsed_ms=max((perf_counter()-started)*1000.0,0.001)
         # A telemetry write must never turn a completed external operation
         # into an apparent failure that callers might retry.  It is therefore
@@ -283,6 +336,118 @@ class RemoteFleetToolService:
             "latency_observation":latency_observation,
         }
 
+    def verify_goal_dispatch(self,dispatch_id:str,evidence)->bool:
+        """Verify an exact GOALS receipt against its pinned host observation."""
+        if not isinstance(dispatch_id,str) or not dispatch_id.strip():
+            return False
+        with closing(self._guard.connect(timeout=10,read_only=True)) as db:
+            row=db.execute(
+                "SELECT goal_id,capability,principal_id,audience,node_id,reserved_at "
+                "FROM fleet_goal_dispatch WHERE dispatch_id=?",
+                (dispatch_id,),
+            ).fetchone()
+        if row is None or (
+            row[0]!=getattr(evidence,"goal_id",None)
+            or row[1]!=getattr(evidence,"assertion",None)
+            or row[2]!=getattr(evidence,"principal_id",None)
+            or row[3]!=getattr(evidence,"audience",None)
+        ):
+            return False
+        node_id=UUID(row[4])
+        if self._ops_host_for_node(node_id) is None:
+            return False
+        with self._control_session() as control:
+            enrollment=control.identities.get(node_id)
+            endpoint=control.endpoints.get(node_id)
+            if enrollment is None or endpoint is None:
+                return False
+            attestation=control.host_effect(enrollment,endpoint,dispatch_id)
+        try:
+            observed=datetime.fromisoformat(attestation["observed_at"])
+        except (KeyError,TypeError,ValueError):
+            return False
+        evidence_time=getattr(evidence,"observed_at",None)
+        moment=datetime.now(timezone.utc)
+        expected="performed" if getattr(evidence,"successful",None) is True else (
+            "absent" if getattr(evidence,"successful",None) is False else None
+        )
+        return bool(
+            expected is not None
+            and attestation.get("dispatch_id")==dispatch_id
+            and attestation.get("goal_id")==row[0]
+            and attestation.get("capability")==row[1]
+            and attestation.get("outcome")==expected
+            and attestation.get("attested_by")==f"fleet-node:{node_id}"
+            and isinstance(evidence_time,datetime)
+            and evidence_time.tzinfo is not None
+            and observed==evidence_time
+            and datetime.fromisoformat(row[5])<=observed<=moment
+            and observed>=moment-timedelta(minutes=15)
+        )
+
+    def observe_goal_dispatch(
+        self,dispatch_id:str,*,principal:PrincipalContext,now:datetime,
+    )->GoalEvidence:
+        """Project one pinned-host observation into typed scoped GOALS evidence."""
+        if not isinstance(principal,PrincipalContext):
+            raise TypeError("authenticated PrincipalContext required")
+        if not isinstance(now,datetime) or now.tzinfo is None:
+            raise ValueError("now must be timezone-aware")
+        with closing(self._guard.connect(timeout=10,read_only=True)) as db:
+            row=db.execute(
+                "SELECT goal_id,capability,principal_id,audience,node_id,reserved_at "
+                "FROM fleet_goal_dispatch WHERE dispatch_id=?",
+                (dispatch_id,),
+            ).fetchone()
+        if row is None:
+            raise LookupError("exact remote GOALS dispatch was not reserved")
+        if (
+            row[2]!=principal.principal_id
+            or row[3]!=audience_scope(principal)
+        ):
+            raise PermissionError("host outcome scope does not match principal")
+        node_id=UUID(row[4])
+        if self._ops_host_for_node(node_id) is None:
+            raise PermissionError("attesting Fleet node is not active and trusted")
+        with self._control_session() as control:
+            enrollment=control.identities.get(node_id)
+            endpoint=control.endpoints.get(node_id)
+            if enrollment is None or endpoint is None:
+                raise PermissionError("attesting Fleet identity is not active")
+            attestation=control.host_effect(enrollment,endpoint,dispatch_id)
+        if (
+            attestation.get("goal_id")!=row[0]
+            or attestation.get("capability")!=row[1]
+            or attestation.get("attested_by")!=f"fleet-node:{node_id}"
+            or attestation.get("outcome") not in {"performed","absent"}
+        ):
+            raise ValueError("host outcome does not match exact GOALS dispatch")
+        try:
+            observed=datetime.fromisoformat(attestation["observed_at"])
+        except (KeyError,TypeError,ValueError) as exc:
+            raise ValueError("host outcome has invalid observation time") from exc
+        moment=now.astimezone(timezone.utc)
+        if (
+            observed.tzinfo is None
+            or observed<datetime.fromisoformat(row[5])
+            or observed>moment
+            or observed<moment-timedelta(minutes=15)
+        ):
+            raise ValueError("host outcome is stale, future, or predates dispatch")
+        digest=sha256(
+            f"{node_id}\0{dispatch_id}\0{attestation['outcome']}\0"
+            f"{observed.isoformat()}".encode()
+        ).hexdigest()
+        return GoalEvidenceLedger(self._state_path).record(
+            evidence_ref=f"goal-evidence:fleet-host-effect:{digest}",
+            kind="operation_receipt",observed_at=observed,
+            source=f"fleet-host-effect:{node_id}",
+            successful=attestation["outcome"]=="performed",
+            goal_id=row[0],action_id=dispatch_id,assertion=row[1],
+            principal_id=principal.principal_id,audience=audience_scope(principal),
+            payload={"node_id":str(node_id),"attested_by":attestation["attested_by"]},
+        )
+
     def close(self)->None:
         """Compatibility no-op: production Fleet sessions are per-call."""
         return None
@@ -307,7 +472,14 @@ def _registration(
         def handler(request):
             p=dict(request.parameters)
             params=parameter_builder(p) if parameter_builder else {k:v for k,v in p.items() if k!="node_id"}
-            return service.invoke(p["node_id"],remote_capability,remote_operation,params)
+            if request.dispatch_context is None:
+                return service.invoke(
+                    p["node_id"],remote_capability,remote_operation,params,
+                )
+            return service.invoke(
+                p["node_id"],remote_capability,remote_operation,params,
+                dispatch_context=request.dispatch_context,
+            )
     binding=CognitiveToolBinding(
         definition=CognitiveToolDefinition(
             name=tool_name,description=description,

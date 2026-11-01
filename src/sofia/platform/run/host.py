@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from threading import Event
 import argparse
@@ -17,6 +17,8 @@ from sofia.platform.config import (
 from sofia.modules.integrations.local_maintenance import LocalMaintenanceAdapter
 from sofia.platform.run.lease import LocalRunLeaseStore, RunLease
 from sofia.platform.run.release import ReleaseRecoveryHook
+from sofia.platform.run.heartbeat import ApplicationHeartbeatStore
+from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.state.component_schema import verify_production_component_schemas
 from sofia.platform.run.supervisor import (
@@ -34,26 +36,46 @@ class LocalServiceRuntimeBackend(ManagedRuntimeBackend):
         self,
         *,
         service_name: str,
+        state_path: Path,
         maintenance: LocalMaintenanceAdapter | None = None,
     ) -> None:
         if not isinstance(service_name, str) or not service_name.strip():
             raise ValueError("service_name must be nonempty")
         self.service_name = service_name.strip()
         self.maintenance = maintenance or LocalMaintenanceAdapter()
+        self.heartbeats = ApplicationHeartbeatStore(state_path)
 
     def observe(self) -> RuntimeObservation:
         state = self.maintenance.service_status(self.service_name)
+        epoch = self.heartbeats.current_generation()
         if state == "running":
+            heartbeat = self.heartbeats.current()
+            now = datetime.now(timezone.utc)
+            ready = bool(
+                heartbeat is not None
+                and heartbeat.generation_epoch == epoch
+                and heartbeat.recorded_at <= now
+                and heartbeat.recorded_at >= now - timedelta(seconds=45)
+                and heartbeat.ready
+                and heartbeat.database_writable
+                and heartbeat.background_running
+            )
             return RuntimeObservation(
                 ProcessState.RUNNING,
-                ready=True,
-                detail="service manager reports running",
+                ready=ready,
+                detail=(
+                    "fresh generation-bound application heartbeat"
+                    if ready else
+                    "service running without fresh generation-bound readiness"
+                ),
+                generation_epoch=epoch,
             )
         if state == "starting":
             return RuntimeObservation(
                 ProcessState.STARTING,
                 ready=False,
                 detail="service manager reports transitional state",
+                generation_epoch=epoch,
             )
         if state == "stopped":
             return RuntimeObservation(
@@ -76,6 +98,7 @@ class LocalServiceRuntimeBackend(ManagedRuntimeBackend):
     def start(self, *, epoch: int) -> None:
         if type(epoch) is not int or epoch < 1:
             raise ValueError("epoch must be a positive integer")
+        self.heartbeats.bind_generation(epoch, now=datetime.now(timezone.utc))
         self.maintenance.service(self.service_name, "start")
 
     def stop(self) -> None:
@@ -128,6 +151,7 @@ class RunSupervisorHost:
             lease_store=lease_store,
             backend=LocalServiceRuntimeBackend(
                 service_name=self.service_name,
+                state_path=self.state_path,
             ),
             release_recovery=recovery,
         )
@@ -140,6 +164,7 @@ class RunSupervisorHost:
     ) -> None:
         stopper = stop_event or Event()
         lease_store, supervisor = self._supervisor()
+        operator_stop = OperatorStopStore(self.state_path)
         result = lease_store.acquire(
             owner_id=self.owner_id,
             now=datetime.now(timezone.utc),
@@ -165,11 +190,12 @@ class RunSupervisorHost:
                         "RUN watchdog lost the local runtime lease"
                     )
                 lease = renewed.lease
+                stop = operator_stop.current()
                 supervisor.reconcile(
                     lease,
                     now=now,
-                    desired_running=True,
-                    stop_requested=False,
+                    desired_running=not stop.active,
+                    stop_requested=stop.active,
                 )
                 stopper.wait(self.poll_seconds)
         finally:

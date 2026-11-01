@@ -109,7 +109,13 @@ class KnowledgeEvidenceCoordinator:
                         claim_id=f"claim:{need.need_id}",
                         subject_id=atom.subject_id,
                         predicate=atom.predicate,
-                        rendered_value=atom.value_json,
+                        # The compatibility harness must use the same
+                        # evidence-derived canonical presentation as TurnPlan.
+                        # Raw JSON can differ by whitespace and escaping and
+                        # must not bypass the exact-value claim validator.
+                        rendered_value=self.claim_planner._render_value(
+                            atom.value_json
+                        ),
                         epistemic_state=atom.epistemic_state,
                         evidence_refs=(atom.evidence_id,),
                     )

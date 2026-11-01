@@ -83,12 +83,30 @@ def assert_owner_private_path(path: Path, *, directory: bool) -> None:
         if dacl is None:
             raise PermissionError("private state has an unrestricted NULL DACL")
         allowed = {owner, "S-1-5-18", "S-1-5-32-544", "S-1-3-4"}
-        saw_owner = False
+        # Owner presence is not enough: READ_CONTROL, WRITE_DAC, and
+        # inheritance-only ACEs do not grant data access on THIS object.
+        # This is a necessary ACL permission check, not a substitute for a
+        # separately witnessed Windows token effective-access audit.
+        owner_read = False
+        owner_write = False
+        # NT file access masks: FILE_READ_DATA/FILE_LIST_DIRECTORY = 0x1,
+        # FILE_WRITE_DATA/FILE_ADD_FILE = 0x2. pywin32's win32con does not
+        # export these FILE_* constants on every supported Windows wheel.
+        read_bits = win32con.GENERIC_ALL | win32con.GENERIC_READ | 0x0001
+        write_bits = win32con.GENERIC_ALL | win32con.GENERIC_WRITE | 0x0002
         for index in range(dacl.GetAceCount()):
             ace = dacl.GetAce(index)
-            ace_type = ace[0][0]
+            ace_type, ace_flags = ace[0]
             mask = int(ace[1])
             principal = win32security.ConvertSidToStringSid(ace[2])
+            owner_principal = principal in (owner, "S-1-3-4")
+            if ace_type in (
+                win32security.ACCESS_DENIED_ACE_TYPE,
+                win32security.ACCESS_DENIED_OBJECT_ACE_TYPE,
+            ) and owner_principal and not (
+                ace_flags & win32security.INHERIT_ONLY_ACE
+            ):
+                raise PermissionError("private Windows state denies owner access")
             if ace_type in (
                 win32security.ACCESS_ALLOWED_ACE_TYPE,
                 win32security.ACCESS_ALLOWED_OBJECT_ACE_TYPE,
@@ -97,9 +115,13 @@ def assert_owner_private_path(path: Path, *, directory: bool) -> None:
                     raise PermissionError(
                         "private Windows state has an unauthorized ACL reader"
                     )
-                saw_owner = saw_owner or principal in (owner, "S-1-3-4")
-        if not saw_owner:
-            raise PermissionError("private Windows state has no owner ACL")
+                if owner_principal and not (
+                    ace_flags & win32security.INHERIT_ONLY_ACE
+                ):
+                    owner_read |= bool(mask & read_bits)
+                    owner_write |= bool(mask & write_bits)
+        if not (owner_read and owner_write):
+            raise PermissionError("private Windows state has no owner ACL (read/write access required)")
     except ImportError as exc:
         raise PermissionError("Windows ACL inspection dependency unavailable") from exc
     except PermissionError:

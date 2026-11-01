@@ -71,7 +71,7 @@ def test_valid_lease_starts_stopped_runtime_with_epoch(state):
 
 def test_running_ready_runtime_is_healthy_and_not_restarted(state):
     backend = FakeBackend(
-        RuntimeObservation(ProcessState.RUNNING, ready=True)
+        RuntimeObservation(ProcessState.RUNNING, ready=True, generation_epoch=1)
     )
     store, backend, supervisor = make_supervisor(state, backend)
     lease = store.acquire(owner_id="local-supervisor", now=START).lease
@@ -94,15 +94,16 @@ def test_no_lease_means_no_start_authority(state):
 
 
 def test_lost_lease_fences_still_running_old_process(state):
-    backend = FakeBackend(
-        RuntimeObservation(ProcessState.RUNNING, ready=True)
-    )
+    backend = FakeBackend()
     store, backend, supervisor = make_supervisor(state, backend)
     old = store.acquire(
         owner_id="old-supervisor",
         now=START,
         ttl_seconds=5,
     ).lease
+    backend.observation = RuntimeObservation(
+        ProcessState.RUNNING, ready=True, generation_epoch=old.epoch,
+    )
     new = store.acquire(
         owner_id="new-supervisor",
         now=START + timedelta(seconds=5),
@@ -117,6 +118,45 @@ def test_lost_lease_fences_still_running_old_process(state):
     assert result.action == "fenced_stopped"
     assert backend.stops == 1
     assert backend.observation.state is ProcessState.STOPPED
+
+
+def test_lost_old_lease_cannot_stop_replacement_generation(state):
+    store = LocalRunLeaseStore(state)
+    old = store.acquire(
+        owner_id="old-supervisor", now=START, ttl_seconds=5,
+    ).lease
+    new = store.acquire(
+        owner_id="new-supervisor", now=START + timedelta(seconds=5),
+        ttl_seconds=30,
+    ).lease
+    backend = FakeBackend(RuntimeObservation(
+        ProcessState.RUNNING, ready=True, generation_epoch=new.epoch,
+    ))
+    supervisor = LocalRuntimeSupervisor(
+        state_path=state, lease_store=store, backend=backend,
+    )
+
+    result = supervisor.reconcile(old, now=START + timedelta(seconds=6))
+
+    assert result.action == "fence_refused_generation_mismatch"
+    assert backend.stops == 0
+
+
+def test_lost_lease_refuses_to_stop_unidentified_generation(state):
+    backend = FakeBackend(RuntimeObservation(ProcessState.RUNNING, ready=False))
+    store, backend, supervisor = make_supervisor(state, backend)
+    old = store.acquire(
+        owner_id="old-supervisor", now=START, ttl_seconds=5,
+    ).lease
+    store.acquire(
+        owner_id="new-supervisor", now=START + timedelta(seconds=5),
+        ttl_seconds=30,
+    )
+
+    result = supervisor.reconcile(old, now=START + timedelta(seconds=6))
+
+    assert result.action == "fence_refused_generation_mismatch"
+    assert backend.stops == 0
 
 
 def test_stop_request_stops_runtime_but_does_not_release_lease(state):

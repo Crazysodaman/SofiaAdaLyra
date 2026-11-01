@@ -282,6 +282,7 @@ def test_windows_owner_rights_dacl_is_owner_private(tmp_path):
 @pytest.mark.skipif(os.name != "nt", reason="Windows native DACL validation")
 def test_windows_accepts_token_owner_and_rejects_foreign_owner(tmp_path):
     import win32api
+    import win32con
     import win32security
 
     if not _windows_privilege_enabled("SeRestorePrivilege"):
@@ -312,6 +313,40 @@ def test_windows_accepts_token_owner_and_rejects_foreign_owner(tmp_path):
         assert_owner_private_path(target, directory=False)
 
     set_owner(win32security.GetTokenInformation(token, win32security.TokenOwner))
+    # Default ownership by itself does not grant data access. Use a
+    # deliberately read-only DACL to prove the private-state validator
+    # rejects the owner without a write grant, even if an admin owns it.
+    readonly = win32security.ACL()
+    readonly.AddAccessAllowedAce(
+        win32security.ACL_REVISION, win32con.GENERIC_READ, user_sid,
+    )
+    descriptor = win32security.GetFileSecurity(
+        str(target), win32security.DACL_SECURITY_INFORMATION,
+    )
+    descriptor.SetSecurityDescriptorDacl(1, readonly, 0)
+    win32security.SetFileSecurity(
+        str(target), win32security.DACL_SECURITY_INFORMATION, descriptor,
+    )
+    with pytest.raises(PermissionError, match="no owner ACL"):
+        assert_owner_private_path(target, directory=False)
+
+    # Only an explicit effective per-user read/write grant can make the
+    # token-default owner candidate owner-private.
+    private = win32security.ACL()
+    private.AddAccessAllowedAce(
+        win32security.ACL_REVISION, win32con.GENERIC_ALL, user_sid,
+    )
+    private.AddAccessAllowedAce(
+        win32security.ACL_REVISION, win32con.GENERIC_ALL,
+        win32security.ConvertStringSidToSid("S-1-5-18"),
+    )
+    descriptor = win32security.GetFileSecurity(
+        str(target), win32security.DACL_SECURITY_INFORMATION,
+    )
+    descriptor.SetSecurityDescriptorDacl(1, private, 0)
+    win32security.SetFileSecurity(
+        str(target), win32security.DACL_SECURITY_INFORMATION, descriptor,
+    )
     assert_owner_private_path(target, directory=False)
     set_owner(user_sid)
     assert_owner_private_path(target, directory=False)
@@ -354,6 +389,101 @@ def test_windows_owner_rights_does_not_admit_unauthorized_readers(tmp_path):
     replace_dacl(ownerless)
     with pytest.raises(PermissionError, match="no owner ACL"):
         assert_owner_private_path(target, directory=False)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows native DACL validation")
+@pytest.mark.parametrize("owner_grant", ("READ_CONTROL", "GENERIC_READ", "GENERIC_WRITE"))
+def test_windows_private_state_owner_ace_requires_read_and_write(tmp_path, owner_grant):
+    """An owner ACE with an unrelated or one-way bit cannot authorize state."""
+    import win32api
+    import win32con
+    import win32security
+
+    target = tmp_path / "state.json"
+    target.write_text("{}", encoding="utf-8")
+    token = win32security.OpenProcessToken(
+        win32api.GetCurrentProcess(), win32security.TOKEN_QUERY,
+    )
+    owner_sid, _ = win32security.GetTokenInformation(
+        token, win32security.TokenUser,
+    )
+    dacl = win32security.ACL()
+    dacl.AddAccessAllowedAce(
+        win32security.ACL_REVISION, getattr(win32con, owner_grant), owner_sid,
+    )
+    descriptor = win32security.GetFileSecurity(
+        str(target), win32security.DACL_SECURITY_INFORMATION,
+    )
+    descriptor.SetSecurityDescriptorDacl(1, dacl, 0)
+    win32security.SetFileSecurity(
+        str(target), win32security.DACL_SECURITY_INFORMATION, descriptor,
+    )
+    with pytest.raises(PermissionError, match="no owner ACL"):
+        assert_owner_private_path(target, directory=False)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows native DACL validation")
+def test_windows_private_state_explicit_owner_deny_fails_closed(tmp_path):
+    import win32api
+    import win32con
+    import win32security
+
+    target = tmp_path / "state.json"
+    target.write_text("{}", encoding="utf-8")
+    token = win32security.OpenProcessToken(
+        win32api.GetCurrentProcess(), win32security.TOKEN_QUERY,
+    )
+    owner_sid, _ = win32security.GetTokenInformation(
+        token, win32security.TokenUser,
+    )
+    dacl = win32security.ACL()
+    dacl.AddAccessDeniedAce(
+        win32security.ACL_REVISION, win32con.GENERIC_WRITE, owner_sid,
+    )
+    dacl.AddAccessAllowedAce(
+        win32security.ACL_REVISION, win32con.GENERIC_ALL, owner_sid,
+    )
+    descriptor = win32security.GetFileSecurity(
+        str(target), win32security.DACL_SECURITY_INFORMATION,
+    )
+    descriptor.SetSecurityDescriptorDacl(1, dacl, 0)
+    win32security.SetFileSecurity(
+        str(target), win32security.DACL_SECURITY_INFORMATION, descriptor,
+    )
+    with pytest.raises(PermissionError, match="denies owner access"):
+        assert_owner_private_path(target, directory=False)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows native DACL validation")
+def test_windows_private_state_inherit_only_ace_not_effective_on_directory(tmp_path):
+    import win32api
+    import win32con
+    import win32security
+
+    directory = tmp_path / "private-client"
+    directory.mkdir()
+    token = win32security.OpenProcessToken(
+        win32api.GetCurrentProcess(), win32security.TOKEN_QUERY,
+    )
+    owner_sid, _ = win32security.GetTokenInformation(
+        token, win32security.TokenUser,
+    )
+    dacl = win32security.ACL()
+    dacl.AddAccessAllowedAceEx(
+        win32security.ACL_REVISION,
+        win32security.INHERIT_ONLY_ACE | win32con.CONTAINER_INHERIT_ACE,
+        win32con.GENERIC_ALL,
+        owner_sid,
+    )
+    descriptor = win32security.GetFileSecurity(
+        str(directory), win32security.DACL_SECURITY_INFORMATION,
+    )
+    descriptor.SetSecurityDescriptorDacl(1, dacl, 0)
+    win32security.SetFileSecurity(
+        str(directory), win32security.DACL_SECURITY_INFORMATION, descriptor,
+    )
+    with pytest.raises(PermissionError, match="no owner ACL"):
+        assert_owner_private_path(directory, directory=True)
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows junction redirection")

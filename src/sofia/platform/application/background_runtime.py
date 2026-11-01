@@ -21,6 +21,7 @@ from sofia.platform.application.presence import (
     WorldEpistemicState, WorldObservation,
 )
 from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.core.cognition.v2 import FleetObservationRejected
 from sofia.platform.application.fleet_runtime import (
     create_fleet_bootstrap_coordinator, create_fleet_candidate_notifier,
     create_fleet_reconciliation_notifier,
@@ -873,6 +874,32 @@ def create_background_coordinator(
                     # A malformed/stale inventory projection must not change
                     # Fleet enrollment or stop the bounded discovery cycle.
                     continue
+                host = application._runtime.ops_service.registry.host(
+                    observation.host_id
+                )
+                if (
+                    host is None
+                    or not host.trusted
+                    or host.node_id is None
+                ):
+                    continue
+                supply = application._runtime.ops_service.resource_supply(
+                    observation.host_id
+                )
+                if supply is None:
+                    continue
+                try:
+                    principal = application._conversation_service._principal_context()
+                    application._fleet_cognitive_evidence.ingest(
+                        supply,
+                        host=host,
+                        principal=principal,
+                        now=now,
+                    )
+                except FleetObservationRejected:
+                    # Discovery/inventory remain recorded, but unverified,
+                    # stale or enrollment-ineligible facts never reach Core.
+                    continue
             count = (
                 len(result.created_host_ids)
                 + len(result.rejected_host_ids)
@@ -1064,6 +1091,7 @@ def create_background_coordinator(
                         if healthy
                         else "application background loop reported an error"
                     ),
+                    generation_epoch=heartbeat_store.current_generation(),
                 )
             )
         coordinator.set_heartbeat(publish_heartbeat)

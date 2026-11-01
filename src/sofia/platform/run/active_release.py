@@ -15,7 +15,12 @@ import venv
 from sofia.platform.dev.release_store import ReleaseStateStore
 from sofia.platform.run.release import directory_sha256
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
-from sofia.platform.verify.component_artifacts import wheel_matches_identity
+from sofia.platform.state.private_file import assert_no_redirected_components
+from sofia.platform.verify.component_artifacts import (
+    ComponentArtifactError,
+    inspect_wheel,
+    wheel_matches_identity,
+)
 
 
 class ActiveReleaseError(RuntimeError):
@@ -57,6 +62,10 @@ class ActiveReleaseResolver:
     def resolve(self) -> ActiveRelease | None:
         store = ReleaseStateStore(SQLiteStatePlane(self.state_path))
         active = store.active()
+        # A symlink/junction may redirect the authoritative release pointer
+        # outside the operator-owned release root even when bytes look valid.
+        if self.pointer_path.is_symlink():
+            raise ActiveReleaseError("active-release pointer must not be redirected")
         pointer_exists = self.pointer_path.is_file()
 
         if active is None:
@@ -104,7 +113,10 @@ class ActiveReleaseResolver:
                 "active-release pointer manifest digest mismatch"
             )
 
-        target = (self.releases_dir / release_id).resolve()
+        candidate_target = self.releases_dir / release_id
+        if candidate_target.is_symlink() or self.releases_dir.is_symlink():
+            raise ActiveReleaseError("active release directory must not be redirected")
+        target = candidate_target.resolve()
         if target.parent != self.releases_dir.resolve():
             raise ActiveReleaseError("active release path escaped releases directory")
         pointer_path = pointer.get("path")
@@ -212,11 +224,21 @@ class ReleaseEnvironmentManager:
         if not isinstance(release_root, Path):
             raise TypeError("release_root must be a Path")
         self.release_root = release_root.resolve()
-        self.environments_root = (
-            environments_root.resolve()
-            if environments_root is not None
-            else self.release_root / "environments"
-        )
+        if environments_root is not None:
+            candidate = environments_root.absolute()
+            self._require_direct_path(candidate)
+            self.environments_root = candidate.resolve()
+        else:
+            self.environments_root = self.release_root / "environments"
+
+    @staticmethod
+    def _require_direct_path(path: Path) -> None:
+        try:
+            assert_no_redirected_components(path, include_leaf=True)
+        except PermissionError as error:
+            raise ActiveReleaseError(
+                "release environment contains filesystem redirection"
+            ) from error
 
     @staticmethod
     def _python(root: Path) -> Path:
@@ -278,8 +300,19 @@ class ReleaseEnvironmentManager:
     ) -> PreparedReleaseEnvironment:
         if not isinstance(release, ActiveRelease):
             raise TypeError("release must be ActiveRelease")
+        self._require_direct_path(self.environments_root)
         self.environments_root.mkdir(parents=True, exist_ok=True)
+        self._require_direct_path(self.environments_root)
         target = self.environments_root / release.release_id
+        self._require_direct_path(target)
+        # A crash during replacement can leave the prior runtime in a
+        # reserved rollback path. Do not erase that evidence or auto-resume.
+        if any(self.environments_root.glob(
+            f".{release.release_id}.rollback-*"
+        )):
+            raise ActiveReleaseError(
+                "unfinished release environment publication requires reconciliation"
+            )
         if self._matches(target, release):
             return PreparedReleaseEnvironment(
                 release,
@@ -290,8 +323,9 @@ class ReleaseEnvironmentManager:
         staging = self.environments_root / (
             f".{release.release_id}.{uuid.uuid4().hex}"
         )
+        self._require_direct_path(staging)
         if staging.exists():
-            shutil.rmtree(staging)
+            raise ActiveReleaseError("release staging path already exists")
         try:
             venv.EnvBuilder(
                 with_pip=True,
@@ -347,21 +381,50 @@ class ReleaseEnvironmentManager:
                         str(release.wheel_path),
                     ]
                 )
-            observed_version = self._run(
-                [
-                    str(python_path),
-                    "-c",
-                    (
-                        "from importlib.metadata import version;"
-                        "print(version('sofia-ada-lyra'))"
-                    ),
-                ],
-                timeout=60,
-            )
-            if observed_version.strip() != release.application_version:
-                raise ActiveReleaseError(
-                    "prepared release environment application version mismatch"
+            # An installed component release contains three separate
+            # distributions. Check *each* installed version against the
+            # bytes actually selected by the verified release resolver.
+            if release.component_wheels:
+                expected_distributions: list[tuple[str, str]] = []
+                for wheel in release.component_wheels:
+                    name = wheel.name.split("-", 1)[0].replace("_", "-")
+                    if name not in {"sofia-sdk", "sofia-platform", "sofia-core"}:
+                        raise ActiveReleaseError(
+                            f"unexpected component wheel distribution: {wheel.name}"
+                        )
+                    try:
+                        metadata = inspect_wheel(wheel, name)
+                    except ComponentArtifactError as error:
+                        raise ActiveReleaseError(
+                            "component wheel metadata failed verification"
+                        ) from error
+                    expected_distributions.append((name, metadata.version))
+                if sorted(name for name, _ in expected_distributions) != [
+                    "sofia-core", "sofia-platform", "sofia-sdk"
+                ]:
+                    raise ActiveReleaseError(
+                        "release environment requires exactly one SDK, Platform and Core wheel"
+                    )
+            else:
+                expected_distributions = [
+                    ("sofia-ada-lyra", release.application_version)
+                ]
+            for distribution, expected_version in expected_distributions:
+                observed_version = self._run(
+                    [
+                        str(python_path),
+                        "-c",
+                        (
+                            "from importlib.metadata import version;"
+                            f"print(version({distribution!r}))"
+                        ),
+                    ],
+                    timeout=60,
                 )
+                if observed_version.strip() != expected_version:
+                    raise ActiveReleaseError(
+                        f"prepared release environment {distribution} version mismatch"
+                    )
             self._stamp_path(staging).write_text(
                 json.dumps(
                     self._stamp(release),
@@ -370,9 +433,37 @@ class ReleaseEnvironmentManager:
                 ),
                 encoding="utf-8",
             )
+            # Keep the old release intact until the new staging environment
+            # has actually been published. Do not delete the rollback copy
+            # before a successful rename.
+            previous: Path | None = None
+            self._require_direct_path(self.environments_root)
+            self._require_direct_path(staging)
+            self._require_direct_path(target)
             if target.exists():
-                shutil.rmtree(target)
-            os.replace(staging, target)
+                previous = self.environments_root / (
+                    f".{release.release_id}.rollback-{uuid.uuid4().hex}"
+                )
+                os.replace(target, previous)
+            try:
+                os.replace(staging, target)
+            except BaseException:
+                if previous is not None:
+                    try:
+                        os.replace(previous, target)
+                    except OSError as error:
+                        raise ActiveReleaseError(
+                            "release environment rollback failed; "
+                            "manual reconciliation required"
+                        ) from error
+                raise
+            if previous is not None:
+                try:
+                    shutil.rmtree(previous)
+                except OSError:
+                    # A surviving rollback marker blocks later automatic
+                    # replacement pending manual reconciliation.
+                    pass
         except Exception:
             shutil.rmtree(staging, ignore_errors=True)
             raise

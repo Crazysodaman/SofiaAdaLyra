@@ -259,6 +259,10 @@ class SQLiteReplicationWitness:
                 raise StaleWriterError(
                     f"writer fenced by {current.owner_id} epoch {current.epoch}"
                 )
+            if moment < current.renewed_at:
+                raise StaleWriterError(
+                    "writer clock moved backwards; do not renew an uncertain lease"
+                )
             if moment >= current.expires_at:
                 raise StaleWriterError(
                     "writer lease expired; reacquire a new writer epoch"
@@ -309,6 +313,10 @@ class SQLiteReplicationWitness:
             raise StaleWriterError(
                 f"writer fenced by {current.owner_id} epoch {current.epoch} "
                 f"before {action}"
+            )
+        if moment < current.renewed_at:
+            raise StaleWriterError(
+                f"writer clock moved backwards before {action}"
             )
         if moment >= current.expires_at:
             raise StaleWriterError(
@@ -771,6 +779,26 @@ class ReplicatedStatePlane(StatePlane):
             ttl_seconds=self._ttl_seconds,
         )
 
+    def _require_read_lease(self) -> None:
+        """Do not private-serve canonical state after loss of writer authority.
+
+        Reads deliberately do not renew a lease. A stopped, expired or
+        replaced Core generation must not maintain access just by polling.
+        This local preflight is NOT a distributed storage/worker fence: the
+        source and target still need independently enforced handoff barriers.
+        """
+        self._witness.assert_writer_active(
+            self._lease,
+            now=datetime.now(timezone.utc),
+            action="canonical read",
+        )
+        if self._witness.pending_sequences():
+            # A primary replica may contain a write not yet committed on
+            # every target. Serving it as canonical state is a false read.
+            raise ReplicationPartialCommitError(
+                "canonical read blocked until partial replication is repaired"
+            )
+
     def _primary(self) -> StatePlane:
         target_id = self._witness.primary_target_id()
         try:
@@ -886,6 +914,7 @@ class ReplicatedStatePlane(StatePlane):
         return self._witness.health()
 
     def read(self, key: StateKey) -> StateRecord | None:
+        self._require_read_lease()
         return self._primary().read(key)
 
     def write(
@@ -943,6 +972,7 @@ class ReplicatedStatePlane(StatePlane):
         principal_id: str | None = None,
         audience: str | None = None,
     ) -> tuple[StateRecord, ...]:
+        self._require_read_lease()
         return self._primary().list_namespace(
             namespace,
             principal_id=principal_id,
@@ -950,4 +980,5 @@ class ReplicatedStatePlane(StatePlane):
         )
 
     def list_scopes(self, namespace: str) -> tuple[tuple[str | None, str | None], ...]:
+        self._require_read_lease()
         return self._primary().list_scopes(namespace)

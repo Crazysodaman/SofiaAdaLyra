@@ -42,6 +42,24 @@ def test_runtime_stop_remains_a_distinct_explicit_tray_command():
             {},
         )
     ]
+
+
+def test_durable_shutdown_records_owner_stop_without_service_approval():
+    app = object.__new__(TrayAgentApplication)
+    app._last_error = None
+    recorded = []
+    app._operator_stop = type("Stop", (), {
+        "set": lambda self, **kwargs: recorded.append(kwargs),
+    })()
+
+    keep_running = app.handle(TrayCommand.OPERATOR_STOP)
+
+    assert keep_running is True
+    assert recorded == [{
+        "active": True,
+        "updated_by": "Sparks",
+        "reason": "owner requested durable shutdown from tray",
+    }]
 from threading import Event, Lock
 
 

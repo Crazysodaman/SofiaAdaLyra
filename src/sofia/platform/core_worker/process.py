@@ -25,7 +25,7 @@ from sofia.core.cognition.provider import LLMProvider, LLMProviderError
 from sofia.core.cognition.rules import RuleEngine
 from sofia.core.cognition.test_engine import TestCognitiveEngine
 from sofia.platform.config.model import ProviderConfiguration
-from sofia.platform.run.generation import ComponentGenerationStore
+from sofia.platform.run.generation import ComponentGenerationStore, GenerationState
 from sofia.platform.run.lease import LocalRunLeaseStore, RunLease
 from sofia.platform.run.components import (
     ComponentKind as SupervisedComponentKind,
@@ -557,14 +557,35 @@ class _CoreWorkerProcess:
                 queue.put(exc)
         thread = Thread(target=accept, daemon=True)
         thread.start()
-        context = multiprocessing.get_context("spawn")
-        self._process = context.Process(
-            target=_worker_main,
-            args=(self._address, self._family, authkey, self.endpoint.to_payload(),
-                  self.spec.to_payload(), str(self._lifetime_lock_path)),
-            name=f"sofia-core-{self.endpoint.generation}", daemon=False,
-        )
-        self._process.start()
+        try:
+            context = multiprocessing.get_context("spawn")
+            self._process = context.Process(
+                target=_worker_main,
+                args=(self._address, self._family, authkey, self.endpoint.to_payload(),
+                      self.spec.to_payload(), str(self._lifetime_lock_path)),
+                name=f"sofia-core-{self.endpoint.generation}", daemon=False,
+            )
+            self._process.start()
+        except BaseException:
+            # A failed spawn must not strand its authenticated listener or
+            # local socket. On Windows a Process can fail before pid exists;
+            # calling join() on an unstarted child raises AssertionError.
+            child = self._process
+            if child is not None and child.pid is not None:
+                if not self.terminate(force=True):
+                    raise CoreWorkerError(
+                        "Core worker spawn outcome is uncertain; manual review required"
+                    )
+            else:
+                self._process = None
+                if self._listener is not None:
+                    self._listener.close()
+                    self._listener = None
+                if self._family == "AF_UNIX" and (
+                    self._socket_path.exists() or self._socket_path.is_symlink()
+                ):
+                    self._socket_path.unlink()
+            raise
         deadline = time.monotonic() + self.startup_timeout
         while queue.empty() and self._process.is_alive():
             remaining = deadline - time.monotonic()
@@ -863,7 +884,15 @@ class CoreWorkerController:
         process = self._stage(release_digest, spec, now)
         try:
             health = process.start()
-        except Exception:
+        except BaseException as error:
+            # A failure in IPC parsing or an interrupted startup can occur
+            # after the OS child was spawned. Never mark its generation safe
+            # until process termination is independently verified.
+            stopped = process.terminate(force=True)
+            if not stopped:
+                raise CoreWorkerError(
+                    "Core startup exit unverified; manual reconciliation required"
+                ) from error
             self.generations.quarantine_staged(
                 process.endpoint, lease=self.lease, now=now,
                 reason="Core worker failed readiness",
@@ -874,12 +903,24 @@ class CoreWorkerController:
                 process.endpoint, lease=self.lease, now=now,
                 reason="authenticated readiness verified",
             )
-        except Exception:
-            process.terminate(force=True)
-            self.generations.quarantine_staged(
-                process.endpoint, lease=self.lease, now=now,
-                reason="activation admission denied",
-            )
+        except BaseException as error:
+            # Readiness does not prove the child exited after admission denial.
+            # Preserve staged uncertainty when the OS cannot verify shutdown.
+            if not process.terminate(force=True):
+                raise CoreWorkerError(
+                    "Core worker activation denied; process exit unverified; "
+                    "manual reconciliation required"
+                ) from error
+            try:
+                self.generations.quarantine_staged(
+                    process.endpoint, lease=self.lease, now=now,
+                    reason="activation denied after verified child exit",
+                )
+            except Exception as quarantine_error:
+                raise CoreWorkerError(
+                    "Core worker exited but generation admission is uncertain; "
+                    "manual reconciliation required"
+                ) from quarantine_error
             raise
         self._active = process
         return health
@@ -1030,36 +1071,80 @@ class CoreWorkerController:
         candidate = self._stage(release_digest, spec, now)
         try:
             health = candidate.start()
-        except Exception:
+        except BaseException as error:
+            stopped = candidate.terminate(force=True)
+            if not stopped:
+                raise CoreWorkerError(
+                    "Core replacement startup exit unverified; manual reconciliation required"
+                ) from error
             self.generations.quarantine_staged(
                 candidate.endpoint, lease=self.lease, now=now,
                 reason="replacement failed readiness",
             )
             raise
-        self.generations.begin_drain(
-            old.endpoint, lease=self.lease, now=now, reason="Core replacement",
-        )
-        drained = True
         try:
-            old.drain()
-        except Exception:
-            drained = False
-        if not old.terminate():
-            candidate.terminate(force=True)
-            self.generations.quarantine_staged(
-                candidate.endpoint, lease=self.lease, now=now,
-                reason="old Core termination unverified",
+            self.generations.begin_drain(
+                old.endpoint, lease=self.lease, now=now, reason="Core replacement",
             )
-            raise CoreWorkerError("old Core termination could not be verified")
-        self.generations.fence(
-            old.endpoint, lease=self.lease, now=now,
-            reason=("old Core process exited" if drained else "old Core drain interrupted"),
-            quarantine=not drained,
-        )
-        self.generations.activate(
-            candidate.endpoint, lease=self.lease, now=now,
-            reason="replacement readiness verified",
-        )
+            drained = True
+            try:
+                old.drain()
+            except Exception:
+                drained = False
+            if not old.terminate():
+                raise CoreWorkerError("old Core termination could not be verified")
+            self.generations.fence(
+                old.endpoint, lease=self.lease, now=now,
+                reason=(
+                    "old Core process exited" if drained
+                    else "old Core drain interrupted"
+                ),
+                quarantine=not drained,
+            )
+            # The old process is definitively gone; a subsequent activation
+            # failure must never expose its stale process as locally active.
+            self._active = None
+            self.generations.activate(
+                candidate.endpoint, lease=self.lease, now=now,
+                reason="replacement readiness verified",
+            )
+        except BaseException as error:
+            # The candidate was already spawned and checked for readiness.
+            # Every error after that point must terminate it and reconcile
+            # its generation; otherwise an orphan Core may survive failure.
+            stopped = candidate.terminate(force=True)
+            if not old.alive:
+                self._active = None
+            if not stopped:
+                raise CoreWorkerError(
+                    "Core replacement candidate exit unverified; no automatic retry"
+                ) from error
+            try:
+                state = self.generations.state(candidate.endpoint)
+                if state is GenerationState.STAGED:
+                    self.generations.quarantine_staged(
+                        candidate.endpoint, lease=self.lease, now=now,
+                        reason="Core replacement failed before activation",
+                    )
+                elif state is GenerationState.ACTIVE:
+                    self.generations.begin_drain(
+                        candidate.endpoint, lease=self.lease, now=now,
+                        reason="Core replacement activation outcome uncertain",
+                    )
+                    self.generations.fence(
+                        candidate.endpoint, lease=self.lease, now=now,
+                        reason="Core replacement candidate terminated",
+                        quarantine=True,
+                    )
+                elif state is not GenerationState.QUARANTINED:
+                    raise CoreWorkerError(
+                        "Core replacement candidate generation state is uncertain"
+                    )
+            except Exception as cleanup_error:
+                raise CoreWorkerError(
+                    "Core replacement candidate fencing uncertain; manual review required"
+                ) from cleanup_error
+            raise
         self._active = candidate
         return health
 
@@ -1075,11 +1160,17 @@ class CoreWorkerController:
         except Exception:
             pass
         stopped = process.terminate()
-        if stopped:
-            self.generations.fence(
-                process.endpoint, lease=self.lease, now=now,
-                reason="Core worker stopped",
+        if not stopped:
+            # Keep the unresolved child attached to this controller and the
+            # generation DRAINING. Clearing it here could admit a new worker
+            # without proving the old OS process has exited.
+            raise CoreWorkerError(
+                "Core shutdown exit unverified; manual reconciliation required"
             )
+        self.generations.fence(
+            process.endpoint, lease=self.lease, now=now,
+            reason="Core worker stopped",
+        )
         self._active = None
 
 

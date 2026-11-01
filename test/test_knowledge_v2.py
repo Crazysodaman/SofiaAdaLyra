@@ -156,6 +156,36 @@ def test_knowledge_retrieval_enters_the_v2_evidence_ledger(tmp_path):
     assert atoms[0].source_id == "capability:knowledge.search"
 
 
+def test_knowledge_compatibility_claim_value_is_canonical_evidence(tmp_path):
+    """A retrieval result must remain valid under the strict V2 claim gate."""
+    from sofia.core.cognition.v2.claims import EvidenceClaimPlanner
+
+    need = EvidenceNeed(
+        "need:know:canonical", "runtime:sofia", "knowledge.retrieval",
+        "audience:private", max_age_seconds=300, minimum_trust=0.6,
+    )
+    plan = SimpleNamespace(
+        turn_id="turn-knowledge-canonical", evidence_needs=(need,),
+        action_requirement=ActionRequirement.NONE,
+    )
+    ledger = CognitiveEvidenceLedger(tmp_path / "sofia.db")
+    coordinator = KnowledgeEvidenceCoordinator(
+        Dispatcher(), EvidenceAcquisitionCoordinator(ledger),
+    )
+    draft = coordinator.planned_answer(
+        plan=plan, focus=SimpleNamespace(), principal=None,
+        allowed_capabilities=("knowledge.search",),
+        query="Docker recovery manual",
+    )
+    assert draft is not None
+    assert len(draft.answer.claims) == 1
+    atom = ledger.get(draft.answer.claims[0].evidence_refs[0])
+    assert draft.answer.claims[0].rendered_value == (
+        EvidenceClaimPlanner._render_value(atom.value_json)
+    )
+    assert "Collect logs before restarting Docker." in draft.content
+
+
 def test_matrix_v2_requests_scoped_knowledge_retrieval():
     turn = TurnKernelInput(
         turn_id="turn-know", session_id="session-1",

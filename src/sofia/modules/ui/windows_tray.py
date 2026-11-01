@@ -352,6 +352,7 @@ class WindowsTrayAgent:
             1030: TrayCommand.RUNTIME_START,
             1031: TrayCommand.RUNTIME_STOP,
             1032: TrayCommand.RUNTIME_RESTART,
+            1033: TrayCommand.OPERATOR_STOP,
             1040: TrayCommand.OPEN_SETTINGS,
             1041: TrayCommand.DIAGNOSTICS,
             1042: TrayCommand.OPEN_WARDROBE,
@@ -631,7 +632,7 @@ class WindowsTrayAgent:
 
                 for item_id, label, command in (
                     (1030, "Start", TrayCommand.RUNTIME_START),
-                    (1031, "Stop", TrayCommand.RUNTIME_STOP),
+                    (1031, "Stop service (recovery may restart)", TrayCommand.RUNTIME_STOP),
                     (1032, "Restart", TrayCommand.RUNTIME_RESTART),
                 ):
                     flags = (
@@ -641,6 +642,10 @@ class WindowsTrayAgent:
                     )
                     append(runtime, flags, item_id, label)
                 append(root, MF_POPUP, runtime, "Sofía Runtime")
+                append(
+                    root, MF_STRING, 1033,
+                    "Shut down Sofía and persist owner STOP",
+                )
 
                 append(root, MF_SEPARATOR, 0, None)
                 append(root, MF_STRING, 1040, "Settings…")
@@ -648,7 +653,7 @@ class WindowsTrayAgent:
                 append(root, MF_STRING, 1043, "Current mood & emotions…")
                 append(root, MF_STRING, 1041, "Diagnostics")
                 append(root, MF_SEPARATOR, 0, None)
-                append(root, MF_STRING, 1099, "Exit Tray Agent")
+                append(root, MF_STRING, 1099, "Exit Tray Agent (runtime keeps running)")
 
                 point = wintypes.POINT()
                 user32.GetCursorPos(ctypes.byref(point))
@@ -666,6 +671,7 @@ class WindowsTrayAgent:
                 if (
                     command is not None
                     and tray_command_requires_confirmation(command)
+                    and command is not TrayCommand.OPERATOR_STOP
                 ):
                     action = (
                         "stop"
@@ -680,6 +686,19 @@ class WindowsTrayAgent:
                             "Continue?"
                         ),
                         "Confirm Sofía runtime control",
+                        MB_OKCANCEL | MB_ICONWARNING,
+                    )
+                    if confirmed != IDOK:
+                        command = None
+                if command is TrayCommand.OPERATOR_STOP:
+                    confirmed = user32.MessageBoxW(
+                        hwnd,
+                        (
+                            "This records a durable owner STOP, shuts down the "
+                            "runtime through its watchdog, and prevents automatic "
+                            "restart until owner-authenticated resume.\n\nContinue?"
+                        ),
+                        "Confirm durable Sofía shutdown",
                         MB_OKCANCEL | MB_ICONWARNING,
                     )
                     if confirmed != IDOK:

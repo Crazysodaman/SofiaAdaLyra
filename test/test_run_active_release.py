@@ -138,6 +138,38 @@ def test_resolver_rejects_pointer_to_another_path(tmp_path):
         ).resolve()
 
 
+@pytest.mark.parametrize("entry", ["pointer", "release_directory"])
+def test_g0_g1_rejects_redirected_release_authority(tmp_path, entry):
+    state, release_root, artifact, manifest = active_release_fixture(tmp_path)
+    if entry == "pointer":
+        pointer = release_root / "active-release.json"
+        original = pointer.read_bytes()
+        pointer.unlink()
+        target = tmp_path / "redirected-pointer.json"
+        target.write_bytes(original)
+        try:
+            pointer.symlink_to(target)
+        except (OSError, NotImplementedError):
+            pytest.skip("host cannot create test symlink")
+        expected = "pointer must not be redirected"
+    else:
+        # The exact same previously verified artifact content must not be
+        # accepted if it is now selected through a redirected directory.
+        original = artifact
+        relocated = tmp_path / "redirected-release"
+        original.rename(relocated)
+        try:
+            original.symlink_to(relocated, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            pytest.skip("host cannot create test directory symlink")
+        expected = "directory must not be redirected"
+
+    with pytest.raises(ActiveReleaseError, match=expected):
+        ActiveReleaseResolver(
+            state_path=state, release_root=release_root,
+        ).resolve()
+
+
 def test_environment_manager_reuses_only_matching_stamped_environment(
     tmp_path,
     monkeypatch,
@@ -183,6 +215,164 @@ def test_environment_manager_reuses_only_matching_stamped_environment(
     assert first.root == second.root
     assert first.python_path.is_file()
     assert len(calls) == count_after_first
+    version_calls = [call for call in calls if "-c" in call]
+    assert len(version_calls) == 1
+    assert "version('sofia-ada-lyra')" in version_calls[0][-1]
+
+
+def test_release_environment_failed_publish_restores_existing_runtime(
+    tmp_path, monkeypatch,
+):
+    """A failed rename cannot erase the previously installed environment."""
+    import os
+
+    state, release_root, _, _ = active_release_fixture(tmp_path)
+    release = ActiveReleaseResolver(
+        state_path=state, release_root=release_root,
+    ).resolve()
+    assert release is not None
+
+    class FakeBuilder:
+        def __init__(self, **kwargs):
+            pass
+
+        def create(self, root):
+            python = ReleaseEnvironmentManager._python(Path(root))
+            python.parent.mkdir(parents=True, exist_ok=True)
+            python.write_bytes(b"python")
+
+    monkeypatch.setattr(
+        "sofia.platform.run.active_release.venv.EnvBuilder", FakeBuilder,
+    )
+    manager = ReleaseEnvironmentManager(release_root=release_root)
+    monkeypatch.setattr(
+        manager, "_run",
+        lambda argv, timeout=600: release.application_version
+        if "-c" in argv else "",
+    )
+    installed = manager.ensure(release)
+    marker = installed.root / "preserve-me"
+    marker.write_bytes(b"last-known-good")
+    manager._stamp_path(installed.root).write_text("{}", encoding="utf-8")
+    originals = set(installed.root.iterdir())
+    real_replace = os.replace
+
+    def injected_replace(source, destination):
+        source = Path(source)
+        if (
+            Path(destination) == installed.root
+            and source.name.startswith(f".{release.release_id}.")
+            and ".rollback-" not in source.name
+        ):
+            raise OSError("injected candidate publication failure")
+        return real_replace(source, destination)
+
+    monkeypatch.setattr(
+        "sofia.platform.run.active_release.os.replace",
+        injected_replace,
+    )
+    with pytest.raises(OSError, match="injected candidate publication"):
+        manager.ensure(release)
+    assert installed.root.is_dir()
+    assert marker.read_bytes() == b"last-known-good"
+    assert set(installed.root.iterdir()) == originals
+    assert not list(manager.environments_root.glob(
+        f".{release.release_id}.rollback-*"
+    ))
+    assert set(manager.environments_root.iterdir()) == {installed.root}
+
+
+def test_release_environment_interrupted_publication_needs_review(tmp_path):
+    state, release_root, _, _ = active_release_fixture(tmp_path)
+    release = ActiveReleaseResolver(
+        state_path=state, release_root=release_root,
+    ).resolve()
+    assert release is not None
+    manager = ReleaseEnvironmentManager(release_root=release_root)
+    manager.environments_root.mkdir(parents=True, exist_ok=True)
+    saved = manager.environments_root / (
+        f".{release.release_id}.rollback-interrupted"
+    )
+    saved.mkdir()
+    (saved / "old-identity").write_bytes(b"unreviewed")
+    with pytest.raises(ActiveReleaseError, match="requires reconciliation"):
+        manager.ensure(release)
+    assert (saved / "old-identity").read_bytes() == b"unreviewed"
+    assert not (manager.environments_root / release.release_id).exists()
+
+
+def test_environment_manager_refuses_redirected_installed_release(
+    tmp_path,
+):
+    state, release_root, _, _ = active_release_fixture(tmp_path)
+    release = ActiveReleaseResolver(
+        state_path=state, release_root=release_root,
+    ).resolve()
+    assert release is not None
+    manager = ReleaseEnvironmentManager(release_root=release_root)
+    manager.environments_root.mkdir(parents=True, exist_ok=True)
+    outside = tmp_path / "external-runtime"
+    outside.mkdir()
+    target = manager.environments_root / release.release_id
+    try:
+        target.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("test host cannot create directory symlink")
+    with pytest.raises(ActiveReleaseError, match="filesystem redirection"):
+        manager.ensure(release)
+    assert not list(outside.iterdir())
+
+
+def test_environment_manager_refuses_parent_redirect_added_after_construction(
+    tmp_path,
+):
+    state, release_root, _, _ = active_release_fixture(tmp_path)
+    release = ActiveReleaseResolver(
+        state_path=state, release_root=release_root,
+    ).resolve()
+    assert release is not None
+    parent = tmp_path / "component-parent"
+    parent.mkdir()
+    outside = tmp_path / "external-parent"
+    outside.mkdir()
+    manager = ReleaseEnvironmentManager(
+        release_root=release_root,
+        environments_root=parent / "environments",
+    )
+    parent.rmdir()
+    try:
+        parent.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("test host cannot create directory symlink")
+    with pytest.raises(ActiveReleaseError, match="filesystem redirection"):
+        manager.ensure(release)
+    assert not list(outside.iterdir())
+
+
+def test_environment_manager_refuses_preexisting_staging_directory(
+    tmp_path, monkeypatch,
+):
+    from types import SimpleNamespace
+
+    state, release_root, _, _ = active_release_fixture(tmp_path)
+    release = ActiveReleaseResolver(
+        state_path=state, release_root=release_root,
+    ).resolve()
+    assert release is not None
+    manager = ReleaseEnvironmentManager(release_root=release_root)
+    manager.environments_root.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(
+        "sofia.platform.run.active_release.uuid.uuid4",
+        lambda: SimpleNamespace(hex="known"),
+    )
+    stage = manager.environments_root / f".{release.release_id}.known"
+    stage.mkdir()
+    marker = stage / "do-not-delete"
+    marker.write_bytes(b"unreviewed stage")
+    with pytest.raises(ActiveReleaseError, match="staging path already exists"):
+        manager.ensure(release)
+    assert marker.read_bytes() == b"unreviewed stage"
+    assert not (manager.environments_root / release.release_id).exists()
 
 
 def component_release_fixture(
@@ -440,11 +630,37 @@ def test_legacy_then_component_migration_preserves_release_history(
         verified_at=NOW,
     )
     store.activate(separated_manifest, next_evidence)
+    # ReleaseStateStore owns canonical state, but the resolver intentionally
+    # rejects missing filesystem projections. The migration fixture must
+    # publish its exact non-authoritative pointer to model a completed handoff.
+    (release_root / "active-release.json").write_text(
+        json.dumps({
+            "release_id": separated_manifest.release_id,
+            "manifest_sha256": separated_manifest.manifest_sha256,
+            "path": str(separated.resolve()),
+            "previous_release_id": legacy_manifest.release_id,
+            "verified_at": NOW.isoformat(),
+        }),
+        encoding="utf-8",
+    )
 
     active = store.active()
     assert active["release_id"] == "release-next"
     assert active["previous_release_id"] == "release-legacy"
     assert store.accepted("release-legacy")
+    # Release activation and the filesystem projection must agree.
+    # Resolver intentionally fails closed when either half is absent.
+    release_root.mkdir(parents=True, exist_ok=True)
+    (release_root / "active-release.json").write_text(
+        json.dumps({
+            "release_id": separated_manifest.release_id,
+            "manifest_sha256": separated_manifest.manifest_sha256,
+            "path": str(separated.resolve()),
+            "previous_release_id": legacy_manifest.release_id,
+            "verified_at": NOW.isoformat(),
+        }),
+        encoding="utf-8",
+    )
     resolved = ActiveReleaseResolver(
         state_path=state,
         release_root=release_root,
@@ -543,4 +759,58 @@ def test_environment_manager_installs_component_wheels(
         wheel.name for wheel in release.component_wheels
     ]
     assert any(call[-1] == "check" for call in calls)
+    version_calls = [call for call in calls if "-c" in call]
+    assert len(version_calls) == 3
+    assert {
+        distribution
+        for distribution in ("sofia-sdk", "sofia-platform", "sofia-core")
+        if any(f"version({distribution!r})" in call[-1] for call in version_calls)
+    } == {"sofia-sdk", "sofia-platform", "sofia-core"}
+    assert all("sofia-ada-lyra" not in call[-1] for call in version_calls)
     assert prepared.python_path.is_file()
+
+
+
+def test_environment_manager_rejects_missing_installed_core_distribution(
+    tmp_path,
+    monkeypatch,
+    built_component_wheels,
+):
+    state, release_root, _, _ = component_release_fixture(
+        tmp_path, built_component_wheels
+    )
+    release = ActiveReleaseResolver(
+        state_path=state,
+        release_root=release_root,
+    ).resolve()
+    assert release is not None
+
+    class FakeBuilder:
+        def __init__(self, **kwargs):
+            pass
+
+        def create(self, root):
+            python = ReleaseEnvironmentManager._python(Path(root))
+            python.parent.mkdir(parents=True, exist_ok=True)
+            python.write_bytes(b"python")
+
+    monkeypatch.setattr(
+        "sofia.platform.run.active_release.venv.EnvBuilder",
+        FakeBuilder,
+    )
+    manager = ReleaseEnvironmentManager(release_root=release_root)
+
+    def fake_run(argv, *, timeout=600):
+        if "-c" in argv:
+            if "version('sofia-core')" in argv[-1]:
+                raise ActiveReleaseError("Core distribution is not installed")
+            return release.application_version
+        return ""
+
+    monkeypatch.setattr(manager, "_run", fake_run)
+
+    with pytest.raises(ActiveReleaseError, match="Core distribution is not installed"):
+        manager.ensure(release)
+    assert not (
+        release_root / "environments" / release.release_id
+    ).exists()

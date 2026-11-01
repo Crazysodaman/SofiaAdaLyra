@@ -28,6 +28,7 @@ class GoalEvidence:
     source: str | None = None
     principal_id: str | None = None
     audience: str | None = None
+    payload: dict | None = None
 
 
 class GoalEvidenceLedger:
@@ -54,6 +55,12 @@ class GoalEvidenceLedger:
                     payload_json TEXT NOT NULL,
                     principal_id TEXT,
                     audience TEXT
+                )
+            """)
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS goal_cognitive_evidence_link (
+                    goal_evidence_ref TEXT PRIMARY KEY,
+                    cognitive_evidence_id TEXT NOT NULL UNIQUE
                 )
             """)
             columns = {row[1] for row in db.execute("PRAGMA table_info(goal_evidence_record)")}
@@ -123,6 +130,34 @@ class GoalEvidenceLedger:
             raise RuntimeError("goal evidence did not persist")
         return record
 
+    def link_cognitive_evidence(
+        self, *, goal_evidence_ref: str, cognitive_evidence_id: str,
+    ) -> None:
+        """Bind a GOALS projection to its canonical cognitive evidence atom."""
+        with closing(self._connect()) as db, db:
+            if db.execute(
+                "SELECT 1 FROM goal_evidence_record WHERE evidence_ref=?",
+                (goal_evidence_ref,),
+            ).fetchone() is None:
+                raise ValueError("goal evidence must exist before linking")
+            if not GoalEvidenceIndex._has(db, "cognition_v2_evidence") or db.execute(
+                "SELECT 1 FROM cognition_v2_evidence WHERE evidence_id=?",
+                (cognitive_evidence_id,),
+            ).fetchone() is None:
+                raise ValueError("cognitive evidence must exist before linking")
+            prior = db.execute(
+                "SELECT cognitive_evidence_id FROM goal_cognitive_evidence_link "
+                "WHERE goal_evidence_ref=?", (goal_evidence_ref,),
+            ).fetchone()
+            if prior is not None:
+                if prior[0] != cognitive_evidence_id:
+                    raise ValueError("goal evidence cognitive link changed")
+                return
+            db.execute(
+                "INSERT INTO goal_cognitive_evidence_link VALUES(?,?)",
+                (goal_evidence_ref, cognitive_evidence_id),
+            )
+
 
 class GoalEvidenceIndex:
     """Resolve evidence into a typed record; generic State Plane sources are forbidden."""
@@ -147,17 +182,59 @@ class GoalEvidenceIndex:
                 row = db.execute("""
                     SELECT kind,observed_at,successful,goal_id,action_id,assertion,
                            cause_identified,coverage_started_at,coverage_ended_at,
-                           coverage_complete,source,principal_id,audience
+                           coverage_complete,source,principal_id,audience,payload_json
                     FROM goal_evidence_record WHERE evidence_ref=?
                 """, (evidence_ref,)).fetchone()
                 if row is not None:
+                    link = (
+                        db.execute(
+                            "SELECT cognitive_evidence_id FROM "
+                            "goal_cognitive_evidence_link "
+                            "WHERE goal_evidence_ref=?", (evidence_ref,),
+                        ).fetchone()
+                        if self._has(db, "goal_cognitive_evidence_link")
+                        else None
+                    )
+                    if link is not None and (
+                        not self._has(db, "cognition_v2_evidence")
+                        or not self._has(db, "cognition_v2_evidence_status")
+                    ):
+                        return None
+                    if link is not None:
+                        atom = db.execute(
+                            "SELECT acquisition_state,expires_at FROM "
+                            "cognition_v2_evidence WHERE evidence_id=?",
+                            (link[0],),
+                        ).fetchone()
+                        latest = db.execute(
+                            "SELECT state FROM cognition_v2_evidence_status "
+                            "WHERE evidence_id=? ORDER BY serial DESC LIMIT 1",
+                            (link[0],),
+                        ).fetchone()
+                        if (
+                            atom is None
+                            or atom[0] != "current"
+                            or latest is not None
+                            or (
+                                atom[1] is not None
+                                and datetime.fromisoformat(atom[1])
+                                <= datetime.now(timezone.utc)
+                            )
+                        ):
+                            return None
+                    try:
+                        payload = json.loads(row[13])
+                    except (TypeError, json.JSONDecodeError):
+                        return None
+                    if not isinstance(payload, dict):
+                        return None
                     return GoalEvidence(
                         evidence_ref, row[0], datetime.fromisoformat(row[1]),
                         None if row[2] is None else bool(row[2]), row[3], row[4],
                         row[5], bool(row[6]),
                         None if row[7] is None else datetime.fromisoformat(row[7]),
                         None if row[8] is None else datetime.fromisoformat(row[8]),
-                        bool(row[9]), row[10], row[11], row[12],
+                        bool(row[9]), row[10], row[11], row[12], payload,
                     )
             if self._has(db, "conversation_messages"):
                 # Some installed/legacy or test conversation schemas contain

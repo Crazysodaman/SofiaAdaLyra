@@ -5,6 +5,7 @@ from contextlib import closing
 from datetime import datetime, timezone
 import os
 import sqlite3
+import subprocess
 
 import pytest
 
@@ -79,6 +80,43 @@ def test_symlinked_parent_is_not_a_canonical_state_home(tmp_path):
     with pytest.raises(CanonicalStateUnavailable, match="symbolic link"):
         bootstrap_canonical_sqlite(redirected / "sofia.db")
     assert not (actual / "sofia.db").exists()
+
+def _windows_junction(source, target):
+    """Create a local test-only junction; absence cannot certify protection."""
+    subprocess.run(
+        ["cmd", "/c", "mklink", "/J", str(source), str(target)],
+        check=True, capture_output=True, text=True,
+    )
+    assert source.is_junction(), "Windows junction was not created"
+
+
+@pytest.mark.skipif(os.name != "nt", reason="NTFS directory junctions are Windows-only")
+def test_windows_junction_parent_cannot_bootstrap_canonical_writer(tmp_path):
+    actual = tmp_path / "external"
+    actual.mkdir()
+    redirected = tmp_path / "redirected"
+    _windows_junction(redirected, actual)
+    with pytest.raises(CanonicalStateUnavailable, match="junction"):
+        bootstrap_canonical_sqlite(redirected / "sofia.db")
+    assert not (actual / "sofia.db").exists()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="NTFS directory junctions are Windows-only")
+def test_windows_junction_parent_substitution_fences_existing_writer(tmp_path):
+    home = tmp_path / "canonical-home"
+    original_path = bootstrap_canonical_sqlite(home / "sofia.db")
+    guard = CanonicalSQLiteGuard(original_path)
+    retired = tmp_path / "canonical-retired"
+    home.rename(retired)
+    external = tmp_path / "external"
+    external.mkdir()
+    bootstrap_canonical_sqlite(external / "sofia.db")
+    _windows_junction(home, external)
+    with pytest.raises(CanonicalStateUnavailable, match="junction"):
+        guard.connect()
+    assert (retired / "sofia.db").exists()
+    assert (external / "sofia.db").exists()
+
 
 def test_guard_refuses_replacement_during_sqlite_open_and_closes_new_handle(
     tmp_path, monkeypatch,

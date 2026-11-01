@@ -580,7 +580,6 @@ class TaskExecutionManager:
         with self._lock:
             active = self._active.get(job_id)
         if active is not None:
-            active[1].set()
             # Future.cancel() is proof only when the executor had not begun
             # the handler.  Once RUNNING work has started, a cooperative
             # cancellation request cannot prove that an external effect did
@@ -598,7 +597,7 @@ class TaskExecutionManager:
                 else "operator_cancelled_running_effect_uncertain"
             )
             try:
-                return self.store.transition(
+                result = self.store.transition(
                     job_id, expected=(job.status,), status=status,
                     reason=reason, now=now,
                 )
@@ -606,6 +605,11 @@ class TaskExecutionManager:
                 # The completion callback won the race. Its canonical RUN
                 # result is more precise than the earlier cancellation view.
                 return self.store.get(job_id)
+            # Notify a running handler only after the conservative result is
+            # durable. A fast cooperative return must never win the database
+            # race and conceal an already-started external effect.
+            active[1].set()
+            return result
         return self.store.transition(
             job_id, expected=(job.status,), status=WorkStatus.CANCELLED,
             reason="operator_cancelled", now=now,

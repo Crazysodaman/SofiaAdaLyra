@@ -546,8 +546,6 @@ def test_procedure_promotion_rechecks_original_source_under_writer_lock(
     tmp_path, monkeypatch, alter_original,
 ):
     """An original RUN proof changed after bytes-check cannot promote skill."""
-    import sofia.core.life.procedures as procedures_module
-
     life, _goals, now = infrastructure(tmp_path)
     try:
         project, evidence = active_project(
@@ -556,13 +554,15 @@ def test_procedure_promotion_rechecks_original_source_under_writer_lock(
         job, receipt = _original_authorized_completion(
             life, project, evidence, now,
         )
-        original_checker = procedures_module.inspect_objective_artifact
+        original_connect = life.procedures._connect
         altered = []
 
-        def original_source_changes_after_byte_review(**kwargs):
-            report = original_checker(**kwargs)
-            # The catalog has already checked the old RUN/evidence identity.
-            # Change canonical state just before its final writer transaction.
+        def connect_after_original_source_changes():
+            # record_verified_attempt opens its catalog connection only after
+            # the preliminary RUN checks and expensive original-byte review.
+            # Mutate immediately before BEGIN IMMEDIATE so this deterministically
+            # exercises the final writer-lock revalidation rather than allowing
+            # another inspector call to consume a module-global monkeypatch.
             with closing(sqlite3.connect(life.path)) as db, db:
                 if alter_original == "revoke_receipt":
                     db.execute(
@@ -576,11 +576,10 @@ def test_procedure_promotion_rechecks_original_source_under_writer_lock(
                         (job.job_id,),
                     )
             altered.append(True)
-            return report
+            return original_connect()
 
         monkeypatch.setattr(
-            procedures_module, "inspect_objective_artifact",
-            original_source_changes_after_byte_review,
+            life.procedures, "_connect", connect_after_original_source_changes,
         )
         with pytest.raises(
             ValueError, match="original LIFE/RUN/evaluation proof changed",
@@ -590,9 +589,20 @@ def test_procedure_promotion_rechecks_original_source_under_writer_lock(
                 job_id=job.job_id, original_run_evidence_ref=receipt,
                 now=now + timedelta(seconds=8),
             )
+        monkeypatch.setattr(life.procedures, "_connect", original_connect)
         assert altered == [True]
         assert life.procedures.has_source_project(project.project_id) is False
         with closing(sqlite3.connect(life.path)) as db, db:
+            if alter_original == "revoke_receipt":
+                assert db.execute(
+                    "SELECT 1 FROM goal_evidence_record WHERE evidence_ref=?",
+                    (receipt,),
+                ).fetchone() is None
+            else:
+                assert db.execute(
+                    "SELECT status FROM autonomous_work_job WHERE job_id=?",
+                    (job.job_id,),
+                ).fetchone()[0] == "uncertain"
             assert db.execute(
                 "SELECT COUNT(*) FROM life_procedure_catalog",
             ).fetchone()[0] == 0

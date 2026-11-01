@@ -154,13 +154,22 @@ class PinnedHttpsRemoteTransport(RemoteTransport):
         return result
 
     def execute(self,enrollment:NodeEnrollment,request:RemoteOperationRequest)->RemoteOperationResult:
-        data=self._request(enrollment,"POST","/v1/operations",{
+        payload={
             "request_id":str(request.request_id),
             "node_id":str(request.node_id),
             "capability":request.capability,
             "operation":request.operation,
             "parameters":dict(request.parameters),
-        })
+        }
+        if request.dispatch_context is not None:
+            payload["dispatch_context"]={
+                "dispatch_id":request.dispatch_context.dispatch_id,
+                "goal_id":request.dispatch_context.goal_id,
+                "capability":request.dispatch_context.capability,
+                "principal_id":request.dispatch_context.principal_id,
+                "audience":request.dispatch_context.audience,
+            }
+        data=self._request(enrollment,"POST","/v1/operations",payload)
         if not isinstance(data,dict): raise HttpsTransportError("invalid remote operation response")
         try:
             return RemoteOperationResult(
@@ -171,3 +180,21 @@ class PinnedHttpsRemoteTransport(RemoteTransport):
             )
         except (KeyError,TypeError,ValueError) as exc:
             raise HttpsTransportError("invalid remote operation result payload") from exc
+
+    def host_effect(self,enrollment:NodeEnrollment,dispatch_id:str)->dict[str,Any]:
+        """Read an integrity-checked effect row from the pinned mTLS host."""
+        if not isinstance(dispatch_id,str) or not dispatch_id.strip():
+            raise ValueError("exact dispatch id required")
+        data=self._request(
+            enrollment,"POST","/v1/host-effects/query",{"dispatch_id":dispatch_id},
+        )
+        if (
+            not isinstance(data,dict)
+            or data.get("node_id")!=str(enrollment.node.node_id)
+            or not isinstance(data.get("attestation"),dict)
+        ):
+            raise HttpsTransportError("invalid host effect attestation response")
+        row=data["attestation"]
+        if row.get("dispatch_id")!=dispatch_id:
+            raise HttpsTransportError("host effect dispatch identity mismatch")
+        return dict(row)

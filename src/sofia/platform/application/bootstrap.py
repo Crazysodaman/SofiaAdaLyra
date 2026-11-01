@@ -123,6 +123,7 @@ from sofia.core.cognition.v2 import (
     EntityCandidate,
     EvidenceAcquisitionCoordinator,
     EvidenceGraph,
+    FleetCognitiveEvidenceBridge,
     FleetMachineAnswerCoordinator,
     merge_validated_drafts,
     PersonalityAfterTruthRenderer,
@@ -161,13 +162,16 @@ from sofia.platform.ops.local_telemetry import collect_local_telemetry
 from sofia.core.habits.pattern_store import HabitPatternStore
 from sofia.core.rel.store import RelationshipStore
 from sofia.core.goals import (
-    GoalEvidenceIndex,
+    GoalEvidenceIndex, GoalEvidenceLedger,
     GoalService,
     GoalStatus,
     GoalStore,
 )
 from sofia.core.goals.conversation import GoalConversationResolver
 from sofia.core.goals.coordinator import GoalProductionCoordinator
+from sofia.platform.distributed.capability import (
+    create_configured_remote_fleet_service,
+)
 from sofia.platform.ops.agent_discovery import (
     create_configured_fleet_discovery_source,
 )
@@ -304,6 +308,10 @@ class SofiaApplication:
         self._cognitive_evidence_graph = EvidenceGraph(
             self._cognitive_evidence
         )
+        self._fleet_cognitive_evidence = FleetCognitiveEvidenceBridge(
+            self._cognitive_evidence,
+            goal_evidence=GoalEvidenceLedger(configuration.state_path),
+        )
         self._cognitive_evidence_acquisition = EvidenceAcquisitionCoordinator(
             self._cognitive_evidence
         )
@@ -311,7 +319,8 @@ class SofiaApplication:
         if dispatcher is None:
             raise SofiaApplicationError("production cognitive tool dispatcher is required")
         self._fleet_machine_answers = FleetMachineAnswerCoordinator(
-            dispatcher, self._cognitive_evidence_acquisition
+            dispatcher, self._cognitive_evidence_acquisition,
+            evidence_graph=self._cognitive_evidence_graph,
         )
         self._knowledge_answers = KnowledgeEvidenceCoordinator(
             dispatcher, self._cognitive_evidence_acquisition
@@ -628,6 +637,12 @@ class SofiaApplication:
             workshop=self._workshop_requests,
             autonomous_work=self._autonomous_work,
         )
+        # The Core only receives a read/query verifier over the enrolled,
+        # pinned-mTLS Fleet boundary. It never composes the host-side writer.
+        # Without configured Fleet credentials, reconciliation stays closed.
+        self._host_effect_attestation = create_configured_remote_fleet_service(
+            Path(configuration.state_path)
+        )
         self._goal_production = GoalProductionCoordinator(
             goals=self._goals,
             state_path=configuration.state_path,
@@ -637,6 +652,17 @@ class SofiaApplication:
             notify_review=self._notify_goal_review,
             wake_recorder=self._neuro.record_wake_outcome,
             generalization=self._generalization.advanced,
+            # Bind GOALS to canonical one-use FIDO2-backed owner approval plus
+            # an independently trusted host outcome verifier; reconciliation
+            # stays unavailable when either trust boundary is uncomposable.
+            reconciliation_approval_verifier=ExecutionApprovalVerifier(
+                configuration.state_path
+            ),
+            independent_outcome_verifier=(
+                None
+                if self._host_effect_attestation is None
+                else self._host_effect_attestation.verify_goal_dispatch
+            ),
         )
         self._life = SelfDirectedLifeCoordinator(
             state_path=configuration.state_path,
@@ -991,6 +1017,23 @@ class SofiaApplication:
     @property
     def goals(self) -> GoalService:
         return self._goals
+
+    def reconcile_host_goal_dispatch(
+        self, *, goal_id: str, dispatch_id: str, principal,
+        approval_id: str, now: datetime,
+    ) -> str:
+        """Reconcile one dispatch from a fresh pinned-host observation."""
+        if self._host_effect_attestation is None:
+            raise PermissionError(
+                "pinned-mTLS host outcome verification is not configured"
+            )
+        evidence = self._host_effect_attestation.observe_goal_dispatch(
+            dispatch_id, principal=principal, now=now,
+        )
+        return self._goal_production.reconcile_dispatch(
+            goal_id=goal_id, dispatch_id=dispatch_id, principal=principal,
+            evidence_ref=evidence.evidence_ref, approval_id=approval_id, now=now,
+        )
 
     @property
     def world(self) -> VirtualWorldStore:

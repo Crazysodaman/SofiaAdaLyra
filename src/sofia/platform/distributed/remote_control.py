@@ -25,6 +25,7 @@ class DurableRemoteControl:
         self.endpoints=DurableEndpointPolicy(endpoint_path)
         self.authorization=DurableRemoteAuthorization(authorization_path)
         self.ledger=DurableRemoteLedger(ledger_path)
+        self._transport=transport
         endpoint_gateway=EndpointBoundDurableGateway(
             transport,self.authorization,self.ledger,self.endpoints,max_inventory_age=max_inventory_age)
         self._gateway=IdentityBoundGateway(self.identities,endpoint_gateway)
@@ -32,6 +33,16 @@ class DurableRemoteControl:
     def invoke(self, enrollment: NodeEnrollment, endpoint: NodeEndpoint,
                request: RemoteOperationRequest, *, now: datetime) -> RemoteOperationResult:
         return self._gateway.invoke(enrollment,endpoint,request,now=now)
+
+    def host_effect(
+        self,enrollment:NodeEnrollment,endpoint:NodeEndpoint,dispatch_id:str,
+    )->dict:
+        current=self.endpoints.get(enrollment.node.node_id)
+        if current!=endpoint:
+            raise PermissionError("host effect query endpoint is not approved")
+        if self._transport.authenticate(enrollment) is not True:
+            raise PermissionError("host effect query peer authentication failed")
+        return self._transport.host_effect(enrollment,dispatch_id)
 
     def close(self) -> None:
         self.identities.close(); self.endpoints.close(); self.authorization.close(); self.ledger.close()

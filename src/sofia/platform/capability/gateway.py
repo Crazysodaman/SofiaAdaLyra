@@ -77,6 +77,7 @@ class CapabilityGateway:
             parameters=proposal.parameters,
             requested_scope=proposal.requested_scope,
             rationale=proposal.rationale,
+            dispatch_context=proposal.dispatch_context,
         )
 
         return self._capability_system.execute(

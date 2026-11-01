@@ -77,6 +77,13 @@ def test_core_link_optional_release_and_launcher_have_explicit_owners() -> None:
         assert owners.issubset(_explicit_package_markers(root / filename)), filename
 
 
+def test_windows_fleet_canary_entrypoint_audit_has_release_owners() -> None:
+    owners = _explicit_package_markers(
+        Path(__file__).parent / "test_fleet_windows_setup_entrypoints.py"
+    )
+    assert {"pkg_ops", "pkg_verify", "pkg_safe"}.issubset(owners)
+
+
 def test_an_unmapped_test_does_not_gain_explicit_ownership(tmp_path: Path) -> None:
     probe = tmp_path / "test_unowned_feature.py"
     probe.write_text("def test_example(): pass\n", encoding="utf-8")

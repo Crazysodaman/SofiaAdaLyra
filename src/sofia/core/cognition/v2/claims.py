@@ -36,9 +36,17 @@ class EvidenceClaimPlanner:
                 and atom.predicate == need.predicate
                 and atom.scope_id == need.scope_id
                 and atom.acquisition_state is AcquisitionState.CURRENT
-                and atom.epistemic_state is not EpistemicState.UNKNOWN
+                and atom.epistemic_state not in {
+                    EpistemicState.HYPOTHESIS, EpistemicState.UNKNOWN,
+                }
+                and atom.trust >= need.minimum_trust
             )
-            if not matches:
+            # The evidence graph must not be bypassed by a claim planner that
+            # selects the newest of several conflicting CURRENT observations.
+            # Different eligible values leave the need unresolved; no
+            # fabricated preference, authority, or timestamp tie-break.
+            values = {self._render_value(item.value_json) for item in matches}
+            if len(values) != 1:
                 unknown.append(need.need_id)
                 continue
             atom = max(matches, key=lambda item: item.observed_at)
@@ -92,6 +100,8 @@ class EvidenceClaimValidator:
                     or atom.predicate != claim.predicate
                     or atom.acquisition_state is not AcquisitionState.CURRENT
                     or atom.epistemic_state != claim.epistemic_state
+                    or EvidenceClaimPlanner._render_value(atom.value_json)
+                    != claim.rendered_value
                 ):
                     raise ValueError("claim does not match exact current evidence")
         return answer

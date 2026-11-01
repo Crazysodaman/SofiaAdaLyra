@@ -85,8 +85,12 @@ def test_tray_has_separate_llm_runtime_game_and_settings_controls():
     assert TrayCommand.GAME_OFF in menu
     assert TrayCommand.LLM_STOP in menu
     assert TrayCommand.RUNTIME_STOP in menu
+    assert TrayCommand.OPERATOR_STOP in menu
     assert TrayCommand.OPEN_SETTINGS in menu
     assert menu[TrayCommand.LLM_STOP] == "Stop LLM service"
+    assert "restart remains allowed" in menu[TrayCommand.RUNTIME_STOP]
+    assert "persist owner STOP" in menu[TrayCommand.OPERATOR_STOP]
+    assert "runtime keeps running" in menu[TrayCommand.EXIT_UI]
 
 
 def test_master_settings_has_expected_command_center_sections():
@@ -127,6 +131,7 @@ def _tray_status(*, runtime_state="running", llm_state="running"):
 def test_runtime_stop_and_restart_require_confirmation():
     assert tray_command_requires_confirmation(TrayCommand.RUNTIME_STOP) is True
     assert tray_command_requires_confirmation(TrayCommand.RUNTIME_RESTART) is True
+    assert tray_command_requires_confirmation(TrayCommand.OPERATOR_STOP) is True
     assert tray_command_requires_confirmation(TrayCommand.RUNTIME_START) is False
 
 

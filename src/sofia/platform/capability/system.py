@@ -144,6 +144,17 @@ class CapabilitySystem:
 
         capability_name = request.capability.name
 
+        if (
+            request.dispatch_context is not None
+            and request.dispatch_context.capability != capability_name
+        ):
+            return CapabilityResult(
+                capability=capability_name,
+                kind=CapabilityResultKind.DENIED,
+                evidence=None,
+                error="Dispatch context capability does not match request.",
+            )
+
         try:
             registered_capability, handler = self._capabilities[
                 capability_name

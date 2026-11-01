@@ -289,6 +289,12 @@ class PinnedCoreLinkClient:
             request.to_payload(), sort_keys=True, separators=(",", ":"),
             ensure_ascii=False, allow_nan=False,
         ).encode("utf-8")
+        if not 1 <= len(body) <= _MAX_WIRE_BYTES:
+            # Reject locally before opening a TLS connection or sending a
+            # partially framed request that the host cannot accept.
+            raise CoreLinkTransportError(
+                "Core Link outbound request exceeds size limit"
+            )
         connection = HTTPSConnection(
             endpoint.hostname, endpoint.port,
             context=self._context(credentials), timeout=self.timeout_seconds,

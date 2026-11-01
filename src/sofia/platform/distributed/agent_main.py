@@ -48,6 +48,7 @@ _CONFIG_KEYS = frozenset(
         "release_inbox",
         "release_trusted_key_file",
         "release_trusted_key_id",
+        "effect_attestation_root",
     }
 )
 
@@ -171,6 +172,9 @@ def configuration_from_environment() -> RemoteAgentConfig:
             ).strip()
             or None
         ),
+        effect_attestation_root=_optional_environment_path(
+            "SOFIA_AGENT_EFFECT_ATTESTATION_ROOT"
+        ),
     )
 
 
@@ -258,6 +262,11 @@ def configuration_from_file(path: Path | str) -> RemoteAgentConfig:
         release_trusted_key_id=_optional_config_text(
             payload,
             "release_trusted_key_id",
+        ),
+        effect_attestation_root=_optional_config_path(
+            base,
+            payload,
+            "effect_attestation_root",
         ),
     )
 

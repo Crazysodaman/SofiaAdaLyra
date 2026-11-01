@@ -2,7 +2,7 @@ name: Debian Release Candidate Build
 
 on:
   push:
-    branches: [main]
+    branches: [main, chatgpt/go-live-release-env-version]
   workflow_dispatch:
     inputs:
       release_id:
@@ -20,12 +20,21 @@ on:
 
 concurrency:
   group: debian-release-candidate-${{ github.ref }}
-  cancel-in-progress: false
+  # Cancel superseded GO LIVE development pushes only. Main release history
+  # and explicit release dispatches keep their independent evidence.
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/chatgpt/go-live-release-env-version' }}
 
 jobs:
   build:
+    outputs:
+      integrated_id: ${{ steps.upload_integrated.outputs.artifact-id }}
+      integrated_digest: ${{ steps.upload_integrated.outputs.artifact-digest }}
+      components_id: ${{ steps.upload_components.outputs.artifact-id }}
+      components_digest: ${{ steps.upload_components.outputs.artifact-digest }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    # Full installed-wheel verification may exceed the legacy 40-minute budget.
+    # Keep the evidence and verification checks intact, not sharded/waived.
+    timeout-minutes: 120
     permissions:
       contents: read
     steps:
@@ -166,6 +175,7 @@ jobs:
           "$PY" -m sofia.platform.dev.release_cli verify --release-dir release-evidence-components
 
       - name: Upload separated component Linux release evidence (unsigned until approved promotion)
+        id: upload_components
         if: always()
         uses: actions/upload-artifact@v7
         with:
@@ -201,8 +211,85 @@ jobs:
           "$PY" -m sofia.platform.dev.release_cli verify --release-dir release-evidence
 
       - name: Upload Linux release evidence (unsigned until approved promotion)
+        id: upload_integrated
         uses: actions/upload-artifact@v7
         with:
           name: release-candidate-debian-${{ github.sha }}
           path: release-evidence
+          if-no-files-found: error
+
+  attest:
+    name: Keyless candidate provenance (debian)
+    needs: build
+    if: >-
+      needs.build.result == 'success' &&
+      github.repository == 'Crazysodaman/SofiaAdaLyra' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/chatgpt/go-live-release-env-version')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_SHA: ${{ github.sha }}
+      SOURCE_REF: ${{ github.ref }}
+      SOURCE_REPOSITORY: ${{ github.repository }}
+      INTEGRATED_DIGEST: ${{ needs.build.outputs.integrated_digest }}
+      COMPONENTS_DIGEST: ${{ needs.build.outputs.components_digest }}
+    steps:
+      - name: Checkout exact verification tooling without installing candidate code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Download exact integrated archive with mandatory digest verification
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          artifact-ids: ${{ needs.build.outputs.integrated_id }}
+          path: ${{ runner.temp }}/keyless-subjects/integrated
+          skip-decompress: true
+          digest-mismatch: error
+      - name: Download exact separated archive with mandatory digest verification
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          artifact-ids: ${{ needs.build.outputs.components_id }}
+          path: ${{ runner.temp }}/keyless-subjects/components
+          skip-decompress: true
+          digest-mismatch: error
+      - name: Validate exact source, accepted full gates and immutable upload digests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 src/sofia/platform/verify/keyless_release.py prepare \
+            --integrated-dir "$RUNNER_TEMP/keyless-subjects/integrated" \
+            --integrated-digest "$INTEGRATED_DIGEST" \
+            --components-dir "$RUNNER_TEMP/keyless-subjects/components" \
+            --components-digest "$COMPONENTS_DIGEST" \
+            --revision "$SOURCE_SHA" --output "$RUNNER_TEMP/keyless-verification"
+      - name: Attest immutable release archives using GitHub OIDC and Sigstore
+        id: attest
+        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
+        with:
+          subject-checksums: ${{ runner.temp }}/keyless-verification/subjects.sha256
+      - name: Cryptographically verify repository, workflow, source SHA, ref and subjects
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 src/sofia/platform/verify/keyless_release.py verify \
+            --index "$RUNNER_TEMP/keyless-verification/subjects.json" \
+            --repository "$SOURCE_REPOSITORY" \
+            --workflow .github/workflows/debian-release-candidate.yml \
+            --source-ref "$SOURCE_REF" --revision "$SOURCE_SHA" \
+            --receipt "$RUNNER_TEMP/keyless-verification/verified-attestations.json"
+      - name: Upload candidate attestation bundles and verification diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: keyless-release-evidence-debian-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/keyless-subjects
+            ${{ runner.temp }}/keyless-verification
+            ${{ steps.attest.outputs.bundle-path }}
           if-no-files-found: error

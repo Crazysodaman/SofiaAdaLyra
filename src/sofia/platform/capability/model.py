@@ -3,6 +3,28 @@ from enum import Enum
 from typing import Any
 
 
+@dataclass(frozen=True)
+class CapabilityDispatchContext:
+    """Non-authorizing identity for one already-reserved external dispatch."""
+
+    dispatch_id: str
+    goal_id: str
+    capability: str
+    principal_id: str
+    audience: str
+
+    def __post_init__(self) -> None:
+        for label, value in (
+            ("dispatch_id", self.dispatch_id),
+            ("goal_id", self.goal_id),
+            ("capability", self.capability),
+            ("principal_id", self.principal_id),
+            ("audience", self.audience),
+        ):
+            if not isinstance(value, str) or not value.strip() or len(value) > 512:
+                raise ValueError(f"bounded {label} required")
+
+
 class CapabilityResultKind(str, Enum):
     SUCCESS = "success"
     UNAUTHORIZED = "unauthorized"
@@ -52,6 +74,7 @@ class CapabilityRequest:
     parameters: dict[str, Any]
     requested_scope: Any
     rationale: str
+    dispatch_context: CapabilityDispatchContext | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.capability, Capability):
@@ -73,6 +96,10 @@ class CapabilityRequest:
             raise ValueError(
                 "CapabilityRequest rationale must not be empty."
             )
+        if self.dispatch_context is not None and not isinstance(
+            self.dispatch_context, CapabilityDispatchContext
+        ):
+            raise TypeError("dispatch_context must be CapabilityDispatchContext or None")
 
 
 @dataclass(frozen=True)
@@ -124,6 +151,7 @@ class CapabilityProposal:
     parameters: dict[str, Any]
     rationale: str
     requested_scope: Any = None
+    dispatch_context: CapabilityDispatchContext | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.capability_name, str):
@@ -150,3 +178,7 @@ class CapabilityProposal:
             raise ValueError(
                 "CapabilityProposal rationale must not be empty."
             )
+        if self.dispatch_context is not None and not isinstance(
+            self.dispatch_context, CapabilityDispatchContext
+        ):
+            raise TypeError("dispatch_context must be CapabilityDispatchContext or None")

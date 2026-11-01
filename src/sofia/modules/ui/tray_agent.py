@@ -816,6 +816,15 @@ class TrayAgentApplication:
             elif command is TrayCommand.RUNTIME_RESTART:
                 self._queue_service_control(lambda: self._service_action(
                     ServiceKind.SOFIA_RUNTIME, ServiceAction.RESTART))
+            elif command is TrayCommand.OPERATOR_STOP:
+                # This is the durable emergency control. It is deliberately
+                # distinct from closing UI processes or asking SCM to stop a
+                # service that its recovery policy may otherwise restart.
+                self._operator_stop.set(
+                    active=True,
+                    updated_by="Sparks",
+                    reason="owner requested durable shutdown from tray",
+                )
             elif command is TrayCommand.DIAGNOSTICS:
                 self._open_settings("Advanced")
             elif command is TrayCommand.EXIT_UI:

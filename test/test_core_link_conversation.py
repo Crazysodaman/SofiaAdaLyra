@@ -722,3 +722,28 @@ def test_pinned_mtls_core_link_runs_real_remote_conversation_without_local_core(
         if server is None and gateway is not None:
             gateway.close()
         application.shutdown()
+
+
+def test_g4_outbound_core_link_frame_rejected_before_network(monkeypatch, tmp_path):
+    """Oversized Core Link payload cannot reach mTLS or consume remote work."""
+    from types import SimpleNamespace
+    import sofia.platform.core_link.transport as transport
+
+    selected = []
+    client = object.__new__(PinnedCoreLinkClient)
+    client._selected = lambda _request: (
+        selected.append("selected") or SimpleNamespace(credential_ref="test"),
+        CoreLinkEndpoint("endpoint:g4", "localhost", 443),
+    )
+    client.credential_resolver = lambda _ref: CoreLinkTLSCredentials(
+        tmp_path / "ca.pem", tmp_path / "client.pem", tmp_path / "client.key",
+    )
+    monkeypatch.setattr(transport, "_MAX_WIRE_BYTES", 32)
+
+    def forbidden_network(*_args, **_kwargs):
+        raise AssertionError("oversized request opened a network connection")
+
+    monkeypatch.setattr(transport, "HTTPSConnection", forbidden_network)
+    with pytest.raises(CoreLinkTransportError, match="outbound request exceeds size"):
+        client.request(request("status", {}))
+    assert selected == ["selected"]
