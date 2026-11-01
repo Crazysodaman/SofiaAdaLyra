@@ -245,10 +245,16 @@ class AvatarSelfFactResolver:
         if normalized in cls._CURRENT_OUTFIT_FORMS:
             return True
         if re.search(
-            r"\b(?:would|should|could|want|wanna|prefer|favorite|favourite|"
+            r"\b(?:would|should|want|wanna|prefer|favorite|favourite|"
             r"choose|pick|change|changing|tomorrow|tonight|yesterday|"
             r"design|make|buy|think|recommend)\b",
             normalized,
+        ):
+            return False
+        if (
+            re.search(r"\bcould\b", normalized)
+            and re.match(r"^could you (?:please )?(?:tell|describe|show)\b", normalized)
+            is None
         ):
             return False
         if re.match(r"^(?:why|when|where|how)\b", normalized):
