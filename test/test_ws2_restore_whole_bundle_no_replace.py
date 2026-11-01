@@ -92,6 +92,7 @@ def test_explicit_replace_existing_can_replace_verified_protected_assets(
         verifier="operator-explicit-overwrite",
         replace_existing=True,
         erasure_journal=journal,
+        replacement_authorizer=lambda *_: True,
     )
 
     assert result.succeeded

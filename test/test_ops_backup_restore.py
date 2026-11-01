@@ -137,12 +137,43 @@ def test_restore_requires_explicit_overwrite_and_recreates_state(
         replace_existing=True,
         now=NOW,
         erasure_journal=make_erasure_journal(tmp_path),
+        replacement_authorizer=lambda candidate, manifest: (
+            candidate == target and manifest.backup_id == backup_dir.name
+        ),
     )
     assert result.succeeded is True
     with sqlite3.connect(target) as db:
         assert db.execute(
             "SELECT value FROM state_plane_meta WHERE key='schema_revision'"
         ).fetchone() == ("1",)
+
+
+def test_restore_rechecks_replacement_authority_before_publication(
+    tmp_path, engine, monkeypatch,
+):
+    state = make_state(tmp_path)
+    backup_dir, _ = engine.create(
+        state_path=state, destination_root=tmp_path / "backups",
+        source_host_id="source", failure_domain="external", now=NOW,
+    )
+    existing_root = tmp_path / "existing"
+    existing_root.mkdir()
+    target = make_state(existing_root)
+    before = target.read_bytes()
+    decisions = iter((True, False))
+    monkeypatch.setattr(
+        "sofia.platform.ops.backup.verify_production_component_schemas",
+        lambda _path: None,
+    )
+
+    with pytest.raises(BackupError, match="revoked before publication"):
+        engine.restore(
+            backup_dir=backup_dir, target_state_path=target,
+            verifier="test", replace_existing=True,
+            erasure_journal=make_erasure_journal(tmp_path),
+            replacement_authorizer=lambda *_: next(decisions),
+        )
+    assert target.read_bytes() == before
 
 
 def test_verify_rejects_modified_encrypted_payload(tmp_path, engine):

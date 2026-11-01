@@ -641,6 +641,7 @@ class BackupEngine:
         replace_existing: bool = False,
         now: datetime | None = None,
         erasure_journal: Path | None = None,
+        replacement_authorizer: Callable[[Path, BackupManifest], bool] | None = None,
     ) -> RestoreVerification:
         # A backup can predate a live deletion by years. No restore may
         # publish state without the operator-held current deletion journal,
@@ -661,6 +662,14 @@ class BackupEngine:
         if not isinstance(target_state_path, Path):
             raise TypeError("target_state_path must be a Path")
         target_root = target_state_path.parent
+        if replace_existing and (
+            replacement_authorizer is None
+            or not callable(replacement_authorizer)
+            or replacement_authorizer(target_state_path, manifest) is not True
+        ):
+            raise BackupError(
+                "existing protected state replacement lacks exact authorization"
+            )
         journal = erasure_journal.absolute()
         root = target_root.absolute()
         source_root = backup_dir.absolute()
@@ -819,6 +828,14 @@ class BackupEngine:
                     raise BackupError(
                         "external erasure journal unavailable before restore publication"
                     ) from exc
+                if replace_existing and (
+                    replacement_authorizer is None
+                    or replacement_authorizer(target_state_path, manifest) is not True
+                ):
+                    raise BackupError(
+                        "protected state replacement authorization was revoked "
+                        "before publication"
+                    )
                 published_directories: set[Path] = set()
                 published_any = False
                 try:

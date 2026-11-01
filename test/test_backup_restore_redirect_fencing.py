@@ -49,7 +49,8 @@ def test_restore_refuses_redirected_canonical_file_even_with_replace(tmp_path):
     with pytest.raises(BackupError, match="symbolic link or junction"):
         engine.restore(
             backup_dir=archive, target_state_path=restore / "sofia.db",
-            verifier="fixture", erasure_journal=make_erasure_journal(tmp_path), replace_existing=True,
+            verifier="fixture", erasure_journal=make_erasure_journal(tmp_path),
+            replace_existing=True, replacement_authorizer=lambda *_: True,
         )
     assert outside.read_bytes() == b"preserve-this-file"
 
