@@ -196,6 +196,12 @@ class EnvironmentQueryResolver:
         )
 
     @classmethod
+    def is_combined_current_clock_query(cls, query: str) -> bool:
+        if not isinstance(query, str):
+            return False
+        return _combined_current_clock_query(_normalize(query))
+
+    @classmethod
     def is_general_observation_query(cls, query: str) -> bool:
         if not isinstance(query, str):
             return False
