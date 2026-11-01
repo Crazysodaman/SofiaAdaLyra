@@ -246,6 +246,11 @@ def test_run2_owner_natural_utterances_reach_authoritative_production_resolvers(
         assert "From my runtime clock" in observed.content
         assert "no verified visual/room observation" in observed.content
         assert "airflow" in observed.content
+
+        history = app.conversation.respond("what was your last runtime")
+        assert "This runtime started at" in history.content
+        assert "no verified previous runtime timestamp" in history.content
+        assert "don't have a clock" not in history.content
     finally:
         app.shutdown()
 
