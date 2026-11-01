@@ -304,6 +304,16 @@ class MatrixV2Planner:
             and not token_set & {"going", "schedule", "plans", "plan", "work"}
         ):
             domains.append("avatar")
+        # "Does it fit the weather?" is an elliptical comparison between
+        # the just-discussed canonical presentation and ENVIRONMENT evidence.
+        # It remains read-only and each projection keeps its own evidence.
+        if (
+            "environment" in domains
+            and "weather" in token_set
+            and bool(token_set & {"fit", "suit", "appropriate"})
+            and "avatar" not in domains
+        ):
+            domains.append("avatar")
         if not domains:
             domains.append("social")
 

@@ -26,6 +26,13 @@ def test_weather_why_positional_recall_uses_current_session(tmp_path):
     application.start()
     service = application.conversation
     try:
+        service.respond("what are you wearing")
+        fit = service.respond("does it fit the weather? explain?")
+        assert "day engineer outfit" in fit.content
+        assert "cannot determine whether it fits" in fit.content
+        assert "explicit weather refresh" in fit.content
+        assert len(fit.evidence_refs) == 2
+
         service.respond("check weather?")
         service.respond("why")
         answer = service.respond("what was I asking before the why?")

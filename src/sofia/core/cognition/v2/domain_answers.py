@@ -9,6 +9,7 @@ from uuid import uuid4
 from sofia.core.cognition.model import CognitiveResponse
 from sofia.core.cognition.matrix.multi_question import split_multi_question
 from sofia.core.environment.prompt import environment_details_relevant
+from sofia.core.environment.model import EnvironmentFreshness
 from sofia.core.personality.delivery import grounded_weather_delivery
 from sofia.core.social.model import PrincipalContext
 
@@ -80,6 +81,26 @@ class ProjectionAnswerCoordinator:
         by_predicate = {need.predicate: need for need in plan.evidence_needs}
         clauses = split_multi_question(query)
         drafts = []
+        if (
+            "environment.current" in by_predicate
+            and "avatar.canonical" in by_predicate
+            and re.search(
+                r"\b(?:fit|suit|appropriate)\b.{0,40}\bweather\b|"
+                r"\bweather\b.{0,40}\b(?:fit|suit|appropriate)\b",
+                query,
+                re.IGNORECASE,
+            )
+        ):
+            outfit = self._avatar(
+                plan, by_predicate["avatar.canonical"],
+                "what are you wearing", principal, privacy_plan,
+            )
+            environment = self._outfit_weather(
+                plan, by_predicate["environment.current"],
+            )
+            return tuple(
+                draft for draft in (outfit, environment) if draft is not None
+            )
         if "environment.current" in by_predicate:
             for clause in clauses:
                 draft = self._environment(
@@ -125,6 +146,63 @@ class ProjectionAnswerCoordinator:
                 if draft is not None:
                     drafts.append(draft)
         return tuple(drafts)
+
+    def _outfit_weather(self, plan, need) -> ValidatedAnswerDraft:
+        """Compare only canonical attire and an already observed weather fact."""
+        snapshot = self.runtime.environment_service.snapshot(
+            refresh_providers=False,
+        )
+        weather = snapshot.weather
+        if (
+            weather is not None
+            and snapshot.weather_freshness is EnvironmentFreshness.CURRENT
+        ):
+            details = [weather.condition]
+            if weather.temperature_c is not None:
+                details.append(f"{weather.temperature_c:.1f} °C")
+            atom = self._record(
+                need,
+                value={
+                    "condition": weather.condition,
+                    "temperature_c": weather.temperature_c,
+                    "observed_at": weather.observed_at.isoformat(),
+                    "source_id": weather.source_id,
+                },
+                source="environment:service",
+                trust=0.95,
+                expires_at=weather.expires_at,
+            )
+            content = (
+                "The current weather evidence is " + ", ".join(details)
+                + f", observed at {weather.observed_at.isoformat()} by "
+                + f"{weather.source_id}. Those facts let me compare the "
+                "outfit with the conditions, but they do not prove why the "
+                "outfit was selected."
+            )
+            return self._draft(plan, (atom,), content, "environment")
+
+        atom = self._unknown_atom(
+            need,
+            source="environment:service",
+            expires_at=datetime.now(timezone.utc) + timedelta(seconds=60),
+        )
+        if weather is None:
+            status = "no weather observation is available"
+        else:
+            status = (
+                f"the weather observation from {weather.observed_at.isoformat()} "
+                f"is {snapshot.weather_freshness.value}"
+            )
+        errors = (
+            " Provider errors: " + "; ".join(snapshot.provider_errors) + "."
+            if snapshot.provider_errors else ""
+        )
+        content = (
+            "I can ground the canonical outfit, but I cannot determine whether "
+            f"it fits the current weather because {status}.{errors} An explicit "
+            "weather refresh can request a new authorized provider read."
+        )
+        return self._draft(plan, (atom,), content, "environment")
 
     def _environment(self, plan, need, query) -> ValidatedAnswerDraft | None:
         resolver = self.runtime._environment_query_resolver
