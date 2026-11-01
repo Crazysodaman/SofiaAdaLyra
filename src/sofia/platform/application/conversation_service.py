@@ -654,6 +654,36 @@ class ConversationService(ConversationMatrixMixin):
         Never infer process creation time from the Core runtime started_at.
         """
         resolver = self._runtime._operational_status_query_resolver
+        # A one-word "why?" can follow a verified local runtime status.
+        # Resolve only the just-persisted, same-session exchange, not an
+        # unrelated memory or the last topic from another audience.
+        if re.fullmatch(
+            r"\s*(?:(?:but|so)\s+)?why(?:\s+though)?\s*[?!.]*\s*",
+            message.content,
+            re.IGNORECASE,
+        ):
+            recent = self._conversation_store.recent_messages(
+                message.session_id, limit=3,
+            )
+            if (
+                len(recent) == 3
+                and recent[-1].id == message.id
+                and recent[-2].role is ConversationRole.ASSISTANT
+                and recent[-3].role is ConversationRole.USER
+                and resolver.is_current_runtime_query(recent[-3].content)
+                and recent[-2].content.startswith(
+                    "This Sofía runtime started at "
+                )
+                and " PID " in recent[-2].content
+            ):
+                return CognitiveResponse(content=(
+                    "The runtime start is recorded by Sofía's Core lifecycle "
+                    "when that runtime starts. The local PID comes from the "
+                    "operating system process answering this conversation. "
+                    "Neither reading proves the creation time or PID of a "
+                    "separate remote worker."
+                ))
+            return None
         if (
             not (
                 resolver.is_previous_runtime_query(message.content)
