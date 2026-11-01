@@ -5,7 +5,10 @@ import sqlite3
 from sofia.platform.run.heartbeat import ApplicationHeartbeat, ApplicationHeartbeatStore
 from sofia.platform.run.host import LocalServiceRuntimeBackend, RunSupervisorHost
 from sofia.platform.run.lease import LeaseResult, RunLease
-from sofia.platform.run.runtime_service import runtime_start_allowed
+from sofia.platform.run.runtime_service import (
+    runtime_package_identity,
+    runtime_start_allowed,
+)
 from sofia.platform.safe.operator_stop import OperatorStopStore
 
 
@@ -179,3 +182,12 @@ def test_persisted_owner_stop_dominates_watchdog_recovery(tmp_path, monkeypatch)
     assert len(supervisor.calls) == 1
     assert supervisor.calls[0][1]["desired_running"] is False
     assert supervisor.calls[0][1]["stop_requested"] is True
+
+
+def test_runtime_diagnostic_identity_is_bounded_and_contains_no_path():
+    identity = runtime_package_identity()
+
+    assert identity.startswith("sofia-ada-lyra/")
+    assert len(identity) <= 120
+    assert "/workspace/" not in identity
+    assert "\\" not in identity

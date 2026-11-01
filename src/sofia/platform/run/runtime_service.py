@@ -5,8 +5,8 @@ from pathlib import Path
 import os
 import sys
 from datetime import datetime, timezone
+from importlib.metadata import PackageNotFoundError, version
 
-from sofia.platform.config import create_production_configuration
 from sofia.platform.config.defaults import production_state_path
 from sofia.platform.run.active_release import (
     ActiveReleaseError,
@@ -32,6 +32,15 @@ def runtime_start_allowed(state_path: Path) -> bool:
     if not isinstance(state_path, Path):
         raise TypeError("state_path must be a Path")
     return not OperatorStopStore(state_path).current().active
+
+
+def runtime_package_identity() -> str:
+    """Return a bounded non-path identity suitable for service diagnostics."""
+    try:
+        installed = version("sofia-ada-lyra")
+    except PackageNotFoundError:
+        installed = "source-checkout"
+    return f"sofia-ada-lyra/{installed}"[:120]
 
 
 if sys.platform == "win32":
@@ -142,7 +151,6 @@ if sys.platform == "win32":
             return "stopped"
 
         def _run_bootstrap_runtime(self, state_path: Path) -> str:
-            configuration = create_production_configuration(state_path=state_path)
             resolver = ActiveReleaseResolver(
                 state_path=state_path,
                 release_root=state_path.parent / "release-runtime",
@@ -160,8 +168,8 @@ if sys.platform == "win32":
                 if not child.start(should_stop=self._stop_requested):
                     return "stopped"
                 servicemanager.LogInfoMsg(
-                    f"{self._svc_name_} started bootstrap runtime against "
-                    f"{configuration.state_path}"
+                    f"{self._svc_name_} started bootstrap runtime "
+                    f"package={runtime_package_identity()}"
                 )
                 while (
                     win32event.WaitForSingleObject(
