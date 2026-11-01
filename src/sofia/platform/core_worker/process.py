@@ -1385,6 +1385,41 @@ class CoreWorkerProcessOwner:
                 self.controller.authority_lost()
                 return
 
+    def replace(
+        self, *, release_digest: str, spec: CoreEngineProcessSpec,
+    ) -> CoreWorkerHealth:
+        """Replace the active Core without restarting the Platform owner.
+
+        The installed package is re-attested at the application boundary and
+        the current RUN lease must still be held. Controller replacement owns
+        readiness, drain, process exit and generation fencing. Backend state
+        is published only after that transaction succeeds, so supervisor
+        recovery never advertises an unverified candidate release.
+        """
+        if not isinstance(release_digest, str) or len(release_digest) != 64:
+            raise ValueError("release_digest must be SHA-256")
+        if not isinstance(spec, CoreEngineProcessSpec):
+            raise TypeError("spec must be CoreEngineProcessSpec")
+        now = self.clock()
+        if self._renewal_error is not None or not self.lease_store.holds(
+            self.lease, now=now,
+        ):
+            raise CoreWorkerError("Core replacement RUN authority is unavailable")
+        observed_digest = installed_core_release_digest()
+        if observed_digest != release_digest:
+            raise CoreWorkerError(
+                "replacement release digest does not match installed Core package"
+            )
+        if spec.expected_runtime_digest not in {None, release_digest}:
+            raise CoreWorkerError("replacement process specification release mismatch")
+        bound_spec = replace(spec, expected_runtime_digest=release_digest)
+        health = self.controller.replace(
+            release_digest=release_digest, spec=bound_spec, now=now,
+        )
+        self.backend.release_digest = release_digest
+        self.backend.spec = bound_spec
+        return health
+
     def close(self) -> None:
         self._stop.set()
         thread = self._thread

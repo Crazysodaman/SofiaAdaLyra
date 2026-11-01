@@ -1194,6 +1194,73 @@ def test_application_owner_rejects_forged_release_identity_before_spawn(
         )
 
 
+def test_application_owner_replaces_core_without_platform_restart(
+    canonical_state_path, tmp_path,
+):
+    from sofia.platform.core_worker import CoreWorkerProcessOwner
+
+    digest = installed_core_release_digest()
+    owner = CoreWorkerProcessOwner.start(
+        state_path=canonical_state_path, release_digest=digest,
+        platform_instance_id="platform:replace-owner",
+        core_identity_id="core:replace-owner",
+        component_id="core.replace-owner",
+        runtime_dir=tmp_path / "replace-owner",
+        spec=CoreEngineProcessSpec("rule"),
+    )
+    try:
+        old = owner.controller.endpoint
+        old_pid = owner.controller.pid
+        health = owner.replace(
+            release_digest=digest, spec=CoreEngineProcessSpec("rule"),
+        )
+
+        assert old is not None
+        assert health.ready and health.accepting
+        assert health.endpoint.generation == old.generation + 1
+        assert owner.controller.endpoint == health.endpoint
+        assert owner.controller.pid not in {None, old_pid, os.getpid()}
+        assert owner.generations.state(old) is GenerationState.RETIRED
+        assert owner.generations.is_active(health.endpoint)
+        assert owner.backend.release_digest == digest
+        assert owner.backend.spec.expected_runtime_digest == digest
+        observation = owner.backend.observe()
+        assert observation.state.value == "running"
+        assert observation.ready is True
+    finally:
+        owner.close()
+
+
+def test_application_owner_rejects_uninstalled_replacement_without_drain(
+    canonical_state_path, tmp_path,
+):
+    from sofia.platform.core_worker import CoreWorkerProcessOwner
+
+    digest = installed_core_release_digest()
+    owner = CoreWorkerProcessOwner.start(
+        state_path=canonical_state_path, release_digest=digest,
+        platform_instance_id="platform:replace-reject",
+        core_identity_id="core:replace-reject",
+        component_id="core.replace-reject",
+        runtime_dir=tmp_path / "replace-reject",
+        spec=CoreEngineProcessSpec("rule"),
+    )
+    try:
+        original = owner.controller.endpoint
+        original_pid = owner.controller.pid
+        with pytest.raises(CoreWorkerError, match="installed Core package"):
+            owner.replace(
+                release_digest="0" * 64,
+                spec=CoreEngineProcessSpec("rule"),
+            )
+        assert owner.controller.endpoint == original
+        assert owner.controller.pid == original_pid
+        assert original is not None and owner.generations.is_active(original)
+        assert owner.controller.health().ready
+    finally:
+        owner.close()
+
+
 def test_child_independently_rejects_parent_claimed_release_digest(
     canonical_state_path, tmp_path,
 ):
