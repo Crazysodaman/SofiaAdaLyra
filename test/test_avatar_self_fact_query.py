@@ -142,6 +142,38 @@ def test_current_outfit_recognizes_chat_shorthand():
 
 
 
+def test_owner_run2_outfit_shorthand_uses_authoritative_presentation():
+    for query in (
+        "So what is your outfit rn?",
+        "What's your current outfit?",
+        "Tell me about your current clothes.",
+        "Describe what you're wearing today.",
+        "Could you tell me what you're wearing right now?",
+        "What clothes do you have on?",
+    ):
+        result = answer(query)
+        assert result.recognized, query
+        assert "day engineer outfit" in result.content, query
+        assert "Fitted technical long-sleeve top" in result.content, query
+        assert "floral" not in result.content.casefold(), query
+
+
+def test_current_outfit_semantics_do_not_override_hypothetical_requests():
+    for query in (
+        "What would your outfit be tomorrow?",
+        "What outfit would you prefer?",
+        "What is your favorite outfit?",
+        "Why are you wearing that outfit?",
+        "What do you think about your outfit?",
+        "Change your outfit to a new one.",
+        "Show me your wardrobe.",
+    ):
+        result = answer(query)
+        # Explicit future and opinion requests require their own reviewed
+        # decision; canonical current state must not masquerade as a choice.
+        assert not result.recognized, query
+
+
 def test_panties_question_uses_explicit_briefs_in_current_presentation():
     result = answer("show me ur panties")
 
