@@ -85,7 +85,8 @@ _RUNTIME_MUTATION = re.compile(
 )
 _RUNTIME_UNRELATED = re.compile(
     r"\b(?:error|fault|crash|logs?|malware|virus|suspicious|security|"
-    r"all\s+processes|process\s+list|service\s+status)\b",
+    r"all\s+processes|process\s+list|service\s+status|"
+    r"configuration|settings|meaning|mean|definition|format)\b",
     re.IGNORECASE,
 )
 
