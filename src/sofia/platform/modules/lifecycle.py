@@ -15,6 +15,7 @@ from typing import Callable
 from sofia.platform.capability.model import Capability
 from sofia.platform.capability.system import CapabilityHandler, CapabilitySystem
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.local_store import PlatformLocalStore
 
 from .compatibility import ModuleCompatibilityReport
 from .package import (
@@ -167,14 +168,27 @@ class ModuleLifecycleManager:
 
     def __init__(self, *, state_path: Path, store_root: Path,
                  capability_system: CapabilitySystem,
-                 authorizer: LifecycleAuthorizer) -> None:
+                 authorizer: LifecycleAuthorizer,
+                 storage: PlatformLocalStore | None = None) -> None:
         if not isinstance(state_path, Path) or not isinstance(store_root, Path):
             raise TypeError("state_path and store_root must be Path")
         if not isinstance(capability_system, CapabilitySystem):
             raise TypeError("capability_system must be CapabilitySystem")
         if not callable(authorizer):
             raise TypeError("authorizer must be callable")
-        self._guard = CanonicalSQLiteGuard(state_path)
+        if storage is None:
+            self._guard = CanonicalSQLiteGuard(state_path)
+        else:
+            if not isinstance(storage, PlatformLocalStore):
+                raise TypeError(
+                    "module lifecycle storage must be a CanonicalSQLiteGuard "
+                    "default or a PlatformLocalStore"
+                )
+            if Path(os.path.abspath(str(state_path))) != storage.path:
+                raise ValueError(
+                    "module host state_path must name the Platform-local store"
+                )
+            self._guard = storage
         self.store_root = store_root.absolute()
         self.capability_system = capability_system
         self.authorizer = authorizer

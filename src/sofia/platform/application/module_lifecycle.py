@@ -8,11 +8,13 @@ or capability registration.
 from __future__ import annotations
 
 from datetime import datetime
+import os
 from pathlib import Path
 
 from sofia.platform.capability.model import Capability
 from sofia.platform.capability.system import CapabilityHandler, CapabilitySystem
 from sofia.platform.modules.compatibility import ModuleCompatibilityReport
+from sofia.platform.modules.host_authority import LocalModuleAuthority
 from sofia.platform.modules.lifecycle import (
     ModuleChangePlan,
     ModuleInstallPlan,
@@ -29,32 +31,61 @@ from sofia.platform.modules.settings import (
 )
 from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.platform.safe.operator_stop import OperatorStopStore
+from sofia.platform.state.local_store import PlatformLocalStore
 
 
 _SAFETY_REDUCING_OPERATIONS = frozenset({"pause", "disable", "quarantine"})
 
 
 class ModuleLifecycleCommandService:
-    """Bind PLAT-05 lifecycle commands to canonical SAFE and CapabilitySystem."""
+    """Bind PLAT-05 lifecycle commands to SAFE authority and CapabilitySystem.
+
+    Canonical composition consumes exact one-time owner approvals and operator
+    STOP state from the canonical SAFE ledgers.  A Core-free MODULE_HOST
+    composition instead consumes Core-issued receipts through its
+    ``PlatformLocalStore`` authority layer; the consumption contract stays the
+    reviewed exact-fingerprint, single-use semantics.
+    """
 
     def __init__(
         self, *, state_path: Path, store_root: Path,
         capability_system: CapabilitySystem,
+        storage: PlatformLocalStore | None = None,
     ) -> None:
         if not isinstance(state_path, Path) or not isinstance(store_root, Path):
             raise TypeError("state_path and store_root must be Path")
         if not isinstance(capability_system, CapabilitySystem):
             raise TypeError("capability_system must be CapabilitySystem")
-        self._approvals = ExecutionApprovalVerifier(state_path)
-        self._operator_stop = OperatorStopStore(state_path)
+        if storage is None:
+            self._approvals = ExecutionApprovalVerifier(state_path)
+            self._operator_stop = OperatorStopStore(state_path)
+            self._in_transaction_stop_sql = (
+                "SELECT active FROM safe_operator_stop WHERE singleton=1"
+            )
+        else:
+            if not isinstance(storage, PlatformLocalStore):
+                raise TypeError(
+                    "module host composition requires a PlatformLocalStore"
+                )
+            state_abs = Path(os.path.abspath(str(state_path)))
+            if state_abs != storage.path:
+                raise ValueError(
+                    "module host state_path must name the Platform-local store"
+                )
+            authority = LocalModuleAuthority(storage)
+            self._approvals = authority
+            self._operator_stop = authority
+            self._in_transaction_stop_sql = None
         self._manager = ModuleLifecycleManager(
             state_path=state_path,
             store_root=store_root,
             capability_system=capability_system,
             authorizer=self._consume_exact_authority,
+            storage=storage,
         )
         self._settings = ModuleSettingsService(
             state_path, authorizer=self._consume_settings_authority,
+            storage=storage,
         )
 
     @property
@@ -77,10 +108,16 @@ class ModuleLifecycleCommandService:
             or request.audience_id != "audience:owner-private"
         ):
             return False
-        stop = transaction.execute(
-            "SELECT active FROM safe_operator_stop WHERE singleton=1"
-        ).fetchone()
-        if stop is None or bool(stop[0]):
+        if self._in_transaction_stop_sql is not None:
+            # Canonical composition reads the stop revision inside the same
+            # write transaction as the settings mutation.
+            stop = transaction.execute(
+                self._in_transaction_stop_sql
+            ).fetchone()
+            stop_active = stop is None or bool(stop[0])
+        else:
+            stop_active = self._operator_stop.current().active
+        if stop_active:
             return False
         try:
             approval = self._approvals.consume(

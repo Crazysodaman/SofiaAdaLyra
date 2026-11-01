@@ -9,6 +9,7 @@ from enum import Enum
 import json
 import math
 from pathlib import Path
+import os
 import re
 import sqlite3
 from threading import Condition, Event, Lock
@@ -17,6 +18,7 @@ from typing import Callable
 from uuid import uuid4
 
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.local_store import PlatformLocalStore
 
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$")
@@ -85,9 +87,24 @@ class WorkOverloadError(RuntimeError):
 class DurableWorkStore:
     """Canonical job lifecycle. Workers may report outcomes, not mutate owners."""
 
-    def __init__(self, state_path: Path | str) -> None:
+    def __init__(
+        self, state_path: Path | str,
+        *, storage: PlatformLocalStore | None = None,
+    ) -> None:
         self.path = Path(state_path)
-        self._guard = CanonicalSQLiteGuard(self.path)
+        if storage is None:
+            self._guard = CanonicalSQLiteGuard(self.path)
+        else:
+            if not isinstance(storage, PlatformLocalStore):
+                raise TypeError(
+                    "work store storage must be the canonical default or a "
+                    "PlatformLocalStore"
+                )
+            if Path(os.path.abspath(str(state_path))) != storage.path:
+                raise ValueError(
+                    "module host work store must use the Platform-local state"
+                )
+            self._guard = storage
         with closing(self._connect()) as db, db:
             db.executescript(
                 """

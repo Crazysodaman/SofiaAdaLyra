@@ -60,6 +60,10 @@ from .operations import (
     ModuleOperationRequest,
     ModuleOperationType,
 )
+from .host_authority import (
+    ImportedApprovalBinding,
+    LocalModuleAuthority,
+)
 from .control_center import (
     platform_control_center_text,
     platform_module_manager_text,
@@ -90,6 +94,7 @@ __all__ = [
     "ModuleProcessError", "ResearchModuleProcessAdapter",
     "ModuleSettingsAuthorization", "ModuleSettingsReceipt",
     "ModuleSettingsService",
+    "ImportedApprovalBinding", "LocalModuleAuthority",
     "ReviewedResearchProcessFactory", "RESEARCH_CAPABILITY_ID",
     "RESEARCH_COMPONENT_ID", "RESEARCH_MODULE_ID",
     "evaluate_module_compatibility", "evaluate_module_readiness",

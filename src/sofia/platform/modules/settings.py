@@ -12,11 +12,14 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
 import json
+import os
+from pathlib import Path
 import sqlite3
 from typing import Callable, Mapping
 
 from sofia.platform.config.settings_authority import SettingsApplyState
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.local_store import PlatformLocalStore
 from sofia.sdk.module_settings import (
     ModuleSettingApplyClass,
     ModuleSettingsContract,
@@ -89,12 +92,27 @@ ModuleSettingsApplyHandler = Callable[
 
 
 class ModuleSettingsService:
-    """Revisioned module settings in the canonical Platform database."""
+    """Revisioned module settings in the owning Platform state database."""
 
-    def __init__(self, state_path, *, authorizer: ModuleSettingsAuthorizer) -> None:
+    def __init__(
+        self, state_path, *, authorizer: ModuleSettingsAuthorizer,
+        storage: PlatformLocalStore | None = None,
+    ) -> None:
         if not callable(authorizer):
             raise TypeError("module settings authorizer must be callable")
-        self._guard = CanonicalSQLiteGuard(state_path)
+        if storage is None:
+            self._guard = CanonicalSQLiteGuard(state_path)
+        else:
+            if not isinstance(storage, PlatformLocalStore):
+                raise TypeError(
+                    "module settings storage must be the canonical default "
+                    "or a PlatformLocalStore"
+                )
+            if Path(os.path.abspath(str(state_path))) != storage.path:
+                raise ValueError(
+                    "module host settings state must name the Platform-local store"
+                )
+            self._guard = storage
         self._authorizer = authorizer
         self._handlers: dict[tuple[str, str], ModuleSettingsApplyHandler] = {}
         with closing(self._connect()) as db, db:

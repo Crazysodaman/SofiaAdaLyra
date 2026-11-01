@@ -17,8 +17,25 @@ class AuditChain:
     GENESIS = "0" * 64
 
     def __init__(self, state_path: Path | str) -> None:
-        self.path = Path(state_path)
-        self._guard = CanonicalSQLiteGuard(self.path)
+        # ``AuditChain`` accepts either a reviewed state path (canonical
+        # guard-backed) or an already constructed storage provider such as the
+        # Platform-local store for Core-free installations.  Both must enforce
+        # the same identity-pin and substitution-refusal semantics.
+        if isinstance(state_path, (Path, str)):
+            self.path_obj: Path | None = Path(state_path)
+            self._guard = CanonicalSQLiteGuard(state_path)
+            self._storage = None
+        else:
+            if not callable(getattr(state_path, "connect", None)):
+                raise TypeError(
+                    "state_path must be a path or a storage provider "
+                    "with connect()"
+                )
+            self.path_obj = None
+            self._guard = None
+            self._storage = state_path
+        path = self.path_obj if self.path_obj is not None else self._storage.path
+        self.path = Path(path)
         with closing(self._connect()) as db:
             with db:
                 db.execute(
@@ -37,7 +54,10 @@ class AuditChain:
                 )
 
     def _connect(self) -> sqlite3.Connection:
-        db = self._guard.connect(timeout=10)
+        if self._storage is not None:
+            db = self._storage.connect(timeout=10)
+        else:
+            db = self._guard.connect(timeout=10)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA busy_timeout=10000")
         return db

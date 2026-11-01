@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 from hashlib import sha256
 import json
+import os
 from pathlib import Path
 import re
 import sqlite3
@@ -24,6 +25,7 @@ from sofia.platform.run.work import (
     WorkStatus,
 )
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.local_store import PlatformLocalStore
 
 from .adapters import AdapterFactoryRegistry, AdapterInspection
 from .compatibility import evaluate_module_compatibility
@@ -171,6 +173,7 @@ class ModuleOperationCoordinator:
         factories: AdapterFactoryRegistry,
         work_store: DurableWorkStore,
         manager: TaskExecutionManager,
+        storage: PlatformLocalStore | None = None,
     ) -> None:
         if not isinstance(state_path, Path):
             raise TypeError("state_path must be Path")
@@ -184,10 +187,22 @@ class ModuleOperationCoordinator:
         if not isinstance(work_store, DurableWorkStore) or not isinstance(
             manager, TaskExecutionManager
         ):
-            raise TypeError("canonical RUN store and manager required")
+            raise TypeError("RUN store and manager required")
         if work_store.path.resolve() != state_path.resolve() or manager.store is not work_store:
-            raise ValueError("module operations must share canonical RUN ownership")
-        self._guard = CanonicalSQLiteGuard(state_path)
+            raise ValueError("module operations must share RUN state ownership")
+        if storage is None:
+            self._guard = CanonicalSQLiteGuard(state_path)
+        else:
+            if not isinstance(storage, PlatformLocalStore):
+                raise TypeError(
+                    "module operation storage must be the canonical default "
+                    "or a PlatformLocalStore"
+                )
+            if Path(os.path.abspath(str(state_path))) != storage.path:
+                raise ValueError(
+                    "module host operations must use the Platform-local state"
+                )
+            self._guard = storage
         self.lifecycle = lifecycle
         self.factories = factories
         self.work_store = work_store
