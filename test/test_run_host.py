@@ -66,11 +66,15 @@ def test_legacy_heartbeat_schema_migrates_without_claiming_generation(tmp_path):
     assert observed.generation_epoch is None
 
 
-def heartbeat(path, *, epoch, recorded_at=NOW, ready=True):
+def heartbeat(
+    path, *, epoch, recorded_at=NOW, ready=True,
+    database_writable=True, background_running=True,
+):
     ApplicationHeartbeatStore(path).publish(ApplicationHeartbeat(
         instance_id=f"runtime:{epoch}", recorded_at=recorded_at,
-        ready=ready, runtime_state="ready", database_writable=True,
-        background_running=True, detail="test heartbeat",
+        ready=ready, runtime_state="ready",
+        database_writable=database_writable,
+        background_running=background_running, detail="test heartbeat",
         generation_epoch=epoch,
     ))
 
@@ -104,6 +108,27 @@ def test_only_fresh_matching_application_heartbeat_is_ready(tmp_path, monkeypatc
 
     heartbeat(path, epoch=7, recorded_at=datetime.now(timezone.utc))
     assert backend.observe().ready is True
+
+
+def test_database_or_background_failure_withholds_service_readiness(tmp_path):
+    path = state(tmp_path)
+    backend = LocalServiceRuntimeBackend(
+        service_name="SofiaAdaLyra", state_path=path,
+        maintenance=Maintenance(),
+    )
+    backend.heartbeats.bind_generation(7, now=NOW)
+
+    heartbeat(
+        path, epoch=7, recorded_at=datetime.now(timezone.utc),
+        database_writable=False,
+    )
+    assert backend.observe().ready is False
+
+    heartbeat(
+        path, epoch=7, recorded_at=datetime.now(timezone.utc),
+        background_running=False,
+    )
+    assert backend.observe().ready is False
 
 
 def test_service_start_binds_generation_before_scm_call(tmp_path):
