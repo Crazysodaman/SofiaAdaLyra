@@ -251,6 +251,10 @@ def test_run2_owner_natural_utterances_reach_authoritative_production_resolvers(
         assert "This runtime started at" in history.content
         assert "no verified previous runtime timestamp" in history.content
         assert "don't have a clock" not in history.content
+
+        retry = app.conversation.respond("Check weather again")
+        assert "weather" in retry.content.casefold()
+        assert "influence my delivery" not in retry.content.casefold()
     finally:
         app.shutdown()
 
