@@ -404,6 +404,19 @@ _ROLE_REVERSED_REUNION = re.compile(
     r"\bback\s+in\s+your\s+presence\b",
     re.IGNORECASE,
 )
+_UNSUPPORTED_SHARED_HISTORY = re.compile(
+    r"\b(?:you\s+(?:just\s+)?might\s+have\s+forgotten\s+"
+    r"(?:the\s+part\s+where|how|that)\b|"
+    r"we\s+were\s+working\s+on\s+(?:that|the)\s+(?:problem|puzzle)\b|"
+    r"you\s+were\s+stuck\s+on\s+a\s+puzzle\b)\b",
+    re.IGNORECASE,
+)
+_IDENTITY_SELF_QUESTION = re.compile(
+    r"^\s*(?:so\s+)?(?:who\s+are\s+you|who(?:'|’)s\s+sofia|"
+    r"tell\s+me\s+who\s+you\s+are)\s*[?!.]*\s*$",
+    re.IGNORECASE,
+)
+
 _UNVERIFIED_OFFLINE_PRESENCE = re.compile(
     r"\b(?:i\s+was\s+(?:just\s+)?(?:hanging\s+out\s+and\s+)?"
     r"waiting\s+for\s+you|i(?:'|’)ve\s+been\s+"
@@ -870,6 +883,13 @@ def response_quality_issue(
         and _DEPARTURE_GUILT.search(content)
     ):
         return "departure_guilt_or_obligation"
+    if (
+        _IDENTITY_SELF_QUESTION.fullmatch(user.strip()) is not None
+        and _UNSUPPORTED_SHARED_HISTORY.search(content) is not None
+        and "CANONICAL PERSONAL TIMELINE (host-verified records only)" not in system_context
+        and "TRUSTED HISTORICAL CONVERSATION EVIDENCE" not in system_context
+    ):
+        return "unsupported_shared_history"
     if (
         _UNVERIFIED_OFFLINE_PRESENCE.search(content) is not None
         and not any(marker in system_context for marker in (
