@@ -53,6 +53,7 @@ from sofia.platform.filesystem.orchestrator import (
 )
 from sofia.platform.runtime.runtime import SofiaRuntime
 from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.core.social.store import SocialSessionStore
 from sofia.core.rel.store import RelationshipStore
 from sofia.modules.neuro import NeuroRuntime, NeuroStateSnapshot, NeuroWakeMode
@@ -645,6 +646,7 @@ class ConversationService(ConversationMatrixMixin):
 
     def _grounded_runtime_status_turn(
         self, *, message: ConversationMessage,
+        principal: PrincipalContext | None,
     ) -> CognitiveResponse | None:
         """Answer current/previous runtime and local PID from trusted state.
 
@@ -668,7 +670,18 @@ class ConversationService(ConversationMatrixMixin):
             ),
             continuity=self._runtime.runtime_continuity,
             current_runtime=state,
-            process_id=os.getpid() if state is not None else None,
+            process_id=(
+                os.getpid()
+                if state is not None
+                and (
+                    principal is None
+                    or (
+                        principal.principal_id == SPARKS_PRINCIPAL_ID
+                        and principal.audience_kind is AudienceKind.PRIVATE
+                    )
+                )
+                else None
+            ),
         )
         return CognitiveResponse(content=answer.content) if answer.recognized else None
 
@@ -1846,7 +1859,7 @@ class ConversationService(ConversationMatrixMixin):
             return grounded_environment
 
         grounded_runtime = self._grounded_runtime_status_turn(
-            message=user_message,
+            message=user_message, principal=principal,
         )
         if grounded_runtime is not None:
             grounded_runtime = self._matrix_finalize_deterministic_response(
