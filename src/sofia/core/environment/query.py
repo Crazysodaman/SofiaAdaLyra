@@ -70,6 +70,9 @@ def _combined_current_clock_query(normalized: str) -> bool:
 
 
 def _general_observation_query(normalized: str) -> bool:
+    # "I see what you mean" is ordinary discourse, not a sensor request.
+    if re.match(r"^(?:i|we)\s+(?:can\s+)?see\b", normalized):
+        return False
     words = set(re.findall(r"[a-z]+", normalized))
     if words & {
         "screen", "screenshot", "picture", "photo", "image", "document",
