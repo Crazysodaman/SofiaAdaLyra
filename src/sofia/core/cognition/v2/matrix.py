@@ -109,6 +109,7 @@ _DOMAIN_CONCEPTS = {
     }),
     "continuity": frozenset({
         "background", "continue", "pending", "previous", "unfinished",
+        "runtime", "restart",
     }),
     "values": frozenset({
         "believe", "believes", "believed", "belief", "beliefs", "conviction",
