@@ -300,7 +300,11 @@ def test_run2_followup_outfit_paraphrases_preserve_canonical_evidence(tmp_path):
     app = SofiaApplication(_configuration(tmp_path))
     app.start()
     try:
-        for query in ("so what you got on today?", "so what've you got on today?"):
+        for query in (
+            "so what you got on today?",
+            "so what've you got on today?",
+            "So what do you have on rn",
+        ):
             answer = app.conversation.respond(query)
             assert "outfit" in answer.content.casefold(), (query, answer)
             assert "floral" not in answer.content.casefold(), (query, answer)

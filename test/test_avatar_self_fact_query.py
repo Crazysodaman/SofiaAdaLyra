@@ -172,7 +172,11 @@ def test_public_safe_outfit_does_not_resolve_as_private_current_outfit():
 
 
 def test_natural_got_on_question_reads_actual_outfit():
-    for phrase in ("so what you got on today?", "so what've you got on today?"):
+    for phrase in (
+        "so what you got on today?",
+        "so what've you got on today?",
+        "So what do you have on rn",
+    ):
         result = answer(phrase)
         assert result.recognized, phrase
         assert "day engineer outfit" in result.content, phrase

@@ -1439,6 +1439,7 @@ def test_outfit_why_scope_uses_only_the_eligible_immediate_exchange():
         msg(ConversationRole.USER, "Why did you choose the Artemis VM?"),
     ))
 
+
     # Domain filtering may exclude the prior assistant. The helper must not
     # reach back into an unfiltered/private lifetime transcript to compensate.
     assert not _is_outfit_choice_followup(outfit[::2])

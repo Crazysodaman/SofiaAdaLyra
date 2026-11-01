@@ -291,13 +291,14 @@ class MatrixV2Planner:
             and "environment" not in domains
         ):
             domains.append("environment")
-        # A casual "what've you got on today?" still needs the canonical
+        # Casual "what've you got on?" / "what do you have on?" questions
+        # still need the canonical
         # AVATAR evidence lane; the exact wardrobe resolver checks that this
         # is a read, not a garment action or a hypothetical choice.
         if (
             "avatar" not in domains
             and ("you" in token_set)
-            and ("got" in token_set)
+            and bool(token_set & {"got", "have"})
             and ("on" in token_set)
             and ("what" in token_set)
             and not token_set & {"going", "schedule", "plans", "plan", "work"}

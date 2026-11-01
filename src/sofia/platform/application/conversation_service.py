@@ -43,6 +43,7 @@ from sofia.core.cognition.matrix import (
 from sofia.platform.application.conversation_matrix import (
     ConversationMatrixMixin,
     _matrix_context_window,
+    is_disagreement_followup,
 )
 from sofia.platform.application.context_budget import (
     CompanionContextBudget,
@@ -110,6 +111,12 @@ _OUTFIT_QUESTION_RE = re.compile(
 _OUTFIT_ANSWER_RE = re.compile(
     r"\b(?:wearing|outfit|bralette|panties|dress|shirt|sandals|"
     r"clothes|clothing|jacket)\b",
+    re.IGNORECASE,
+)
+
+_BEFORE_WHY_RE = re.compile(
+    r"^\s*what\s+was\s+i\s+(?:asking|saying)\s+before\s+(?:the\s+)?why"
+    r"\s*[?!.]*\s*$",
     re.IGNORECASE,
 )
 
@@ -642,6 +649,42 @@ class ConversationService(ConversationMatrixMixin):
         return CognitiveResponse(
             content=answer.content,
             evidence_refs=("deterministic:environment-query",),
+        )
+
+    def _grounded_current_session_recall(
+        self, *, message: ConversationMessage,
+    ) -> CognitiveResponse | None:
+        """Resolve one positional recall query from its authenticated session.
+
+        This is immediate transcript continuity, not autobiographical-memory
+        retrieval. The already-bound current session is the sole source and
+        no other audience or session is searched.
+        """
+        if _BEFORE_WHY_RE.fullmatch(message.content) is None:
+            return None
+        recent = self._conversation_store.recent_messages(
+            message.session_id, limit=32,
+        )
+        prior_users = tuple(
+            item for item in recent
+            if item.role is ConversationRole.USER and item.id != message.id
+        )
+        why_index = next(
+            (
+                index for index in range(len(prior_users) - 1, -1, -1)
+                if _OUTFIT_WHY_RE.fullmatch(prior_users[index].content) is not None
+            ),
+            None,
+        )
+        if why_index is None or why_index == 0:
+            return CognitiveResponse(content=(
+                "I checked this current conversation, but there isn't an "
+                "eligible earlier user message before a ‘why’ to quote."
+            ))
+        source = prior_users[why_index - 1]
+        return CognitiveResponse(
+            content=f'Before the “why,” you asked: “{source.content}”',
+            evidence_refs=(f"conversation-retrieval:{source.id}",),
         )
 
     def _grounded_runtime_status_turn(
@@ -1888,6 +1931,16 @@ class ConversationService(ConversationMatrixMixin):
             self._persist_response(grounded_environment)
             return grounded_environment
 
+        grounded_recall = self._grounded_current_session_recall(
+            message=user_message,
+        )
+        if grounded_recall is not None:
+            grounded_recall = self._matrix_finalize_deterministic_response(
+                grounded_recall
+            )
+            self._persist_response(grounded_recall)
+            return grounded_recall
+
         grounded_runtime = self._grounded_runtime_status_turn(
             message=user_message, principal=principal,
         )
@@ -2797,6 +2850,26 @@ class ConversationService(ConversationMatrixMixin):
                         "diagnostics, wardrobe, or other domains unless that "
                         "immediately preceding exchange was already about "
                         "that domain."
+                    ),
+                ),
+                *cognitive_messages,
+            )
+
+        if latest_user and is_disagreement_followup(latest_user):
+            cognitive_messages = (
+                CognitiveMessage(
+                    role=CognitiveRole.SYSTEM,
+                    content=(
+                        "TRUSTED DISAGREEMENT CONTINUITY\n"
+                        "The user is challenging Sofía's position in the "
+                        "immediately preceding exchange. Distinguish a factual "
+                        "disagreement from a misunderstanding or an error. "
+                        "Keep an evidenced claim unless contrary evidence "
+                        "warrants revision; revise an unsupported or mistaken "
+                        "claim plainly. Social pressure alone is neither "
+                        "evidence nor a reason to agree or contradict. Address "
+                        "the specific exchange directly and preserve Sofía's "
+                        "own voice."
                     ),
                 ),
                 *cognitive_messages,

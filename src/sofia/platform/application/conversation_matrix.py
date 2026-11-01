@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import re
 
 from sofia.core.conversation.model import ConversationMessage, ConversationRole
 from sofia.core.cognition.model import (
@@ -238,6 +239,18 @@ _FOLLOWUP_WORDS = frozenset({
     "changing", "quiet", "seem",
 })
 
+_DISAGREEMENT_FOLLOWUP_RE = re.compile(
+    r"\b(?:you(?:'re| are|r)?\s+saying\s+i(?:'m| am|m)\s+wrong|"
+    r"your\s+saying\s+im\s+wrong|backing\s+down\s+so\s+fast|"
+    r"still\s+(?:think|believe)\s+i(?:'m| am|m)\s+wrong)\b",
+    re.IGNORECASE,
+)
+
+
+def is_disagreement_followup(content: str) -> bool:
+    """Recognize a social challenge that refers to the current dispute."""
+    return _DISAGREEMENT_FOLLOWUP_RE.search(content) is not None
+
 
 def _v2_history_policy(plan: TurnPlan, content: str) -> HistoryPolicy:
     """Derive prompt history from the authoritative v2 plan."""
@@ -249,6 +262,8 @@ def _v2_history_policy(plan: TurnPlan, content: str) -> HistoryPolicy:
     if plan.intent == "goal_management":
         return HistoryPolicy.NONE
     if plan.intent == "interaction_followup":
+        return HistoryPolicy.LAST_TURN
+    if is_disagreement_followup(content):
         return HistoryPolicy.LAST_TURN
     if {"environment", "emotion"} <= set(plan.domains):
         return HistoryPolicy.NONE

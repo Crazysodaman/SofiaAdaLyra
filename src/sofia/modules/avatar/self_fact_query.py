@@ -273,7 +273,7 @@ class AvatarSelfFactResolver:
         # wardrobe self-fact; "what have you got going on today?" is not.
         if re.fullmatch(
             r"(?:what(?:'ve| have)? you|what (?:have|do) you|"
-            r"what(?:'s| is) it)\s+(?:got\s+on|wearing)"
+            r"what(?:'s| is) it)\s+(?:got\s+on|have\s+on|wearing)"
             r"(?:\s+(?:today|now|rn|right now))?",
             normalized,
         ):

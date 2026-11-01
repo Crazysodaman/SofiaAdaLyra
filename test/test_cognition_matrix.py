@@ -1875,6 +1875,15 @@ def test_natural_avatar_why_followup_keeps_last_turn_context():
     assert result.response_strategy is ResponseStrategy.GENERATIVE
 
 
+@pytest.mark.parametrize("query", (
+    "so your saying Im wrong",
+    "why are you backing down so fast?",
+))
+def test_run3_disagreement_challenges_keep_immediate_exchange(query):
+    result = BaselineTurnClassifier().classify(envelope(query))
+    assert result.history_policy is HistoryPolicy.LAST_TURN
+
+
 def test_perceived_quiet_comment_is_social_emotion_turn():
     result = BaselineTurnClassifier().classify(
         envelope("you seem kinda quiet today")
