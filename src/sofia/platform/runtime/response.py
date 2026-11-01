@@ -199,6 +199,7 @@ def respond_with_runtime_context(
             ),
             capability_names=runtime._capability_system.capability_names(),
             authority=runtime.current_authority(),
+            continuity=runtime.runtime_continuity,
         )
         if status_answer.recognized:
             return CognitiveResponse(content=status_answer.content)
