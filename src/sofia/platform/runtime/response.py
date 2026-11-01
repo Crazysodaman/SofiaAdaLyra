@@ -426,8 +426,11 @@ def respond_with_runtime_context(
         )
 
     environment_snapshot = None
-    environment_details_needed = environment_details_relevant(
-        user_content or None
+    environment_details_needed = (
+        environment_details_relevant(user_content or None)
+        or runtime._environment_query_resolver.is_general_observation_query(
+            environment_query or ""
+        )
     )
     environment_service = getattr(
         runtime,
