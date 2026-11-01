@@ -69,7 +69,11 @@ def _is_previous_runtime_read(query: str) -> bool:
     return (
         _PREVIOUS_RUNTIME_QUESTION.search(normalized) is not None
         and bool(words & {"what", "when", "tell", "show", "how"})
-        and not bool(words & {"delete", "restart", "stop", "start", "change", "log", "error"})
+        and not bool(words & {"log", "error", "crash", "reason", "diagnosis"})
+        and re.match(
+            r"^(?:start|stop|restart|delete|change|remove)\b",
+            normalized,
+        ) is None
     )
 
 
