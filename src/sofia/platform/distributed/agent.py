@@ -21,8 +21,11 @@ from sofia.platform.distributed.inference import (
 from sofia.platform.distributed.operations import RemoteOutcome
 from sofia.platform.distributed.tls import public_key_fingerprint_from_der_certificate
 from sofia.platform.distributed.version import FleetProtocolVersion
+from sofia.platform.capability.model import CapabilityDispatchContext
+from sofia.platform.run.host_effect_attestation import HostEffectAttestationLedger
 
 AgentHandler=Callable[[Mapping[str,Any]],Any]
+AgentEffectObserver=Callable[[Mapping[str,Any],Any],str|None]
 InferenceHandler=Callable[[RemoteInferenceRequest],RemoteInferenceResponse]
 _FORBIDDEN_PARAMETERS=frozenset({"command","commands","cmd","shell","script","executable","argv","arguments","password","token","secret","private_key"})
 
@@ -61,6 +64,7 @@ class RemoteAgentConfig:
     release_inbox:Path|None=None
     release_trusted_key_file:Path|None=None
     release_trusted_key_id:str|None=None
+    effect_attestation_root:Path|None=None
     def __post_init__(self):
         if not self.node_name.strip(): raise ValueError("node_name required")
         if not 1<=self.listen_port<=65535: raise ValueError("listen_port out of range")
@@ -104,6 +108,7 @@ class RemoteAgentConfig:
             "release_root",
             "release_inbox",
             "release_trusted_key_file",
+            "effect_attestation_root",
         ):
             value=getattr(self,name)
             if value is not None and not isinstance(value,Path):
@@ -125,21 +130,39 @@ class RemoteAgentConfig:
 
 class RemoteAgentDispatcher:
     def __init__(self)->None:
-        self._handlers:dict[tuple[str,str],AgentHandler]={}
-    def register(self,capability:str,operation:str,handler:AgentHandler)->None:
+        self._handlers:dict[
+            tuple[str,str],tuple[AgentHandler,AgentEffectObserver|None]
+        ]={}
+    def register(
+        self,capability:str,operation:str,handler:AgentHandler,*,
+        effect_observer:AgentEffectObserver|None=None,
+    )->None:
         key=(capability,operation)
         if key in self._handlers: raise ValueError(f"duplicate remote operation: {capability}/{operation}")
         if not capability.strip() or not operation.strip(): raise ValueError("capability and operation required")
-        self._handlers[key]=handler
+        if effect_observer is not None and not callable(effect_observer):
+            raise TypeError("effect_observer must be callable or None")
+        self._handlers[key]=(handler,effect_observer)
     def inventory(self)->tuple[RemoteCapability,...]:
         grouped:dict[str,list[str]]={}
         for capability,operation in self._handlers:
             grouped.setdefault(capability,[]).append(operation)
         return tuple(RemoteCapability(name,tuple(sorted(ops))) for name,ops in sorted(grouped.items()))
     def execute(self,capability:str,operation:str,parameters:Mapping[str,Any])->Any:
-        try: handler=self._handlers[(capability,operation)]
+        try: handler,_observer=self._handlers[(capability,operation)]
         except KeyError as exc: raise PermissionError("remote operation is not registered") from exc
         return handler(parameters)
+    def observe_effect(
+        self,capability:str,operation:str,parameters:Mapping[str,Any],result:Any,
+    )->str|None:
+        try: _handler,observer=self._handlers[(capability,operation)]
+        except KeyError as exc: raise PermissionError("remote operation is not registered") from exc
+        if observer is None:
+            return None
+        outcome=observer(parameters,result)
+        if outcome not in {None,"performed","absent"}:
+            raise ValueError("effect observer returned an invalid outcome")
+        return outcome
 
 class AgentRequestLedger:
     def __init__(self,path:Path)->None:
@@ -279,6 +302,10 @@ class RemoteAgentServer:
         self.config=config
         self.dispatcher=dispatcher
         self.ledger=AgentRequestLedger(config.ledger_path)
+        self.effects=(
+            None if config.effect_attestation_root is None
+            else HostEffectAttestationLedger(config.effect_attestation_root)
+        )
         self.inference=(
             None
             if inference_handler is None
@@ -360,12 +387,36 @@ class RemoteAgentServer:
                             "error_type":type(exc).__name__,
                         })
                     return
+                if self.path=="/v1/host-effects/query":
+                    if owner.effects is None:
+                        self._json(404,{"error":"host effect evidence is not configured"}); return
+                    try:
+                        payload=self._read_json(max_bytes=4096)
+                        row=owner.effects.attestation(str(payload["dispatch_id"]))
+                        if row is None:
+                            self._json(404,{"error":"host effect evidence not found"})
+                        else:
+                            self._json(200,{"node_id":str(owner.config.node_id),"attestation":row})
+                    except (KeyError,TypeError,ValueError,PermissionError) as exc:
+                        self._json(400,{"error":f"{type(exc).__name__}: {exc}"})
+                    return
                 if self.path!="/v1/operations": self._json(404,{"error":"not found"}); return
                 try:
                     payload=self._read_json()
                     request_id=UUID(payload["request_id"]); node_id=UUID(payload["node_id"])
                     capability=str(payload["capability"]); operation=str(payload["operation"])
                     parameters=payload.get("parameters",{})
+                    raw_context=payload.get("dispatch_context")
+                    dispatch_context=(
+                        None if raw_context is None
+                        else CapabilityDispatchContext(
+                            dispatch_id=raw_context["dispatch_id"],
+                            goal_id=raw_context["goal_id"],
+                            capability=raw_context["capability"],
+                            principal_id=raw_context["principal_id"],
+                            audience=raw_context["audience"],
+                        )
+                    )
                     if node_id!=owner.config.node_id: raise PermissionError("wrong node")
                     if not isinstance(parameters,dict): raise ValueError("parameters must be object")
                     parameters=_bounded_parameters(parameters)
@@ -384,6 +435,29 @@ class RemoteAgentServer:
                     except Exception as exc:
                         message=f"{type(exc).__name__}: {exc}"
                         outcome=RemoteOutcome.REPORTED_FAILURE
+                    if outcome is RemoteOutcome.REPORTED_SUCCESS:
+                        try:
+                            observed=(
+                                None if dispatch_context is None or owner.effects is None
+                                else owner.dispatcher.observe_effect(
+                                    capability,operation,parameters,result,
+                                )
+                            )
+                            if observed is not None:
+                                owner.effects.attest_effect(
+                                    dispatch_id=dispatch_context.dispatch_id,
+                                    goal_id=dispatch_context.goal_id,
+                                    capability=dispatch_context.capability,
+                                    outcome=observed,
+                                    attested_by=f"fleet-node:{owner.config.node_id}",
+                                    now=datetime.now(timezone.utc),
+                                )
+                        except Exception as exc:
+                            message=(
+                                "host effect publication failed after operation: "
+                                f"{type(exc).__name__}"
+                            )
+                            outcome=RemoteOutcome.UNKNOWN
                     owner.ledger.finish(request_id,outcome,message)
                     self._json(200,{"request_id":str(request_id),"node_id":str(node_id),"outcome":outcome.value,"message":message})
                 except (KeyError,TypeError,ValueError,PermissionError) as exc:

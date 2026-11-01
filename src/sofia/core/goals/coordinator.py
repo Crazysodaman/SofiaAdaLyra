@@ -12,7 +12,9 @@ import sqlite3
 from typing import Callable
 
 from sofia.platform.capability.gateway import CapabilityGateway
-from sofia.platform.capability.model import CapabilityResultKind
+from sofia.platform.capability.model import (
+    CapabilityDispatchContext, CapabilityResultKind,
+)
 from sofia.modules.neuro.model import NeuralActivation, NeuroStateSnapshot, NeuroWakeMode
 from sofia.platform.safe.permissions import PermissionLevel, capability_permission_policy
 from sofia.platform.safe.permissions import PermissionStore
@@ -96,8 +98,12 @@ class GoalRunSchedule:
 
 class GoalActionPlanner:
     """Deterministic initial diagnostics; it creates no permission or receipt."""
-    def __init__(self, gateway: CapabilityGateway) -> None:
+    def __init__(
+        self, gateway: CapabilityGateway,
+        evidence_index: GoalEvidenceIndex | None = None,
+    ) -> None:
         self.gateway = gateway
+        self.evidence_index = evidence_index
 
     _SERVICE_RESTART = re.compile(
         r"^restart(?:ing)?\s+(?:the\s+)?([A-Za-z0-9_.-]{1,80})(?:\s+service)?$",
@@ -117,25 +123,44 @@ class GoalActionPlanner:
                 return None
             capability = self.gateway.capability_system.resolve(capability_name)
             return capability, {"name": restart.group(1)}
-        choices = []
+        choices: list[tuple[str, dict]] = []
         if any(word in text for word in ("docker", "container", "papermerge")):
-            choices.extend(("portainer.summary", "system.inspect"))
+            node_ids: set[str] = set()
+            if self.evidence_index is not None:
+                for evidence_ref in goal.evidence_refs:
+                    record = self.evidence_index.lookup(evidence_ref)
+                    if (
+                        record is not None
+                        and record.kind == "external_observation"
+                        and record.source is not None
+                        and record.source.startswith("fleet-observation:")
+                        and isinstance(record.payload, dict)
+                        and isinstance(record.payload.get("node_id"), str)
+                    ):
+                        node_ids.add(record.payload["node_id"])
+            if len(node_ids) == 1:
+                choices.append((
+                    "remote.container.summary", {"node_id": next(iter(node_ids))},
+                ))
+            choices.extend((("portainer.summary", {}), ("system.inspect", {})))
         elif any(word in text for word in ("fleet", "artemis", "offline", "node")):
-            choices.extend(("ops.fleet.list", "network.inspect"))
+            choices.extend((("ops.fleet.list", {}), ("network.inspect", {})))
         elif any(word in text for word in ("network", "latency", "tunnel")):
-            choices.extend(("network.inspect", "system.inspect"))
+            choices.extend((("network.inspect", {}), ("system.inspect", {})))
         elif any(word in text for word in ("service", "restart")):
-            choices.extend(("service.inspect", "system.inspect"))
+            choices.extend((("service.inspect", {}), ("system.inspect", {})))
         avoided = set(avoid_capabilities)
-        capability = next(
-            (item for item in choices if item in names and item not in avoided), None,
+        selected = next(
+            (item for item in choices if item[0] in names and item[0] not in avoided),
+            None,
         )
-        if capability is None:
+        if selected is None:
             return None
+        capability, parameters = selected
         policy = capability_permission_policy(capability)
         if policy.level is not PermissionLevel.OBSERVE_READ:
             raise PermissionError("initial automatic goal step must remain Level-1 read-only")
-        return self.gateway.capability_system.resolve(capability), {}
+        return self.gateway.capability_system.resolve(capability), parameters
 
 
 def goal_reconciliation_approval_parameters(
@@ -179,7 +204,7 @@ class GoalProductionCoordinator:
         self.path = Path(state_path)
         self.ledger = GoalEvidenceLedger(self.path)
         self.schedule = GoalRunSchedule(self.path)
-        self.planner = GoalActionPlanner(gateway)
+        self.planner = GoalActionPlanner(gateway, GoalEvidenceIndex(self.path))
         self.permissions = PermissionStore(self.path)
         self.principal_provider = principal_provider
         self.neuro_provider = neuro_provider
@@ -1177,11 +1202,6 @@ class GoalProductionCoordinator:
                     actor_principal_id=SOFIA_GOAL_OWNER_ID, now=now,
                 )
                 continue
-            proposal = self.goals.propose_action(
-                goal=goal, capability_name=capability.name,
-                parameters=parameters, requested_scope=None,
-                rationale=f"Bounded Level-1 diagnostic for goal {goal.id}",
-            )
             # Planning and approval checks can observe a changing lifecycle.
             # Check the exact snapshot again immediately before dispatch.
             # This does not replace the worker/lease fence needed for
@@ -1199,6 +1219,16 @@ class GoalProductionCoordinator:
             attempt_id = "goal-action:" + sha256(
                 f"{goal.id}\0{capability.name}\0{now.isoformat()}".encode()
             ).hexdigest()[:24]
+            proposal = self.goals.propose_action(
+                goal=goal, capability_name=capability.name,
+                parameters=parameters, requested_scope=None,
+                rationale=f"Bounded Level-1 diagnostic for goal {goal.id}",
+                dispatch_context=CapabilityDispatchContext(
+                    attempt_id, goal.id, capability.name,
+                    goal.scope_principal_id or "unscoped",
+                    goal.scope_audience or "unscoped",
+                ),
+            )
             if not self._reserve_dispatch(
                 dispatch_id=attempt_id, goal=goal,
                 capability=capability.name, now=now,

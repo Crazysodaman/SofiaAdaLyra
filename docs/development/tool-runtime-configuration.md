@@ -185,7 +185,23 @@ SOFIA_AGENT_SERVER_KEY=<server key PEM>
 SOFIA_AGENT_CLIENT_CA=<CA PEM used to verify the controller cert>
 SOFIA_AGENT_CLIENT_PUBLIC_KEY_SHA256=<controller cert public-key fingerprint>
 SOFIA_AGENT_LEDGER=<durable agent ledger SQLite path>
+SOFIA_AGENT_EFFECT_ATTESTATION_ROOT=<host-local private operations directory>
 ```
+
+`SOFIA_AGENT_EFFECT_ATTESTATION_ROOT` is optional. When it is absent, the
+agent executes its existing operations but cannot publish evidence for GOALS
+outcome reconciliation. When configured, only operations with a registered
+host-side postcondition observer may append an effect row. The agent seals the
+bounded append-only journal with a host-local key and exposes verified rows
+only to the pinned mutual-TLS controller. The Core never opens this directory
+or receives its key.
+
+Place the directory inside the Fleet service's protected writable state root.
+Back up the journal, tip and `host-effect-key.hex` together. Losing the key or
+any journal component intentionally makes old outcomes unverifiable; restore
+the complete set from the same host backup or leave affected dispatches
+unresolved for operator review. Never copy this host key into canonical Sofía
+state or use an effect receipt as execution permission.
 
 Optional agent-side Portainer mapping:
 
@@ -194,6 +210,18 @@ SOFIA_AGENT_PORTAINER_URL=https://...
 SOFIA_AGENT_PORTAINER_API_KEY=<local secret>
 SOFIA_AGENT_PORTAINER_ENDPOINT_ID=1
 ```
+
+With both Portainer mapping and the effect root configured,
+`container.inspect/summary` has a host-side observation contract. A reserved
+GOALS dispatch carries identity metadata separately from capability parameters;
+that metadata grants no authority and does not expand the exact Fleet grant.
+After the host returns the observed summary, the agent seals the exact dispatch,
+goal, capability, node identity, timestamp and outcome. Core reconciliation
+then requires all of the following: active enrolled node identity, approved
+endpoint and certificate pin, a fresh matching host row, matching principal and
+audience, the unresolved canonical dispatch, and a one-use owner WebAuthn SAFE
+approval. Transport loss or observer failure remains `UNKNOWN` and is never
+automatically retried.
 
 Start explicitly:
 

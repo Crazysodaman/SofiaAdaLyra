@@ -1020,6 +1020,52 @@ def test_g7a_real_host_attestation_ledger_controls_reconciliation(tmp_path):
     )
 
 
+def test_g7a_fleet_grounded_goal_dispatches_remote_host_with_exact_context(tmp_path):
+    path = tmp_path / "sofia.db"
+    goals, production = coordinator(path, neural=[snapshot("ops")])
+    requests = []
+    production.planner.gateway.capability_system.register(
+        Capability("remote.container.summary", "Inspect enrolled remote containers."),
+        lambda request: requests.append(request) or {"containers": []},
+    )
+    principal = local_sparks_principal()
+    ledger = GoalEvidenceLedger(path)
+    message = ledger.record(
+        evidence_ref="message:remote-docker", kind="authenticated_user_message",
+        observed_at=NOW, source="test-conversation",
+        principal_id=principal.principal_id, audience=audience_scope(principal),
+    )
+    fleet = ledger.record(
+        evidence_ref="goal-evidence:fleet:remote-docker", kind="external_observation",
+        observed_at=NOW, source="fleet-observation:authenticated-venus",
+        assertion="machine.os", payload={
+            "node_id": "11111111-2222-3333-4444-555555555555",
+            "value": "linux",
+        }, principal_id=principal.principal_id, audience=audience_scope(principal),
+    )
+    goal = goals.create_user_goal(
+        principal=principal, title="Investigate Docker health on enrolled host",
+        reason="Authenticated Fleet evidence identifies the target host.",
+        base_priority=0.7, confidence=1.0,
+        completion=GoalCompletionCondition(
+            CompletionKind.USER_DEFINED, "Owner reviews diagnostics.",
+        ), evidence_refs=(message.evidence_ref, fleet.evidence_ref), now=NOW,
+    )
+
+    assert production.run_due(now=NOW + timedelta(seconds=1)) == 1
+    assert len(requests) == 1
+    request = requests[0]
+    assert request.parameters == {
+        "node_id": "11111111-2222-3333-4444-555555555555",
+    }
+    assert request.dispatch_context is not None
+    assert request.dispatch_context.goal_id == goal.id
+    assert request.dispatch_context.capability == "remote.container.summary"
+    assert request.dispatch_context.principal_id == principal.principal_id
+    assert request.dispatch_context.audience == audience_scope(principal)
+    assert production.reconciliations(goal.id) == ()
+
+
 def test_g7a_verified_host_outcome_becomes_durable_learning_after_crash(
     tmp_path, monkeypatch
 ):

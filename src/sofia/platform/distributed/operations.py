@@ -17,6 +17,8 @@ from types import MappingProxyType
 from typing import Mapping
 from uuid import UUID
 
+from sofia.platform.capability.model import CapabilityDispatchContext
+
 from sofia.platform.distributed.authorization import RemoteAuthorization
 from sofia.platform.distributed.capabilities import (
     CapabilityInventory, _aware, _identifier, inventory_is_current,
@@ -37,6 +39,7 @@ class RemoteOperationRequest:
     capability: str
     operation: str
     parameters: Mapping[str, Scalar]
+    dispatch_context: CapabilityDispatchContext | None = None
 
     def __post_init__(self) -> None:
         for value in (self.request_id, self.node_id, self.grant_id):
@@ -59,6 +62,12 @@ class RemoteOperationRequest:
         if len(dumps(frozen, ensure_ascii=False).encode("utf-8")) > 4096:
             raise ValueError("Remote parameters exceed 4096 bytes.")
         object.__setattr__(self, "parameters", MappingProxyType(frozen))
+        if self.dispatch_context is not None and not isinstance(
+            self.dispatch_context, CapabilityDispatchContext
+        ):
+            raise TypeError(
+                "dispatch_context must be CapabilityDispatchContext or None"
+            )
 
 
 class RemoteOutcome(str, Enum):
@@ -102,6 +111,10 @@ class RemoteTransport(ABC):
     def execute(self, enrollment: NodeEnrollment,
                 request: RemoteOperationRequest) -> RemoteOperationResult:
         """Invoke only the explicitly named remote operation."""
+        raise NotImplementedError
+
+    def host_effect(self, enrollment: NodeEnrollment, dispatch_id: str) -> dict:
+        """Query host-owned effect evidence when the transport supports it."""
         raise NotImplementedError
 
 

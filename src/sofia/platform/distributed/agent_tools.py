@@ -344,7 +344,10 @@ def create_default_agent_dispatcher(
             max_bytes=int(p.get("max_bytes",262144)),
         )))
         dispatcher.register("container.inspect","info",lambda p:_plain(port.info()))
-        dispatcher.register("container.inspect","summary",lambda p:_plain(port.summary()))
+        dispatcher.register(
+            "container.inspect","summary",lambda p:_plain(port.summary()),
+            effect_observer=lambda _parameters,_result:"performed",
+        )
         dispatcher.register("container.inspect","images",lambda p:_plain(port.images()))
         dispatcher.register("container.inspect","volumes",lambda p:_plain(port.volumes()))
         dispatcher.register("container.inspect","networks",lambda p:_plain(port.networks()))

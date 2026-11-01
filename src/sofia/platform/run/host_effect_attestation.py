@@ -193,6 +193,18 @@ class HostEffectAttestationLedger:
         with self._transaction_lock():
             return self._verify_dispatch_outcome(dispatch_id, evidence)
 
+    def attestation(self, dispatch_id: str) -> dict | None:
+        """Return one integrity-verified host row for authenticated transport."""
+        if not isinstance(dispatch_id, str) or not dispatch_id.strip():
+            raise ValueError("exact dispatch id required")
+        with self._transaction_lock():
+            rows, _digest = self._journal(self.store_path)
+            match = next(
+                (dict(row) for row in rows if row["dispatch_id"] == dispatch_id),
+                None,
+            )
+        return match
+
     def _verify_dispatch_outcome(self, dispatch_id: str, evidence) -> bool:
         if not isinstance(dispatch_id, str) or not dispatch_id.strip():
             return False

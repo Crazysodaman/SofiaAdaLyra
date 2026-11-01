@@ -27,6 +27,7 @@ on:
       - 'test/test_learning_foundation.py'
       - 'test/test_generalization_advanced.py'
       - 'test/test_host_effect_attestation.py'
+      - 'test/test_remote_mtls_transport_acceptance.py'
       - 'test/test_goal_production_wiring.py'
       - 'test/test_release_keyless_attestation.py'
       - '.github/workflows/go-live-cross-gate-pr.yml'
@@ -56,6 +57,7 @@ on:
       - 'test/test_learning_foundation.py'
       - 'test/test_generalization_advanced.py'
       - 'test/test_host_effect_attestation.py'
+      - 'test/test_remote_mtls_transport_acceptance.py'
       - 'test/test_goal_production_wiring.py'
       - 'test/test_release_keyless_attestation.py'
       - '.github/workflows/go-live-cross-gate-pr.yml'
@@ -115,7 +117,7 @@ jobs:
       - name: G7-A learning and generalization regressions
         run: python -m pytest -q test/test_learning_foundation.py test/test_generalization_advanced.py
       - name: G7-A independent host attestation and production SAFE reconciliation
-        run: python -m pytest -q test/test_host_effect_attestation.py test/test_goal_production_wiring.py
+        run: python -m pytest -q test/test_host_effect_attestation.py test/test_remote_mtls_transport_acceptance.py test/test_goal_production_wiring.py
       - name: G7 keyless release provenance policy regressions (no signing authority)
         run: python -m pytest -q test/test_release_keyless_attestation.py
 

@@ -648,14 +648,11 @@ def test_application_composes_one_canonical_evidence_ledger(tmp_path):
     # The real production Fleet answer handler consumes the already-composed
     # graph, not a second ledger or an isolated test-only truth projector.
     assert app._fleet_machine_answers.evidence_graph is app.cognitive_evidence_graph
-    # Production GOALS has the canonical SAFE owner-approval boundary, plus
-    # a real independently-scoped host effect ledger; a locally invented host
-    # outcome, a string label, or the existence of an approval may never
-    # enable live reconciliation by itself.
+    # Production GOALS has the canonical SAFE owner-approval boundary. The
+    # Core must not compose a host-side attestation writer in its own process;
+    # without configured pinned-mTLS Fleet credentials, reconciliation stays
+    # unavailable rather than treating a locally invented outcome as proof.
     from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
-    from sofia.platform.run.host_effect_attestation import (
-        HostEffectAttestationLedger,
-    )
     from sofia.core.social.principals import local_sparks_principal
 
     goal_runner = app._goal_production
@@ -665,22 +662,12 @@ def test_application_composes_one_canonical_evidence_ledger(tmp_path):
     )
     assert goal_runner.reconciliation_approval_verifier.path == app._configuration.state_path
     assert goal_runner.reconciliation_authorizer is None
-    assert isinstance(app._host_effect_attestation, HostEffectAttestationLedger)
-    assert goal_runner.independent_outcome_verifier.__self__ is (
-        app._host_effect_attestation
-    )
-    assert goal_runner.independent_outcome_verifier.__name__ == (
-        "verify_dispatch_outcome"
-    )
-    assert app._host_effect_attestation.store_path == (
-        Path(app._configuration.state_path).parent
-        / "platform-host-effects"
-        / "host-effect-attestations.jsonl"
-    )
+    assert app._host_effect_attestation is None
+    assert goal_runner.independent_outcome_verifier is None
     # Bound protocol: only a canonical one-use owner SAFE approval may enter
     # reconciliation, and even then only for an exact unresolved dispatch.
     with pytest.raises(
-        PermissionError, match="exact owner SAFE reconciliation approval required",
+        PermissionError, match="trusted reconciliation authority",
     ):
         goal_runner.reconcile_dispatch(
             goal_id="forged:goal", dispatch_id="goal-action:forged",
@@ -688,3 +675,22 @@ def test_application_composes_one_canonical_evidence_ledger(tmp_path):
             evidence_ref="goal-evidence:forged",
             approval_id=None, now=NOW,
         )
+
+
+def test_application_uses_configured_pinned_fleet_outcome_verifier(
+    tmp_path, monkeypatch,
+):
+    for variable, name in (
+        ("SOFIA_REMOTE_CA", "fleet-ca.pem"),
+        ("SOFIA_REMOTE_CLIENT_CERT", "core-client.pem"),
+        ("SOFIA_REMOTE_CLIENT_KEY", "core-client.key"),
+    ):
+        monkeypatch.setenv(variable, str(tmp_path / name))
+
+    app = SofiaApplication(_configuration(tmp_path))
+
+    from sofia.platform.distributed.capability import RemoteFleetToolService
+    assert isinstance(app._host_effect_attestation, RemoteFleetToolService)
+    verifier = app._goal_production.independent_outcome_verifier
+    assert verifier.__self__ is app._host_effect_attestation
+    assert verifier.__name__ == "verify_goal_dispatch"

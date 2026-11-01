@@ -28,6 +28,7 @@ class GoalEvidence:
     source: str | None = None
     principal_id: str | None = None
     audience: str | None = None
+    payload: dict | None = None
 
 
 class GoalEvidenceLedger:
@@ -181,7 +182,7 @@ class GoalEvidenceIndex:
                 row = db.execute("""
                     SELECT kind,observed_at,successful,goal_id,action_id,assertion,
                            cause_identified,coverage_started_at,coverage_ended_at,
-                           coverage_complete,source,principal_id,audience
+                           coverage_complete,source,principal_id,audience,payload_json
                     FROM goal_evidence_record WHERE evidence_ref=?
                 """, (evidence_ref,)).fetchone()
                 if row is not None:
@@ -221,13 +222,19 @@ class GoalEvidenceIndex:
                             )
                         ):
                             return None
+                    try:
+                        payload = json.loads(row[13])
+                    except (TypeError, json.JSONDecodeError):
+                        return None
+                    if not isinstance(payload, dict):
+                        return None
                     return GoalEvidence(
                         evidence_ref, row[0], datetime.fromisoformat(row[1]),
                         None if row[2] is None else bool(row[2]), row[3], row[4],
                         row[5], bool(row[6]),
                         None if row[7] is None else datetime.fromisoformat(row[7]),
                         None if row[8] is None else datetime.fromisoformat(row[8]),
-                        bool(row[9]), row[10], row[11], row[12],
+                        bool(row[9]), row[10], row[11], row[12], payload,
                     )
             if self._has(db, "conversation_messages"):
                 # Some installed/legacy or test conversation schemas contain

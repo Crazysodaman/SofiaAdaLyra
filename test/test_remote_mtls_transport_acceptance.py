@@ -5,7 +5,9 @@ from ipaddress import ip_address
 from pathlib import Path
 import socket
 import threading
+from types import SimpleNamespace
 from uuid import uuid4
+import pytest
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes,serialization
@@ -19,10 +21,26 @@ from sofia.platform.distributed.operator import enroll_node,approve_endpoint,gra
 from sofia.platform.distributed.model import NodeEnrollment
 from sofia.platform.distributed.model import DistributedNode,NodeEndpoint,NodeTransport
 from sofia.platform.distributed.operations import RemoteOperationRequest,RemoteOutcome
+from sofia.platform.capability.model import CapabilityDispatchContext
+from sofia.platform.distributed.https_transport import HttpsTransportError
 from sofia.platform.distributed.tls import public_key_fingerprint_from_pem_certificate
 from sofia.platform.ops.model import FleetHost,HostLifecycle
 from sofia.platform.ops.state_registry import StatePlaneFleetRegistry
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
+from sofia.core.social.principals import local_sparks_principal
+from sofia.platform.capability import Capability,CapabilitySystem
+from sofia.platform.capability.gateway import CapabilityGateway
+from sofia.core.goals import (
+    CompletionKind,GoalCompletionCondition,GoalEvidenceIndex,
+    GoalEvidenceLedger,GoalService,GoalStore,
+)
+from sofia.core.goals.coordinator import (
+    GoalProductionCoordinator,goal_reconciliation_approval_parameters,
+)
+from sofia.platform.safe.execution_approval import (
+    ExecutionApproval,ExecutionApprovalVerifier,execution_fingerprint,
+)
+from test.owner_auth_fixture import record_verified_owner_approval
 
 
 def _write_key(path:Path,key):
@@ -131,6 +149,278 @@ def test_pinned_mutual_tls_transport_authenticates_discovers_executes_and_dedupe
         assert counter["value"]==1
     finally:
         server.close(); thread.join(timeout=2)
+
+
+def test_host_observer_publishes_dispatch_bound_effect_over_pinned_mtls(tmp_path:Path):
+    ca_key,ca_cert,ca_path=_ca(tmp_path)
+    server_cert,server_key=_leaf(tmp_path,ca_key,ca_cert,"localhost","server")
+    client_cert,client_key=_leaf(tmp_path,ca_key,ca_cert,"sofia-client","client")
+    node_id=uuid4(); port=_free_port()
+    dispatcher=RemoteAgentDispatcher()
+    dispatcher.register(
+        "container.inspect","summary",lambda _:{"containers":[]},
+        effect_observer=lambda _parameters,_result:"performed",
+    )
+    dispatcher.register(
+        "container.inspect","broken-observer",lambda _:{"containers":[]},
+        effect_observer=lambda _parameters,_result:(_ for _ in ()).throw(
+            RuntimeError("observer unavailable")
+        ),
+    )
+    server=RemoteAgentServer(RemoteAgentConfig(
+        node_id=node_id,node_name="venus",listen_host="127.0.0.1",listen_port=port,
+        server_certificate=server_cert,server_private_key=server_key,client_ca_file=ca_path,
+        expected_client_public_key_sha256=public_key_fingerprint_from_pem_certificate(client_cert),
+        ledger_path=tmp_path/"agent-ledger.db",
+        effect_attestation_root=tmp_path/"host-operations",
+    ),dispatcher)
+    thread=threading.Thread(target=server.serve_forever,daemon=True); thread.start()
+    try:
+        endpoint=NodeEndpoint("localhost",port,NodeTransport.HTTPS)
+        enrollment=NodeEnrollment(
+            DistributedNode(node_id,"venus"),
+            public_key_fingerprint_from_pem_certificate(server_cert),
+            datetime.now(timezone.utc),"Sparks",
+        )
+        transport=PinnedHttpsRemoteTransport(
+            lambda _:endpoint,ca_file=ca_path,
+            client_certificate=client_cert,client_private_key=client_key,
+            timeout_seconds=3,
+        )
+        context=CapabilityDispatchContext(
+            "goal-action:exact","goal:exact","remote.container.summary",
+            "person:sparks","private:local:text",
+        )
+        result=transport.execute(enrollment,RemoteOperationRequest(
+            uuid4(),node_id,uuid4(),"container.inspect","summary",{},context,
+        ))
+        assert result.outcome is RemoteOutcome.REPORTED_SUCCESS
+        row=transport.host_effect(enrollment,context.dispatch_id)
+        assert row["goal_id"]==context.goal_id
+        assert row["capability"]==context.capability
+        assert row["outcome"]=="performed"
+        assert row["attested_by"]==f"fleet-node:{node_id}"
+
+        # An ordinary operation without reserved GOALS identity cannot create
+        # evidence that later authorizes reconciliation.
+        transport.execute(enrollment,RemoteOperationRequest(
+            uuid4(),node_id,uuid4(),"container.inspect","summary",{},
+        ))
+        with pytest.raises(HttpsTransportError,match="404"):
+            transport.host_effect(enrollment,"goal-action:not-reserved")
+
+        broken=CapabilityDispatchContext(
+            "goal-action:observer-failed","goal:exact",
+            "remote.container.summary","person:sparks","private:local:text",
+        )
+        uncertain=transport.execute(enrollment,RemoteOperationRequest(
+            uuid4(),node_id,uuid4(),"container.inspect","broken-observer",{},broken,
+        ))
+        assert uncertain.outcome is RemoteOutcome.UNKNOWN
+        with pytest.raises(HttpsTransportError,match="404"):
+            transport.host_effect(enrollment,broken.dispatch_id)
+    finally:
+        server.close(); thread.join(timeout=2)
+
+
+def test_production_fleet_service_verifies_only_exact_host_observed_dispatch(tmp_path:Path):
+    ca_key,ca_cert,ca_path=_ca(tmp_path)
+    server_cert,server_key=_leaf(tmp_path,ca_key,ca_cert,"localhost","server")
+    client_cert,client_key=_leaf(tmp_path,ca_key,ca_cert,"controller","client")
+    node_id=uuid4(); port=_free_port(); state_path=tmp_path/"sofia.db"
+    state_path.touch()
+    enroll_node(state_path,node_id=node_id,name="venus",server_certificate=server_cert)
+    approve_endpoint(state_path,node_id=node_id,hostname="localhost",port=port)
+    grant_operation(
+        state_path,node_id=node_id,capability="container.inspect",
+        operation="summary",hours=1,
+    )
+    registry=StatePlaneFleetRegistry(
+        SQLiteStatePlane(state_path),legacy_path=state_path.parent/"fleet.json",
+    )
+    registry.register_candidate(FleetHost(
+        "venus","unknown","unknown",HostLifecycle.CANDIDATE,False,
+    ))
+    registry.authenticate_candidate("venus",node_id)
+    registry.transition("venus",HostLifecycle.ENROLLED)
+
+    dispatcher=RemoteAgentDispatcher()
+    dispatcher.register(
+        "container.inspect","summary",lambda _:{"containers":[]},
+        effect_observer=lambda _parameters,_result:"performed",
+    )
+    server=RemoteAgentServer(RemoteAgentConfig(
+        node_id=node_id,node_name="venus",listen_host="127.0.0.1",listen_port=port,
+        server_certificate=server_cert,server_private_key=server_key,client_ca_file=ca_path,
+        expected_client_public_key_sha256=public_key_fingerprint_from_pem_certificate(client_cert),
+        ledger_path=tmp_path/"agent-ledger.db",
+        effect_attestation_root=tmp_path/"host-operations",
+    ),dispatcher)
+    thread=threading.Thread(target=server.serve_forever,daemon=True); thread.start()
+    service=RemoteFleetToolService(
+        state_path,ca_file=ca_path,client_certificate=client_cert,
+        client_private_key=client_key,
+    )
+    context=CapabilityDispatchContext(
+        "goal-action:production","goal:production","remote.container.summary",
+        "person:sparks","private:local:text",
+    )
+    try:
+        result=service.invoke(
+            str(node_id),"container.inspect","summary",{},
+            dispatch_context=context,
+        )
+        assert result["outcome"]=="reported_success"
+        observed=service.observe_goal_dispatch(
+            context.dispatch_id,principal=local_sparks_principal(),
+            now=datetime.now(timezone.utc),
+        )
+        assert observed.kind=="operation_receipt"
+        assert observed.source==f"fleet-host-effect:{node_id}"
+        assert observed.goal_id==context.goal_id
+        assert observed.action_id==context.dispatch_id
+        assert observed.successful is True
+        assert service.verify_goal_dispatch(context.dispatch_id,observed) is True
+        assert service.verify_goal_dispatch(
+            context.dispatch_id,
+            SimpleNamespace(
+                goal_id=observed.goal_id,assertion=observed.assertion,
+                principal_id=observed.principal_id,audience=observed.audience,
+                successful=True,
+                observed_at=observed.observed_at+timedelta(seconds=1),
+            ),
+        ) is False
+        with pytest.raises(ValueError,match="stale"):
+            service.observe_goal_dispatch(
+                context.dispatch_id,principal=local_sparks_principal(),
+                now=datetime.now(timezone.utc)+timedelta(minutes=16),
+            )
+        assert service.verify_goal_dispatch(
+            context.dispatch_id,
+            SimpleNamespace(
+                goal_id=observed.goal_id,assertion=observed.assertion,
+                principal_id=observed.principal_id,audience="private:other",
+                successful=observed.successful,observed_at=observed.observed_at,
+            ),
+        ) is False
+        retire_node(state_path,node_id)
+        assert service.verify_goal_dispatch(context.dispatch_id,observed) is False
+    finally:
+        service.close(); server.close(); thread.join(timeout=2)
+
+
+def test_goals_safe_reconciles_real_mtls_host_observation_after_lost_response(tmp_path:Path):
+    ca_key,ca_cert,ca_path=_ca(tmp_path)
+    server_cert,server_key=_leaf(tmp_path,ca_key,ca_cert,"localhost","server")
+    client_cert,client_key=_leaf(tmp_path,ca_key,ca_cert,"controller","client")
+    node_id=uuid4(); port=_free_port(); state_path=tmp_path/"sofia.db"
+    state_path.touch()
+    enroll_node(state_path,node_id=node_id,name="venus",server_certificate=server_cert)
+    approve_endpoint(state_path,node_id=node_id,hostname="localhost",port=port)
+    grant_operation(
+        state_path,node_id=node_id,capability="container.inspect",
+        operation="summary",hours=1,
+    )
+    registry=StatePlaneFleetRegistry(
+        SQLiteStatePlane(state_path),legacy_path=state_path.parent/"fleet.json",
+    )
+    registry.register_candidate(FleetHost(
+        "venus","unknown","unknown",HostLifecycle.CANDIDATE,False,
+    ))
+    registry.authenticate_candidate("venus",node_id)
+    registry.transition("venus",HostLifecycle.ENROLLED)
+    dispatcher=RemoteAgentDispatcher()
+    dispatcher.register(
+        "container.inspect","summary",lambda _:{"containers":[]},
+        effect_observer=lambda _parameters,_result:"performed",
+    )
+    server=RemoteAgentServer(RemoteAgentConfig(
+        node_id=node_id,node_name="venus",listen_host="127.0.0.1",listen_port=port,
+        server_certificate=server_cert,server_private_key=server_key,client_ca_file=ca_path,
+        expected_client_public_key_sha256=public_key_fingerprint_from_pem_certificate(client_cert),
+        ledger_path=tmp_path/"agent-ledger.db",
+        effect_attestation_root=tmp_path/"host-operations",
+    ),dispatcher)
+    thread=threading.Thread(target=server.serve_forever,daemon=True); thread.start()
+    service=RemoteFleetToolService(
+        state_path,ca_file=ca_path,client_certificate=client_cert,
+        client_private_key=client_key,
+    )
+    principal=local_sparks_principal()
+    capabilities=CapabilitySystem(authorization_checker=lambda _request:True)
+    def execute_then_lose_response(request):
+        service.invoke(
+            request.parameters["node_id"],"container.inspect","summary",{},
+            dispatch_context=request.dispatch_context,
+        )
+        raise ConnectionError("simulated response loss after host observation")
+    capabilities.register(
+        Capability("remote.container.summary","Inspect enrolled remote containers."),
+        execute_then_lose_response,
+    )
+    goals=GoalService(
+        GoalStore(SQLiteStatePlane(state_path)),
+        evidence_verifier=GoalEvidenceIndex(state_path),
+    )
+    safe=ExecutionApprovalVerifier(state_path)
+    production=GoalProductionCoordinator(
+        goals=goals,state_path=state_path,gateway=CapabilityGateway(capabilities),
+        principal_provider=lambda:principal,neuro_provider=lambda:None,
+        reconciliation_approval_verifier=safe,
+        independent_outcome_verifier=service.verify_goal_dispatch,
+    )
+    ledger=GoalEvidenceLedger(state_path)
+    now=datetime.now(timezone.utc)
+    message=ledger.record(
+        evidence_ref="message:mtls-closed-loop",kind="authenticated_user_message",
+        observed_at=now,source="test-owner-channel",
+        principal_id=principal.principal_id,audience="private:local:text",
+    )
+    fleet=ledger.record(
+        evidence_ref="goal-evidence:fleet:mtls-closed-loop",
+        kind="external_observation",observed_at=now,
+        source="fleet-observation:authenticated-venus",assertion="machine.os",
+        payload={"node_id":str(node_id),"value":"linux"},
+        principal_id=principal.principal_id,audience="private:local:text",
+    )
+    goal=goals.create_user_goal(
+        principal=principal,title="Investigate Docker on enrolled host",
+        reason="Authenticated Fleet evidence requires host diagnostics.",
+        base_priority=0.7,confidence=1.0,
+        completion=GoalCompletionCondition(
+            CompletionKind.USER_DEFINED,"Owner reviews the host outcome.",
+        ),evidence_refs=(message.evidence_ref,fleet.evidence_ref),now=now,
+    )
+    try:
+        assert production.run_due(now=now)==1
+        dispatch_id,capability=production.unresolved_dispatches(goal.id)[0]
+        assert capability=="remote.container.summary"
+        outcome=service.observe_goal_dispatch(
+            dispatch_id,principal=principal,now=now+timedelta(seconds=2),
+        )
+        approval=ExecutionApproval(
+            approval_id="approval:mtls-closed-loop",
+            capability="goals.dispatch.reconcile",
+            request_fingerprint=execution_fingerprint(
+                "goals.dispatch.reconcile",
+                goal_reconciliation_approval_parameters(
+                    goal=goal,dispatch_id=dispatch_id,capability=capability,
+                    evidence=outcome,
+                ),
+            ),approved_by="Sparks",approved_at=now+timedelta(seconds=3),
+            expires_at=now+timedelta(minutes=5),
+        )
+        record_verified_owner_approval(safe,approval)
+        assert production.reconcile_dispatch(
+            goal_id=goal.id,dispatch_id=dispatch_id,principal=principal,
+            evidence_ref=outcome.evidence_ref,approval_id=approval.approval_id,
+            now=now+timedelta(seconds=4),
+        )=="effect_verified"
+        assert production.reconciliations(goal.id)==(
+            (dispatch_id,"effect_verified",outcome.evidence_ref),
+        )
+    finally:
+        service.close(); server.close(); thread.join(timeout=2)
 
 
 def test_agent_rejects_mutual_tls_client_with_wrong_pinned_public_key(tmp_path:Path):
