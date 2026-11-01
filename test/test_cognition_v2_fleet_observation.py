@@ -22,9 +22,12 @@ NODE = "11111111-2222-3333-4444-555555555555"
 SCOPE = "local:text"
 
 
-def _fact(value="linux", *, verified=True, observed_at=NOW, expires_at=None):
+def _fact(
+    value="linux", *, key="os.family", unit=None, verified=True,
+    observed_at=NOW, expires_at=None,
+):
     return CapabilityFact(
-        "os.family", value, None, "artemis", "host:artemis",
+        key, value, unit, "artemis", "host:artemis",
         EvidenceClass.OBSERVED, "fleet-discovery:mtls-agent-discovery",
         observed_at, expires_at or observed_at + timedelta(hours=1), verified,
     )
@@ -79,6 +82,59 @@ def test_authenticated_fleet_observation_becomes_scoped_core_evidence(tmp_path):
     assert goal_record.kind == "external_observation"
     assert goal_record.principal_id == "person:sparks"
     assert goal_record.audience == "private:local:text"
+
+
+def test_each_eligible_fact_projects_its_own_canonical_predicate(tmp_path):
+    path, _ledger, bridge = _bridge(tmp_path)
+    facts = (
+        _fact("linux", key="os.family"),
+        _fact("amd64", key="cpu.arch"),
+        _fact(42.5, key="cpu.utilization_percent", unit="percent"),
+        _fact(8192, key="memory.allocatable_bytes", unit="bytes", verified=False),
+        _fact("ignored", key="vendor.unsupported"),
+    )
+
+    atoms = bridge.ingest(
+        _supply(*facts), host=_host(),
+        principal=local_sparks_principal(), now=NOW,
+    )
+
+    assert {atom.predicate for atom in atoms} == {
+        "machine.os", "machine.architecture", "ops.cpu_percent",
+    }
+    index = GoalEvidenceIndex(path)
+    for atom in atoms:
+        record = index.lookup(
+            atom.evidence_id.replace("evidence:fleet:", "goal-evidence:fleet:")
+        )
+        assert record is not None
+        assert record.assertion == atom.predicate
+
+
+def test_duplicate_reordered_facts_keep_stable_atom_predicate_links(tmp_path):
+    path, ledger, bridge = _bridge(tmp_path)
+    facts = (
+        _fact("linux", key="os.family"),
+        _fact("amd64", key="cpu.arch"),
+        _fact(42.5, key="cpu.utilization_percent", unit="percent"),
+    )
+    first = bridge.ingest(
+        _supply(*facts), host=_host(),
+        principal=local_sparks_principal(), now=NOW,
+    )
+    reordered = bridge.ingest(
+        _supply(*reversed(facts)), host=_host(),
+        principal=local_sparks_principal(), now=NOW,
+    )
+
+    assert set(reordered) == set(first)
+    index = GoalEvidenceIndex(path)
+    for atom in ledger.subject_atoms(f"fleet-node:{NODE}"):
+        record = index.lookup(
+            atom.evidence_id.replace("evidence:fleet:", "goal-evidence:fleet:")
+        )
+        assert record is not None
+        assert record.assertion == atom.predicate
 
 
 @pytest.mark.parametrize(

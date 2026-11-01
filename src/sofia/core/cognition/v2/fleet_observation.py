@@ -172,7 +172,7 @@ class FleetCognitiveEvidenceBridge:
                     kind="external_observation",
                     observed_at=atom.observed_at,
                     source=f"fleet-observation:{digest[:24]}",
-                    assertion=predicate,
+                    assertion=atom.predicate,
                     payload=value,
                     principal_id=principal.principal_id,
                     audience=audience_scope(principal),

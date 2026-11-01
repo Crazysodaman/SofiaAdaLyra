@@ -21,6 +21,7 @@ on:
       - 'test/test_canonical_sqlite_protection.py'
       - 'test/test_backup_restore_redirect_fencing.py'
       - 'test/test_cognition_v2_evidence.py'
+      - 'test/test_cognition_v2_fleet_observation.py'
       - 'test/test_cognition_v2_fleet_machine.py'
       - 'test/test_cognition_v2_turn_kernel.py'
       - 'test/test_learning_foundation.py'
@@ -49,6 +50,7 @@ on:
       - 'test/test_canonical_sqlite_protection.py'
       - 'test/test_backup_restore_redirect_fencing.py'
       - 'test/test_cognition_v2_evidence.py'
+      - 'test/test_cognition_v2_fleet_observation.py'
       - 'test/test_cognition_v2_fleet_machine.py'
       - 'test/test_cognition_v2_turn_kernel.py'
       - 'test/test_learning_foundation.py'
@@ -109,7 +111,7 @@ jobs:
       - name: G6 independently governed module lifecycle regressions
         run: python -m pytest -q test/test_module_lifecycle_v1.py
       - name: G7-A cognitive evidence and turn-kernel regressions
-        run: python -m pytest -q test/test_cognition_v2_evidence.py test/test_cognition_v2_turn_kernel.py test/test_cognition_v2_fleet_machine.py
+        run: python -m pytest -q test/test_cognition_v2_evidence.py test/test_cognition_v2_fleet_observation.py test/test_cognition_v2_turn_kernel.py test/test_cognition_v2_fleet_machine.py
       - name: G7-A learning and generalization regressions
         run: python -m pytest -q test/test_learning_foundation.py test/test_generalization_advanced.py
       - name: G7-A independent host attestation and production SAFE reconciliation
