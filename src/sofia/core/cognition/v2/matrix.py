@@ -4,6 +4,8 @@ from __future__ import annotations
 import re
 import unicodedata
 
+from sofia.core.environment.query import EnvironmentQueryResolver
+
 from .contracts import (
     ActionRequirement,
     ConversationFocus,
@@ -280,6 +282,14 @@ class MatrixV2Planner:
             and "ops" not in domains
         ):
             domains.append("ops")
+        # Interpret broad requests for actual observations as read-only
+        # environment needs, not an invitation for the model to improvise
+        # a physical scene or unverified machine telemetry.
+        if (
+            EnvironmentQueryResolver.is_general_observation_query(turn.content)
+            and "environment" not in domains
+        ):
+            domains.append("environment")
         if not domains:
             domains.append("social")
 
