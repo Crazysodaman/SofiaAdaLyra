@@ -10,6 +10,7 @@ import re
 
 from sofia.platform.authority.model import Authority
 from sofia.platform.config.cognitive_models import CognitiveModelSelection
+from sofia.platform.operational.model import RuntimeContinuity
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,7 +56,55 @@ _MODEL_FORM = re.compile(
 )
 
 
+_PREVIOUS_RUNTIME_QUESTION = re.compile(
+    r"\b(?:last|previous|prior)\b.*\b(?:runtime|run|session)\b|"
+    r"\b(?:runtime|session)\b.*\b(?:last|previous|prior)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_previous_runtime_read(query: str) -> bool:
+    normalized = _normalize(query)
+    words = set(re.findall(r"[a-z]+", normalized))
+    return (
+        _PREVIOUS_RUNTIME_QUESTION.search(normalized) is not None
+        and bool(words & {"what", "when", "tell", "show", "how"})
+        and not bool(words & {"delete", "restart", "stop", "start", "change", "log", "error"})
+    )
+
+
+def _runtime_history_answer(continuity: RuntimeContinuity | None) -> str:
+    if continuity is None:
+        return (
+            "I don't have a current runtime history record available. "
+            "I won't invent a previous startup or shutdown time."
+        )
+    current = continuity.current_started_at.isoformat()
+    if continuity.previous_started_at is None:
+        return (
+            f"This runtime started at {current}. I have no verified "
+            "previous runtime timestamp in this state, which does not "
+            "prove no previous runtime existed."
+        )
+    previous = continuity.previous_started_at.isoformat()
+    if continuity.previous_stopped_at is None:
+        stop = "No verified shutdown timestamp was recorded for that runtime."
+    else:
+        stop = (
+            "Its recorded shutdown was at "
+            f"{continuity.previous_stopped_at.isoformat()}."
+        )
+    return (
+        f"My previous recorded runtime started at {previous}. "
+        f"{stop} This runtime started at {current}."
+    )
+
+
 class OperationalStatusQueryResolver:
+    @classmethod
+    def is_previous_runtime_query(cls, query: str) -> bool:
+        return isinstance(query, str) and _is_previous_runtime_read(query)
+
     def resolve(
         self,
         query: str,
@@ -63,6 +112,7 @@ class OperationalStatusQueryResolver:
         selection: CognitiveModelSelection,
         capability_names: tuple[str, ...] = (),
         authority: Authority | None = None,
+        continuity: RuntimeContinuity | None = None,
     ) -> OperationalStatusAnswer:
         if not isinstance(query, str):
             raise TypeError("query must be str")
@@ -77,6 +127,13 @@ class OperationalStatusQueryResolver:
             )
         if authority is not None and not isinstance(authority, Authority):
             raise TypeError("authority must be Authority or None")
+        if continuity is not None and not isinstance(continuity, RuntimeContinuity):
+            raise TypeError("continuity must be RuntimeContinuity or None")
+        if self.is_previous_runtime_query(query):
+            return OperationalStatusAnswer(
+                True,
+                _runtime_history_answer(continuity),
+            )
         normalized = _normalize(query)
         if normalized.startswith("so "):
             normalized = normalized[3:].lstrip()
