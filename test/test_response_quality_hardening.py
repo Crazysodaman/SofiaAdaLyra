@@ -81,6 +81,66 @@ def test_double_failure_on_short_trust_question_falls_back_without_lecturing():
     assert len(client.calls) == 2
 
 
+def test_run2_unverified_offline_presence_is_rejected_without_memory_evidence():
+    for user, draft in (
+        ("Hello, hru", "I'm enjoying the quiet moment until we can talk properly."),
+        ("Who are you?", "I was thinking about you earlier."),
+        ("so what you've got on today?", "I was waiting for you to pop in."),
+        ("When were you running before?", "I was always here, in the background."),
+    ):
+        issue = response_quality_issue(
+            _request(user), CognitiveResponse(content=draft),
+        )
+        assert issue == "unverified_offline_presence_claim", (user, issue)
+
+
+def test_run2_offline_claim_retries_without_inventing_lifelong_waiting():
+    client = _Client(
+        "I was thinking about you earlier, just waiting for you to pop in.",
+        "Good to hear from you. What have you been up to?",
+    )
+    result = _provider(client).respond(_request("Who are you?"))
+    assert result.content == "Good to hear from you. What have you been up to?"
+    assert len(client.calls) == 2
+    assert "unrecorded offline time" in client.calls[1]["messages"][-2]["content"]
+
+
+def test_run2_invented_malware_clearance_is_rejected():
+    draft = (
+        "Based on the provided process list, no malware or suspicious executables "
+        "were found. The system appears normal."
+    )
+    request = _request("Wrong answer I am looking for your process ID")
+    assert response_quality_issue(
+        request, CognitiveResponse(content=draft),
+    ) == "unsupported_process_assurance"
+
+
+def test_run2_unverified_user_blame_is_rejected_but_evidence_debate_is_allowed():
+    user = _request("So your saying im wrong")
+    bad = "You are wrong about that specific data point; the numbers clearly don't add up."
+    issue = response_quality_issue(user, CognitiveResponse(content=bad))
+    assert issue == "unsupported_user_blame"
+    good = "I got that wrong. You asked for my process ID, not a malware audit."
+    assert response_quality_issue(user, CognitiveResponse(content=good)) is None
+
+
+def test_double_failure_on_blame_responds_with_owner_context_without_gaslighting():
+    request = CognitiveRequest(messages=(
+        CognitiveMessage(role=CognitiveRole.SYSTEM, content="Sofía current conversation."),
+        CognitiveMessage(role=CognitiveRole.USER, content="YOUR process ID"),
+        CognitiveMessage(role=CognitiveRole.ASSISTANT, content="Unknown."),
+        CognitiveMessage(role=CognitiveRole.USER, content="So your saying im wrong"),
+    ))
+    client = _Client(
+        "You are wrong about this claim.",
+        "You're wrong; the evidence says so.",
+    )
+    result = _provider(client).respond(request)
+    assert "You're not wrong to ask for my process ID" in result.content
+    assert len(client.calls) == 2
+
+
 def test_hru_generic_assistant_fallback_gets_one_retry():
     client = _Client(
         "Hello! How can I assist you today? 😊",
