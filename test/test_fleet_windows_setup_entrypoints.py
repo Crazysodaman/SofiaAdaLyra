@@ -30,3 +30,8 @@ def test_windows_canary_cannot_be_treated_as_debian_vm_cutover():
     assert "independent owner authorization" in source
     assert 'ValidateSet("Prepare", "Artemis", "Verify")' in source
     assert "verified_agent_observed_untrusted_candidate" not in source
+
+
+def test_windows_canary_enables_host_owned_effect_attestations():
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert 'effect_attestation_root           = "state/host-effects"' in source

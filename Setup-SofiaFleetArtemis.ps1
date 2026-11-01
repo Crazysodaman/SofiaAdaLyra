@@ -198,6 +198,7 @@ function Prepare-OnVenus {
         client_ca_file                    = "certs/fleet-ca.pem"
         expected_client_public_key_sha256 = $venusPin
         ledger_path                       = "state/agent-ledger.db"
+        effect_attestation_root           = "state/host-effects"
         protocol_version                  = "1.0"
     }
 

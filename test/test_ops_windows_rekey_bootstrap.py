@@ -58,6 +58,7 @@ def test_prepare_bundle_rewrites_port_and_client_pin(local_tmp_path: Path):
                 "client_ca_file": "certs/old-ca.pem",
                 "expected_client_public_key_sha256": "0" * 64,
                 "ledger_path": "state/agent-ledger.db",
+                "effect_attestation_root": "state/host-effects",
             }
         ),
         encoding="utf-8",
@@ -77,6 +78,7 @@ def test_prepare_bundle_rewrites_port_and_client_pin(local_tmp_path: Path):
     assert payload["server_certificate"] == "certs/artemis-server.pem"
     assert payload["server_private_key"] == "certs/artemis-server-key.pem"
     assert payload["client_ca_file"] == "certs/fleet-ca.pem"
+    assert payload["effect_attestation_root"] == "state/host-effects"
     assert (bundle / "certs" / "artemis-server.pem").read_bytes() == Path(
         pki["server_certificate"]
     ).read_bytes()
