@@ -537,19 +537,14 @@ class ConversationService(ConversationMatrixMixin):
         """
         resolver = self._runtime._avatar_self_fact_resolver
         is_tail = resolver.is_tail_presence_query(message.content)
-        is_outfit = (
-            resolver.is_current_outfit_query(message.content)
-            and len(split_multi_question(message.content)) == 1
-            and (
-                self.cognitive_plan is None
-                or "avatar" in self.cognitive_plan.domains
-            )
-        )
         is_reason = (
             _OUTFIT_WHY_RE.fullmatch(message.content) is not None
             or _OUTFIT_EXPLICIT_WHY_RE.search(message.content) is not None
         )
-        if not is_tail and not is_reason and not is_outfit:
+        # Current outfit reads stay in the established V2 evidence path;
+        # intercepting them here bypasses canonical evidence receipts and
+        # can override the public/private projection contract.
+        if not is_tail and not is_reason:
             return None
 
         query = message.content
