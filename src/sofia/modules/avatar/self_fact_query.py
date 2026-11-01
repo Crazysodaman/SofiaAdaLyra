@@ -235,6 +235,12 @@ class AvatarSelfFactResolver:
         return cls._PRESENTATION_REASON_RE.fullmatch(normalized) is not None
 
     @classmethod
+    def is_current_outfit_query(cls, query: str) -> bool:
+        if not isinstance(query, str):
+            return False
+        return cls._is_current_outfit_query(_normalize(query))
+
+    @classmethod
     def _is_current_outfit_query(cls, normalized: str) -> bool:
         """Interpret a present-state wardrobe question, not a clothing action.
 
