@@ -103,6 +103,32 @@ def test_temporal_parser_does_not_reinterpret_unrelated_queries(query):
 
 
 @pytest.mark.parametrize("query", (
+    "Check weather again",
+    "Could you check the weather now?",
+    "Please refresh the forecast again",
+    "Try the weather again",
+))
+def test_weather_refresh_semantics_reuse_authoritative_provider(query):
+    resolver = EnvironmentQueryResolver()
+    assert resolver.is_weather_refresh_query(query)
+    assert resolver.might_match(query)
+    assert resolver.is_weather_or_forecast_query(query)
+
+    result = resolver.resolve(query, snapshot=EnvironmentService(config()).snapshot(now=NOW))
+    assert result.recognized
+    assert "weather" in result.content or "forecast" in result.content
+
+
+@pytest.mark.parametrize("query", (
+    "Change the weather settings",
+    "Check weather sensor logs",
+    "Try to install a new weather plugin",
+))
+def test_weather_read_parser_does_not_take_mutation_or_inspection_commands(query):
+    assert not EnvironmentQueryResolver.is_weather_refresh_query(query)
+
+
+@pytest.mark.parametrize("query", (
     "tell me anything you see observe i mean",
     "What do you actually observe around you right now?",
     "Can you tell me something you notice?",
