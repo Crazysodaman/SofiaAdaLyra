@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import time
 import uuid
+from typing import Callable
 
 from sofia.platform.run.active_release import PreparedReleaseEnvironment
 
@@ -16,9 +17,11 @@ class ReleaseProcessError(RuntimeError):
 
 @dataclass(slots=True)
 class ReleaseChildProcess:
-    environment: PreparedReleaseEnvironment
+    environment: PreparedReleaseEnvironment | None
     state_path: Path
     control_root: Path
+    python_path: Path | None = None
+    runtime_label: str | None = None
     process: subprocess.Popen | None = None
     ready_file: Path | None = None
     stop_file: Path | None = None
@@ -27,12 +30,30 @@ class ReleaseChildProcess:
     _stdout_handle: object | None = None
     _stderr_handle: object | None = None
 
-    def start(self, *, ready_timeout_seconds: float = 90.0) -> None:
+    def _identity(self) -> tuple[Path, str]:
+        if self.environment is not None:
+            if self.python_path is not None or self.runtime_label is not None:
+                raise ValueError("release environment cannot use runtime overrides")
+            return (
+                self.environment.python_path,
+                self.environment.release.release_id,
+            )
+        if self.python_path is None or not self.runtime_label:
+            raise ValueError("bootstrap runtime requires python path and label")
+        return self.python_path, self.runtime_label
+
+    def start(
+        self,
+        *,
+        ready_timeout_seconds: float = 90.0,
+        should_stop: Callable[[], bool] | None = None,
+    ) -> bool:
         if self.process is not None:
             raise ReleaseProcessError("release child is already started")
         if ready_timeout_seconds < 5 or ready_timeout_seconds > 300:
             raise ValueError("ready timeout must be in 5..300 seconds")
 
+        python_path, label = self._identity()
         token = uuid.uuid4().hex
         self.control_root.mkdir(parents=True, exist_ok=True)
         self.ready_file = self.control_root / f"{token}.ready.json"
@@ -40,16 +61,16 @@ class ReleaseChildProcess:
         logs = self.control_root.parent / "logs"
         logs.mkdir(parents=True, exist_ok=True)
         self.stdout_path = logs / (
-            f"{self.environment.release.release_id}.{token}.stdout.log"
+            f"{label}.{token}.stdout.log"
         )
         self.stderr_path = logs / (
-            f"{self.environment.release.release_id}.{token}.stderr.log"
+            f"{label}.{token}.stderr.log"
         )
         self._stdout_handle = self.stdout_path.open("ab")
         self._stderr_handle = self.stderr_path.open("ab")
         self.process = subprocess.Popen(
             [
-                str(self.environment.python_path),
+                str(python_path),
                 "-m",
                 "sofia.platform.run.runtime_child",
                 "--state-path",
@@ -65,8 +86,11 @@ class ReleaseChildProcess:
         )
         deadline = time.monotonic() + ready_timeout_seconds
         while time.monotonic() < deadline:
+            if should_stop is not None and should_stop():
+                self.stop()
+                return False
             if self.ready_file.is_file():
-                return
+                return True
             code = self.process.poll()
             if code is not None:
                 raise ReleaseProcessError(

@@ -38,6 +38,7 @@ class RuntimeObservation:
     state: ProcessState
     ready: bool = False
     detail: str = ""
+    generation_epoch: int | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.state, ProcessState):
@@ -48,6 +49,10 @@ class RuntimeObservation:
             raise ValueError("only a running runtime may be ready")
         if not isinstance(self.detail, str) or len(self.detail) > 500:
             raise ValueError("detail must be bounded text")
+        if self.generation_epoch is not None and (
+            type(self.generation_epoch) is not int or self.generation_epoch < 1
+        ):
+            raise ValueError("generation_epoch must be a positive integer or None")
 
 
 class ManagedRuntimeBackend(ABC):
@@ -297,6 +302,15 @@ class LocalRuntimeSupervisor:
 
         if not self.lease_store.holds(lease, now=moment):
             if observation.state in (ProcessState.RUNNING, ProcessState.STARTING):
+                if observation.generation_epoch != lease.epoch:
+                    return SupervisorResult(
+                        "fence_refused_generation_mismatch",
+                        observation,
+                        detail=(
+                            "lost lease cannot stop a runtime without the same "
+                            "observed generation"
+                        ),
+                    )
                 self.backend.stop()
                 with closing(self._connect()) as db:
                     with db:

@@ -6,7 +6,6 @@ import os
 import sys
 from datetime import datetime, timezone
 
-from sofia.platform.application.bootstrap import SofiaApplication
 from sofia.platform.config import create_production_configuration
 from sofia.platform.config.defaults import production_state_path
 from sofia.platform.run.active_release import (
@@ -16,6 +15,7 @@ from sofia.platform.run.active_release import (
 )
 from sofia.platform.run.release_process import ReleaseChildProcess
 from sofia.platform.run.windows_service_spec import RUNTIME_SERVICE
+from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.core.mentor.windows_service_settings import (
     load_custom_service_settings, MentorServiceSettingsError,
 )
@@ -25,6 +25,13 @@ from sofia.platform.run.update_restart import (
     configured_update_restart_mode,
     queue_update_restart_request,
 )
+
+
+def runtime_start_allowed(state_path: Path) -> bool:
+    """Fail closed when durable owner intent requires the runtime offline."""
+    if not isinstance(state_path, Path):
+        raise TypeError("state_path must be a Path")
+    return not OperatorStopStore(state_path).current().active
 
 
 if sys.platform == "win32":
@@ -41,8 +48,13 @@ if sys.platform == "win32":
         def __init__(self, args):
             super().__init__(args)
             self._stop_event = win32event.CreateEvent(None, 0, 0, None)
-            self._application: SofiaApplication | None = None
             self._release_child: ReleaseChildProcess | None = None
+
+        def _stop_requested(self) -> bool:
+            return (
+                win32event.WaitForSingleObject(self._stop_event, 0)
+                != win32event.WAIT_TIMEOUT
+            )
 
         def SvcStop(self):
             self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
@@ -77,7 +89,8 @@ if sys.platform == "win32":
             )
             self._release_child = child
             try:
-                child.start()
+                if not child.start(should_stop=self._stop_requested):
+                    return "stopped"
                 servicemanager.LogInfoMsg(
                     f"{self._svc_name_} started active release "
                     f"{active.release_id} manifest={active.manifest_sha256}"
@@ -129,18 +142,23 @@ if sys.platform == "win32":
             return "stopped"
 
         def _run_bootstrap_runtime(self, state_path: Path) -> str:
-            configuration = create_production_configuration(
-                state_path=state_path,
-            )
+            configuration = create_production_configuration(state_path=state_path)
             resolver = ActiveReleaseResolver(
                 state_path=state_path,
                 release_root=state_path.parent / "release-runtime",
             )
             monitor = ActiveReleaseChangeMonitor(None)
-            application = SofiaApplication(configuration)
-            self._application = application
+            child = ReleaseChildProcess(
+                environment=None,
+                state_path=state_path,
+                control_root=state_path.parent / "release-runtime" / "control",
+                python_path=Path(sys.executable),
+                runtime_label="bootstrap",
+            )
+            self._release_child = child
             try:
-                application.start()
+                if not child.start(should_stop=self._stop_requested):
+                    return "stopped"
                 servicemanager.LogInfoMsg(
                     f"{self._svc_name_} started bootstrap runtime against "
                     f"{configuration.state_path}"
@@ -178,13 +196,19 @@ if sys.platform == "win32":
                         )
             finally:
                 try:
-                    application.shutdown()
+                    child.stop()
                 finally:
-                    self._application = None
+                    self._release_child = None
             return "stopped"
 
         def SvcDoRun(self):
             state_path = self._state_path()
+            if not runtime_start_allowed(state_path):
+                servicemanager.LogWarningMsg(
+                    f"{self._svc_name_} start refused by persisted owner STOP"
+                )
+                return
+            phase = "service_start"
             # Read existing SCM custom options once at startup. The service
             # host (and a separately launched active-release child) receives
             # the same narrowly scoped MENTOR settings via its environment.
@@ -204,14 +228,23 @@ if sys.platform == "win32":
                 )
             try:
                 while True:
+                    phase = "active_release"
                     result = self._run_active_release(state_path)
                     if result == "no_release":
+                        phase = "bootstrap_runtime"
                         result = self._run_bootstrap_runtime(state_path)
                     if result != "restart":
                         break
-            except Exception:
+            except Exception as exc:
+                chain = []
+                current = exc
+                while current is not None and len(chain) < 6:
+                    chain.append(type(current).__name__)
+                    current = current.__cause__ or current.__context__
                 servicemanager.LogErrorMsg(
-                    f"{self._svc_name_} terminated with an unhandled error"
+                    f"{self._svc_name_} terminated with an unhandled error; "
+                    f"startup_phase={phase}; "
+                    f"cause_types={' <- '.join(chain)}"
                 )
                 raise
 else:

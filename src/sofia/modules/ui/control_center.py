@@ -306,6 +306,7 @@ class TrayCommand(str, Enum):
     RUNTIME_START = "runtime_start"
     RUNTIME_STOP = "runtime_stop"
     RUNTIME_RESTART = "runtime_restart"
+    OPERATOR_STOP = "operator_stop"
     DIAGNOSTICS = "diagnostics"
     EXIT_UI = "exit_ui"
 
@@ -338,13 +339,14 @@ def tray_menu_labels(status: TrayStatus) -> tuple[tuple[TrayCommand, str], ...]:
         (TrayCommand.LLM_MODE_HYBRID, "Mode: Gaming / idle hybrid"),
         (TrayCommand.LLM_REFRESH, "Refresh actual model status"),
         (TrayCommand.RUNTIME_START, "Start Sofía runtime"),
-        (TrayCommand.RUNTIME_STOP, "Stop Sofía runtime"),
+        (TrayCommand.RUNTIME_STOP, "Stop runtime service (restart remains allowed)"),
         (TrayCommand.RUNTIME_RESTART, "Restart Sofía runtime"),
+        (TrayCommand.OPERATOR_STOP, "Shut down Sofía and persist owner STOP"),
         (TrayCommand.OPEN_SETTINGS, "Settings…"),
         (TrayCommand.OPEN_WARDROBE, "Wardrobe editor & list…"),
         (TrayCommand.OPEN_MOOD, "Current mood & emotions…"),
         (TrayCommand.DIAGNOSTICS, "Diagnostics"),
-        (TrayCommand.EXIT_UI, "Exit UI"),
+        (TrayCommand.EXIT_UI, "Exit tray agent (runtime keeps running)"),
     )
 
 
@@ -414,6 +416,7 @@ def tray_command_requires_confirmation(command: TrayCommand) -> bool:
     return command in {
         TrayCommand.RUNTIME_STOP,
         TrayCommand.RUNTIME_RESTART,
+        TrayCommand.OPERATOR_STOP,
     }
 
 

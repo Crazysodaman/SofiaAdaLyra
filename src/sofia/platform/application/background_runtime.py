@@ -1091,6 +1091,7 @@ def create_background_coordinator(
                         if healthy
                         else "application background loop reported an error"
                     ),
+                    generation_epoch=heartbeat_store.current_generation(),
                 )
             )
         coordinator.set_heartbeat(publish_heartbeat)

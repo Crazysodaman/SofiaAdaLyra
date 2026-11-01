@@ -1011,6 +1011,9 @@ class _TkDesktopWorkbench:
                     palette if self._adaptive_theme.get() else canonical_theme()
                 )
                 self._input.focus_set()
+                if self._close_requested:
+                    self._begin_shutdown()
+                    return
             elif kind == "expression":
                 self._render_expression(payload)
             elif kind == "tool_error":
@@ -1021,6 +1024,9 @@ class _TkDesktopWorkbench:
                     "Private tool failed",
                     _format_exception_chain(payload),
                 )
+                if self._close_requested:
+                    self._begin_shutdown()
+                    return
             elif kind == "theme":
                 if self._adaptive_theme.get():
                     self._apply_theme(payload)
@@ -1096,6 +1102,9 @@ class _TkDesktopWorkbench:
                     self._voice_button.configure(text="Talk")
                     self._replace_input(receipt.transcript or "")
                     self._set_enabled(True)
+                    if self._close_requested:
+                        self._begin_shutdown()
+                        return
                     self._send_current()
                 else:
                     self._listening = False
@@ -1106,12 +1115,18 @@ class _TkDesktopWorkbench:
                         f"Speech input {receipt.state.value}: "
                         f"{receipt.error or 'no transcript'}"
                     )
+                    if self._close_requested:
+                        self._begin_shutdown()
+                        return
             elif kind == "voice_input_error":
                 self._listening = False
                 self._busy = False
                 self._voice_button.configure(text="Talk")
                 self._set_enabled(True)
                 self._status.set(f"Speech input failed: {type(payload).__name__}")
+                if self._close_requested:
+                    self._begin_shutdown()
+                    return
 
         self._root.after(80, self._poll_events)
 

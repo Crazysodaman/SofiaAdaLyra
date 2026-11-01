@@ -47,4 +47,11 @@ jobs:
           python -m pip check
           python -m compileall -q src/sofia test
       - name: Run g5 regressions
-        run: python -m pytest -q test/test_g5_recovery_evidence.py
+        run: >-
+          python -m pytest -q
+          test/test_g5_recovery_evidence.py
+          test/test_run_host.py
+          test/test_run_release_process.py
+          test/test_run_supervisor.py
+          test/test_ui_control_center.py
+          test/test_ui_tray_lifecycle.py
