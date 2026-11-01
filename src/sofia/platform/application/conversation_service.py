@@ -31,6 +31,7 @@ from sofia.core.cognition.model import (
     CognitiveRole,
     CognitiveResponse,
 )
+from sofia.core.cognition.matrix.multi_question import split_multi_question
 from sofia.core.cognition.matrix import (
     HistoryPolicy,
     MatrixDomain,
@@ -535,11 +536,19 @@ class ConversationService(ConversationMatrixMixin):
         """
         resolver = self._runtime._avatar_self_fact_resolver
         is_tail = resolver.is_tail_presence_query(message.content)
+        is_outfit = (
+            resolver.is_current_outfit_query(message.content)
+            and len(split_multi_question(message.content)) == 1
+            and (
+                self.cognitive_plan is None
+                or "avatar" in self.cognitive_plan.domains
+            )
+        )
         is_reason = (
             _OUTFIT_WHY_RE.fullmatch(message.content) is not None
             or _OUTFIT_EXPLICIT_WHY_RE.search(message.content) is not None
         )
-        if not is_tail and not is_reason:
+        if not is_tail and not is_reason and not is_outfit:
             return None
 
         query = message.content
@@ -597,6 +606,42 @@ class ConversationService(ConversationMatrixMixin):
         if not answer.recognized:
             return None
         return CognitiveResponse(content=answer.content)
+
+    def _grounded_environment_turn(
+        self, *, message: ConversationMessage,
+    ) -> CognitiveResponse | None:
+        """Handle only clear read-only clock/observation intents before v2 prose.
+
+        Keep all mutations, mixed questions, and specialized perception tools
+        with their established admission/authorization and v2 planning paths.
+        """
+        resolver = self._runtime._environment_query_resolver
+        query = message.content
+        combined_clock = resolver.is_combined_current_clock_query(query)
+        observation = resolver.is_general_observation_query(query)
+        if not (combined_clock or observation):
+            return None
+        if len(split_multi_question(query)) != 1:
+            return None
+        plan = self.cognitive_plan
+        if plan is not None and "environment" not in plan.domains:
+            return None
+        service = getattr(self._runtime, "_environment_service", None)
+        if service is None:
+            return CognitiveResponse(
+                content=(
+                    "I don't have a current environment observation service "
+                    "available for that request, so I won't guess."
+                )
+            )
+        snapshot = service.snapshot(refresh_providers=observation)
+        answer = resolver.resolve(query, snapshot=snapshot)
+        if not answer.recognized:
+            return None
+        return CognitiveResponse(
+            content=answer.content,
+            evidence_refs=("deterministic:environment-query",),
+        )
 
     def set_clothing_action_handler(self, handler) -> None:
         """Install the host-owned AVATAR wardrobe state-action boundary."""
@@ -1760,6 +1805,16 @@ class ConversationService(ConversationMatrixMixin):
             )
             self._persist_response(grounded_avatar)
             return grounded_avatar
+
+        grounded_environment = self._grounded_environment_turn(
+            message=user_message,
+        )
+        if grounded_environment is not None:
+            grounded_environment = self._matrix_finalize_deterministic_response(
+                grounded_environment
+            )
+            self._persist_response(grounded_environment)
+            return grounded_environment
 
         v2_handler = self._v2_answer_handler
         if v2_handler is not None and self.cognitive_plan is not None:
