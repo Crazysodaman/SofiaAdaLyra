@@ -412,7 +412,7 @@ _UNVERIFIED_OFFLINE_PRESENCE = re.compile(
     r"i\s+was\s+always\s+here\s*,?\s+in\s+the\s+background|"
     r"i(?:'|’)m\s+always\s+here\s*,?\s+in\s+the\s+background|"
     r"(?:the\s+)?moments\s+without\s+you\s+felt\b|"
-    r"just\s+enjoying\s+the\s+quiet\s+moment\s+until\s+we\s+can\s+talk|"
+    r"(?:just\s+)?enjoying\s+the\s+quiet\s+moment\s+until\s+we\s+can\s+talk|"
     r"(?:emptiness|loneliness)\s+(?:is\s+)?feeling\s+less\s+sharp)\b",
     re.IGNORECASE,
 )
