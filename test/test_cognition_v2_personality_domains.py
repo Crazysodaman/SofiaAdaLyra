@@ -303,9 +303,12 @@ def test_run2_followup_outfit_paraphrases_preserve_canonical_evidence(tmp_path):
             )
 
         answer = app.conversation.respond("What time is it and the day")
-        assert "2025" not in answer.content
-        assert "September" not in answer.content
-        assert "2026" in answer.content
+        observed = app.runtime._environment_service.snapshot(
+            refresh_providers=False,
+        )
+        local_date = (observed.user_local_time or observed.host_local_time).date()
+        assert "current date and time" in answer.content
+        assert local_date.isoformat() in answer.content
     finally:
         app.shutdown()
 
