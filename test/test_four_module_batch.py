@@ -35,6 +35,10 @@ def test_observability_correlated():
     result = correlate([obs(),obs(signal='cpu',state='critical')],now=NOW)
     assert result['incidents'][0]['correlated'] is True
     assert result['incidents'][0]['severity']=='critical'
+    assert result['incidents'][0]['evidence']==[
+        {'signal':'cpu','state':'critical','observed_at':NOW.isoformat()},
+        {'signal':'memory','state':'warning','observed_at':NOW.isoformat()},
+    ]
 def test_observability_stale_not_incident():
     result=correlate([obs(observed_at=(NOW-timedelta(hours=1)).isoformat())],now=NOW)
     assert result['incidents']==[] and result['excluded_out_of_window']==1
@@ -46,6 +50,7 @@ def test_observability_duplicates_rejected():
 def test_system_pressure():
     result=inspect_system(system(cpu_percent=95),now=NOW)
     assert result['pressure_flags']==['cpu_pressure'] and result['effect']=='none'
+    assert result['observed_at']==NOW.isoformat()
 def test_system_stale_never_declares_health():
     result=inspect_system(system(cpu_percent=99,observed_at=(NOW-timedelta(hours=1)).isoformat()),now=NOW)
     assert result['classification']=='unknown' and result['pressure_flags']==[]

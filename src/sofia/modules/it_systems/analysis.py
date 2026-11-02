@@ -8,7 +8,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = "MOD-IT-SYSTEMS"
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.2.0"
 CAPABILITY_ID = "it.systems.analyze_snapshot.v1"
 PROFILE = "ADVISORY"
 RESOURCES = (("cpu_millicores", 50), ("ram_mib", 32), ("gpu_mib", 0))
@@ -47,7 +47,14 @@ def inspect_system(snapshot: Mapping[str, object], *, now: datetime, max_age_sec
             value = snapshot[field]
             if value is not None and value >= threshold:
                 flags.append(field.removesuffix("_percent") + "_pressure")
-    return {"schema": "sofia.it.systems.report.v1", "module_id": MODULE_ID, "sdk_protocol": str(SDK_PROTOCOL_VERSION), "source_ref": source, "freshness": freshness, "pressure_flags": flags, "classification": "unknown" if freshness != "fresh" or all(snapshot[f] is None for f in ("cpu_percent", "memory_percent", "disk_percent")) else "pressure_observed" if flags else "no_pressure_observed", "evidence_class": "supplied_unverified", "effect": "none"}
+    return {"schema": "sofia.it.systems.report.v1", "module_id": MODULE_ID,
+            "sdk_protocol": str(SDK_PROTOCOL_VERSION), "source_ref": source,
+            "observed_at": observed.astimezone(timezone.utc).isoformat(),
+            "freshness": freshness, "pressure_flags": flags,
+            "classification": "unknown" if freshness != "fresh" or all(
+                snapshot[f] is None for f in ("cpu_percent", "memory_percent", "disk_percent")
+            ) else "pressure_observed" if flags else "no_pressure_observed",
+            "evidence_class": "supplied_unverified", "effect": "none"}
 
 
 def capability_registrations():

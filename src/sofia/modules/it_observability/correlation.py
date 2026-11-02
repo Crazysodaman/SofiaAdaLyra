@@ -7,7 +7,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = "MOD-IT-OBSERVABILITY"
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.2.0"
 CAPABILITY_ID = "it.observability.correlate.v1"
 PROFILE = "ADVISORY"
 RESOURCES = (("cpu_millicores", 50), ("ram_mib", 32), ("gpu_mib", 0))
@@ -47,13 +47,19 @@ def correlate(observations: list[Mapping[str, object]], *, now: datetime, max_ag
         if age < -5 or age > max_age_seconds:
             stale += 1
             continue
-        groups.setdefault((source, component), []).append((signal, obs["state"]))
+        groups.setdefault((source, component), []).append(
+            (signal, obs["state"], when.astimezone(timezone.utc)))
     incidents = []
     for (source, component), points in sorted(groups.items()):
-        degraded = sorted(s for s, status in points if status in {"warning", "critical"})
-        unknown = sorted(s for s, status in points if status == "unknown")
-        severity = "critical" if any(st == "critical" for _, st in points) else "warning" if degraded else "unknown" if unknown else "ok"
-        incidents.append({"source_ref": source, "component_ref": component, "severity": severity, "degraded_signals": degraded, "unknown_signals": unknown, "correlated": len(degraded) > 1})
+        degraded = sorted(s for s, status, _ in points if status in {"warning", "critical"})
+        unknown = sorted(s for s, status, _ in points if status == "unknown")
+        severity = "critical" if any(st == "critical" for _, st, _ in points) else "warning" if degraded else "unknown" if unknown else "ok"
+        evidence = [{"signal": signal, "state": state, "observed_at": when.isoformat()}
+                    for signal, state, when in sorted(points)]
+        incidents.append({"source_ref": source, "component_ref": component,
+                          "severity": severity, "degraded_signals": degraded,
+                          "unknown_signals": unknown, "correlated": len(degraded) > 1,
+                          "evidence": evidence})
     return {"schema": "sofia.it.observability.report.v1", "module_id": MODULE_ID, "sdk_protocol": str(SDK_PROTOCOL_VERSION), "incidents": incidents, "excluded_out_of_window": stale, "evidence_class": "supplied_unverified", "effect": "none"}
 
 
