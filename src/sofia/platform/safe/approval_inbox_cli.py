@@ -1,6 +1,6 @@
-"""Local operator interface for pending SAFE FIDO2 approvals.
+"""Local operator interface for pending SAFE owner approvals.
 
-Only 'approve' opens the owner-presence WebAuthn ceremony. This CLI is NOT a
+Only 'approve' invokes a local attended owner-authentication ceremony. This CLI is NOT a
 network API or a model tool, and it never executes a requested host effect.
 """
 from __future__ import annotations
@@ -35,9 +35,9 @@ def main(argv: list[str] | None = None) -> int:
     ))
     listed.add_argument("--limit", type=int, default=50)
 
-    approved = actions.add_parser("approve", help="Attended security-key WebAuthn ceremony")
+    approved = actions.add_parser("approve", help="Attended owner-secret or WebAuthn ceremony")
     approved.add_argument("--request-id", required=True)
-    approved.add_argument("--credential-id", required=True)
+    approved.add_argument("--credential-id", default="owner-secret")
 
     denied = actions.add_parser("deny", help="Owner rejects an unapproved request")
     denied.add_argument("--request-id", required=True)

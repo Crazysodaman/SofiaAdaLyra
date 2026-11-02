@@ -90,6 +90,26 @@ class ExecutionApprovalVerifier:
         with closing(self._connect()) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             ensure_owner_webauthn_schema(db)
+            # Keep ordinary FIDO2 paths working when no owner secret has
+            # ever been enrolled. Queries may reference these empty tables.
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS safe_owner_secret (
+                    singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+                    windows_sid TEXT NOT NULL,
+                    salt BLOB NOT NULL,
+                    verifier BLOB NOT NULL,
+                    version INTEGER NOT NULL CHECK(version>0),
+                    enrolled_at TEXT NOT NULL
+                )
+            """)
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS safe_owner_secret_proof (
+                    proof_id TEXT PRIMARY KEY,
+                    action_fingerprint TEXT NOT NULL,
+                    verified_at TEXT NOT NULL,
+                    version INTEGER NOT NULL
+                )
+            """)
             db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS safe_execution_approval (
@@ -133,12 +153,16 @@ class ExecutionApprovalVerifier:
         protected = level >= PermissionLevel.PROTECTED
         if owner_proof_required and not authentication_event_id:
             raise PermissionError(
-                "level-3+ execution requires freshly verified owner FIDO2 authentication"
+                "level-3+ execution requires freshly verified owner authentication"
             )
         if authentication_event_id is not None and (
             not isinstance(authentication_event_id, str)
-            or not authentication_event_id.startswith("owner-webauthn:")
-            or len(authentication_event_id) != len("owner-webauthn:") + 64
+            or not (
+                (authentication_event_id.startswith("owner-webauthn:")
+                 and len(authentication_event_id) == len("owner-webauthn:") + 64)
+                or (authentication_event_id.startswith("owner-secret:")
+                    and len(authentication_event_id) == len("owner-secret:") + 64)
+            )
         ):
             raise PermissionError("invalid owner authentication event identity")
         with closing(self._connect()) as db, db:
@@ -146,29 +170,42 @@ class ExecutionApprovalVerifier:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute("BEGIN IMMEDIATE")
             if authentication_event_id is not None:
-                # A signed assertion was verified through the canonical
-                # owner_webauthn path; link it exactly once to this approval.
-                # Do not accept a submitted actor label or guessed event ID.
+                # Accept either independently verified WebAuthn, or an
+                # attended Windows owner-secret proof. Both are one-use,
+                # exact-action, short-lived and recorded in the SAFE audit.
                 digest = authentication_event_id.partition(":")[2]
-                row = db.execute(
-                    "SELECT ch.action_fingerprint,ch.consumed_at,cr.credential_kind,cr.revoked_at "
-                    "FROM safe_owner_challenge ch JOIN safe_owner_credential cr "
-                    "ON cr.credential_id=ch.credential_id "
-                    "JOIN safe_audit_event au ON au.event_id=? "
-                    "WHERE ch.challenge_digest=? "
-                    "AND au.event_type='owner.webauthn.verified'",
-                    (authentication_event_id, digest),
-                ).fetchone()
-                if row is None or row["consumed_at"] is None or row["revoked_at"] is not None:
-                    raise PermissionError("owner authentication evidence unavailable or revoked")
+                if authentication_event_id.startswith("owner-secret:"):
+                    row = db.execute(
+                        "SELECT p.action_fingerprint,p.verified_at "
+                        "FROM safe_owner_secret_proof p "
+                        "JOIN safe_owner_secret s ON s.singleton=1 AND p.version=s.version "
+                        "JOIN safe_audit_event au ON au.event_id=? "
+                        "WHERE p.proof_id=? AND au.event_type='owner.secret.verified'",
+                        (authentication_event_id, digest),
+                    ).fetchone()
+                    if row is None:
+                        raise PermissionError("owner software proof unavailable or revoked")
+                    verified_at = datetime.fromisoformat(row["verified_at"])
+                else:
+                    row = db.execute(
+                        "SELECT ch.action_fingerprint,ch.consumed_at,cr.credential_kind,cr.revoked_at "
+                        "FROM safe_owner_challenge ch JOIN safe_owner_credential cr "
+                        "ON cr.credential_id=ch.credential_id "
+                        "JOIN safe_audit_event au ON au.event_id=? "
+                        "WHERE ch.challenge_digest=? "
+                        "AND au.event_type='owner.webauthn.verified'",
+                        (authentication_event_id, digest),
+                    ).fetchone()
+                    if row is None or row["consumed_at"] is None or row["revoked_at"] is not None:
+                        raise PermissionError("owner authentication evidence unavailable or revoked")
+                    verified_at = datetime.fromisoformat(row["consumed_at"])
+                    if protected and row["credential_kind"] != "security_key":
+                        raise PermissionError("protected execution requires enrolled security key")
                 if row["action_fingerprint"] != approval.request_fingerprint:
                     raise PermissionError("authenticated action fingerprint mismatch")
-                verified_at = datetime.fromisoformat(row["consumed_at"])
                 approval_time = approval.approved_at.astimezone(timezone.utc)
                 if not verified_at <= approval_time <= verified_at + timedelta(seconds=120):
                     raise PermissionError("owner verification is stale or from the future")
-                if protected and row["credential_kind"] != "security_key":
-                    raise PermissionError("protected execution requires enrolled security key")
                 used = db.execute(
                     "SELECT 1 FROM safe_execution_owner_auth_binding "
                     "WHERE authentication_event_id=?",
@@ -247,6 +284,14 @@ class ExecutionApprovalVerifier:
                          WHERE b.approval_id = a.approval_id
                            AND ch.consumed_at IS NOT NULL
                            AND cr.revoked_at IS NULL
+                       ) OR EXISTS(
+                         SELECT 1 FROM safe_execution_owner_auth_binding b
+                         JOIN safe_owner_secret_proof p ON b.authentication_event_id =
+                           ('owner-secret:' || p.proof_id)
+                         JOIN safe_owner_secret s ON s.singleton=1 AND p.version=s.version
+                         JOIN safe_audit_event au ON au.event_id=b.authentication_event_id
+                         WHERE b.approval_id=a.approval_id
+                           AND au.event_type='owner.secret.verified'
                        ) AS owner_proof_bound
                 FROM safe_execution_approval a
                 WHERE consumed_at IS NULL
@@ -319,6 +364,14 @@ class ExecutionApprovalVerifier:
                          WHERE b.approval_id = a.approval_id
                            AND ch.consumed_at IS NOT NULL
                            AND cr.revoked_at IS NULL
+                       ) OR EXISTS(
+                         SELECT 1 FROM safe_execution_owner_auth_binding b
+                         JOIN safe_owner_secret_proof p ON b.authentication_event_id =
+                           ('owner-secret:' || p.proof_id)
+                         JOIN safe_owner_secret s ON s.singleton=1 AND p.version=s.version
+                         JOIN safe_audit_event au ON au.event_id=b.authentication_event_id
+                         WHERE b.approval_id=a.approval_id
+                           AND au.event_type='owner.secret.verified'
                        ) AS owner_proof_bound
                 FROM safe_execution_approval a
                 WHERE approval_id = ?
@@ -400,6 +453,14 @@ class ExecutionApprovalVerifier:
                          WHERE b.approval_id = a.approval_id
                            AND ch.consumed_at IS NOT NULL
                            AND cr.revoked_at IS NULL
+                       ) OR EXISTS(
+                         SELECT 1 FROM safe_execution_owner_auth_binding b
+                         JOIN safe_owner_secret_proof p ON b.authentication_event_id =
+                           ('owner-secret:' || p.proof_id)
+                         JOIN safe_owner_secret s ON s.singleton=1 AND p.version=s.version
+                         JOIN safe_audit_event au ON au.event_id=b.authentication_event_id
+                         WHERE b.approval_id=a.approval_id
+                           AND au.event_type='owner.secret.verified'
                        ) AS owner_proof_bound
                 FROM safe_execution_approval a
                 WHERE approval_id = ?

@@ -41,14 +41,14 @@ def _approval(store: PermissionStore, *, capability: str, parameters: dict):
 def test_actor_label_alone_cannot_create_revoke_or_expand_authority(tmp_path):
     state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     store = PermissionStore(state)
-    with pytest.raises(PermissionError, match="FIDO2"):
+    with pytest.raises(PermissionError, match="authenticated owner approval"):
         store.grant(
             "storage.mkdir", scope={"root_index": 0, "path": "private"},
             grant_id="no-signed-proof", granted_by="Sparks", now=NOW,
         )
-    with pytest.raises(PermissionError, match="FIDO2"):
+    with pytest.raises(PermissionError, match="authenticated owner approval"):
         store.revoke("nonexistent", revoked_by="Sparks", now=NOW)
-    with pytest.raises(PermissionError, match="FIDO2"):
+    with pytest.raises(PermissionError, match="authenticated owner approval"):
         store.set_private_adult_authority(
             private_chat=True, adult_chat=True, adult_avatar=True,
             adult_external_delivery=True, updated_by="Sparks", now=NOW,

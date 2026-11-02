@@ -625,7 +625,7 @@ class PermissionStore:
         encoded_scope = self._scope_json(normalized_scope)
         if not approval_id:
             raise PermissionError(
-                "standing permission requires fresh FIDO2 owner approval"
+                "standing permission requires fresh authenticated owner approval"
             )
         from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
         verifier = ExecutionApprovalVerifier(self.path)
@@ -700,7 +700,7 @@ class PermissionStore:
         moment = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
         if not approval_id:
             raise PermissionError(
-                "standing permission revocation requires fresh FIDO2 owner approval"
+                "standing permission revocation requires fresh authenticated owner approval"
             )
         from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
         verifier = ExecutionApprovalVerifier(self.path)
@@ -806,14 +806,28 @@ class PermissionStore:
                            AND ap.capability='safe.permission.standing.grant'
                          JOIN safe_execution_owner_auth_binding auth
                            ON auth.approval_id=ap.approval_id
-                         JOIN safe_owner_challenge ch
+                         LEFT JOIN safe_owner_challenge ch
                            ON auth.authentication_event_id =
                               ('owner-webauthn:' || ch.challenge_digest)
-                         JOIN safe_owner_credential credential
+                         LEFT JOIN safe_owner_credential credential
                            ON credential.credential_id=ch.credential_id
+                         LEFT JOIN safe_owner_secret_proof software
+                           ON auth.authentication_event_id =
+                              ('owner-secret:' || software.proof_id)
+                         LEFT JOIN safe_owner_secret active_secret
+                           ON active_secret.singleton=1
+                           AND software.version=active_secret.version
+                         LEFT JOIN safe_audit_event software_audit
+                           ON software_audit.event_id=auth.authentication_event_id
+                           AND software_audit.event_type='owner.secret.verified'
                          WHERE b.grant_id=g.grant_id
-                           AND ch.consumed_at IS NOT NULL
-                           AND credential.revoked_at IS NULL
+                           AND (
+                             (ch.consumed_at IS NOT NULL
+                              AND credential.revoked_at IS NULL)
+                             OR (software.proof_id IS NOT NULL
+                                 AND active_secret.version IS NOT NULL
+                                 AND software_audit.event_id IS NOT NULL)
+                           )
                          LIMIT 1
                        ) AS proof_fingerprint
                 FROM safe_permission_grant g
@@ -856,14 +870,28 @@ class PermissionStore:
                            AND ap.consumed_at IS NOT NULL
                          JOIN safe_execution_owner_auth_binding auth
                            ON auth.approval_id=ap.approval_id
-                         JOIN safe_owner_challenge ch
+                         LEFT JOIN safe_owner_challenge ch
                            ON auth.authentication_event_id =
                               ('owner-webauthn:' || ch.challenge_digest)
-                         JOIN safe_owner_credential credential
+                         LEFT JOIN safe_owner_credential credential
                            ON credential.credential_id=ch.credential_id
+                         LEFT JOIN safe_owner_secret_proof software
+                           ON auth.authentication_event_id =
+                              ('owner-secret:' || software.proof_id)
+                         LEFT JOIN safe_owner_secret active_secret
+                           ON active_secret.singleton=1
+                           AND software.version=active_secret.version
+                         LEFT JOIN safe_audit_event software_audit
+                           ON software_audit.event_id=auth.authentication_event_id
+                           AND software_audit.event_type='owner.secret.verified'
                          WHERE b.singleton=p.singleton
-                           AND ch.consumed_at IS NOT NULL
-                           AND credential.revoked_at IS NULL
+                           AND (
+                             (ch.consumed_at IS NOT NULL
+                              AND credential.revoked_at IS NULL)
+                             OR (software.proof_id IS NOT NULL
+                                 AND active_secret.version IS NOT NULL
+                                 AND software_audit.event_id IS NOT NULL)
+                           )
                          LIMIT 1
                        ) AS proof_fingerprint
                 FROM safe_private_adult_authority p
@@ -874,7 +902,7 @@ class PermissionStore:
             raise RuntimeError("private/adult authority state is missing")
         # Preserve privacy restrictions from historical records, but do not
         # honor unverified historical expansion of adult authority. A revoked
-        # authorizing FIDO2 key immediately restores the restrictive view.
+        # authenticating credential or rotated owner secret immediately restores the restrictive view.
         from sofia.platform.safe.execution_approval import execution_fingerprint
         exact = private_authority_parameters(
             private_chat=bool(row["private_chat"]),
@@ -924,7 +952,7 @@ class PermissionStore:
         moment = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
         if not approval_id:
             raise PermissionError(
-                "private/Level-5 authority change requires fresh FIDO2 owner approval"
+                "private/Level-5 authority change requires fresh authenticated owner approval"
             )
         from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
         verifier = ExecutionApprovalVerifier(self.path)

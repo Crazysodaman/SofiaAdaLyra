@@ -9,14 +9,14 @@ from queue import Empty, Queue
 from threading import Thread
 
 from sofia.platform.safe.approval_inbox import ApprovalInbox
-from sofia.platform.safe.owner_enroll_browser import require_owner_windows_account
+from sofia.platform.safe.owner_secret import require_owner_approval_account
 
 
 def open_owner_inbox_window(state_path, *, parent=None):
     import tkinter as tk
     from tkinter import messagebox, ttk
 
-    require_owner_windows_account(state_path)
+    require_owner_approval_account(state_path)
     inbox = ApprovalInbox(state_path)
     root = tk.Toplevel(parent) if parent is not None else tk.Tk()
     root.title("Sofía | Owner approval inbox")
@@ -28,7 +28,7 @@ def open_owner_inbox_window(state_path, *, parent=None):
     ttk.Label(frame, text="Pending owner approvals",
               font=("Segoe UI", 13, "bold")).pack(anchor="w")
     ttk.Label(
-        frame, text="Each action needs its own attended security-key signature. "
+        frame, text="Each action requires attended owner-secret or security-key approval. "
                     "A queue entry never grants permission.",
         wraplength=790,
     ).pack(anchor="w", pady=(3, 10))
@@ -99,7 +99,7 @@ def open_owner_inbox_window(state_path, *, parent=None):
             return
         if not messagebox.askyesno(
             "Review exact action", "Approve only the selected action and target? "
-            "Your FIDO2 key and PIN/biometric verification will be required.",
+            "Your enrolled owner secret or FIDO2 key will be required.",
             parent=root,
         ):
             return
@@ -107,10 +107,10 @@ def open_owner_inbox_window(state_path, *, parent=None):
             from sofia.platform.safe.owner_approval_ui import select_security_key_for_settings
             credential = select_security_key_for_settings(state_path, parent=root)
         except (PermissionError, OSError, RuntimeError, ValueError) as exc:
-            result.set(f"Cannot begin security-key review: {exc}")
+            result.set(f"Cannot begin owner review: {exc}")
             return
         busy["active"] = True
-        result.set("Awaiting owner-presence FIDO2 browser ceremony...")
+        result.set("Awaiting owner authentication...")
         def worker():
             try:
                 approved = inbox.approve_attended(
@@ -139,7 +139,7 @@ def open_owner_inbox_window(state_path, *, parent=None):
             messagebox.showerror("SAFE denial failed", str(exc), parent=root)
 
     ttk.Button(button_row, text="Refresh", command=refresh).pack(side="left")
-    ttk.Button(button_row, text="Review with FIDO2", command=approve).pack(
+    ttk.Button(button_row, text="Review and approve", command=approve).pack(
         side="left", padx=8,
     )
     ttk.Button(button_row, text="Deny", command=deny).pack(side="left")

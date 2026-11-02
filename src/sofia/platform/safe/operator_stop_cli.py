@@ -17,7 +17,8 @@ def main(argv:list[str]|None=None)->int:
     parser.add_argument("--reason",default="operator request")
     parser.add_argument(
         "--credential-id",
-        help="Enrolled FIDO2 security key required only for clearing a stop",
+        default="owner-secret",
+        help="owner-secret (default) or enrolled WebAuthn credential for resume",
     )
     args=parser.parse_args(argv)
     try:
