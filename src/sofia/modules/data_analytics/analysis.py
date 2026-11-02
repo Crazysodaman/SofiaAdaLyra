@@ -15,7 +15,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = 'MOD-DATA-ANALYTICS'
-MODULE_VERSION = '0.1.0'
+MODULE_VERSION = '0.2.0'
 CAPABILITY_ID = 'data_analytics.summarize_numeric.v1'
 PROFILE = 'ADVISORY'
 RESOURCES = (('cpu_millicores', 100), ('ram_mib', 64), ('gpu_mib', 0))
@@ -66,7 +66,8 @@ def summarize_numeric(snapshot: Mapping[str, object], *, now: datetime,
     freshness = 'future' if age < -5 else 'stale' if age > max_age_seconds else 'fresh'
     base = {'schema': 'sofia.data_analytics.numeric_summary.v1',
             'sdk_protocol': str(SDK_PROTOCOL_VERSION), 'module_id': MODULE_ID,
-            'source_ref': source, 'freshness': freshness,
+            'source_ref': source, 'observed_at': observed.astimezone(timezone.utc).isoformat(),
+            'freshness': freshness,
             'evidence_class': 'supplied_unverified', 'effect': 'none',
             'raw_rows_returned': False, 'data_persisted': False}
     if freshness != 'fresh':

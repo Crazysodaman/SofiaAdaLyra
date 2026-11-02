@@ -99,6 +99,8 @@ def test_analytics_summary_with_missing():
     assert result['statistics']['current']['mean'] == 3
     assert result['raw_rows_returned'] is False and result['data_persisted'] is False
     assert 'rows' not in result
+    assert result['source_ref'] == 'dataset:approved'
+    assert result['observed_at'] == NOW.isoformat()
 
 
 def test_analytics_all_missing():
@@ -133,6 +135,15 @@ def test_knowledge_revision_plan():
     assert [c['operation'] for c in r['candidate_operations']]==['candidate_update','tombstone']
     assert not r['index_written'] and not r['memory_promoted']
     assert not r['source_authenticity_verified']
+    assert r['observed_at'] == NOW.isoformat()
+    assert r['candidate_operations'] == [
+        {'document_id': 'manual', 'source_ref': 'docs:manual',
+         'modified_at': NOW.isoformat(), 'operation': 'candidate_update',
+         'revision_sha256': D2},
+        {'document_id': 'removed', 'source_ref': 'docs:manual',
+         'modified_at': NOW.isoformat(), 'operation': 'tombstone',
+         'revision_sha256': None},
+    ]
 
 
 def test_knowledge_deleted_without_index_noop():
@@ -172,6 +183,8 @@ def test_documents_render_and_determinism():
     assert '<script>' not in r['markdown']
     assert not r['file_written'] and not r['published']
     assert r==render_safe_markdown(document(),now=NOW)
+    assert r['source_ref'] == 'owner:draft'
+    assert r['observed_at'] == NOW.isoformat()
 
 
 def test_documents_escaping_prevents_headings():

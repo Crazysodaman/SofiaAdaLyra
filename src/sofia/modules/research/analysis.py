@@ -11,7 +11,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID='MOD-RESEARCH'
-MODULE_VERSION='0.1.0'
+MODULE_VERSION='0.2.0'
 CAPABILITY_ID='research.compare_claim_sources.v1'
 PROFILE='ADVISORY'
 RESOURCES=(('cpu_millicores', 75), ('ram_mib', 48), ('gpu_mib', 0))
@@ -61,7 +61,8 @@ def compare_claim_sources(snapshot:Mapping[str,object],*,now:datetime,max_age_se
     age=(now-observed).total_seconds()
     freshness='future' if age < -5 else 'stale' if age > max_age_seconds else 'fresh'
     base={'schema':'sofia.research.claim_review.v1','module_id':MODULE_ID,'sdk_protocol':str(SDK_PROTOCOL_VERSION),
-          'source_ref':source,'claim_id':claim,'freshness':freshness,'effect':'none',
+          'source_ref':source,'observed_at':observed.isoformat(),
+          'claim_id':claim,'freshness':freshness,'effect':'none',
           'evidence_class':'supplied_unverified','external_requests_sent':False,
           'claims_fact_checked':False,'source_authenticity_verified':False}
     if freshness!='fresh':
@@ -71,7 +72,8 @@ def compare_claim_sources(snapshot:Mapping[str,object],*,now:datetime,max_age_se
     for eid,origin,citation,published,stance in evidence:
         counts[stance]+=1; sources.add(origin)
         if (now-published).total_seconds()>max_source_age_days*86400: older.append(eid)
-        reviewed.append({'evidence_id':eid,'citation_ref':citation,'stance':stance,
+        reviewed.append({'evidence_id':eid,'origin_ref':origin,'citation_ref':citation,
+                         'published_at':published.isoformat(),'stance':stance,
                          'source_age_days':max(0,int((now-published).total_seconds()//86400))})
     contradiction=counts['supports']>0 and counts['disputes']>0
     return base|{'status':'reviewed', 'stance_counts':counts,'source_count':len(sources),

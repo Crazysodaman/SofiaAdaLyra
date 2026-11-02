@@ -13,7 +13,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = 'MOD-DOCUMENTS'
-MODULE_VERSION = '0.1.0'
+MODULE_VERSION = '0.2.0'
 CAPABILITY_ID = 'documents.render_safe_markdown.v1'
 PROFILE = 'SIMULATE'
 RESOURCES = (('cpu_millicores', 75), ('ram_mib', 48), ('gpu_mib', 0))
@@ -65,7 +65,8 @@ def render_safe_markdown(snapshot: Mapping[str, object], *, now: datetime,
     freshness = 'future' if age < -5 else 'stale' if age > max_age_seconds else 'fresh'
     base = {'schema': 'sofia.documents.safe_markdown.v1',
             'sdk_protocol': str(SDK_PROTOCOL_VERSION), 'module_id': MODULE_ID,
-            'source_ref': source, 'freshness': freshness,
+            'source_ref': source, 'observed_at': observed.astimezone(timezone.utc).isoformat(),
+            'freshness': freshness,
             'evidence_class': 'supplied_unverified', 'effect': 'none',
             'file_written': False, 'published': False, 'external_links_created': False}
     if freshness != 'fresh':

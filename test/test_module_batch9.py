@@ -40,6 +40,12 @@ def test_research_conflict():
     assert r['conflicting_stances'] and r['source_count']==2
     assert r['stance_counts']=={'disputes':1,'supports':1,'uncertain':0}
     assert not r['claims_fact_checked'] and not r['external_requests_sent']
+    assert r['observed_at'] == NOW.isoformat()
+    assert r['review_items'][0] == {
+        'evidence_id': 'one', 'origin_ref': 'publisher:a',
+        'citation_ref': 'citation:one', 'published_at': at(-86400),
+        'stance': 'supports', 'source_age_days': 1,
+    }
 
 def test_research_uncertainty_not_truth():
     r=compare_claim_sources(research(evidence=[evidence('a',stance='uncertain')]),now=NOW)

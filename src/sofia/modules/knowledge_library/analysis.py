@@ -12,7 +12,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = 'MOD-KNOWLEDGE-LIBRARY'
-MODULE_VERSION = '0.1.0'
+MODULE_VERSION = '0.2.0'
 CAPABILITY_ID = 'knowledge_library.plan_revision_index.v1'
 PROFILE = 'ADVISORY'
 RESOURCES = (('cpu_millicores', 75), ('ram_mib', 48), ('gpu_mib', 0))
@@ -81,19 +81,24 @@ def plan_revision_index(snapshot: Mapping[str, object], *, now: datetime,
             raise ValueError('document modified after manifest observation')
         if deleted:
             if indexed is not None:
-                pending.append({'document_id': doc_id, 'operation': 'tombstone', 'revision_sha256': None})
+                pending.append({'document_id': doc_id, 'source_ref': remote,
+                                'modified_at': modified.isoformat(),
+                                'operation': 'tombstone', 'revision_sha256': None})
             else:
                 noop_deleted += 1
         elif revision == indexed:
             unchanged += 1
         else:
-            pending.append({'document_id': doc_id, 'operation': 'candidate_update',
+            pending.append({'document_id': doc_id, 'source_ref': remote,
+                            'modified_at': modified.isoformat(),
+                            'operation': 'candidate_update',
                             'revision_sha256': revision})
     age = (now.astimezone(timezone.utc) - observed).total_seconds()
     freshness = 'future' if age < -5 else 'stale' if age > max_age_seconds else 'fresh'
     base = {'schema': 'sofia.knowledge_library.revision_plan.v1',
             'sdk_protocol': str(SDK_PROTOCOL_VERSION), 'module_id': MODULE_ID,
-            'source_ref': source, 'freshness': freshness,
+            'source_ref': source, 'observed_at': observed.isoformat(),
+            'freshness': freshness,
             'evidence_class': 'supplied_unverified', 'effect': 'none',
             'index_written': False, 'memory_promoted': False,
             'source_authenticity_verified': False}
