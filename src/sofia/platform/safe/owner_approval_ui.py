@@ -58,5 +58,8 @@ def select_owner_credential(
 
 
 def select_security_key_for_settings(state_path: Path | str, *, parent) -> str:
-    """Preserve the Settings API for physically supervised FIDO2 actions."""
+    """Prefer the configured attended owner-secret path; retain FIDO2 intact."""
+    from sofia.platform.safe.owner_secret import OwnerSecretStore
+    if OwnerSecretStore(state_path).enabled():
+        return "owner-secret"
     return select_owner_credential(state_path, kind="security_key", parent=parent)

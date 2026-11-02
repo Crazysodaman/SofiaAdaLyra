@@ -84,14 +84,14 @@ def main(argv: list[str] | None = None) -> int:
     grant_cmd.add_argument("--scope-json", default="{}")
     grant_cmd.add_argument("--expires-minutes", type=int)
     grant_cmd.add_argument("--granted-by", default="Sparks")
-    grant_cmd.add_argument("--credential-id", required=True,
-                           help="Enrolled FIDO2 key for a durable grant")
+    grant_cmd.add_argument("--credential-id", default="owner-secret",
+                           help="owner-secret (default) or enrolled WebAuthn credential")
 
     revoke_cmd = sub.add_parser("revoke")
     revoke_cmd.add_argument("grant_id")
     revoke_cmd.add_argument("--revoked-by", default="Sparks")
-    revoke_cmd.add_argument("--credential-id", required=True,
-                            help="Enrolled FIDO2 key to revoke a standing grant")
+    revoke_cmd.add_argument("--credential-id", default="owner-secret",
+                            help="owner-secret (default) or enrolled WebAuthn credential")
 
     private = sub.add_parser("private")
     private_sub = private.add_subparsers(
@@ -111,8 +111,8 @@ def main(argv: list[str] | None = None) -> int:
             choices=("on", "off"),
         )
     private_set.add_argument("--updated-by", default="Sparks")
-    private_set.add_argument("--credential-id", required=True,
-                             help="Enrolled FIDO2 key for Level-5 authority")
+    private_set.add_argument("--credential-id", default="owner-secret",
+                             help="owner-secret (default) or enrolled WebAuthn credential")
 
     args = parser.parse_args(argv)
 

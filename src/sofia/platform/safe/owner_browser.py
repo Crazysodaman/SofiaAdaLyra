@@ -76,6 +76,14 @@ def authorize_exact_action(
     Only browser interaction can perform the WebAuthn assertion. Never accept
     a caller-supplied 'verified=True', supplied username or approval receipt.
     """
+    if credential_id == "owner-secret":
+        if open_browser is not None:
+            raise PermissionError("software secret is not a WebAuthn browser credential")
+        from sofia.platform.safe.owner_secret import authorize_with_secret
+        return authorize_with_secret(
+            state_path, capability=capability, parameters=parameters,
+            expires_seconds=expires_seconds,
+        )
     if type(expires_seconds) is not int or not 30 <= expires_seconds <= 900:
         raise ValueError("approval TTL must be 30..900 seconds")
     if type(timeout_seconds) is not int or not 15 <= timeout_seconds <= 120:
