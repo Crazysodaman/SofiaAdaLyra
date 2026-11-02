@@ -90,6 +90,26 @@ class ExecutionApprovalVerifier:
         with closing(self._connect()) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             ensure_owner_webauthn_schema(db)
+            # Keep ordinary FIDO2 paths working when no owner secret has
+            # ever been enrolled. Queries may reference these empty tables.
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS safe_owner_secret (
+                    singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+                    windows_sid TEXT NOT NULL,
+                    salt BLOB NOT NULL,
+                    verifier BLOB NOT NULL,
+                    version INTEGER NOT NULL CHECK(version>0),
+                    enrolled_at TEXT NOT NULL
+                )
+            """)
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS safe_owner_secret_proof (
+                    proof_id TEXT PRIMARY KEY,
+                    action_fingerprint TEXT NOT NULL,
+                    verified_at TEXT NOT NULL,
+                    version INTEGER NOT NULL
+                )
+            """)
             db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS safe_execution_approval (
