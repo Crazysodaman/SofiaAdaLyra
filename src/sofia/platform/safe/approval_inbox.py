@@ -273,10 +273,10 @@ class ApprovalInbox:
         verification, exact action and physical key for protected capabilities.
         A new 90-second challenge is issued only after the owner starts review.
         """
-        from sofia.platform.safe.owner_enroll_browser import require_owner_windows_account
+        from sofia.platform.safe.owner_secret import require_owner_approval_account
         from sofia.platform.safe.owner_browser import authorize_exact_action
 
-        require_owner_windows_account(self.path)
+        require_owner_approval_account(self.path)
         claimed, token = self._claim(request_id, now=_time())
         approval = None
         try:
@@ -336,8 +336,8 @@ class ApprovalInbox:
 
     def deny_attended(self, request_id: str) -> InboxRequest:
         """Owner may reject pending or in-flight review without granting a key."""
-        from sofia.platform.safe.owner_enroll_browser import require_owner_windows_account
-        require_owner_windows_account(self.path)
+        from sofia.platform.safe.owner_secret import require_owner_approval_account
+        require_owner_approval_account(self.path)
         moment = _time()
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
