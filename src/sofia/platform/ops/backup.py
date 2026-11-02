@@ -33,8 +33,13 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from sofia.platform.config.defaults import production_storage_layout
 from sofia.platform.ops.recovery import BackupEvidence, RestoreVerification
+from sofia.platform.ops.restore_authority import (
+    ProtectedRestoreLedger, RestoreAuthorityUnavailable,
+)
+from sofia.platform.state.canonical_sqlite import (
+    CanonicalSQLiteGuard, CanonicalStateUnavailable,
+)
 from sofia.platform.state.component_schema import verify_production_component_schemas
-from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.state.sqlite_uri import sqlite_file_uri
 
@@ -59,6 +64,42 @@ def _windows_reserved_name(name: str) -> bool:
 
 class BackupError(RuntimeError):
     pass
+
+
+def _refuse_replacement_when_stopped(target_state_path: Path) -> None:
+    """Keep an active operator STOP between replacement and publication.
+
+    An existing destination may be the currently protected state of a live
+    runtime; replacing it while the independently enforced operator STOP is
+    engaged is forbidden.  A destination that cannot prove its stop state,
+    including corrupt or non-SQLite bytes, also fails closed.
+    """
+    from sofia.platform.safe.operator_stop import OperatorStopStore
+
+    candidate = target_state_path.absolute()
+    try:
+        details = candidate.stat(follow_symlinks=False)
+    except FileNotFoundError:
+        return
+    if not stat.S_ISREG(details.st_mode):
+        raise BackupError(
+            "existing protected state replacement target is not a regular file"
+        )
+    try:
+        stop = OperatorStopStore(candidate).current()
+    except (
+        CanonicalStateUnavailable, sqlite3.DatabaseError,
+        RuntimeError, OSError,
+    ) as exc:
+        raise BackupError(
+            "existing state operator-stop verification is unavailable; "
+            f"replacement denied ({type(exc).__name__})"
+        ) from exc
+    if stop.active:
+        raise BackupError(
+            "destination operator stop is active; protected state "
+            "replacement is denied"
+        )
 
 
 class RestorePublicationUncertain(BackupError):
@@ -641,7 +682,7 @@ class BackupEngine:
         replace_existing: bool = False,
         now: datetime | None = None,
         erasure_journal: Path | None = None,
-        replacement_authorizer: Callable[[Path, BackupManifest], bool] | None = None,
+        replacement_authority: ProtectedRestoreLedger | None = None,
     ) -> RestoreVerification:
         # A backup can predate a live deletion by years. No restore may
         # publish state without the operator-held current deletion journal,
@@ -662,14 +703,21 @@ class BackupEngine:
         if not isinstance(target_state_path, Path):
             raise TypeError("target_state_path must be a Path")
         target_root = target_state_path.parent
-        if replace_existing and (
-            replacement_authorizer is None
-            or not callable(replacement_authorizer)
-            or replacement_authorizer(target_state_path, manifest) is not True
-        ):
-            raise BackupError(
-                "existing protected state replacement lacks exact authorization"
-            )
+        # Authority is an owner-minted single-use receipt bound to the exact
+        # destination and manifest. A boolean callback is not proof of owner
+        # intent and is no longer an accepted authorization format.
+        moment = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+        if replace_existing:
+            if replacement_authority is None:
+                raise BackupError(
+                    "existing protected state replacement requires the "
+                    "owner restore authority ledger"
+                )
+            if not isinstance(replacement_authority, ProtectedRestoreLedger):
+                raise TypeError(
+                    "replacement_authority must be a ProtectedRestoreLedger, "
+                    "never a bare callback"
+                )
         journal = erasure_journal.absolute()
         root = target_root.absolute()
         source_root = backup_dir.absolute()
@@ -684,6 +732,29 @@ class BackupEngine:
         # Authenticate destination locality and every archived target
         # before staging any file, including protected identity assets.
         _reject_redirected_restore_path(target_state_path)
+        if replace_existing:
+            candidate = target_state_path.absolute()
+            ledger_path = replacement_authority.path
+            if (
+                ledger_path == candidate
+                or ledger_path == root or root in ledger_path.parents
+                or ledger_path == source_root or source_root in ledger_path.parents
+            ):
+                raise BackupError(
+                    "restore authority ledger must live outside the restored "
+                    "state and backup snapshots"
+                )
+            _refuse_replacement_when_stopped(target_state_path)
+            try:
+                # Non-consuming preflight: catch unbound or missing receipts
+                # before any staging work burns a single-use receipt.
+                replacement_authority.require_replacement(
+                    target_state_path, manifest, now=moment,
+                )
+            except (RestoreAuthorityUnavailable, PermissionError) as exc:
+                raise BackupError(
+                    f"protected state replacement authorization refused: {exc}"
+                ) from exc
         for entry in manifest.entries:
             dest = (
                 target_state_path if entry.logical_path == "sofia.db"
@@ -828,14 +899,20 @@ class BackupEngine:
                     raise BackupError(
                         "external erasure journal unavailable before restore publication"
                     ) from exc
-                if replace_existing and (
-                    replacement_authorizer is None
-                    or replacement_authorizer(target_state_path, manifest) is not True
-                ):
-                    raise BackupError(
-                        "protected state replacement authorization was revoked "
-                        "before publication"
-                    )
+                if replace_existing:
+                    # Reverify immediately before publication: a receipt that
+                    # was revoked, expired or consumed while the snapshot was
+                    # decrypting must not authorize this publish.
+                    _refuse_replacement_when_stopped(target_state_path)
+                    try:
+                        replacement_authority.consume_replacement(
+                            target_state_path, manifest, now=moment,
+                        )
+                    except (RestoreAuthorityUnavailable, PermissionError) as exc:
+                        raise BackupError(
+                            "protected state replacement authorization was "
+                            f"revoked or refused before publication: {exc}"
+                        ) from exc
                 published_directories: set[Path] = set()
                 published_any = False
                 try:

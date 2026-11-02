@@ -10,7 +10,10 @@ import sofia.platform.ops.backup as backup_module
 from sofia.platform.ops.backup import (
     BackupCipher, BackupEngine, BackupError, RestorePublicationUncertain,
 )
-from test.test_ops_backup_restore import make_erasure_journal, make_state
+from sofia.platform.ops.restore_authority import ProtectedRestoreLedger
+from test.test_ops_backup_restore import (
+    NOW, make_erasure_journal, make_state, mint_replacement,
+)
 
 
 def _ready(tmp_path, monkeypatch):
@@ -87,12 +90,18 @@ def test_explicit_replace_existing_can_replace_verified_protected_assets(
     identity = protected / "identity.json"
     identity.write_bytes(b"old-offline-identity")
 
+    replacement = ProtectedRestoreLedger.initialize(
+        tmp_path / "owner-ledger" / "restore-authority.db"
+    )
+    mint_replacement(replacement, target, engine.verify(archive))
+
     result = engine.restore(
         backup_dir=archive, target_state_path=target,
         verifier="operator-explicit-overwrite",
         replace_existing=True,
+        now=NOW,
         erasure_journal=journal,
-        replacement_authorizer=lambda *_: True,
+        replacement_authority=replacement,
     )
 
     assert result.succeeded

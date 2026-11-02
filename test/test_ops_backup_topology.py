@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from contextlib import closing
 from pathlib import Path
 import json
 import sqlite3
@@ -22,7 +23,7 @@ NOW = datetime(2026, 10, 4, 18, 30, tzinfo=timezone.utc)
 def make_state(tmp_path: Path) -> Path:
     path = tmp_path / "live" / "sofia.db"
     path.parent.mkdir()
-    with sqlite3.connect(path) as db:
+    with closing(sqlite3.connect(path)) as db, db:
         db.execute(
             "CREATE TABLE component_schema (component TEXT PRIMARY KEY, "
             "revision INTEGER NOT NULL, updated_at TEXT NOT NULL)"

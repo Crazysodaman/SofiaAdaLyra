@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import socket
 import sys
 import tempfile
+from uuid import uuid4
 
 from sofia.platform.config.defaults import production_state_path
 from sofia.platform.ops.recovery import DEFAULT_RECOVERY_OBJECTIVES
@@ -17,6 +18,11 @@ from sofia.platform.ops.backup import (
     BackupManifest,
     load_backup_key,
     rotate_backups,
+)
+from sofia.platform.ops.restore_authority import (
+    ProtectedRestoreLedger,
+    ProtectedRestoreReplacementApproval,
+    RestoreAuthorityUnavailable,
 )
 
 
@@ -76,6 +82,22 @@ def _verify(args) -> int:
 
 
 def _restore(args) -> int:
+    replacement_authority = None
+    if args.replace_existing:
+        if not args.replacement_authority:
+            raise PermissionError(
+                "--replace-existing requires --replacement-authority: the "
+                "operator-held single-use receipt ledger"
+            )
+        try:
+            replacement_authority = ProtectedRestoreLedger(
+                Path(args.replacement_authority)
+            )
+        except (RestoreAuthorityUnavailable, TypeError, ValueError) as exc:
+            raise PermissionError(
+                "restore authority ledger is unavailable: "
+                f"{type(exc).__name__}: {exc}"
+            ) from exc
     result = _engine(Path(args.key)).restore(
         backup_dir=Path(args.backup_dir),
         target_state_path=Path(args.target_state),
@@ -83,12 +105,66 @@ def _restore(args) -> int:
         replace_existing=args.replace_existing,
         now=datetime.now(timezone.utc),
         erasure_journal=Path(args.erasure_journal),
+        replacement_authority=replacement_authority,
     )
     print(
         f"restore verified: backup_id={result.backup_id} "
         f"verifier={result.verifier} "
         f"verified_at={result.verified_at.isoformat()}"
     )
+    return 0
+
+
+def _approve_restore(args) -> int:
+    # Minting a receipt is an owner act. This command expects to be run by
+    # the authenticated owner; the ledger additionally refuses any non-owner
+    # approved_by identity. The receipt binds the absolute destination
+    # pathname, the backup id and the manifest digest of one archive.
+    engine = _engine(Path(args.key))
+    manifest = engine.verify(Path(args.backup_dir))
+    approval = ProtectedRestoreReplacementApproval(
+        approval_id=f"restore.{uuid4().hex}",
+        target_state_path=str(Path(args.target_state).absolute()),
+        backup_id=manifest.backup_id,
+        manifest_digest=manifest.digest,
+        approved_by="Sparks",
+        approved_at=datetime.now(timezone.utc),
+        expires_at=(
+            datetime.now(timezone.utc) + timedelta(minutes=args.expires_minutes)
+        ),
+    )
+    ledger = ProtectedRestoreLedger(Path(args.ledger))
+    ledger.record(approval)
+    print(
+        f"restore replacement receipt recorded: approval_id={approval.approval_id} "
+        f"target={approval.target_state_path} "
+        f"backup_id={approval.backup_id} "
+        f"expires_at={approval.expires_at.isoformat()}"
+    )
+    return 0
+
+
+def _revoke_restore(args) -> int:
+    ledger = ProtectedRestoreLedger(Path(args.ledger))
+    ledger.revoke(
+        args.approval_id,
+        reason=args.reason,
+        at=datetime.now(timezone.utc),
+    )
+    print(f"restore replacement receipt revoked: approval_id={args.approval_id}")
+    return 0
+
+
+def _list_restore_receipts(args) -> int:
+    ledger = ProtectedRestoreLedger(Path(args.ledger))
+    now = datetime.now(timezone.utc)
+    for receipt in ledger.active_receipts(now=now):
+        print(
+            f"active: approval_id={receipt.approval_id} "
+            f"target={receipt.target_state_path} "
+            f"backup_id={receipt.backup_id} "
+            f"expires_at={receipt.expires_at.isoformat()}"
+        )
     return 0
 
 
@@ -194,7 +270,43 @@ def main(argv: list[str] | None = None) -> int:
     restore.add_argument("--erasure-journal", required=True,
                          help="absolute operator-held journal external to backups")
     restore.add_argument("--replace-existing", action="store_true")
+    restore.add_argument(
+        "--replacement-authority",
+        help="operator-held single-use receipt ledger outside the restored "
+             "state and backup snapshots (required with --replace-existing)",
+    )
     restore.set_defaults(handler=_restore)
+
+    authorize = sub.add_parser(
+        "restore-approve",
+        help="record one single-use owner receipt that replaces existing "
+             "protected state from one specific backup",
+    )
+    authorize.add_argument("--key", required=True)
+    authorize.add_argument("--ledger", required=True)
+    authorize.add_argument("--backup-dir", required=True)
+    authorize.add_argument("--target-state", required=True)
+    authorize.add_argument(
+        "--expires-minutes", type=int, default=60,
+        help="receipt validity window from now, minutes (default: 60)",
+    )
+    authorize.set_defaults(handler=_approve_restore)
+
+    unauthorize = sub.add_parser(
+        "restore-revoke",
+        help="revoke an unconsumed restore replacement receipt",
+    )
+    unauthorize.add_argument("--ledger", required=True)
+    unauthorize.add_argument("--approval-id", required=True)
+    unauthorize.add_argument("--reason", required=True)
+    unauthorize.set_defaults(handler=_revoke_restore)
+
+    receipts = sub.add_parser(
+        "restore-receipts",
+        help="list active unconsumed restore replacement receipts",
+    )
+    receipts.add_argument("--ledger", required=True)
+    receipts.set_defaults(handler=_list_restore_receipts)
 
     rehearse = sub.add_parser("rehearse")
     rehearse.add_argument("--key", required=True)

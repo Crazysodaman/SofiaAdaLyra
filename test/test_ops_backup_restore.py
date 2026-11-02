@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from contextlib import closing
 from pathlib import Path
 from hashlib import sha256
 import json
@@ -14,6 +15,12 @@ from sofia.platform.ops.backup import (
     BackupError,
     rotate_backups,
 )
+from sofia.platform.ops.restore_authority import (
+    ProtectedRestoreLedger,
+    ProtectedRestoreReplacementApproval,
+    replacement_parameters,
+)
+from sofia.platform.safe.operator_stop import OperatorStopStore
 
 
 NOW = datetime(2026, 10, 3, 1, 30, tzinfo=timezone.utc)
@@ -22,7 +29,11 @@ NOW = datetime(2026, 10, 3, 1, 30, tzinfo=timezone.utc)
 def make_state(tmp_path: Path) -> Path:
     state = tmp_path / "live" / "sofia.db"
     state.parent.mkdir()
-    with sqlite3.connect(state) as db:
+    # closing() is not cosmetic: an unclosed sqlite connection keeps the
+    # Windows file handle alive (only a gc cycle collects it), and that
+    # handle denies the engine's os.replace publication of this exact
+    # destination file later in the same test.
+    with closing(sqlite3.connect(state)) as db, db:
         db.execute(
             "CREATE TABLE state_plane_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
         )
@@ -71,6 +82,43 @@ def make_erasure_journal(tmp_path: Path) -> Path:
     return path
 
 
+def make_restore_authority(tmp_path: Path) -> ProtectedRestoreLedger:
+    """Owner-provisioned ledger outside the restored state and snapshots."""
+    return ProtectedRestoreLedger.initialize(
+        tmp_path / "owner-ledger" / "restore-authority.db"
+    )
+
+
+def mint_replacement(
+    ledger: ProtectedRestoreLedger,
+    target: Path,
+    manifest,
+    *,
+    approval_id: str = "restore.replacement-1",
+    approved_at: datetime | None = None,
+    expires_at: datetime | None = None,
+) -> ProtectedRestoreReplacementApproval:
+    parameters = replacement_parameters(target, manifest)
+    ledger.record(
+        ProtectedRestoreReplacementApproval(
+            approval_id=approval_id,
+            target_state_path=parameters["target_state_path"],
+            backup_id=parameters["backup_id"],
+            manifest_digest=parameters["backup_manifest_digest"],
+            approved_by="Sparks",
+            approved_at=approved_at or NOW - timedelta(seconds=30),
+            expires_at=expires_at or NOW + timedelta(hours=2),
+        )
+    )
+    try:
+        return next(
+            receipt for receipt in ledger.active_receipts(now=NOW)
+            if receipt.approval_id == approval_id
+        )
+    except StopIteration:  # pragma: no cover - mint failure surfaces here
+        raise AssertionError(f"receipt {approval_id} did not become active")
+
+
 @pytest.fixture
 def engine():
     return BackupEngine(BackupCipher(b"k" * 32))
@@ -115,11 +163,14 @@ def test_restore_requires_explicit_overwrite_and_recreates_state(
     )
     target = tmp_path / "restore" / "sofia.db"
     target.parent.mkdir()
-    target.write_bytes(b"existing")
-
-    monkeypatch.setattr(
-        "sofia.platform.ops.backup.verify_production_component_schemas",
-        lambda _path: None,
+    # A replaceable destination must be identifiable protected state. The
+    # independently enforced operator-stop provenance check refuses to
+    # conclude anything about arbitrary unidentifiable bytes.
+    with closing(sqlite3.connect(target)) as db, db:
+        db.execute("CREATE TABLE existing_state (key TEXT PRIMARY KEY)")
+    replacement = make_restore_authority(tmp_path)
+    mint_replacement(
+        replacement, target, engine.verify(backup_dir),
     )
 
     with pytest.raises(BackupError, match="replace_existing"):
@@ -137,15 +188,27 @@ def test_restore_requires_explicit_overwrite_and_recreates_state(
         replace_existing=True,
         now=NOW,
         erasure_journal=make_erasure_journal(tmp_path),
-        replacement_authorizer=lambda candidate, manifest: (
-            candidate == target and manifest.backup_id == backup_dir.name
-        ),
+        replacement_authority=replacement,
     )
     assert result.succeeded is True
     with sqlite3.connect(target) as db:
         assert db.execute(
             "SELECT value FROM state_plane_meta WHERE key='schema_revision'"
         ).fetchone() == ("1",)
+    # The receipt is single-use: a repeat replacement attempt is refused
+    # even though the same ledger now holds the consumed record.
+    with pytest.raises(
+        BackupError, match="receipt was already consumed",
+    ):
+        engine.restore(
+            backup_dir=backup_dir,
+            target_state_path=target,
+            verifier="test",
+            replace_existing=True,
+            now=NOW,
+            erasure_journal=make_erasure_journal(tmp_path),
+            replacement_authority=replacement,
+        )
 
 
 def test_restore_rechecks_replacement_authority_before_publication(
@@ -159,19 +222,40 @@ def test_restore_rechecks_replacement_authority_before_publication(
     existing_root = tmp_path / "existing"
     existing_root.mkdir()
     target = make_state(existing_root)
+    # Establish the operator-stop provenance before capturing an intact
+    # baseline so lock/audit bootstrap cannot count as a replaced byte.
+    OperatorStopStore(target).current()
     before = target.read_bytes()
-    decisions = iter((True, False))
+    replacement = make_restore_authority(tmp_path)
+    approval = mint_replacement(
+        replacement, target, engine.verify(backup_dir),
+    )
+    original_preflight = ProtectedRestoreLedger.require_replacement
+
+    def revoke_while_staging(instance, *_args, **_kwargs):
+        original_preflight(instance, *_args, **_kwargs)
+        single = instance.active_receipts(now=NOW)[0]
+        instance.revoke(
+            single.approval_id, reason="owner retracted before publish",
+            at=NOW,
+        )
+
+    monkeypatch.setattr(
+        ProtectedRestoreLedger, "require_replacement",
+        revoke_while_staging,
+    )
     monkeypatch.setattr(
         "sofia.platform.ops.backup.verify_production_component_schemas",
         lambda _path: None,
     )
 
-    with pytest.raises(BackupError, match="revoked before publication"):
+    with pytest.raises(BackupError, match="revoked or refused before publication"):
         engine.restore(
             backup_dir=backup_dir, target_state_path=target,
             verifier="test", replace_existing=True,
+            now=NOW,
             erasure_journal=make_erasure_journal(tmp_path),
-            replacement_authorizer=lambda *_: next(decisions),
+            replacement_authority=replacement,
         )
     assert target.read_bytes() == before
 

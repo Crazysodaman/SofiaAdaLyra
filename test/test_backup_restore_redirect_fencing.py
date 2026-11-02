@@ -2,6 +2,7 @@
 import pytest
 
 from sofia.platform.ops.backup import BackupCipher, BackupEngine, BackupError
+from sofia.platform.ops.restore_authority import ProtectedRestoreLedger
 from test.test_ops_backup_restore import NOW, make_state, make_erasure_journal
 
 
@@ -46,11 +47,14 @@ def test_restore_refuses_redirected_canonical_file_even_with_replace(tmp_path):
     restore = tmp_path / "restored"
     restore.mkdir()
     _link_or_skip(restore / "sofia.db", outside)
+    replacement = ProtectedRestoreLedger.initialize(
+        tmp_path / "owner-ledger" / "restore-authority.db"
+    )
     with pytest.raises(BackupError, match="symbolic link or junction"):
         engine.restore(
             backup_dir=archive, target_state_path=restore / "sofia.db",
             verifier="fixture", erasure_journal=make_erasure_journal(tmp_path),
-            replace_existing=True, replacement_authorizer=lambda *_: True,
+            replace_existing=True, replacement_authority=replacement,
         )
     assert outside.read_bytes() == b"preserve-this-file"
 
