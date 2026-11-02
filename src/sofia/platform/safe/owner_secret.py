@@ -175,6 +175,26 @@ class OwnerSecretStore:
             )
 
 
+def require_owner_approval_account(state_path: Path | str) -> str:
+    """Authorize the enrolled Windows owner for approved software or WebAuthn.
+
+    An unenrolled software secret never disables the existing WebAuthn guard.
+    The host SID is verified from the Windows access token, not a username.
+    """
+    store = OwnerSecretStore(state_path)
+    if store.enabled():
+        sid = store._sid()
+        with closing(store._db()) as db:
+            row = db.execute(
+                "SELECT windows_sid FROM safe_owner_secret WHERE singleton=1"
+            ).fetchone()
+            if row is None or row["windows_sid"] != sid:
+                raise PermissionError("current session is not enrolled owner")
+        return sid
+    from sofia.platform.safe.owner_enroll_browser import require_owner_windows_account
+    return require_owner_windows_account(state_path)
+
+
 def authorize_with_secret(state_path: Path | str, *, capability: str, parameters: dict,
                           expires_seconds: int = 120):
     """Prompt locally, authenticate, then issue existing one-use SAFE approval."""
