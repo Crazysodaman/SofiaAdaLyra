@@ -13,7 +13,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID='MOD-BROWSER'
-MODULE_VERSION='0.1.0'
+MODULE_VERSION='0.2.0'
 CAPABILITY_ID='browser.review_navigation_candidates.v1'
 PROFILE='ADVISORY'
 RESOURCES=(('cpu_millicores',50),('ram_mib',32),('gpu_mib',0))
@@ -87,7 +87,9 @@ def review_navigation_candidates(snapshot:Mapping[str,object],*,now:datetime,
     age=(now.astimezone(timezone.utc)-obs.astimezone(timezone.utc)).total_seconds()
     fresh='future' if age<-5 else 'stale' if age>max_age_seconds else 'fresh'
     base={'schema':'sofia.browser.navigation_review.v1','sdk_protocol':str(SDK_PROTOCOL_VERSION),
-          'module_id':MODULE_ID,'source_ref':source,'freshness':fresh,'effect':'none',
+          'module_id':MODULE_ID,'source_ref':source,
+          'observed_at':obs.astimezone(timezone.utc).isoformat(),
+          'freshness':fresh,'effect':'none',
           'evidence_class':'supplied_unverified','requests_sent':False,'dns_verified':False,
           'host_trust_verified':False,'navigation_authorized':False}
     if fresh!='fresh':return base|{'status':'unknown','reviewed':[],'allowed_count':None}

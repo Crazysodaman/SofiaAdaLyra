@@ -11,7 +11,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = 'MOD-COMMUNICATIONS'
-MODULE_VERSION = '0.1.0'
+MODULE_VERSION = '0.2.0'
 CAPABILITY_ID = 'communications.review_delivery_receipts.v1'
 PROFILE = 'OBSERVE'
 RESOURCES = (('cpu_millicores', 50), ('ram_mib', 32), ('gpu_mib', 0))
@@ -61,21 +61,32 @@ def review_delivery_receipts(snapshot: Mapping[str, object], *, now: datetime,
         updated = _timestamp(msg['status_at'],'status_at')
         if updated < submitted or (updated-observed).total_seconds() > 5:
             raise ValueError('inconsistent receipt timeline')
-        inspected.append((mid,status))  # Recipient is never echoed or aggregated.
+        # Recipient is deliberately omitted from all returned observations.
+        inspected.append((mid,status,submitted,updated))
     age = (now.astimezone(timezone.utc)-observed).total_seconds()
     freshness = 'future' if age < -5 else 'stale' if age > max_age_seconds else 'fresh'
     base = {'schema':'sofia.communications.delivery_review.v1','sdk_protocol':str(SDK_PROTOCOL_VERSION),
-            'module_id':MODULE_ID,'source_ref':source,'freshness':freshness,
+            'module_id':MODULE_ID,'source_ref':source,'observed_at':observed.isoformat(),
+            'freshness':freshness,
             'evidence_class':'supplied_unverified','effect':'none',
             'messages_sent':False,'recipient_details_returned':False,
             'recipient_read_verified':False,'delivery_authenticated':False}
     if freshness != 'fresh':
         return base | {'status':'unknown','counts':{},'undelivered_message_ids':[],
-                       'delivered_message_ids':[]}
-    counts = {state:sum(1 for _,status in inspected if status==state) for state in sorted(_STATUS)}
+                       'delivered_message_ids':[],'receipt_observations':[]}
+    counts = {state:sum(1 for _,status,_,_ in inspected if status==state)
+              for state in sorted(_STATUS)}
     return base | {'status':'reviewed','counts':counts,
-                   'undelivered_message_ids':sorted(mid for mid,status in inspected if status!='delivered'),
-                   'delivered_message_ids':sorted(mid for mid,status in inspected if status=='delivered')}
+                   'undelivered_message_ids':sorted(mid for mid,status,_,_ in inspected
+                                                    if status!='delivered'),
+                   'delivered_message_ids':sorted(mid for mid,status,_,_ in inspected
+                                                  if status=='delivered'),
+                   'receipt_observations':sorted(({
+                       'message_id': mid, 'status': status,
+                       'submitted_at': submitted.isoformat(),
+                       'status_at': updated.isoformat(),
+                   } for mid,status,submitted,updated in inspected),
+                       key=lambda item:item['message_id'])}
 
 
 def capability_registrations():

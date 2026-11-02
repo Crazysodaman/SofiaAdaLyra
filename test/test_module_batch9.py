@@ -81,6 +81,7 @@ def test_browser_allowlist_and_denial():
     assert r['reviewed'][0]['url']=='https://example.com/a'
     assert r['reviewed'][1]['url'] is None
     assert not r['requests_sent'] and not r['navigation_authorized'] and not r['dns_verified']
+    assert r['observed_at'] == at()
 
 def test_browser_exact_host_not_subdomain():
     r=review_navigation_candidates(browser(candidates=[dict(candidate_id='sub',url='https://evil.example.com/')]),now=NOW)

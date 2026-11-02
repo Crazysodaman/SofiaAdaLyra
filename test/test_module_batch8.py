@@ -147,6 +147,12 @@ def test_comms_states_and_unverified_delivery():
     assert not result['recipient_read_verified'] and not result['delivery_authenticated']
     assert not result['messages_sent'] and not result['recipient_details_returned']
     assert 'opaque:1' not in str(result)
+    assert result['observed_at'] == T(3)
+    assert result['receipt_observations'] == [
+        {'message_id':'m1','status':'sent','submitted_at':T(0),'status_at':T(1)},
+        {'message_id':'m2','status':'delivered','submitted_at':T(0),'status_at':T(1)},
+        {'message_id':'m3','status':'failed','submitted_at':T(0),'status_at':T(1)},
+    ]
 
 
 def test_comms_empty():
@@ -172,6 +178,7 @@ def test_comms_rejects_untrusted(change):
 def test_comms_stale_mask():
     result=review_delivery_receipts(comms(observed_at=T(-90),messages=[receipt('m0',start=-100,upd=-95)]),now=NOW,max_age_seconds=600)
     assert result['status']=='unknown' and not result['counts']
+    assert not result['receipt_observations']
 
 
 def test_productivity_dependency_prio_and_overdue():
@@ -181,6 +188,7 @@ def test_productivity_dependency_prio_and_overdue():
     assert result['overdue_task_ids']==['urgent']
     assert result['completed_count']==1
     assert not result['tasks_modified'] and not result['core_goals_modified']
+    assert result['observed_at'] == T(0)
 
 
 def test_productivity_dependencies_done():

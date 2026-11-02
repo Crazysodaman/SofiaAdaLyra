@@ -11,7 +11,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = 'MOD-PRODUCTIVITY'
-MODULE_VERSION = '0.1.0'
+MODULE_VERSION = '0.2.0'
 CAPABILITY_ID = 'productivity.review_task_dependencies.v1'
 PROFILE = 'ADVISORY'
 RESOURCES = (('cpu_millicores', 75), ('ram_mib', 48), ('gpu_mib', 0))
@@ -86,7 +86,8 @@ def review_task_dependencies(snapshot: Mapping[str,object], *, now:datetime,
     age=(now.astimezone(timezone.utc)-observed).total_seconds()
     freshness='future' if age < -5 else 'stale' if age>max_age_seconds else 'fresh'
     base={'schema':'sofia.productivity.task_review.v1','sdk_protocol':str(SDK_PROTOCOL_VERSION),
-          'module_id':MODULE_ID,'source_ref':source,'freshness':freshness,
+          'module_id':MODULE_ID,'source_ref':source,'observed_at':observed.isoformat(),
+          'freshness':freshness,
           'evidence_class':'supplied_unverified','effect':'none',
           'tasks_modified':False,'reminders_sent':False,'core_goals_modified':False}
     if freshness!='fresh':
