@@ -153,3 +153,73 @@ def test_owner_secret_requires_attended_owner_sid(tmp_path, monkeypatch):
     )
     with pytest.raises(PermissionError):
         store.authenticate("77" * 32, action_fingerprint="f" * 64)
+
+
+def test_browser_prompt_shows_action_and_never_echoes_secret(monkeypatch):
+    """Non-console authentication uses a single local HTTP form, not Tk."""
+    import re
+    from urllib.request import Request, urlopen
+    from urllib.parse import urlencode, urlsplit
+    from sofia.platform.safe import owner_secret
+
+    def open_browser(url):
+        parsed = urlsplit(url)
+        origin = f"{parsed.scheme}://{parsed.netloc}"
+        with urlopen(url, timeout=4) as response:
+            markup = response.read().decode("utf-8")
+        assert "fleet.enroll" in markup
+        assert "host-123" in markup
+        assert "c" * 64 in markup
+        assert "aa" * 32 not in markup
+        action = re.search(r"<form method='post' action='([^']+)'>", markup)
+        assert action is not None
+        body = urlencode({"secret": "aa" * 32}).encode("ascii")
+        req = Request(
+            origin + action.group(1), data=body,
+            headers={"Origin": origin, "Content-Type":
+                     "application/x-www-form-urlencoded"},
+            method="POST",
+        )
+        with urlopen(req, timeout=4) as response:
+            assert response.status == 200
+        return True
+
+    import webbrowser
+    monkeypatch.setattr(webbrowser, "open", open_browser)
+    assert owner_secret._browser_secret_prompt(
+        capability="fleet.enroll", parameters={"host_id": "host-123"},
+        fingerprint="c" * 64,
+    ) == "aa" * 32
+
+
+def test_secret_prompt_creates_verifiable_exact_approval(tmp_path, monkeypatch):
+    from sofia.platform.safe import owner_secret
+    from sofia.platform.safe.execution_approval import execution_fingerprint
+    monkeypatch.setattr(
+        owner_secret, "require_venus_interactive_windows",
+        lambda *, require_terminal=False: "S-1-5-21-OWNER",
+    )
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    owner_secret.OwnerSecretStore(state).enroll("ab" * 32)
+    monkeypatch.setattr(owner_secret, "_browser_secret_prompt",
+                        lambda **_kw: "ab" * 32)
+    import sys
+    class In:
+        def isatty(self): return False
+    monkeypatch.setattr(sys, "stdin", In())
+    params = {"host_id": "just-this-host"}
+    approval = owner_secret.authorize_with_secret(
+        state, capability="fleet.enroll", parameters=params,
+    )
+    assert approval.request_fingerprint == execution_fingerprint(
+        "fleet.enroll", params
+    )
+    verifier = ExecutionApprovalVerifier(state)
+    assert verifier.matches_unconsumed(
+        approval_id=approval.approval_id, capability="fleet.enroll",
+        parameters=params, now=datetime.now(timezone.utc),
+    )
+    assert not verifier.matches_unconsumed(
+        approval_id=approval.approval_id, capability="fleet.enroll",
+        parameters={"host_id": "another-host"}, now=datetime.now(timezone.utc),
+    )
