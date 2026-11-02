@@ -195,6 +195,131 @@ def require_owner_approval_account(state_path: Path | str) -> str:
     return require_owner_windows_account(state_path)
 
 
+def _browser_secret_prompt(*, capability: str, parameters: dict,
+                           fingerprint: str, timeout_seconds: int = 90) -> str:
+    """Single-use loopback browser prompt for non-console desktop workers.
+
+    This does NOT make a software secret hardware-resistant; it avoids
+    touching Tk widgets from background threads and shows exact parameters.
+    """
+    from html import escape
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from queue import Empty, Queue
+    from threading import Lock, Thread
+    from urllib.parse import parse_qs, urlsplit
+    import json
+    import webbrowser
+
+    nonce = secrets.token_urlsafe(32)
+    submitted: Queue[str | None] = Queue(maxsize=1)
+    attempt = Lock()
+    consumed = [False]
+    action = json.dumps(
+        {"capability": capability, "parameters": parameters,
+         "action_fingerprint": fingerprint},
+        sort_keys=True, indent=2, allow_nan=False, ensure_ascii=False,
+    )
+    if len(action.encode("utf-8")) > 65_000:
+        raise ValueError("approval request too long")
+    html = (
+        "<!doctype html><html lang='en'><meta charset='utf-8'>"
+        "<title>Sofía private owner approval</title>"
+        "<h1>Review exact action before approving</h1><pre>"
+        + escape(action) + "</pre><form method='post' action='__ACTION__'>"
+        "<label>Owner secret (64 hex characters):"
+        "<input type='password' name='secret' autocomplete='off' "
+        "minlength='64' maxlength='64' required></label>"
+        "<button type='submit'>Approve this exact action</button></form>"
+        "</html>"
+    )
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *_args):
+            return
+
+        def _valid(self, target):
+            parsed = urlsplit(self.path)
+            return (
+                self.headers.get("Host") == f"localhost:{self.server.server_port}"
+                and parsed.path == target
+                and parse_qs(parsed.query).get("token") == [nonce]
+            )
+
+        def _reply(self, code, payload, content_type="text/plain"):
+            self.send_response(code)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("X-Frame-Options", "DENY")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Content-Security-Policy",
+                             "default-src 'none'; style-src 'unsafe-inline'; "
+                             "form-action 'self'; frame-ancestors 'none'; "
+                             "base-uri 'none'")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+        def do_GET(self):
+            if not self._valid("/"):
+                return self._reply(404, b"Not found")
+            page = html.replace("__ACTION__", "/finish?token=" + nonce).encode("utf-8")
+            self._reply(200, page, "text/html; charset=utf-8")
+
+        def do_POST(self):
+            if (not self._valid("/finish")
+                or self.headers.get("Origin") != f"http://localhost:{self.server.server_port}"
+                or self.headers.get_content_type() != "application/x-www-form-urlencoded"):
+                return self._reply(403, b"Denied")
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                length = 0
+            if length <= 0 or length > 200:
+                return self._reply(413, b"Invalid submission")
+            with attempt:
+                if consumed[0]:
+                    return self._reply(409, b"Already attempted")
+                consumed[0] = True
+            try:
+                body = parse_qs(
+                    self.rfile.read(length).decode("ascii"), strict_parsing=True
+                )
+                if set(body) != {"secret"} or len(body["secret"]) != 1:
+                    raise ValueError("invalid secret form")
+                supplied = body["secret"][0]
+                if not _HEX.fullmatch(supplied):
+                    raise ValueError("invalid secret format")
+                submitted.put_nowait(supplied)
+                self._reply(200, b"Submitted for owner verification. Close this page.")
+            except (UnicodeDecodeError, ValueError):
+                submitted.put_nowait(None)
+                self._reply(403, b"Authentication refused")
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server.daemon_threads = True
+    worker = None
+    try:
+        worker = Thread(target=server.serve_forever, daemon=True)
+        worker.start()
+        if webbrowser.open(
+            f"http://localhost:{server.server_port}/?token={nonce}"
+        ) is False:
+            raise RuntimeError("unable to open owner authorization browser")
+        try:
+            value = submitted.get(timeout=timeout_seconds)
+        except Empty as exc:
+            raise PermissionError("owner approval timed out") from exc
+        if value is None:
+            raise PermissionError("invalid owner secret submission")
+        return value
+    finally:
+        if worker is not None:
+            server.shutdown()
+        server.server_close()
+        if worker is not None:
+            worker.join(timeout=2)
+
+
 def authorize_with_secret(state_path: Path | str, *, capability: str, parameters: dict,
                           expires_seconds: int = 120):
     """Prompt locally, authenticate, then issue existing one-use SAFE approval."""
@@ -222,27 +347,9 @@ def authorize_with_secret(state_path: Path | str, *, capability: str, parameters
         ))
         supplied = getpass.getpass("64-character owner secret (hidden): ")
     else:
-        import tkinter as tk
-        from tkinter import messagebox, simpledialog
-        root = tk._default_root
-        temporary = root is None
-        if temporary:
-            root = tk.Tk()
-            root.withdraw()
-        try:
-            if not messagebox.askyesno(
-                "Sofía protected approval",
-                f"Approve ONE action?\n{capability}\nExact fingerprint:\n{exact}",
-                parent=root,
-            ):
-                raise PermissionError("owner declined protected approval")
-            supplied = simpledialog.askstring(
-                "Sofía owner secret", "Enter the 64-character owner secret:",
-                parent=root, show="*",
-            )
-        finally:
-            if temporary:
-                root.destroy()
+        supplied = _browser_secret_prompt(
+            capability=capability, parameters=parameters, fingerprint=exact,
+        )
     if supplied is None:
         raise PermissionError("owner canceled authentication")
     event_id = store.authenticate(supplied, action_fingerprint=exact)
