@@ -203,7 +203,7 @@ def test_level3_verified_windows_hello_can_authorize_exact_once(tmp_path):
     ) == approval
 
 
-def test_level3_execution_cli_requires_web_authentication(tmp_path, capsys):
+def test_level3_execution_cli_requires_enrolled_owner_authentication(tmp_path, capsys):
     from sofia.platform.safe.approve_execution import main
 
     state = tmp_path / "sofia.db"
@@ -214,4 +214,4 @@ def test_level3_execution_cli_requires_web_authentication(tmp_path, capsys):
         "--parameters-json", '{"service":"example"}',
     ])
     assert result == 2
-    assert "level-3+" in capsys.readouterr().err
+    assert "owner secret not enrolled" in capsys.readouterr().err
