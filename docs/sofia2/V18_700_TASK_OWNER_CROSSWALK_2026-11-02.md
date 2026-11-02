@@ -8,10 +8,10 @@
 
 | Layer | Assigned CA tasks | Responsibility |
 |---|---:|---|
-| Core | 220 | Identity, cognition, MEMORY, personality, emotions, LIFE/GOALS, relationships, interests and modeled initiative |
-| Platform | 347 | Security, canonical state, RUN/ACT, release verification, model infrastructure, Fleet, resource and lifecycle control |
-| Release modules | 30 | Desktop, Discord, 2D avatar, Voice and mobile presentation/transport |
-| Optional modules | 103 | Workshop, DEV, creative tools, model adaptation, vision, robotics, trains, science and connectors |
+| Core | 222 | Identity, cognition, MEMORY, personality, emotions, LIFE/GOALS, relationships, interests and modeled initiative |
+| Platform | 350 | Security, canonical state, RUN/ACT, release verification, model infrastructure, Fleet, resource and lifecycle control |
+| Release modules | 33 | Desktop, Discord, 2D avatar, Voice and mobile presentation/transport |
+| Optional modules | 95 | Workshop, DEV, creative tools, model adaptation, vision, robotics, trains, science and connectors |
 | **Total** | **700** | **Exactly one primary architectural owner per original CA task** |
 
 ## Crosswalk by original roadmap phase
@@ -20,18 +20,18 @@
 |---|---:|---:|---:|---:|---:|
 | 00 | 65 | 6 | 55 | 4 | 0 |
 | 01 | 66 | 7 | 52 | 1 | 6 |
-| 02 | 30 | 1 | 19 | 7 | 3 |
+| 02 | 30 | 1 | 20 | 7 | 2 |
 | 03 | 46 | 0 | 46 | 0 | 0 |
 | 04 | 22 | 0 | 20 | 2 | 0 |
 | 05 | 41 | 24 | 13 | 4 | 0 |
 | 06 | 73 | 62 | 10 | 1 | 0 |
 | 07 | 26 | 9 | 17 | 0 | 0 |
-| 08 | 56 | 37 | 9 | 8 | 2 |
+| 08 | 56 | 39 | 8 | 8 | 1 |
 | 09 | 66 | 38 | 17 | 0 | 11 |
 | 10 | 27 | 6 | 8 | 2 | 11 |
 | 11 | 49 | 5 | 44 | 0 | 0 |
 | 12 | 24 | 6 | 4 | 1 | 13 |
-| 13 | 63 | 0 | 30 | 0 | 33 |
+| 13 | 63 | 0 | 33 | 3 | 27 |
 | 14 | 12 | 0 | 3 | 0 | 9 |
 | 15 | 22 | 14 | 0 | 0 | 8 |
 | 16 | 12 | 5 | 0 | 0 | 7 |
