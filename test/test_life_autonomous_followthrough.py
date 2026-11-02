@@ -72,7 +72,7 @@ def test_life_auto_reviews_and_completes_only_independently_verified_artifact(tm
         assert created["scheduled"] == 1
         first = life.store.jobs(project.project_id)[0]
         assert wait_for_job(life, first).status is WorkStatus.COMPLETED
-        completed = life.tick(now=now + timedelta(seconds=8))
+        completed = life.tick(now=now + timedelta(minutes=5))
         assert completed["follow_through"] == "independently_completed"
         assert life._project(project.project_id).status is ProjectStatus.COMPLETED
         evaluation = life.store.evaluations(project.project_id)[0]
@@ -112,7 +112,10 @@ def test_life_revises_failed_original_text_after_daily_budget_reset(tmp_path):
         life.tick(now=now + timedelta(seconds=3), generate=generator)
         assert wait_for_job(life, life.store.jobs(project.project_id)[0]).status is WorkStatus.COMPLETED
 
-        inspected = life.tick(now=now + timedelta(seconds=7), generate=generator)
+        # The RUN receipt carries a real wall-clock timestamp while the LIFE
+        # tick uses a synthetic schedule, so the settle budget must exceed any
+        # execution drift on a loaded runner (a seconds-wide margin flaked on CI).
+        inspected = life.tick(now=now + timedelta(minutes=5), generate=generator)
         assert inspected["follow_through"] == "deferred_daily_draft_limit"
         assert len(life.store.evaluations(project.project_id)) == 1
         assert life._project(project.project_id).status is ProjectStatus.ACTIVE
@@ -146,7 +149,11 @@ def test_life_abstains_on_uncheckable_subjective_objectives(tmp_path):
             ),
         )
         assert wait_for_job(life, life.store.jobs(project.project_id)[0]).status is WorkStatus.COMPLETED
-        result = life.tick(now=now + timedelta(seconds=8))
+        # RUN receipts carry real wall-clock timestamps while this test's LIFE
+        # ticks use a synthetic schedule; a margin smaller than execution drift
+        # on a loaded runner makes a legitimate receipt future-dated, so the
+        # settle budget is minutes-wide.
+        result = life.tick(now=now + timedelta(minutes=5))
         assert result["follow_through"] == "needs_independent_objective_review"
         # The verified outcome is UNKNOWN, so pause future autonomous
         # spending rather than leave an uncheckable project ACTIVE forever.
@@ -179,7 +186,11 @@ def test_life_corrupt_artifact_does_not_revise_or_complete(tmp_path):
             artifact_id, owner_principal_id="sofia", audience_id="local:text",
         )
         path.write_text("tampered", encoding="utf-8")
-        result = life.tick(now=now + timedelta(seconds=8))
+        # RUN receipts carry real wall-clock timestamps while this test's LIFE
+        # ticks use a synthetic schedule; a margin smaller than execution drift
+        # on a loaded runner makes a legitimate receipt future-dated, so the
+        # settle budget is minutes-wide.
+        result = life.tick(now=now + timedelta(minutes=5))
         assert result["follow_through"] == "artifact_integrity_review_required"
         assert life._project(project.project_id).status is ProjectStatus.ACTIVE
         assert len(life.store.jobs(project.project_id)) == 1
@@ -189,7 +200,7 @@ def test_life_corrupt_artifact_does_not_revise_or_complete(tmp_path):
             for milestone in life.store.milestones(project.project_id)
         )
         assert life._current_verified_objective_completion(
-            life._project(project.project_id), now=now + timedelta(seconds=9),
+            life._project(project.project_id), now=now + timedelta(minutes=5),
         ) is False
     finally:
         life.close()
