@@ -11,7 +11,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability,CapabilityRequest
 
 MODULE_ID='MOD-PROJECT-FORGE'
-MODULE_VERSION='0.1.0'
+MODULE_VERSION='0.2.0'
 CAPABILITY_ID='project_forge.review_artifact_manifest.v1'
 PROFILE='ADVISORY'
 RESOURCES=(('cpu_millicores',75),('ram_mib',48),('gpu_mib',0))
@@ -66,7 +66,9 @@ def review_artifact_manifest(snapshot:Mapping[str,object],*,now:datetime,
     age=(now.astimezone(timezone.utc)-obs.astimezone(timezone.utc)).total_seconds()
     freshness='future' if age < -5 else 'stale' if age>max_age_seconds else 'fresh'
     base={'schema':'sofia.project_forge.artifact_review.v1','sdk_protocol':str(SDK_PROTOCOL_VERSION),
-          'module_id':MODULE_ID,'source_ref':source,'project_ref':project,'freshness':freshness,
+          'module_id':MODULE_ID,'source_ref':source,
+          'observed_at':obs.astimezone(timezone.utc).isoformat(),
+          'project_ref':project,'freshness':freshness,
           'evidence_class':'supplied_unverified','effect':'none','artifacts_opened':False,
           'test_executed':False,'delivery_authorized':False,'core_goal_changed':False}
     if freshness!='fresh':return base|{'status':'unknown','artifacts':[],
@@ -81,7 +83,9 @@ def review_artifact_manifest(snapshot:Mapping[str,object],*,now:datetime,
         reviewed.append({'artifact_id':aid,'digest_sha256':item['digest_sha256'],
                          'candidate_ready':not blockers,'blockers':blockers,
                          'criteria_met':sum(met for _,met in by_art[aid]),
-                         'criteria_total':len(by_art[aid])})
+                         'criteria_total':len(by_art[aid]),
+                         'criteria':[{'criterion_id':key,'met':met}
+                                     for key,met in sorted(by_art[aid])]})
     ready=sum(r['candidate_ready'] for r in reviewed)
     return base|{'status':'reviewed','artifacts':reviewed,'candidate_ready_count':ready,
                  'all_acceptance_verified':False,

@@ -12,7 +12,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = 'MOD-CAD'
-MODULE_VERSION = '0.1.0'
+MODULE_VERSION = '0.2.0'
 CAPABILITY_ID = 'cad.simulate_plate.v1'
 PROFILE = 'SIMULATE'
 RESOURCES = (('cpu_millicores', 50), ('ram_mib', 32), ('gpu_mib', 0))
@@ -64,6 +64,7 @@ def simulate_plate(plan: Mapping[str, object], *, now: datetime, max_age_seconds
         circles.append((x, y, d/2))
     base = {'schema':'sofia.cad.plate_simulation.v1', 'module_id':MODULE_ID,
             'sdk_protocol':str(SDK_PROTOCOL_VERSION), 'source_ref':source,
+            'observed_at':observed.astimezone(timezone.utc).isoformat(),
             'freshness':freshness, 'evidence_class':'hypothetical_supplied', 'effect':'none',
             'manufacturing_approved':False, 'structural_validated':False}
     if freshness != 'fresh':

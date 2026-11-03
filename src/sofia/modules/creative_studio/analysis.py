@@ -13,7 +13,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = 'MOD-CREATIVE'
-MODULE_VERSION = '0.1.0'
+MODULE_VERSION = '0.2.0'
 CAPABILITY_ID = 'creative.review_storyboard.v1'
 PROFILE = 'SIMULATE'
 RESOURCES = (('cpu_millicores', 75), ('ram_mib', 48), ('gpu_mib', 0))  # provisional admission request
@@ -88,7 +88,9 @@ def _review(item: Mapping[str, object]) -> dict[str, object]:
     if type(digest) is not str or re.fullmatch(r'[0-9a-f]{64}',digest) is None:
         raise ValueError('invalid asset digest')
     reviewed = _bool(row['asset_reviewed'])
-    return dict(id=key, start_s=start, end_s=end, duration_s=end-start, finding='ready' if reviewed else 'asset_review_missing')
+    return dict(id=key, start_s=start, end_s=end, duration_s=end-start,
+                asset_digest=digest, asset_reviewed=reviewed,
+                finding='ready' if reviewed else 'asset_review_missing')
 
 
 

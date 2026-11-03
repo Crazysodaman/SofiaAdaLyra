@@ -13,7 +13,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = 'MOD-DEV'
-MODULE_VERSION = '0.1.0'
+MODULE_VERSION = '0.2.0'
 CAPABILITY_ID = 'dev.review_patch_manifest.v1'
 PROFILE = 'ADVISORY'
 RESOURCES = (('cpu_millicores', 75), ('ram_mib', 48), ('gpu_mib', 0))  # provisional admission request
@@ -89,7 +89,9 @@ def _review(item: Mapping[str, object]) -> dict[str, object]:
     operation = _choice(row['operation'], ('add','modify','delete'))
     tests = _bool(row['tests_passed']); reviewed = _bool(row['reviewed']); protected = _bool(row['protected'])
     reasons = (['protected_path_requires_separate_approval'] if protected else []) + (['missing_review'] if not reviewed else []) + (['tests_not_passing'] if not tests else [])
-    return dict(id=key, path=path, operation=operation, finding='hold' if reasons else 'review_eligible', reasons=reasons)
+    return dict(id=key, path=path, operation=operation, tests_passed=tests,
+                reviewed=reviewed, protected=protected,
+                finding='hold' if reasons else 'review_eligible', reasons=reasons)
 
 
 

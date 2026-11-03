@@ -12,7 +12,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = 'MOD-FILE-WATCH'
-MODULE_VERSION = '0.1.0'
+MODULE_VERSION = '0.2.0'
 CAPABILITY_ID = 'file_watch.summarize_changes.v1'
 PROFILE = 'OBSERVE'
 RESOURCES = (('cpu_millicores',50),('ram_mib',32),('gpu_mib',0))
@@ -76,7 +76,9 @@ def summarize_changes(snapshot: Mapping[str,object], *, now:datetime,
             reviewed.append({'path':path,'kind':kind,'is_directory':event['is_directory']})
     base={'schema':'sofia.file_watch.advisory.v1','sdk_protocol':str(SDK_PROTOCOL_VERSION),
           'module_id':MODULE_ID,'source_ref':snapshot['source_ref'],
-          'root_ref':snapshot['root_ref'],'freshness':freshness,
+          'root_ref':snapshot['root_ref'],
+          'observed_at':observed.astimezone(timezone.utc).isoformat(),
+          'freshness':freshness,
           'evidence_class':'supplied_unverified','effect':'none','workflow_triggered':False}
     if freshness!='fresh':
         return base|{'status':'unknown','counts':None,'visible_events':[],

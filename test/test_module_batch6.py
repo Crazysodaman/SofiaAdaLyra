@@ -43,6 +43,7 @@ def test_cad_area_volume_mass():
     assert r['volume_cm3']==pytest.approx(area*3/1000)
     assert r['mass_g']==pytest.approx(area*3/1000*2.7)
     assert r['effect']=='none' and not r['manufacturing_approved']
+    assert r['observed_at']==NOW.isoformat()
 
 def test_cad_empty_holes():
     assert simulate_plate(plate(holes=[]),now=NOW)['net_area_mm2']==8000
