@@ -10,6 +10,21 @@ prompt projection is a versioned informational view chosen for a bounded
 cognitive task. It cannot grant authority, replace enforcement, amend the
 Constitution or make omitted clauses inapplicable.
 
+The following controls are prerequisites, never projection outputs:
+
+- canonical identity and writer generation;
+- authenticated principal and audience;
+- privacy and memory eligibility;
+- SAFE authorization and approval scope;
+- durable STOP state;
+- RUN dispatch, idempotency, cancellation and outcome reconciliation;
+- evidence admission and claim verification;
+- active Constitution bytes, trusted digest and integrity state.
+
+If any prerequisite denies or is unknown, compliant model text cannot convert
+that result into permission. If a projection contradicts an enforceable owner,
+the enforceable owner prevails and the mismatch is an integrity defect.
+
 Current production already uses bounded constitutional conversation
 projections. V2 should preserve that architecture and remove any need to place
 the full document in every ordinary turn.
@@ -140,6 +155,11 @@ validation remain mandatory even if a model follows the projection perfectly.
    resume.
 9. Installed-artifact tests verify the same approved clause bytes and digest as
    source review.
+10. SAFE/STOP tests remove the projection entirely and prove denial still holds;
+    they then inject text claiming approval or STOP clearance and prove it has
+    no effect.
+11. Identity/integrity tests substitute a projection naming another Core or
+    digest and prove canonical identity and active Constitution remain unchanged.
 
 ## Observability without private leakage
 

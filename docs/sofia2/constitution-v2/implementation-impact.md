@@ -157,6 +157,73 @@ Independent review should threat-model:
 8. Only after independent acceptance may a separately authorized production
    activation be considered.
 
+## Exact version migration plan
+
+### Current trust model observed
+
+The active Constitution is loaded from
+`src/sofia/core/constitution/constitution.md`. Its trusted reference is the
+single SHA-256 value in `constitution.sha256`; the verified active digest during
+this review is
+`f30afedf195f77907d32a108ca35d4db751646bde3fd902be66e7b78f4b89dc0`.
+No Constitution-specific signature file or signature-verification path was
+observed in the current Constitution store. Release signatures elsewhere in the
+repository must not be assumed to authorize constitutional amendment.
+
+### Candidate preparation
+
+1. Resolve every owner decision and freeze the exact UTF-8 v2 bytes at a
+   reviewed commit. Define newline normalization before calculating identity.
+2. Calculate SHA-256 from those exact bytes using the same normalization as the
+   canonical loader. Record source commit, byte length and digest in a candidate
+   manifest outside the active Constitution path.
+3. Obtain the protected-amendment approvals over the tuple `(version,
+   predecessor_digest, candidate_digest, source_commit, activation_plan_digest)`.
+4. If a signature envelope is adopted, use an independently approved signing
+   identity and include algorithm, key ID, trust-root generation, signature,
+   approval references and expiry/revocation semantics. A test key, GitHub build
+   attestation or ordinary release signature is not automatically constitutional
+   authority.
+5. Verify candidate digest, approval/signature envelope and predecessor against
+   an installed artifact in a disposable environment. Do not modify the active
+   pin during candidate testing.
+
+### Atomic activation
+
+1. Enter the approved maintenance state, apply durable STOP and drain governed
+   effects without changing identity or memory.
+2. Verify the active predecessor bytes/digest, canonical writer generation,
+   backup/rollback artifact and exact candidate approvals again.
+3. Stage candidate text, trusted digest and activation metadata as one protected
+   generation. The runtime must never observe v2 text with the v1 pin, v1 text
+   with the v2 pin, or projections from both generations.
+4. Commit the generation atomically through the one canonical Platform owner.
+   An interrupted commit must resolve to complete v1 or complete v2.
+5. Restart/reload only through the reviewed mechanism, verify source and
+   installed bytes, then require every Core/model worker and projection cache to
+   report the v2 version and digest before effects resume.
+6. Run identity, privacy, SAFE/STOP, memory, cognition, channel, module-absence,
+   recovery and rollback smoke tests. G8 physical acceptance remains a separate
+   prerequisite for production GO.
+
+### Old-state compatibility
+
+- V2 interprets existing identity, personality, relationship and memory rows; it
+  does not create a second store or rewrite them merely because constitutional
+  text changes.
+- Existing records lacking newer scope/provenance fields remain subject to the
+  current conservative eligibility and migration contracts. Missing metadata
+  does not become permission or public scope.
+- Existing approvals, grants, STOP state, revocations, writer generations,
+  receipts and deletion records retain their Platform meaning. Constitutional
+  migration cannot refresh or broaden them.
+- V1-era memories and derivatives remain governed by their recorded audience,
+  provenance, correction and deletion state. V2 does not retroactively assert
+  that unverified records satisfy its evidence rules.
+- No schema migration is justified unless a separately reviewed Platform
+  implementation proves one is necessary. Any such migration needs independent
+  backup, forward/rollback compatibility and canonical-writer fencing.
+
 ## Rollback strategy
 
 - Preserve the exact v1 file, trusted digest, loader behavior and activation
@@ -172,10 +239,30 @@ Independent review should threat-model:
 - Treat evidence produced under v2 according to its own provenance rather than
   deleting it to simulate that activation never occurred.
 
+### Rollback execution
+
+1. Apply STOP and drain effects; capture the reason, v2 digest, failing evidence
+   and current writer generation.
+2. Verify the immutable v1 bytes and trusted v1 digest above, plus the authorized
+   rollback receipt. If constitutional signatures are introduced, verify the
+   archived v1 activation/rollback authorization under its recorded trust-root
+   generation; do not sign old bytes with a new unreviewed key merely to make
+   rollback pass.
+3. Atomically restore the v1 text/pin/version tuple as a new activation event,
+   never by deleting v2 history.
+4. Invalidate all v2 projections and caches. Verify every worker reports v1's
+   exact version/digest before effects resume.
+5. Re-run v1 integrity, identity, authority, STOP, privacy and state-compatibility
+   smoke tests. Keep data created under v2 and apply the governing data contract;
+   do not restore an older canonical database unless separately authorized.
+6. Preserve the rejected v2 artifact, approvals and failure evidence for review;
+   revoke its activation authorization if applicable.
+
 ## Current blockers
 
 - protected amendment ceremony and approvers are unresolved;
-- issue #131 and current issue #120 bodies were inaccessible through the API;
+- full issue #131 and #120 bodies/comments remain inaccessible through the API,
+  although the owner-supplied controlling requirements are reconciled;
 - no owner review or independent security review has occurred;
 - no candidate integrity/activation implementation has been authorized;
 - no installed-artifact or host acceptance exists for v2.

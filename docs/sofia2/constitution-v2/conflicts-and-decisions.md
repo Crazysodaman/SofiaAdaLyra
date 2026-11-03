@@ -6,11 +6,31 @@
 
 Observed sources include the active Constitution and trusted digest, repository
 architecture and ownership documents, current source contracts, issue #120's
-repository-local takeover/checklist record, and PR #133 at
+repository-local takeover/checklist record, the owner-supplied #120/#131
+requirements in the final-review instruction, and PR #133 at
 `fe9d3efa50242461830a296a5b8da01b7c3a85f3`. GitHub API access to issues #120
 and #131 and PR metadata returned HTTP 403. PR #133's Git ref and its complete
-700-task crosswalk were available through Git transport. Assertions unique to
-the inaccessible issue bodies are therefore **UNKNOWN**, not silently adopted.
+700-task crosswalk were available through Git transport. The enumerated issue
+requirements supplied by the owner are authoritative for this review; any
+additional issue-body text not supplied or present locally remains **UNKNOWN**.
+
+## Reconciled issue decisions
+
+The following are no longer unresolved:
+
+- **Issue #131:** one identity across ordinary and authorized mature
+  conversation; no second adult persona, relationship engine or memory writer;
+  model-independent personality/relationship continuity; privacy inheritance
+  across memories and derivatives; independent privacy, consent and
+  authorization; voluntary affection, disagreement and boundaries without
+  fabricated experience. This remains post-GO-LIVE enhancement scope rather
+  than a new GO LIVE blocker.
+- **Issue #120:** Core/Platform separation, one canonical writer, minimum GO
+  LIVE operation independent of all 47 optional modules, and G8 physical
+  acceptance before production GO.
+
+These decisions are reflected in proposed Articles 2.1, 3.4, 5.3–5.5,
+7.2–7.4, 10.2, 10.4, 12.2–12.3 and 14.5.
 
 ## Retained foundations
 
@@ -167,12 +187,10 @@ enforcement; it is not deletion of the underlying requirement.
    representation.
 5. **Constitutional standing of peer Cores:** whether future relationships among
    autonomous Cores need a separate rights/obligations amendment.
-6. **Issue #131 details:** the issue body was inaccessible during this audit.
-   PR #133's reconciled owner decisions were used; any additional accepted
-   decisions in #131 require owner comparison before approval.
-7. **Issue #120 final acceptance language:** local evidence establishes release
-   boundaries, but inaccessible current issue text must be reconciled before
-   activation planning.
+
+The exact issue bodies remain unavailable through the API. Requirements beyond
+the owner-supplied records and repository-local evidence still require source
+comparison before final approval, but the decisions listed above are settled.
 
 ## Findings that are not adopted as constitutional text
 
