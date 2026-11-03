@@ -11,7 +11,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = "MOD-REMOTE-ACCESS"
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.2.0"
 CAPABILITY_ID = "remote_access.review_session.v1"
 PROFILE = "ADVISORY"
 RESOURCES = (("cpu_millicores", 50), ("ram_mib", 32), ("gpu_mib", 0))
@@ -76,6 +76,11 @@ def assess_session(observation: Mapping[str, object], *, now: datetime,
             "sdk_protocol": str(SDK_PROTOCOL_VERSION), "source_ref": observation["source_ref"],
             "session_ref": observation["session_ref"], "transport": observation["transport"],
             "observed_at": observed.isoformat(), "freshness": freshness,
+            "reported_status": observation["status"],
+            "mfa_reported": observation["mfa_reported"],
+            "device_enrolled_reported": observation["device_enrolled_reported"],
+            "channel_encrypted_reported": observation["channel_encrypted_reported"],
+            "idle_seconds": idle, "revoke_reported": observation["revoke_reported"],
             "classification": "unknown" if freshness != "fresh" or observation["status"] == "unknown" else "attention" if findings else "no_issue_observed",
             "findings": findings, "authorization_conclusion": "not_evaluated",
             "evidence_class": "supplied_unverified", "effect": "none"}

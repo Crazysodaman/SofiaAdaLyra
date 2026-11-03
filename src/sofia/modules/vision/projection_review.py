@@ -13,7 +13,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = 'MOD-VISION'
-MODULE_VERSION = '0.1.0'
+MODULE_VERSION = '0.2.0'
 CAPABILITY_ID = 'vision.review_detection_projection.v1'
 PROFILE = 'OBSERVE'
 RESOURCES = (('cpu_millicores', 75), ('ram_mib', 48), ('gpu_mib', 0))  # provisional admission request
@@ -90,7 +90,9 @@ def _review(item: Mapping[str, object]) -> dict[str, object]:
     receipt = row['consent_ref']
     if receipt is not None: _identity(receipt, 'consent_ref')
     finding = 'consent_unverified' if receipt is None else 'low_confidence' if confidence<0.65 else 'candidate_only'
-    return dict(id=key, category=category, finding=finding, confidence=confidence, verified_visual_fact=False)
+    return dict(id=key,category=category,confidence=confidence,
+                bounds={'x':x,'y':y,'width':w,'height':h},consent_ref=receipt,
+                finding=finding,verified_visual_fact=False)
 
 
 

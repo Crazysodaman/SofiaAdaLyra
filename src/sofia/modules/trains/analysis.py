@@ -13,7 +13,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = 'MOD-TRAINS'
-MODULE_VERSION = '0.1.0'
+MODULE_VERSION = '0.2.0'
 CAPABILITY_ID = 'trains.review_route_projection.v1'
 PROFILE = 'SIMULATE'
 RESOURCES = (('cpu_millicores', 75), ('ram_mib', 48), ('gpu_mib', 0))  # provisional admission request
@@ -89,7 +89,10 @@ def _review(item: Mapping[str, object]) -> dict[str, object]:
         raise ValueError('invalid occupied blocks')
     aligned=_bool(row['turnouts_aligned']); power=_choice(row['power_state'],('on','off','unknown'))
     reasons=(['occupied_route'] if occupied else []) + (['turnout_alignment_unverified'] if not aligned else []) + (['power_not_confirmed'] if power!='on' else [])
-    return dict(id=key, finding='hypothetically_clear' if not reasons else 'hypothetically_blocked', blocked_by=reasons, live_route_clearance_verified=False)
+    return dict(id=key,blocks=list(blocks),occupied_blocks=list(occupied),
+                turnouts_aligned=aligned,power_state=power,
+                finding='hypothetically_clear' if not reasons else 'hypothetically_blocked',
+                blocked_by=reasons,live_route_clearance_verified=False)
 
 
 

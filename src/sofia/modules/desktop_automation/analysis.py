@@ -13,7 +13,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = 'MOD-DESKTOP-ACT'
-MODULE_VERSION = '0.1.0'
+MODULE_VERSION = '0.2.0'
 CAPABILITY_ID = 'desktop_automation.review_action_plan.v1'
 PROFILE = 'ADVISORY'
 RESOURCES = (('cpu_millicores', 75), ('ram_mib', 48), ('gpu_mib', 0))  # provisional admission request
@@ -91,7 +91,10 @@ def _review(item: Mapping[str, object]) -> dict[str, object]:
     if not stop: reasons.append('stop_not_clear')
     if gaming!='not_gaming': reasons.append('gaming_or_unknown_denies_input')
     # A supplied approval string is NOT proof of an authenticated SAFE grant.
-    return dict(id=key, operation=op, target_ref=target, finding='proposal_only' if not reasons else 'blocked', reasons=reasons, authorized=False)
+    return dict(id=key,operation=op,target_ref=target,approval_ref=approval,
+                stop_clear=stop,gaming_status=gaming,
+                finding='proposal_only' if not reasons else 'blocked',
+                reasons=reasons,authorized=False)
 
 
 
