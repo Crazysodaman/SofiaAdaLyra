@@ -10,8 +10,10 @@
 The 55 catalog entries are **not production ready**. The module source is in a
 reviewable release-preparation state, but this checkout contains no real signed
 module package, admitted lifecycle record, trusted readiness-evidence record,
-reviewed adapter factory, or installed-host acceptance result. The appropriate
-current classification remains **PARTIAL / ALPHA** for every entry.
+complete reviewed adapter-factory set, or installed-host acceptance result.
+Coding status is tracked separately: eight entries are **CODE COMPLETE /
+ALPHA**, while 47 remain **PARTIAL / ALPHA** due to specific missing domain
+behavior.
 
 This is an evidence decision, not a source-quality failure. Local testing proves
 the fail-closed packaging and lifecycle mechanisms and the bounded module
@@ -89,9 +91,9 @@ capability, test group and G8 dependency are recorded in
 
 | Population | Count | Current maximum status | Missing binding evidence |
 |---|---:|---|---|
-| Optional modules | 47 | PARTIAL / ALPHA | Reviewed package identity/policy, approved signature, reviewed factory and health contract, lifecycle admission, all eight readiness classes |
-| Release companions | 5 | PARTIAL / ALPHA | Release package definition, approved signature, installed lifecycle/recovery, all eight readiness classes |
-| Attached components | 3 | PARTIAL / ALPHA | Release package definition, approved signature, installed lifecycle/recovery, all eight readiness classes |
+| Optional modules | 47 | PARTIAL / ALPHA | Named domain behavior plus reviewed package identity/policy, approved signature, reviewed factory and health contract, lifecycle admission, all eight readiness classes |
+| Release companions | 5 | CODE COMPLETE / ALPHA | Release package definition, approved signature, installed lifecycle/recovery, all eight readiness classes |
+| Attached components | 3 | CODE COMPLETE / ALPHA | Release package definition, approved signature, installed lifecycle/recovery, all eight readiness classes |
 | **Total** | **55** | **0 production ready** | **No entry has a complete exact-identity evidence chain** |
 
 ## Path to production readiness
