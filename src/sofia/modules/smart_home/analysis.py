@@ -11,7 +11,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID='MOD-SMART-HOME'
-MODULE_VERSION='0.1.0'
+MODULE_VERSION='0.2.0'
 CAPABILITY_ID='smart_home.review_entities.v1'
 PROFILE='OBSERVE'
 RESOURCES=(('cpu_millicores',50),('ram_mib',32),('gpu_mib',0))
@@ -76,7 +76,8 @@ def review_entities(snapshot:Mapping[str,object],*,now:datetime,max_age_seconds:
                           'reported_state':state if not protected else '[redacted_protected_domain]',
                           'issue':issue})
     base={'schema':'sofia.smart_home.advisory.v1','sdk_protocol':str(SDK_PROTOCOL_VERSION),
-          'module_id':MODULE_ID,'source_ref':source,'freshness':freshness,
+          'module_id':MODULE_ID,'source_ref':source,
+          'observed_at':observed.isoformat(),'freshness':freshness,
           'evidence_class':'supplied_unverified','effect':'none',
           'devices_controlled':False,'physical_state_verified':False}
     if freshness!='fresh':

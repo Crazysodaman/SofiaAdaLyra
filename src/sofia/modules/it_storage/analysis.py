@@ -13,7 +13,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = "MOD-IT-STORAGE"
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.2.0"
 CAPABILITY_ID = "it.storage.analyze_volumes.v1"
 PROFILE = "OBSERVE"
 RESOURCES = (("cpu_millicores", 50), ("ram_mib", 32), ("gpu_mib", 0))
@@ -81,6 +81,8 @@ def analyze_volumes(volumes: list[Mapping[str, object]], *, now: datetime, max_a
             if io_errors > 0:
                 flags.append("io_errors_observed")
         rows.append({"source_ref": source, "volume_ref": volume, "observed_at": observed.isoformat(), "freshness": freshness,
+                     "total_bytes": total, "used_bytes": used,
+                     "read_only": item["read_only"], "io_errors": io_errors,
                      "classification": "unknown" if freshness != "fresh" else "degraded" if flags else "no_issue_observed",
                      "used_percent": utilization, "flags": flags})
     return {"schema": "sofia.it.storage.report.v1", "module_id": MODULE_ID, "sdk_protocol": str(SDK_PROTOCOL_VERSION),

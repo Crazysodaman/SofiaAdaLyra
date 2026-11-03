@@ -13,7 +13,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = "MOD-IT-SECURITY"
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.2.0"
 CAPABILITY_ID = "it.security.triage_findings.v1"
 PROFILE = "ADVISORY"
 RESOURCES = (("cpu_millicores", 50), ("ram_mib", 32), ("gpu_mib", 0))
@@ -77,6 +77,7 @@ def triage_findings(findings: list[Mapping[str, object]], *, now: datetime, max_
         rows.append({"source_ref": source, "asset_ref": asset, "finding_ref": ref,
                      "observed_at": observed.isoformat(), "freshness": freshness,
                      "reported_kind": kind, "reported_severity": severity,
+                     "reported_state": state,
                      "classification": "reported_open" if eligible else "unknown" if freshness != "fresh" or state == "unknown" or severity == "unknown" else "reported_resolved",
                      "next_check": _CHECKS[kind] if eligible else None})
     active = [row for row in rows if row["classification"] == "reported_open"]

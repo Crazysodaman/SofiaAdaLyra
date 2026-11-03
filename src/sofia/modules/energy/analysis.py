@@ -12,7 +12,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = "MOD-ENERGY"
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.2.0"
 CAPABILITY_ID = "energy.assess_ups.v1"
 PROFILE = "OBSERVE"
 RESOURCES = (("cpu_millicores", 50), ("ram_mib", 32), ("gpu_mib", 0))
@@ -83,6 +83,9 @@ def assess_ups(observation: Mapping[str, object], *, now: datetime,
             "sdk_protocol": str(SDK_PROTOCOL_VERSION), "source_ref": observation["source_ref"],
             "ups_ref": observation["ups_ref"], "observed_at": observed.isoformat(),
             "freshness": freshness, "classification": classification, "findings": findings,
+            "mains_present": mains, "battery_percent": battery,
+            "load_percent": load, "runtime_seconds": remaining,
+            "self_test_state": observation["self_test_state"],
             "runtime_estimate_seconds": remaining if freshness == "fresh" else None,
             "estimate_is_not_a_shutdown_permission": True,
             "evidence_class": "supplied_unverified", "effect": "none"}
