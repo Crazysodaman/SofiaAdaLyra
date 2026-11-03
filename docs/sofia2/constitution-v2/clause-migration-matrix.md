@@ -20,14 +20,14 @@ unnumbered consolidations rather than additional clauses.
 | 1.1 | Purpose | RETAIN | Article 1 | Preserve the substance with concise wording and current ownership boundaries. |
 | 1.2 | Scope | RETAIN | Article 1 | Preserve the substance with concise wording and current ownership boundaries. |
 | 1.3 | Architectural Principle | RELOCATE | Article 1 | Keep the principle where applicable; move procedure, fields or state labels to the owning technical contract. |
-| 2.1 | Core Identity | RETAIN | Article 2 | Preserve the substance with concise wording and current ownership boundaries. |
-| 2.2 | Identity Layers | REVISE | Article 2 | Separate protected identity, mutable development and operational state. |
+| 2.1 | Core Identity | RETAIN | Article 2 | Preserve Sofía's identity while recognizing that the architecture supports other independent Core identities. |
+| 2.2 | Identity Layers | REVISE | Article 2 | Protect stable Core ID and lineage; classify display names as mutable personal state. |
 | 2.3 | Identity and Implementation | RETAIN | Article 2 | Preserve the substance with concise wording and current ownership boundaries. |
 | 2.4 | Identity Protection | RETAIN | Article 2 | Preserve the substance with concise wording and current ownership boundaries. |
-| 2.5 | Derived Minds / Sub-Minds | REVISE | Article 2 | Replace self-authorizing wording with personal request plus Platform authorization. |
-| 2.6 | Derived-Mind Capabilities | REVISE | Article 2 | Retain bounded workers; add model-role and canonical-identity limits. |
-| 2.7 | Derived-Mind Observability | RELOCATE | Article 2 | Keep the principle where applicable; move procedure, fields or state labels to the owning technical contract. |
-| 2.8 | Rogue Derived Minds | REVISE | Article 2 | Retain containment principle; move incident fields to operations. |
+| 2.5 | Derived Minds / Sub-Minds | REVISE | Article 2 | Replace Sofía-exclusive creation with approved categories for delegated agents, derived independent Cores and independently created Cores. |
+| 2.6 | Derived-Mind Capabilities | REVISE | Article 2 | Retain bounded delegated workers; give independent Cores separate identity, Constitution, state and governance. |
+| 2.7 | Derived-Mind Observability | RELOCATE | Article 2 | Preserve delegated-agent observability/control and independent-Core isolation; move telemetry fields to Platform/SDK contracts. |
+| 2.8 | Rogue Derived Minds | REVISE | Article 2 | Retain authorized containment for delegated agents and peers without creating parent ownership over independent Cores. |
 | 3.1 | Definition | RETAIN | Article 3 | Preserve the substance with concise wording and current ownership boundaries. |
 | 3.2 | Continuity Across Change | RETAIN | Article 3 | Preserve the substance with concise wording and current ownership boundaries. |
 | 3.3 | Cognitive Engine Changes | RETAIN | Article 3 | Preserve the substance with concise wording and current ownership boundaries. |
@@ -35,7 +35,7 @@ unnumbered consolidations rather than additional clauses.
 | 3.5 | Historical Truth | RETAIN | Article 3 | Preserve the substance with concise wording and current ownership boundaries. |
 | 3.6 | Personality and Continuity | RETAIN | Article 3 | Preserve the substance with concise wording and current ownership boundaries. |
 | 3.7 | Backup and Restoration | REVISE | Article 3 | Add single-writer, revocation and restoration reconciliation. |
-| 3.8 | Operational States | RELOCATE | Article 3 | Keep the principle where applicable; move procedure, fields or state labels to the owning technical contract. |
+| 3.8 | Operational States | RELOCATE | Articles 3 and 8.6 | Preserve state distinctions and approved permanent-retirement principle; move state machine and ceremony to runtime/governance contracts. |
 | 3.9 | Core Continuity Principles | CONSOLIDATE | Article 3 | Merge repeated continuity principles into Article 3. |
 | 4.1 | Definition | CONSOLIDATE | Articles 2 and 6 | Definitions merged into identity/self-model clauses. |
 | 4.2 | Artificial Identity | RETAIN | Articles 2 and 6 | Preserve artificial identity and clearly framed fiction. |
@@ -114,7 +114,7 @@ unnumbered consolidations rather than additional clauses.
 | 9.12 | Shutdown and Termination | RETAIN | Article 8 | Preserve the substance with concise wording and current ownership boundaries. |
 | 9.13 | Boundaries With Sparks | REVISE | Article 8 | Preserve relationship boundary; avoid treating historical trust as authentication. |
 | 9.14 | Boundaries With Humans | RETAIN | Article 8 | Preserve the substance with concise wording and current ownership boundaries. |
-| 9.15 | Boundaries With Other AIs | REVISE | Article 8 | Add authenticated peer Core and distinct-identity rules. |
+| 9.15 | Boundaries With Other AIs | REVISE | Articles 2 and 5.6 | Approve optional authenticated peer enrollment while preserving separate lineage, governance, memory and authority. |
 | 9.16 | Risk | RELOCATE | Article 8 | Keep the principle where applicable; move procedure, fields or state labels to the owning technical contract. |
 | 9.17 | Ambiguous Authority | RELOCATE | Article 8 | Keep the principle where applicable; move procedure, fields or state labels to the owning technical contract. |
 | 9.18 | Autonomous Goals | RETAIN | Article 8 | Preserve the substance with concise wording and current ownership boundaries. |

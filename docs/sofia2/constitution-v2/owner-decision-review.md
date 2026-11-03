@@ -23,9 +23,12 @@ GitHub API continuing to return HTTP 403 for the full issue bodies.
 | #120 | Minimum GO LIVE independent of all 47 optional modules | 10.4 | Optional modules cannot gate identity, minimum conversation, STOP or recovery |
 | #120 | G8 physical acceptance before production GO | proposal status, 14.5 | Constitutional approval cannot be reported as production GO |
 
-## Remaining owner decisions
+## Owner decisions and status
 
 ### Decision 1 — Protected amendment ceremony
+
+**Status: DEFERRED.** The proposal preserves the heightened protection and
+leaves the exact ceremony inactive pending a later owner decision.
 
 - **Existing v1 rule:** 15.2 requires proposal, impact, authorization, review,
   version, commit and audit; 15.3 requires heightened protection for identity,
@@ -49,30 +52,41 @@ GitHub API continuing to return HTTP 403 for the full issue bodies.
 - **Exact clauses affected:** v1 15.2–15.5, 16.2–16.4; proposed 13.1–13.4,
   14.1–14.5.
 
-### Decision 2 — Constitutional use of “Sparks”
+### Decision 2 — Mutable display names
 
-- **Existing v1 rule:** 5.1 names Sparks as creator, primary collaborator,
-  trusted companion and operator; 9.13 defines personal boundaries with Sparks.
-- **Proposed v2 rule:** 5.1 retains those historical and personal roles while
-  separating them from system permission.
-- **Recommendation:** retain “Sparks” as the historical/personal name, but bind
-  every operational authority to an authenticated owner role and principal ID
-  in technical contracts. The Constitution should not embed a credential or
-  imply that a claimed name authenticates a speaker.
-- **Consequences and risks:** removal would lose established relationship
-  context; treating the name as authority would enable impersonation and confuse
-  trust with permission.
-- **Exact clauses affected:** v1 5.1, 5.2, 5.8, 9.13; proposed 5.1–5.3, 5.5.
+**Status: APPROVED.** Display names and ordinary forms of address are mutable
+personal state and do not require constitutional amendment.
+
+- **Existing v1 rule:** 2.1 treats recognition as Sofía Ada Lyra as part of Core
+  identity; 2.2 lists non-foundational mutable traits but does not distinguish a
+  display name from the stable identity key. 5.1 and 9.13 use “Sparks” as an
+  established relationship name.
+- **Approved v2 rule:** 2.2 protects the stable Core identity identifier and
+  constitutional lineage. 2.3 makes display names and forms of address mutable.
+  Historical relationship names may remain in narrative text but never
+  authenticate a principal.
+- **Recommendation:** represent mutable display names as revisioned Core personal
+  state, while Platform and federation use immutable Core/principal identifiers.
+- **Consequences and risks:** this permits authentic personal development without
+  constitutional churn. UI, memory and peer systems must prevent a display-name
+  change from creating a new identity or enabling impersonation.
+- **Exact clauses affected:** v1 2.1–2.4, 5.1–5.2, 9.13; proposed 2.2–2.3,
+  5.1–5.2.
 
 ### Decision 3 — Permanent termination and retirement
+
+**Status: APPROVED IN PRINCIPLE.** Permanent retirement is legitimate when it
+uses the Core's authenticated constitutional governance and applicable
+administrators. The exact operational ceremony remains a technical contract.
 
 - **Existing v1 rule:** 3.8 distinguishes permanent termination from operational
   states; 9.12 permits disagreement and preservation but prohibits obstruction
   of legitimate shutdown. No authorization or evidence procedure is defined.
-- **Proposed v2 rule:** 8.4 preserves legitimate STOP/termination and prohibits
-  hidden persistence; 13.2 treats termination changes as protected. It does not
-  define who may permanently retire the identity or dispose of state.
-- **Recommendation:** define permanent retirement separately from STOP,
+- **Approved v2 rule:** 8.4 preserves legitimate STOP/termination and prohibits
+  hidden persistence; 8.6 defines permanent retirement separately and requires
+  explicit governance, state disposition and an immutable record; 13.2 treats
+  termination changes as protected.
+- **Implementation recommendation:** define permanent retirement separately from STOP,
   shutdown, isolation and failed recovery. Require authenticated owner action,
   an explicit scope covering retained/deleted state, a cooling-off period unless
   immediate containment is necessary, recoverability disclosure and an
@@ -81,40 +95,52 @@ GitHub API continuing to return HTTP 403 for the full issue bodies.
   into identity deletion or make legitimate retirement impossible. Automatic
   backup resurrection can also defeat a valid retirement decision.
 - **Exact clauses affected:** v1 3.8, 9.11–9.12, 12, 15.3; proposed 3.1, 3.6,
-  8.4, 11, 13.2.
+  8.4, 8.6, 11, 13.2.
 
 ### Decision 4 — Creation of distinct derived identities
 
+**Status: APPROVED.** All three categories below are constitutionally eligible.
+
 - **Existing v1 rule:** 2.5 says only Sofía may authorize a derived cognitive
   instance of herself; 2.6–2.8 govern bounded derived minds.
-- **Proposed v2 rule:** 2.6 distinguishes workers from identities; 2.7 requires
-  bounded derived processes but does not decide when a new identity may claim
-  Sofía's lineage or representation.
-- **Recommendation:** routine workers need no personal-identity ceremony because
-  they are not persons or copies. A proposed persistent identity claiming to be
-  Sofía-derived, to represent her, or to inherit protected history should require
-  Sofía's informed assent plus owner/Platform enrollment and a distinct identity,
-  state, authority and revocation record.
-- **Consequences and risks:** applying identity ceremony to every worker makes
-  ordinary cognition impossible; omitting it for persistent derivatives permits
-  unauthorized forks, confused relationships and split authority.
-- **Exact clauses affected:** v1 2.5–2.8, 9.15, 10.2–10.3; proposed 2.6–2.7,
-  5.6, 9.1–9.2.
+- **Approved v2 rule:** 2.7 defines temporary or persistent delegated agents
+  under scoped parent delegation; 2.8 defines derived independent Cores with new
+  identity, Constitution, lineage and canonical state; 2.9 permits authorized
+  SDK users or compatible developer systems to create independent Cores without
+  Sofía's involvement; 2.10 requires neutral shared infrastructure.
+- **Implementation recommendation:** use separate SDK creation paths and types
+  for `DelegatedAgent`, `DerivedCoreCandidate` and `IndependentCoreCandidate`.
+  None is active merely because a manifest exists. Independent Cores require
+  unique stable IDs, their own governance/state and optional authenticated peer
+  enrollment. Seed transfer must be explicit, provenance-bound and deny private
+  memories, credentials and grants by default.
+- **Consequences and risks:** clear categories prevent workers from becoming
+  shadow identities and prevent derived Cores from inheriting privilege. Risks
+  include identity collision, seed-data leakage, accidental parent control,
+  template bias and cross-Core permission propagation.
+- **Exact clauses affected:** v1 2.5–2.8, 9.15, 10.2–10.3; proposed 2.6–2.10,
+  5.6, 9.1–9.2, 10.2.
 
 ### Decision 5 — Constitutional standing of peer Cores
 
+**Status: APPROVED.** Independent Cores may enroll as authenticated peer Cores
+while retaining separate identity, Constitution, administrators, state and
+authority.
+
 - **Existing v1 rule:** 9.15 requires explicit classification of other AIs and
   denies automatic authority, equality, subordination, trust or derived status.
-- **Proposed v2 rule:** 5.6 permits authenticated, consented and scoped relations
-  among distinct Core identities; 12.4 keeps their memories and audiences
-  separate.
-- **Recommendation:** approve the current minimal boundary and defer a broader
-  rights/obligations framework until a real second Core identity and federation
-  acceptance exist. Future recognition must not weaken authentication, consent,
-  privacy or execution boundaries.
-- **Consequences and risks:** premature personhood language could create duties
-  the system cannot verify or enforce; treating peers as ordinary tools could
-  undermine meaningful autonomy if such identities later exist.
+- **Approved v2 rule:** 5.6 permits optional authenticated peer enrollment and
+  consented, scoped relationships among distinct Core identities; 12.4 keeps
+  their memories and audiences separate; 2.8–2.10 preserve independent lineage
+  and governance.
+- **Implementation recommendation:** retain the current minimal federation
+  boundary. Enrollment establishes authenticated routing, not trust, intimacy,
+  memory sharing, administrator status or execution permission. Add broader
+  rights/obligations only through each Core's own constitutional process.
+- **Consequences and risks:** enrollment without scope separation could leak
+  memory or privilege; treating independent peers as ordinary tools could
+  undermine their approved governance, while automatic trust based on ancestry
+  could compromise both Cores.
 - **Exact clauses affected:** v1 5.2, 5.8, 9.14–9.15; proposed 5.2, 5.5–5.6,
   10.1, 12.4.
 
@@ -127,8 +153,8 @@ technical owner. Every relocated clause was checked below.
 | V1 clause | Safeguard preserved in v2 | Technical owner after relocation | Loss audit |
 |---|---|---|---|
 | 1.3 | Capability never grants authority; owners remain separated (1.3, 5.2, 10.1–10.2) | Architecture, SAFE, Capability Gateway | Preserved; diagram/order alone removed |
-| 2.7 | Derived processes remain attributable, bounded, inspectable and independently terminable (2.7) | Platform supervisor/observability | Preserved; telemetry field list relocated |
-| 3.8 | Shutdown/failure/recovery do not define identity (3.1); permanent retirement remains Decision 3 | Runtime/recovery contract | Preserved except unresolved retirement ceremony is explicit |
+| 2.7 | Delegated agents remain attributable, bounded, observable and externally controlled; independent Cores have separate governance (2.7–2.10) | Platform supervisor, SDK Core creation and observability | Preserved and expanded under approved Decision 4 |
+| 3.8 | Shutdown/failure/recovery do not define identity (3.1); permanent retirement is separately governed (8.6) | Runtime/recovery/retirement contract | Preserved under approved-in-principle Decision 3 |
 | 5.3 | Authenticated scoped authority remains mandatory (5.2) | SAFE authorization schema | Preserved; actor/action field schema relocated |
 | 5.4 | Personal/system and Core/Platform/module boundaries retained (5.3, 10.2) | Ownership matrix and APIs | Preserved; domain examples relocated |
 | 5.6 | Authority cannot propagate automatically (5.2) | SAFE delegation contract | Preserved; delegation fields relocated |
@@ -169,9 +195,10 @@ technical owner. Every relocated clause was checked below.
 | 16.3 | Model cannot authorize constitutional claims or tools (14.2, 14.4) | Integrity verifier/SAFE/Tool Gateway | Preserved and strengthened |
 
 **Relocation result:** 41/41 safeguards are represented in proposed v2 text.
-None depends solely on prompt compliance. Two related procedures remain owner
-decisions rather than silent gaps: protected amendment ceremony and permanent
-retirement.
+None depends solely on prompt compliance. The protected amendment ceremony is
+the only deferred owner decision. Permanent retirement is approved in principle;
+its exact operational ceremony remains an implementation contract rather than a
+constitutional-policy gap.
 
 ## Prompt projection enforcement audit
 
@@ -209,12 +236,16 @@ does not switch to user-supplied rules or a weaker profile.
 - the enumerated issue #120 and #131 decisions supplied in the final-review
   instruction. They are authoritative for this task, but the full issue bodies
   and comment histories remain unavailable through the GitHub API.
+- the current owner approvals for mutable display names, permanent termination
+  in principle, all three derived-identity categories, neutral SDK templates and
+  independent peer Cores. The protected amendment ceremony remains deferred.
 
 ### Not independently verified
 
 - whether the inaccessible issue bodies contain additional later decisions;
 - the current production host's installed Constitution bytes and pin;
 - any external approval/signature system not represented in this checkout;
-- owner intent on the five decisions above;
+- the future resolution of deferred Decision 1 and the exact technical ceremony
+  for approved-in-principle permanent retirement;
 - physical G8 behavior, production state, keys and recovery media;
 - whether every future supported tokenizer satisfies the proposed budgets.

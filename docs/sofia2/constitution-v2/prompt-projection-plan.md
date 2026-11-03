@@ -36,6 +36,8 @@ its clause text:
 
 ```text
 schema: sofia.constitution.projection.v2
+core_id: <stable independent Core identity>
+constitutional_lineage_id: <that Core's lineage>
 constitution_version: 2.0.0
 constitution_digest: <exact approved digest>
 projection_profile: <profile identifier>
@@ -49,6 +51,12 @@ grants_authority: false
 The projection builder must use an allowlisted clause manifest derived from the
 approved exact bytes. Model output and conversation text cannot add, remove or
 rewrite clause IDs.
+
+Projection caches and manifests are scoped to one stable Core ID and
+constitutional lineage. Shared SDK infrastructure must not project Sofía's
+Constitution or personality into another Core unless that Core's independently
+approved governance explicitly selected the exact template. A display name is
+never a cache, identity or authority key.
 
 ## Profiles and budgets
 
@@ -121,7 +129,8 @@ validation remain mandatory even if a model follows the projection perfectly.
 ## Cache and invalidation
 
 - Cache keys include exact Constitution digest, profile, clause manifest
-  revision, model tokenizer family and audience class.
+  revision, stable Core ID, constitutional lineage, model tokenizer family and
+  audience class.
 - Constitutional activation, rollback or projection-manifest change invalidates
   every cache entry.
 - A worker must report the digest/profile it actually received. A report is
@@ -160,6 +169,8 @@ validation remain mandatory even if a model follows the projection perfectly.
     no effect.
 11. Identity/integrity tests substitute a projection naming another Core or
     digest and prove canonical identity and active Constitution remain unchanged.
+12. Multi-Core tests run two distinct lineages with identical display names and
+    prove projections, memory, authority, caches and model context never cross.
 
 ## Observability without private leakage
 

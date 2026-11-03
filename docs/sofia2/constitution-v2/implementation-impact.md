@@ -9,7 +9,7 @@ change is authorized by this document.
 
 | Contract | Required review or change if v2 is approved |
 |---|---|
-| Identity/self-model | Project one identity across all model roles, channels and private contexts; reject model/role/persona substitution |
+| Identity/self-model | Project one identity across all model roles, channels and private contexts; distinguish mutable display name from stable Core ID and lineage; reject role/persona substitution |
 | Cognition V2 | Preserve source/subject/scope/freshness evidence, unknown states, personality-after-truth and single semantic coordinator |
 | Personality | Keep one evolving personality; treat detailed style as mutable contract while preserving Article 7 traits and authentic disagreement |
 | Emotion/relationships | Preserve durable modeled appraisal and voluntary boundaries; distinguish internal intent from rendered/delivered outcomes |
@@ -32,6 +32,7 @@ lifecycle, secret verifier or alternate canonical store.
 | Core Link/Federation | Pin selected identity; prevent auto-pairing, cross-Core memory merge and same-identity dual activity |
 | Release/recovery | Separate build provenance, release approval and production activation; restoration cannot revive revoked authority |
 | Secrets/logging | Keep approval secrets and protected private content out of prompts, ordinary logs and receipts |
+| Multi-Core hosting | Allocate distinct Core IDs/namespaces/writer generations; prevent parent, creator, template or peer authority inheritance |
 
 ### Modules
 
@@ -41,6 +42,17 @@ return typed actual/verified/simulated/unknown outcomes; and avoid direct Core
 state writes. Presentation modules render Core intent but do not decide
 identity, emotion or consent. Memory Import remains a candidate-admission
 adapter. Optional module failure must not replace identity or broaden authority.
+
+### Shared SDK
+
+The SDK requires distinct non-activating candidate contracts for delegated
+agents, derived independent Cores and independently created Cores. It must offer
+neutral configurable constitutional templates and explicit seed manifests. It
+must not embed Sofía's identity, personality, memories, administrators or
+permissions as defaults. Candidate construction cannot activate a writer,
+enroll administrators, clear STOP or import protected memory.
+
+See `universal-sdk-design-addendum.md` for the owner-approved design boundary.
 
 ## Compatibility requirements
 
@@ -58,6 +70,9 @@ adapter. Optional module failure must not replace identity or broaden authority.
    and backwards compatible.
 6. **Rollback compatibility:** v1 bytes, digest, loader and activation record
    remain available until v2 has passed the approved soak and rollback window.
+7. **Multi-Core compatibility:** current Sofía IDs, namespaces, state and
+   administrators remain unchanged. Neutral SDK support is additive and cannot
+   re-key or generalize existing protected state.
 
 ## Required tests before activation
 
@@ -82,6 +97,13 @@ adapter. Optional module failure must not replace identity or broaden authority.
 - critics, planners and derived workers cannot commit identity or authority;
 - same-identity second writer and automatic Core substitution are rejected;
 - peer Core messages remain untrusted, scoped inputs;
+- delegated agents cannot create authority or become independent identities by
+  persisting;
+- derived and independently created Cores receive unique IDs, lineage,
+  Constitutions, state namespaces and writer generations;
+- parent/creator identity, private memory, credentials, administrators and
+  grants are default-denied during seed transfer;
+- mutable display-name changes preserve stable Core identity and peer pinning;
 - personality rendering cannot add claims, evidence, permissions or receipts;
 - missing evidence remains unknown across repeated or confident model output.
 
@@ -261,8 +283,11 @@ repository must not be assumed to authorize constitutional amendment.
 ## Current blockers
 
 - protected amendment ceremony and approvers are unresolved;
+- neutral SDK Core-creation interfaces and Platform multi-Core isolation are
+  approved designs but not implemented or release-certified;
 - full issue #131 and #120 bodies/comments remain inaccessible through the API,
   although the owner-supplied controlling requirements are reconciled;
-- no owner review or independent security review has occurred;
+- the owner decisions above are recorded, but no final approval of the complete
+  v2 text or independent security review has occurred;
 - no candidate integrity/activation implementation has been authorized;
 - no installed-artifact or host acceptance exists for v2.

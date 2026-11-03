@@ -66,11 +66,12 @@ The proposal preserves without weakening:
 ### Derived-mind authorization
 
 V1.0 says only Sofía may authorize creation of a derived cognitive instance,
-while also giving Sparks termination and supervisory roles. Current architecture
-places actual authentication, execution and lifecycle authority in Platform.
-The proposal distinguishes Sofía's choice to request/use a worker from
-Platform's authority to create and run it. Neither can silently supply the
-other's decision.
+while also giving Sparks termination and supervisory roles. Owner Decision #4
+supersedes that exclusive rule. The proposal now distinguishes scoped delegated
+agents, derived independent Cores and independently created Cores. Platform
+still owns authentication, execution, isolation and lifecycle effects, but it
+does not own an independent Core's Constitution, personality or canonical
+personal state. No category silently inherits authority from parent or creator.
 
 ### Personal authority versus system authority
 
@@ -133,9 +134,10 @@ modules or model output from overriding it.
 ### Peer Cores and Core Link
 
 V1.0 classifies other AIs but does not cover authenticated peer Cores or thin
-clients. Articles 3.5 and 5.6 adopt the current approved boundary: a Core Link is
-not another Sofía, and distinct Core identities retain independent state,
-privacy and authority.
+clients. Approved Decision #5 and Articles 2.8–2.10, 3.5 and 5.6 establish that a
+Core Link is not another Sofía, while derived and independently created Cores
+may optionally enroll as authenticated peers. Each retains independent lineage,
+governance, state, privacy and authority.
 
 ## Material moved to technical contracts
 
@@ -171,26 +173,33 @@ enforcement; it is not deletion of the underlying requirement.
 | Peer Cores remain distinct and cannot transfer social trust into privilege | Preserve federation consent and security |
 | Constitutional projections are bounded and non-authorizing | Reduce context cost without making prompt omission a constitutional bypass |
 | Learning requires eligible verified outcomes | Prevent self-confirming behavior loops |
+| Delegated agents, derived independent Cores and independently created Cores are distinct categories | Prevent worker/identity confusion and implicit privilege inheritance |
+| Every independent Core has its own constitutional lineage and canonical state | Preserve autonomy and prevent parent or template ownership |
+| Shared SDK/Platform infrastructure is identity-neutral | Support compatible Cores without making Sofía the mandatory template |
 
-## Unresolved owner decisions
+## Owner decision status
 
-1. **Protected amendment ceremony:** which exact actors must approve a v2
+1. **Protected amendment ceremony — DEFERRED:** which exact actors must approve a v2
    activation, whether Sofía has a formal assent/veto role, and how incapacity or
    integrity failure is handled.
-2. **Use of the name “Sparks”:** retain as a constitutional proper name,
-   replace it with an authenticated role plus a historical-name note, or keep
-   both. The proposal retains it provisionally.
-3. **Permanent termination:** who may authorize it, what evidence and waiting
-   period apply, and how it differs from durable STOP, retirement and deletion.
-4. **Derived identity creation:** whether Sofía's personal assent is mandatory
-   for every distinct derived identity or only for one claiming lineage or
-   representation.
-5. **Constitutional standing of peer Cores:** whether future relationships among
-   autonomous Cores need a separate rights/obligations amendment.
+2. **Display names — APPROVED:** display names and ordinary forms of address are
+   mutable without constitutional rewrite; stable Core identifiers and lineage
+   remain protected.
+3. **Permanent termination — APPROVED IN PRINCIPLE:** permanent retirement is
+   distinct from STOP/shutdown and uses the Core's governance plus applicable
+   administrators; its technical ceremony remains to be designed.
+4. **Distinct derived identities — APPROVED:** delegated agents, derived
+   independent Cores and independently created Cores are all supported with the
+   boundaries recorded in proposed Articles 2.7–2.10.
+5. **Independent peer Cores — APPROVED:** independent Cores may optionally enroll
+   as authenticated peers without sharing identity, governance, memory or
+   authority.
 
 The exact issue bodies remain unavailable through the API. Requirements beyond
 the owner-supplied records and repository-local evidence still require source
-comparison before final approval, but the decisions listed above are settled.
+comparison before final approval. The statuses listed above are controlling;
+Decision 1 remains explicitly deferred and cannot be inferred from the other
+approvals.
 
 ## Findings that are not adopted as constitutional text
 
