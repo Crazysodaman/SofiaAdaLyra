@@ -7,7 +7,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = "MOD-IT-CONTAINERS"
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.2.0"
 CAPABILITY_ID = "it.containers.interpret_inventory.v1"
 PROFILE = "OBSERVE"
 RESOURCES = (("cpu_millicores", 50), ("ram_mib", 32), ("gpu_mib", 0))
@@ -54,7 +54,10 @@ def inspect_containers(items: list[Mapping[str, object]], *, now: datetime, max_
             condition = "observed_healthy"
         else:
             condition = "unknown"
-        rows.append({"source_ref": source, "container_ref": container, "freshness": freshness, "condition": condition, "restart_count": restart if freshness == "fresh" else None})
+        rows.append({"source_ref": source, "container_ref": container,
+                     "observed_at": when.astimezone(timezone.utc).isoformat(),
+                     "freshness": freshness, "condition": condition,
+                     "restart_count": restart if freshness == "fresh" else None})
     return {"schema": "sofia.it.containers.report.v1", "module_id": MODULE_ID, "sdk_protocol": str(SDK_PROTOCOL_VERSION), "containers": rows, "evidence_class": "supplied_unverified", "effect": "none"}
 
 

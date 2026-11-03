@@ -13,7 +13,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = "MOD-IT-BACKUP-DR"
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.2.0"
 CAPABILITY_ID = "it.backup_dr.assess_recovery.v1"
 PROFILE = "ADVISORY"
 RESOURCES = (("cpu_millicores", 50), ("ram_mib", 32), ("gpu_mib", 0))
@@ -95,6 +95,11 @@ def assess_recovery(observation: Mapping[str, object], *, now: datetime, max_age
     return {"schema": "sofia.it.backup_dr.report.v1", "module_id": MODULE_ID, "sdk_protocol": str(SDK_PROTOCOL_VERSION),
             "source_ref": source, "dataset_ref": dataset, "observed_at": observed.isoformat(), "freshness": freshness,
             "classification": "unknown" if freshness != "fresh" or observation["backup_state"] == "unknown" else "degraded" if flags else "no_issue_observed",
+            "backup_state": observation["backup_state"],
+            "integrity_check": observation["integrity_check"],
+            "restore_drill": observation["restore_drill"],
+            "rpo_seconds": rpo, "rto_seconds": rto,
+            "restore_duration_seconds": duration,
             "last_backup_age_seconds": backup_age,
             # The source claims a restore drill passed, but this is not an independently certified recovery outcome.
             "restore_claim": "supplied_pass" if freshness == "fresh" and observation["restore_drill"] == "passed" else "not_verified",

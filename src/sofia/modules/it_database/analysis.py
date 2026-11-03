@@ -14,7 +14,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = "MOD-IT-DATABASE"
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.2.0"
 CAPABILITY_ID = "it.database.analyze_status.v1"
 PROFILE = "ADVISORY"
 RESOURCES = (("cpu_millicores", 50), ("ram_mib", 32), ("gpu_mib", 0))
@@ -90,7 +90,10 @@ def analyze_status(status: Mapping[str, object], *, now: datetime, max_age_secon
     classification = "unknown" if freshness != "fresh" or state == "unknown" else "degraded" if flags else "no_issue_observed"
     return {"schema": "sofia.it.database.report.v1", "module_id": MODULE_ID, "sdk_protocol": str(SDK_PROTOCOL_VERSION),
             "source_ref": source, "database_ref": db, "observed_at": when.isoformat(), "freshness": freshness,
-            "classification": classification, "connection_percent": ratio, "flags": flags,
+            "classification": classification, "service_state": state,
+            "connections_used": used, "connections_limit": limit,
+            "connection_percent": ratio, "replica_lag_seconds": lag,
+            "p95_query_ms": p95, "errors_last_5m": errors, "flags": flags,
             "evidence_class": "supplied_unverified", "effect": "none"}
 
 

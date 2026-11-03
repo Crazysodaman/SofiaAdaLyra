@@ -12,7 +12,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = "MOD-IT-DEVOPS"
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.2.0"
 CAPABILITY_ID = "it.devops.assess_pipeline.v1"
 PROFILE = "ADVISORY"
 RESOURCES = (("cpu_millicores", 50), ("ram_mib", 32), ("gpu_mib", 0))
@@ -81,6 +81,9 @@ def assess_pipeline(observation: Mapping[str, object], *, now: datetime,
     return {"schema": "sofia.it.devops.report.v1", "module_id": MODULE_ID,
             "sdk_protocol": str(SDK_PROTOCOL_VERSION), "source_ref": observation["source_ref"],
             "pipeline_ref": observation["pipeline_ref"], "commit_sha": commit,
+            "branch": observation["branch"], "build": observation["build"],
+            "tests": observation["tests"], "security_scan": observation["security_scan"],
+            "artifact_digest": digest, "deploy_state": observation["deploy_state"],
             "observed_at": observed.isoformat(), "freshness": freshness,
             "classification": "unknown" if freshness != "fresh" else "attention" if findings else "no_issue_observed",
             "eligible_for_human_review": ready_to_propose,
