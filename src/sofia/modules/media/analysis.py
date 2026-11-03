@@ -13,7 +13,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = 'MOD-MEDIA'
-MODULE_VERSION = '0.1.0'
+MODULE_VERSION = '0.2.0'
 CAPABILITY_ID = 'media.review_timeline.v1'
 PROFILE = 'SIMULATE'
 RESOURCES = (('cpu_millicores', 75), ('ram_mib', 48), ('gpu_mib', 0))  # provisional admission request
@@ -86,7 +86,10 @@ def _review(item: Mapping[str, object]) -> dict[str, object]:
     if end<=start: raise ValueError('nonpositive timeline clip')
     licensed=_bool(row['licensed'])
     issues=(['source_bounds_exceeded'] if end>source else []) + (['rights_review_missing'] if not licensed else [])
-    return dict(id=key,duration_ms=end-start, finding='requires_review' if issues else 'candidate_only', issues=issues, rendered=False)
+    return dict(id=key,start_ms=start,end_ms=end,source_duration_ms=source,
+                duration_ms=end-start,licensed=licensed,
+                finding='requires_review' if issues else 'candidate_only',
+                issues=issues,rendered=False)
 
 
 

@@ -13,7 +13,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = 'MOD-GAMES'
-MODULE_VERSION = '0.1.0'
+MODULE_VERSION = '0.2.0'
 CAPABILITY_ID = 'games.review_objective_state.v1'
 PROFILE = 'ADVISORY'
 RESOURCES = (('cpu_millicores', 75), ('ram_mib', 48), ('gpu_mib', 0))  # provisional admission request
@@ -83,9 +83,12 @@ def _base(snapshot: Mapping[str, object], now: datetime, max_age_seconds: int):
 def _review(item: Mapping[str, object]) -> dict[str, object]:
     row=_exact(item,('id','progress','target','failed','evidence_ref'))
     key=_identity(row['id']); progress=_int(row['progress'],0,1000000); target=_int(row['target'],1,1000000)
-    failed=_bool(row['failed']); _identity(row['evidence_ref'],'evidence_ref')
+    failed=_bool(row['failed']); evidence_ref=_identity(row['evidence_ref'],'evidence_ref')
     completion=min(1.0,progress/target)
-    return dict(id=key, completion=completion, finding='reported_failed' if failed else 'reported_complete' if progress>=target else 'reported_in_progress', game_state_verified=False)
+    return dict(id=key,progress=progress,target=target,failed=failed,
+                evidence_ref=evidence_ref,completion=completion,
+                finding='reported_failed' if failed else 'reported_complete' if progress>=target else 'reported_in_progress',
+                game_state_verified=False)
 
 
 

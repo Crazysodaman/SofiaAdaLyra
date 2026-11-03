@@ -8,7 +8,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = 'MOD-CALENDAR'
-MODULE_VERSION = '0.1.0'
+MODULE_VERSION = '0.2.0'
 CAPABILITY_ID = 'calendar.review_schedule_conflicts.v1'
 PROFILE = 'ADVISORY'
 RESOURCES = (('cpu_millicores', 50), ('ram_mib', 48), ('gpu_mib', 0))
@@ -61,7 +61,8 @@ def review_schedule_conflicts(snapshot: Mapping[str, object], *, now: datetime,
     age = (now.astimezone(timezone.utc)-observed).total_seconds()
     freshness = 'future' if age < -5 else 'stale' if age > max_age_seconds else 'fresh'
     base = {'schema':'sofia.calendar.conflict_review.v1','sdk_protocol':str(SDK_PROTOCOL_VERSION),
-            'module_id':MODULE_ID,'source_ref':source,'freshness':freshness,
+            'module_id':MODULE_ID,'source_ref':source,'observed_at':observed.isoformat(),
+            'freshness':freshness,
             'evidence_class':'supplied_unverified','effect':'none',
             'events_modified':False,'invitations_sent':False,'private_contents_returned':False}
     if freshness != 'fresh':

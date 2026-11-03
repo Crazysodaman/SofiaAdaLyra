@@ -12,7 +12,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = 'MOD-FINANCE'
-MODULE_VERSION = '0.1.0'
+MODULE_VERSION = '0.2.0'
 CAPABILITY_ID = 'finance.review_budget_aggregates.v1'
 PROFILE = 'ADVISORY'
 RESOURCES = (('cpu_millicores', 50), ('ram_mib', 32), ('gpu_mib', 0))
@@ -76,7 +76,8 @@ def review_budget_aggregates(snapshot: Mapping[str, object], *, now: datetime,
     age = (now.astimezone(timezone.utc)-observed).total_seconds()
     freshness = 'future' if age < -5 else 'stale' if age > max_age_seconds else 'fresh'
     base = {'schema':'sofia.finance.budget_review.v1','sdk_protocol':str(SDK_PROTOCOL_VERSION),
-            'module_id':MODULE_ID,'source_ref':source,'period':period,'currency':currency,
+            'module_id':MODULE_ID,'source_ref':source,'observed_at':observed.isoformat(),
+            'period':period,'currency':currency,
             'freshness':freshness,'evidence_class':'supplied_unverified','effect':'none',
             'accounts_accessed':False,'transactions_executed':False,'financial_advice':False,
             'stored':False}
