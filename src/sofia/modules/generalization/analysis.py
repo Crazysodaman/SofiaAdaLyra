@@ -13,7 +13,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = 'MOD-GENERALIZATION'
-MODULE_VERSION = '0.1.0'
+MODULE_VERSION = '0.2.0'
 CAPABILITY_ID = 'generalization.review_transfer_trials.v1'
 PROFILE = 'ADVISORY'
 RESOURCES = (('cpu_millicores', 75), ('ram_mib', 48), ('gpu_mib', 0))  # provisional admission request
@@ -85,7 +85,11 @@ def _review(item: Mapping[str, object]) -> dict[str, object]:
     key=_identity(row['id']); n=_int(row['trial_count'],1,100000); base=_int(row['baseline_successes'],0,n); improved=_int(row['candidate_successes'],0,n)
     novel=_bool(row['novel_task']); independent=_bool(row['independent_holdout'])
     delta=(improved-base)/n
-    return dict(id=key, delta_success_rate=delta, finding='candidate_transfer_evidence' if novel and independent else 'not_independent_transfer', generalized_intelligence_verified=False)
+    return dict(id=key,baseline_successes=base,candidate_successes=improved,
+                trial_count=n,novel_task=novel,independent_holdout=independent,
+                delta_success_rate=delta,
+                finding='candidate_transfer_evidence' if novel and independent else 'not_independent_transfer',
+                generalized_intelligence_verified=False)
 
 
 

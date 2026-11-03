@@ -11,7 +11,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = 'MOD-DIGITAL-TWIN'
-MODULE_VERSION = '0.1.0'
+MODULE_VERSION = '0.2.0'
 CAPABILITY_ID = 'digital_twin.compare_scenarios.v1'
 PROFILE = 'SIMULATE'
 RESOURCES = (('cpu_millicores', 50), ('ram_mib', 32), ('gpu_mib', 0))
@@ -65,7 +65,9 @@ def compare_scenarios(snapshot: Mapping[str, object], *, now: datetime,
             raise ValueError('unsupported scenario fidelity or outcome')
         reviewed.append((sid, affected))
     base = {'schema':'sofia.digital_twin.scenario_comparison.v1','sdk_protocol':str(SDK_PROTOCOL_VERSION),
-            'module_id':MODULE_ID,'source_ref':source,'freshness':freshness,
+            'module_id':MODULE_ID,'source_ref':source,
+            'observed_at':observed.astimezone(timezone.utc).isoformat(),
+            'freshness':freshness,
             'evidence_class':'hypothetical_supplied_unverified','effect':'none',
             'real_outage_verified':False, 'platform_receipt_verified':False}
     if freshness != 'fresh':

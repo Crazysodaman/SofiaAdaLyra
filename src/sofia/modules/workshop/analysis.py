@@ -11,7 +11,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability,CapabilityRequest
 
 MODULE_ID='MOD-WORKSHOP'
-MODULE_VERSION='0.1.0'
+MODULE_VERSION='0.2.0'
 CAPABILITY_ID='workshop.review_experiment_plan.v1'
 PROFILE='ADVISORY'
 RESOURCES=(('cpu_millicores',75),('ram_mib',48),('gpu_mib',0))
@@ -61,7 +61,11 @@ def review_experiment_plan(plan:Mapping[str,object],*,now:datetime,
     age=(now.astimezone(timezone.utc)-t.astimezone(timezone.utc)).total_seconds()
     freshness='future' if age < -5 else 'stale' if age>max_age_seconds else 'fresh'
     base={'schema':'sofia.workshop.plan_review.v1','module_id':MODULE_ID,
-          'sdk_protocol':str(SDK_PROTOCOL_VERSION),'source_ref':source,'freshness':freshness,
+          'sdk_protocol':str(SDK_PROTOCOL_VERSION),'source_ref':source,
+          'observed_at':t.astimezone(timezone.utc).isoformat(),
+          'experiment_id':eid,'host_class':plan['host_class'],
+          'network_mode':plan['network_mode'],'steps':list(steps),
+          'destruction_reviewed':plan['destruction_reviewed'],'freshness':freshness,
           'evidence_class':'supplied_unverified','effect':'none','host_accessed':False,
           'vm_created':False,'network_isolation_verified':False,'provisioning_authorized':False}
     if freshness!='fresh':return base|{'status':'unknown','findings':['plan_timestamp_invalid'],

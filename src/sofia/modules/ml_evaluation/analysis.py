@@ -13,7 +13,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = 'MOD-ML'
-MODULE_VERSION = '0.1.0'
+MODULE_VERSION = '0.2.0'
 CAPABILITY_ID = 'ml.review_classification_metrics.v1'
 PROFILE = 'ADVISORY'
 RESOURCES = (('cpu_millicores', 75), ('ram_mib', 48), ('gpu_mib', 0))  # provisional admission request
@@ -90,7 +90,9 @@ def _review(item: Mapping[str, object]) -> dict[str, object]:
     recall=tp/(tp+fn) if tp+fn else None
     f1=2*precision*recall/(precision+recall) if precision is not None and recall is not None and precision+recall else None
     finding='reviewable_holdout' if split=='holdout' and leakage and tp+fp+tn+fn else 'not_independent_evidence'
-    return dict(id=key, precision=precision, recall=recall, f1=f1, total=tp+fp+tn+fn, finding=finding, release_verified=False)
+    return dict(id=key,tp=tp,fp=fp,tn=tn,fn=fn,split_kind=split,
+                leakage_check_passed=leakage,precision=precision,recall=recall,
+                f1=f1,total=tp+fp+tn+fn,finding=finding,release_verified=False)
 
 
 

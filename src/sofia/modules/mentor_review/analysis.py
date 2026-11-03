@@ -13,7 +13,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = 'MOD-MENTOR'
-MODULE_VERSION = '0.1.0'
+MODULE_VERSION = '0.2.0'
 CAPABILITY_ID = 'mentor.review_rubric_evidence.v1'
 PROFILE = 'ADVISORY'
 RESOURCES = (('cpu_millicores', 75), ('ram_mib', 48), ('gpu_mib', 0))  # provisional admission request
@@ -88,7 +88,11 @@ def _review(item: Mapping[str, object]) -> dict[str, object]:
     if type(digest) is not str or re.fullmatch(r'[0-9a-f]{64}',digest) is None:
         raise ValueError('invalid evidence digest')
     independent=_bool(row['reviewer_independent']); ratio=score/maximum
-    return dict(id=key,criterion=row['criterion'], normalized_score=ratio, finding='independent_review_candidate' if independent else 'non_independent_feedback', core_identity_changed=False)
+    return dict(id=key,criterion=row['criterion'],score=score,maximum=maximum,
+                evidence_digest=digest,reviewer_independent=independent,
+                normalized_score=ratio,
+                finding='independent_review_candidate' if independent else 'non_independent_feedback',
+                core_identity_changed=False)
 
 
 
