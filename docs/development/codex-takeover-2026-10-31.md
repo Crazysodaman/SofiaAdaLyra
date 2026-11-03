@@ -217,3 +217,23 @@ Verbatim requirement inventory, with no implied closure. Individual caller/artif
 | 87 | G7-A | OPEN / acceptance not established | For each mandatory edge, record source path, exact SHA, production call site, configuration, expected outcome, negative case, deterministic baseline, tests and real runtime/host evidence. Existing candidate test inventory includes \`test/test_cognition_v2_turn_kernel.py\`, \`test/test_cognition_v2_evidence.py\`, \`test/test_generalization_advanced.py\`, \`test/test_learning_foundation.py\`, \`test/test_life_project_forge.py\`, \`test/test_presence_cross_modal_provenance.py\` and \`test/test_v18_presence_conflicts.py\`. **Test files were inspected, not run in the audit.** |
 | 88 | G7-A | OPEN / acceptance not established | Obtain matching-SHA Windows/Debian installed-artifact CI and independently reviewed live Venus ↔ Sofía VM acceptance when applicable. Respect G1–G7 prerequisites and the protected state-cutover approval boundary. |
 | 89 | G7-A | OPEN / acceptance not established | Mark **G7-A NO-GO** until the minimum cross-subsystem trace and negative/restart tests are demonstrated. Preserve explicit uncertainty and avoid blanket “hybrid AI production ready” claims. |
+
+## Addendum 2026-11-02 (correction, facts only)
+
+The production diagnosis above was true for this document's baseline and is
+**not** the current state. Later main commits changed these findings:
+
+- Commit `4b704b61` (feat(g7a): verify outcomes through pinned Fleet host) and
+  predecessor work added production call sites for `attest_effect` and the
+  observation ledger (`platform/distributed/agent.py`, `platform/distributed/capability.py`,
+  `platform/application/bootstrap.py`). The "no production caller of
+  `attest_effect`" defect is repaired in source; acceptance still requires
+  matching-SHA CI and live-verifiable evidence per G7-A #87–#89.
+- Commits `1d23040b`, `34e23f5e`, `c6961900`, `a7a697d1` established the V2
+  `EvidenceGraph` truth-gate consumer for Fleet hardware answers (item 74),
+  including premise expiry/revocation invalidation, stale derived-premise
+  propagation with source trust, and Fleet evidence revocation on node
+  retirement.
+- This addendum records only these source facts; it does not close any
+  acceptance item. Per-item status remains governed by #120/#133 evidence
+  rules and the exact-SHA CI gates.

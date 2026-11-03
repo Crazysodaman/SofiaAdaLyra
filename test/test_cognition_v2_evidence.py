@@ -618,6 +618,97 @@ def test_capability_acquisition_requires_success_and_exact_requested_key(tmp_pat
         )
 
 
+def test_knowledge_retrieval_evidence_cannot_satisfy_machine_need(tmp_path):
+    """KNOW retrieval stays knowledge: it is never causal hardware proof."""
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
+    acquisition = EvidenceAcquisitionCoordinator(ledger)
+    knowledge_need = EvidenceNeed(
+        need_id="need:know:bookshelf",
+        subject_id="runtime:bookshelf",
+        predicate="knowledge.retrieval",
+        scope_id=SCOPE,
+        minimum_trust=0.9,
+    )
+    retrieval = acquisition.record(
+        knowledge_need,
+        CapabilityResult(
+            "knowledge.search",
+            CapabilityResultKind.SUCCESS,
+            evidence=(
+                {"source_uri": "k://books", "heading": "Hardware",
+                 "statement": "Bookshelf servers use Ryzen CPUs.",
+                 "locator": "section 3"},
+            ),
+        ),
+        CapabilityEvidencePayload(
+            evidence_id="evidence:know-1",
+            subject_id=knowledge_need.subject_id,
+            predicate=knowledge_need.predicate,
+            value=({"source_uri": "k://books"},),
+            source_id="capability:knowledge.search",
+            observed_at=NOW,
+            expires_at=None,
+            scope_id=knowledge_need.scope_id,
+            trust=0.9,
+        ),
+    )
+
+    assert retrieval.predicate == "knowledge.retrieval"
+    machine_need = _need(subject="runtime:bookshelf")
+    resolution = EvidenceGraph(ledger).resolve(machine_need, now=NOW)
+    assert resolution.acquisition_state is AcquisitionState.NOT_SAMPLED
+    assert resolution.atoms == ()
+    assert resolution.reason == "no exact scoped evidence"
+    assert ledger.matching(machine_need) == ()
+
+
+def test_model_forges_cannot_carry_retrieval_truth_across_keys(tmp_path):
+    """Validated acquisition refuses cross-key and cross-source replay."""
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
+    acquisition = EvidenceAcquisitionCoordinator(ledger)
+    need = _need()
+    retrieval = CapabilityEvidencePayload(
+        evidence_id="evidence:know-misused",
+        subject_id=need.subject_id,
+        predicate="knowledge.retrieval",
+        value=({"source_uri": "k://books"},),
+        source_id="capability:knowledge.search",
+        observed_at=NOW,
+        expires_at=None,
+        scope_id=need.scope_id,
+        trust=0.9,
+    )
+    with pytest.raises(ValueError, match="requested key"):
+        acquisition.record(
+            need,
+            CapabilityResult(
+                "hardware.inspect", CapabilityResultKind.SUCCESS,
+                evidence=({"source_uri": "k://books"},),
+            ),
+            retrieval,
+        )
+    with pytest.raises(ValueError, match="does not match result"):
+        acquisition.record(
+            need,
+            CapabilityResult(
+                "hardware.inspect", CapabilityResultKind.SUCCESS,
+                evidence="Ryzen",
+            ),
+            CapabilityEvidencePayload(
+                evidence_id="evidence:know-rebranded",
+                subject_id=need.subject_id,
+                predicate=need.predicate,
+                value="Ryzen",
+                source_id="capability:knowledge.search",
+                observed_at=NOW,
+                expires_at=None,
+                scope_id=need.scope_id,
+                trust=0.9,
+            ),
+        )
+    assert ledger.matching(need) == ()
+
+
 def _configuration(tmp_path: Path) -> SofiaConfiguration:
     personality_path = tmp_path / "personality.json"
     personality_path.write_text(

@@ -254,3 +254,59 @@ def test_expired_cognitive_atom_invalidates_goals_projection(tmp_path):
     assert GoalEvidenceIndex(path).lookup(
         atom.evidence_id.replace("evidence:fleet:", "goal-evidence:fleet:")
     ) is None
+
+
+def test_observation_fact_without_source_ref_is_unconstructable():
+    with pytest.raises(ValueError, match="source_ref"):
+        CapabilityFact(
+            "os.family", "linux", None, "artemis", "host:artemis",
+            EvidenceClass.OBSERVED, "",
+            NOW, NOW + timedelta(hours=1), True,
+        )
+
+
+def test_supply_rejects_facts_from_other_hosts():
+    forged = CapabilityFact(
+        "os.family", "linux", None, "venus", "host:venus",
+        EvidenceClass.OBSERVED, "fleet-discovery:mtls-agent-discovery",
+        NOW, NOW + timedelta(hours=1), True,
+    )
+    with pytest.raises(ValueError, match="supply host"):
+        _supply(forged)
+
+
+def test_fleet_observations_are_scoped_to_the_receiving_audience(tmp_path):
+    path, ledger, bridge = _bridge(tmp_path)
+    other_principal = local_sparks_principal(audience_id="remote-chat:owner-key")
+    private = bridge.ingest(
+        _supply(), host=_host(),
+        principal=local_sparks_principal(), now=NOW,
+    )[0]
+    remote = bridge.ingest(
+        _supply(_fact("windows", observed_at=NOW + timedelta(seconds=1))),
+        host=_host(),
+        principal=other_principal, now=NOW + timedelta(seconds=1),
+    )[0]
+
+    assert private.scope_id != remote.scope_id
+    assert EvidenceGraph(ledger).resolve(
+        _need(), now=NOW + timedelta(seconds=2),
+    ).atoms == (private,)
+    other_need = EvidenceNeed(
+        "need:artemis-os-remote", f"fleet-node:{NODE}", "machine.os",
+        remote.scope_id, max_age_seconds=120, minimum_trust=0.9,
+    )
+    assert EvidenceGraph(ledger).resolve(
+        other_need, now=NOW + timedelta(seconds=2),
+    ).atoms == (remote,)
+    index = GoalEvidenceIndex(path)
+    private_record = index.lookup(
+        private.evidence_id.replace("evidence:fleet:", "goal-evidence:fleet:")
+    )
+    remote_record = index.lookup(
+        remote.evidence_id.replace("evidence:fleet:", "goal-evidence:fleet:")
+    )
+    assert private_record is not None
+    assert private_record.audience == f"private:{local_sparks_principal().audience_id}"
+    assert remote_record is not None
+    assert remote_record.audience == f"private:{other_principal.audience_id}"

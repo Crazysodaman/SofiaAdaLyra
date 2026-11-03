@@ -318,6 +318,75 @@ def test_g7a_successful_prior_episode_does_not_forge_planning_influence(tmp_path
         ).fetchone() == (0,)
 
 
+def test_g7a_verified_learning_influence_never_writes_owner_preferences(tmp_path):
+    """Verified outcome learning stays advice; only owners revise preferences."""
+    from sofia.core.personality.preferences import PreferenceRegistry, PreferenceSubject
+
+    path = tmp_path / "sofia.db"
+    bootstrap_canonical_sqlite(path)
+    # Compose the owner preference registry before the learning pass so any
+    # unauthorized write during goal learning would be observable in the table.
+    registry = PreferenceRegistry(path)
+    goals, production = coordinator(path, neural=[snapshot("ops")])
+    advanced = AdvancedGeneralizationStore(
+        path, goals=goals,
+        admission=lambda: ExplorationAdmission(),
+        learning=_GeneralizationLearningGrant(),
+    )
+    production.generalization = advanced
+    principal = local_sparks_principal()
+    ledger = GoalEvidenceLedger(path)
+    refs = []
+    for index, kind in enumerate((
+        "reviewed_evidence", "external_observation", "reviewed_evidence",
+        "operation_receipt", "operation_receipt",
+    )):
+        ref = f"g7a-learning-policy:{index}"
+        ledger.record(
+            evidence_ref=ref, kind=kind, observed_at=NOW,
+            source="ops:g7a-learning-policy",
+            assertion="portainer.summary" if index == 3 else None,
+            successful=False if index == 4 else None,
+            principal_id=principal.principal_id, audience=principal.audience_id,
+        )
+        refs.append(ref)
+    advanced.record_episode(
+        principal=principal, subject_id="service:docker",
+        context_tags=("docker", "container"),
+        phases=tuple(
+            EpisodePhase(kind, f"Verified {kind}", (refs[index],))
+            for index, kind in enumerate((
+                "intent", "observation", "hypothesis", "action", "outcome",
+            ))
+        ),
+        occurred_at=NOW, retention_until=NOW + timedelta(days=10), now=NOW,
+    )
+    goal = create_user_goal(
+        goals, ledger, principal=principal, ref="message:g7a-learning-policy",
+        title="Investigate Docker failures",
+        completion=GoalCompletionCondition(
+            CompletionKind.USER_DEFINED, "Owner confirms diagnosis.",
+        ),
+    )
+    assert production.run_due(now=NOW + timedelta(seconds=1)) == 1
+    with sqlite3.connect(path) as db:
+        # Sanity: the verified episode genuinely changed the planner decision.
+        assert db.execute(
+            "SELECT COUNT(*) FROM ga_planning_influence WHERE goal_id=?",
+            (goal.id,),
+        ).fetchone() == (2,)
+        # No learning path may revise the owner-owned preference registry.
+        assert db.execute(
+            "SELECT COUNT(*) FROM personality_preference_revision",
+        ).fetchone() == (0,)
+    for target in ("humor", "verbosity", "disagreement"):
+        assert registry.current(
+            subject=PreferenceSubject.SPARKS,
+            category="conversation.style", target_id=target,
+            context="general", audience_id=principal.audience_id,
+        ) is None
+
+
 def test_g7a_revoked_learning_restores_baseline_planner_after_restart(tmp_path):
     """A revoked outcome cannot keep steering GOALS after a Core restart."""
     path = tmp_path / "sofia.db"
