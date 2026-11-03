@@ -13,7 +13,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = 'MOD-AVATAR-STUDIO'
-MODULE_VERSION = '0.1.0'
+MODULE_VERSION = '0.2.0'
 CAPABILITY_ID = 'avatar_studio.review_asset_layers.v1'
 PROFILE = 'ADVISORY'
 RESOURCES = (('cpu_millicores', 75), ('ram_mib', 48), ('gpu_mib', 0))  # provisional admission request
@@ -86,7 +86,10 @@ def _review(item: Mapping[str, object]) -> dict[str, object]:
     order=_int(row['layer_order'],0,1000); cls=_choice(row['content_class'],('public','private','adult'))
     reviewed=_bool(row['reviewed']); alpha=_bool(row['alpha_present'])
     reasons=(['private_distribution_review_required'] if cls!='public' else []) + (['asset_review_missing'] if not reviewed else []) + (['alpha_channel_missing'] if not alpha else [])
-    return dict(id=key,slot=slot,layer_order=order,finding='public_asset_candidate' if not reasons else 'requires_review',issues=reasons, wardrobe_modified=False)
+    return dict(id=key,slot=slot,layer_order=order,content_class=cls,
+                reviewed=reviewed,alpha_present=alpha,
+                finding='public_asset_candidate' if not reasons else 'requires_review',
+                issues=reasons,wardrobe_modified=False)
 
 
 

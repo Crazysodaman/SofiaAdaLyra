@@ -13,7 +13,7 @@ from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
 
 MODULE_ID = 'MOD-AVATAR3D'
-MODULE_VERSION = '0.1.0'
+MODULE_VERSION = '0.2.0'
 CAPABILITY_ID = 'avatar3d.review_joint_pose.v1'
 PROFILE = 'SIMULATE'
 RESOURCES = (('cpu_millicores', 75), ('ram_mib', 48), ('gpu_mib', 0))  # provisional admission request
@@ -87,7 +87,10 @@ def _review(item: Mapping[str, object]) -> dict[str, object]:
     if low>=high: raise ValueError('invalid joint limits')
     digest=row['rig_digest']
     if type(digest) is not str or re.fullmatch(r'[0-9a-f]{64}',digest) is None: raise ValueError('invalid rig digest')
-    return dict(id=key,joint=joint,finding='in_limit' if low<=angle<=high else 'limit_exceeded', pose_rendered=False)
+    return dict(id=key,joint=joint,angle_deg=angle,minimum_deg=low,
+                maximum_deg=high,rig_digest=digest,
+                finding='in_limit' if low<=angle<=high else 'limit_exceeded',
+                pose_rendered=False)
 
 
 
