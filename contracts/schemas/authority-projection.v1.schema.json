@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sofia.invalid/contracts/authority-projection.v1.schema.json",
+  "title": "Sofía authority projection v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["principal_id", "audience_id", "audience_kind", "authority_ref", "scopes", "expires_at"],
+  "properties": {
+    "principal_id": {"$ref": "#/$defs/id"},
+    "audience_id": {"$ref": "#/$defs/id"},
+    "audience_kind": {"enum": ["private", "shared", "public", "system"]},
+    "authority_ref": {"$ref": "#/$defs/id"},
+    "scopes": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+    "expires_at": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {"id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$"}}
+}

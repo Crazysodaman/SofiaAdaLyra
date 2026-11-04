@@ -1,0 +1,92 @@
+name: R1 Rust Contract Compatibility
+
+on:
+  pull_request:
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "deny.toml"
+      - "rust-toolchain.toml"
+      - "rust/**"
+      - "contracts/**"
+      - "src/sofia/sdk/**"
+      - "test/test_sdk_rust_contract_compatibility.py"
+      - ".github/workflows/rust-contract-compatibility.yml"
+  push:
+    branches:
+      - "codex/r1-rust-sdk-contracts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    name: Rust ${{ matrix.os }} / ${{ matrix.profile }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        profile: [debug, release]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.85.1
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        if: matrix.profile == 'debug'
+        run: cargo fmt --all --check
+      - name: Lint
+        if: matrix.profile == 'debug'
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Test debug
+        if: matrix.profile == 'debug'
+        run: cargo test --workspace --locked
+      - name: Test release
+        if: matrix.profile == 'release'
+        run: cargo test --workspace --locked --release
+
+  python-rust-parity:
+    name: Python ${{ matrix.python }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.12", "3.14"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.85.1
+      - uses: Swatinem/rust-cache@v2
+      - run: python -m pip install -e . pytest
+      - run: cargo build --locked -p sofia-contracts --bin sofia-contract-tool
+      - name: Cross-language corpus
+        run: python -m pytest -q test/test_sdk_component_contracts.py test/test_sdk_rust_contract_compatibility.py
+
+  policy:
+    name: Dependency policy and SBOM
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.85.1
+      - uses: EmbarkStudios/cargo-deny-action@v2
+      - run: cargo install cargo-cyclonedx --version 0.5.9 --locked
+      - run: cargo cyclonedx --format json --all
+      - uses: actions/upload-artifact@v7
+        with:
+          name: r1-rust-sbom-${{ github.sha }}
+          path: "**/*.cdx.json"
+          if-no-files-found: error

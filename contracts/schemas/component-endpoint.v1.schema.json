@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sofia.invalid/contracts/component-endpoint.v1.schema.json",
+  "title": "Sofía component endpoint v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["component_id", "kind", "release_digest", "generation", "platform_instance_id", "core_identity_id"],
+  "properties": {
+    "component_id": {"$ref": "#/$defs/id"},
+    "kind": {"enum": ["platform", "core", "module", "inference"]},
+    "release_digest": {"$ref": "#/$defs/digest"},
+    "generation": {"type": "integer", "minimum": 1, "maximum": 18446744073709551615},
+    "platform_instance_id": {"$ref": "#/$defs/id"},
+    "core_identity_id": {"oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$"},
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}
