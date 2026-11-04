@@ -1,0 +1,21 @@
+[package]
+name = "sofia-core-link"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Read-only, enrolled mTLS client for the Sofía Core Link wire protocol"
+publish = false
+
+[dependencies]
+chrono = { version = "=0.4.40", default-features = false, features = ["std", "clock"] }
+regex = "=1.11.1"
+reqwest = { version = "=0.12.12", default-features = false, features = ["blocking", "rustls-tls-manual-roots"] }
+serde = { version = "=1.0.219", features = ["derive"] }
+serde_json = "=1.0.140"
+sha2 = "=0.10.8"
+thiserror = "=2.0.12"
+x509-parser = "=0.16.0"
+
+[lints]
+workspace = true
