@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sofia.invalid/contracts/component-request.v1.schema.json",
+  "title": "Sofía component request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocol", "request_id", "correlation_id", "idempotency_key", "source", "destination", "authority", "payload_type", "payload_digest", "created_at", "deadline"],
+  "properties": {
+    "protocol": {"const": "1.0"},
+    "request_id": {"$ref": "#/$defs/id"},
+    "correlation_id": {"$ref": "#/$defs/id"},
+    "idempotency_key": {"$ref": "#/$defs/id"},
+    "source": {"$ref": "component-endpoint.v1.schema.json"},
+    "destination": {"$ref": "component-endpoint.v1.schema.json"},
+    "authority": {"$ref": "authority-projection.v1.schema.json"},
+    "payload_type": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,127}\\.v[1-9][0-9]*$"},
+    "payload_digest": {"$ref": "#/$defs/digest"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "deadline": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$"},
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

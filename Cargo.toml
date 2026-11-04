@@ -1,0 +1,15 @@
+[workspace]
+members = ["rust/crates/sofia-contracts"]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.85.1"
+license = "LicenseRef-Proprietary"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = "deny"
+pedantic = "deny"

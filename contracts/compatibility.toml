@@ -1,0 +1,17 @@
+contract_family = "sofia.component"
+current_protocol = "1.0"
+minimum_protocol = "1.0"
+maximum_protocol = "1.0"
+maximum_message_bytes = 65536
+maximum_nesting_depth = 64
+canonical_json = "RFC 8259 UTF-8, sorted object keys, no insignificant whitespace, duplicate keys rejected"
+digest = "sha256-lowercase-hex"
+
+[authority]
+python = "src/sofia/sdk/contracts.py"
+rust = "rust/crates/sofia-contracts"
+
+[notes]
+envelopes_are_authority_free = true
+payload_digest_requires_external_payload = true
+message_type_is_external = true

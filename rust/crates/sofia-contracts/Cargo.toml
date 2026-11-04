@@ -1,0 +1,25 @@
+[package]
+name = "sofia-contracts"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Authority-free cross-language contracts for Sofía Platform components"
+publish = false
+
+[dependencies]
+chrono = { version = "=0.4.40", default-features = false, features = ["std"] }
+regex = "=1.11.1"
+serde = { version = "=1.0.219", features = ["derive"] }
+serde_json = "=1.0.140"
+sha2 = "=0.10.8"
+thiserror = "=2.0.12"
+
+[dev-dependencies]
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "sofia-contract-tool"
+path = "src/bin/contract_tool.rs"

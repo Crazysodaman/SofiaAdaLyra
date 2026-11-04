@@ -22,6 +22,8 @@ htmlcov/
 # Build artifacts
 build/
 dist/
+target/
+*.cdx.json
 *.egg-info/
 .gradle/
 .kotlin/

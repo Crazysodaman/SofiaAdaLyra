@@ -1,0 +1,384 @@
+{
+  "schema": "sofia.contract-fixture-manifest.v1",
+  "cases": [
+    {
+      "name": "valid_request",
+      "file": "valid-request.json",
+      "kind": "request",
+      "valid": true,
+      "context": {
+        "now": "2026-11-04T12:00:30+00:00",
+        "expected_destination_generation": 7,
+        "expected_audience_id": "audience:owner-private"
+      },
+      "payload": {
+        "command": "ping",
+        "count": 1
+      },
+      "canonical_digest": "4af9e0331fb5103518c4636a3de07ac16061c6ae4f21e3f563db9c61561e0e1d",
+      "schema_valid": true
+    },
+    {
+      "name": "valid_response",
+      "file": "valid-response.json",
+      "kind": "response",
+      "valid": true,
+      "canonical_digest": "ba46587e7948ef0c13acf2af97da9705cbdf46e05b10878426f585a760b6b7d2",
+      "schema_valid": true
+    },
+    {
+      "name": "malformed_payload",
+      "file": "malformed.json",
+      "kind": "raw",
+      "valid": false,
+      "error": "malformed_json"
+    },
+    {
+      "name": "oversized_message",
+      "file": "oversized.json",
+      "kind": "raw",
+      "valid": false,
+      "error": "oversized"
+    },
+    {
+      "name": "duplicate_keys",
+      "file": "duplicate-keys.json",
+      "kind": "raw",
+      "valid": false,
+      "error": "duplicate_key"
+    },
+    {
+      "name": "unsupported_protocol",
+      "file": "unsupported-protocol.json",
+      "kind": "request",
+      "valid": false,
+      "error": "unsupported_protocol",
+      "schema_valid": false
+    },
+    {
+      "name": "unsupported_schema",
+      "file": "unsupported-schema.json",
+      "kind": "request",
+      "valid": false,
+      "error": "unsupported_schema",
+      "schema_valid": false
+    },
+    {
+      "name": "wrong_generation",
+      "file": "wrong-generation.json",
+      "kind": "request",
+      "valid": false,
+      "error": "wrong_generation",
+      "context": {
+        "now": "2026-11-04T12:00:30+00:00",
+        "expected_destination_generation": 8,
+        "expected_audience_id": "audience:owner-private"
+      },
+      "schema_valid": true
+    },
+    {
+      "name": "wrong_audience",
+      "file": "wrong-audience.json",
+      "kind": "request",
+      "valid": false,
+      "error": "wrong_audience",
+      "context": {
+        "now": "2026-11-04T12:00:30+00:00",
+        "expected_destination_generation": 7,
+        "expected_audience_id": "audience:shared"
+      },
+      "schema_valid": true
+    },
+    {
+      "name": "digest_mismatch",
+      "file": "digest-mismatch.json",
+      "kind": "request",
+      "valid": false,
+      "error": "digest_mismatch",
+      "context": {
+        "now": "2026-11-04T12:00:30+00:00",
+        "expected_destination_generation": 7,
+        "expected_audience_id": "audience:owner-private"
+      },
+      "payload": {
+        "command": "ping",
+        "count": 1
+      },
+      "schema_valid": true
+    },
+    {
+      "name": "expired_deadline",
+      "file": "expired-deadline.json",
+      "kind": "request",
+      "valid": false,
+      "error": "expired",
+      "context": {
+        "now": "2026-11-04T12:03:00+00:00",
+        "expected_destination_generation": 7,
+        "expected_audience_id": "audience:owner-private"
+      },
+      "schema_valid": true
+    },
+    {
+      "name": "invalid_error_status",
+      "file": "invalid-error-status.json",
+      "kind": "response",
+      "valid": false,
+      "error": "invalid_contract",
+      "schema_valid": false
+    },
+    {
+      "name": "valid_response_denied",
+      "file": "valid-response-denied.json",
+      "kind": "response",
+      "valid": true,
+      "canonical_digest": "8743871b78124c8331be010d2027935b68865f3987ac635edebdbb901f49e4e8",
+      "schema_valid": true
+    },
+    {
+      "name": "valid_response_unavailable",
+      "file": "valid-response-unavailable.json",
+      "kind": "response",
+      "valid": true,
+      "canonical_digest": "4f272adacce6e30d752091811d757545d79d6866b3d8629e66c02ee2b70c26af",
+      "schema_valid": true
+    },
+    {
+      "name": "valid_response_failed",
+      "file": "valid-response-failed.json",
+      "kind": "response",
+      "valid": true,
+      "canonical_digest": "eb82d4d7b7debf884a034f53c172b6f6b796c92715b9d5757379400646c6d17d",
+      "schema_valid": true
+    },
+    {
+      "name": "valid_response_cancelled",
+      "file": "valid-response-cancelled.json",
+      "kind": "response",
+      "valid": true,
+      "canonical_digest": "c4a257adc9d0e032c9434ca2f74ab71064e920a64d9049eb3afe9d9fba457bd8",
+      "schema_valid": true
+    },
+    {
+      "name": "valid_response_outcome_unknown",
+      "file": "valid-response-outcome-unknown.json",
+      "kind": "response",
+      "valid": true,
+      "canonical_digest": "097a62e854c61c3e4adfdd2980da2c3ef07a6582494a3349d4a77a089626f6ed",
+      "schema_valid": true
+    },
+    {
+      "name": "valid_response_succeeded_reported_unverified",
+      "file": "valid-response-succeeded-reported-unverified.json",
+      "kind": "response",
+      "valid": true,
+      "canonical_digest": "4cdf1032f1feb389d6538e2802fe4e3102aae2982fef868ceb89abfd4decaa30",
+      "schema_valid": true
+    },
+    {
+      "name": "unsupported_minor_protocol",
+      "file": "unsupported-minor-protocol.json",
+      "kind": "request",
+      "valid": false,
+      "error": "unsupported_protocol",
+      "schema_valid": false
+    },
+    {
+      "name": "generation_out_of_range",
+      "file": "generation-out-of-range.json",
+      "kind": "request",
+      "valid": false,
+      "error": "invalid_contract",
+      "schema_valid": false
+    },
+    {
+      "name": "canonical_unicode",
+      "file": "canonical-unicode.json",
+      "kind": "raw",
+      "valid": true,
+      "canonical_digest": "ccc30233d1305ca4c5b248e73fed97a47471682a84dbf39ddc0fcbc5f247ee39"
+    },
+    {
+      "name": "canonical_nested",
+      "file": "canonical-nested.json",
+      "kind": "raw",
+      "valid": true,
+      "canonical_digest": "96f8d6beb512491404b2479bff1cf19741b07dedb4ad68e7a9ab9e1b0a028ca2"
+    },
+    {
+      "name": "canonical_integer_bounds",
+      "file": "canonical-integer-bounds.json",
+      "kind": "raw",
+      "valid": true,
+      "canonical_digest": "7f662b2247409f6f177b921c1751d9069c929998a4fbc668691cbeec7d8e219d"
+    },
+    {
+      "name": "canonical_escapes",
+      "file": "canonical-escapes.json",
+      "kind": "raw",
+      "valid": true,
+      "canonical_digest": "d7c9c30010b29da3845b83d721412c0612c4543e085877d26b1cbc304d3a2f3d"
+    },
+    {
+      "name": "fractional_canonical_rejected",
+      "file": "fractional-canonical-rejected.json",
+      "kind": "raw",
+      "valid": false,
+      "error": "malformed_json"
+    },
+    {
+      "name": "core_endpoint_with_identity",
+      "file": "valid-request.json",
+      "kind": "request",
+      "valid": true,
+      "schema_valid": true,
+      "context": {
+        "now": "2026-11-04T12:00:30+00:00",
+        "expected_destination_generation": 7,
+        "expected_audience_id": "audience:owner-private"
+      },
+      "payload": {
+        "command": "ping",
+        "count": 1
+      },
+      "canonical_digest": "4af9e0331fb5103518c4636a3de07ac16061c6ae4f21e3f563db9c61561e0e1d"
+    },
+    {
+      "name": "noncore_endpoint_without_identity",
+      "file": "valid-request.json",
+      "kind": "request",
+      "valid": true,
+      "schema_valid": true,
+      "context": {
+        "now": "2026-11-04T12:00:30+00:00",
+        "expected_destination_generation": 7,
+        "expected_audience_id": "audience:owner-private"
+      },
+      "payload": {
+        "command": "ping",
+        "count": 1
+      },
+      "canonical_digest": "4af9e0331fb5103518c4636a3de07ac16061c6ae4f21e3f563db9c61561e0e1d"
+    },
+    {
+      "name": "core_endpoint_missing_identity",
+      "file": "core-endpoint-missing-identity.json",
+      "kind": "request",
+      "valid": false,
+      "error": "invalid_contract",
+      "schema_valid": false
+    },
+    {
+      "name": "noncore_endpoint_with_identity",
+      "file": "noncore-endpoint-with-identity.json",
+      "kind": "request",
+      "valid": false,
+      "error": "invalid_contract",
+      "schema_valid": false
+    },
+    {
+      "name": "response_payload_pair_present",
+      "file": "valid-response.json",
+      "kind": "response",
+      "valid": true,
+      "schema_valid": true,
+      "canonical_digest": "ba46587e7948ef0c13acf2af97da9705cbdf46e05b10878426f585a760b6b7d2"
+    },
+    {
+      "name": "response_payload_pair_null",
+      "file": "valid-response-no-payload.json",
+      "kind": "response",
+      "valid": true,
+      "schema_valid": true,
+      "canonical_digest": "3617009c5806296d206ba67ba6d47fad7a8508327d07fdd0735bff4efc4db747"
+    },
+    {
+      "name": "response_payload_type_only",
+      "file": "response-payload-type-only.json",
+      "kind": "response",
+      "valid": false,
+      "error": "invalid_contract",
+      "schema_valid": false
+    },
+    {
+      "name": "response_payload_digest_only",
+      "file": "response-payload-digest-only.json",
+      "kind": "response",
+      "valid": false,
+      "error": "invalid_contract",
+      "schema_valid": false
+    },
+    {
+      "name": "verified_response_with_evidence",
+      "file": "valid-response.json",
+      "kind": "response",
+      "valid": true,
+      "schema_valid": true,
+      "canonical_digest": "ba46587e7948ef0c13acf2af97da9705cbdf46e05b10878426f585a760b6b7d2"
+    },
+    {
+      "name": "verified_response_without_evidence",
+      "file": "verified-response-without-evidence.json",
+      "kind": "response",
+      "valid": false,
+      "error": "invalid_contract",
+      "schema_valid": false
+    },
+    {
+      "name": "empty_input",
+      "file": "empty-input.json",
+      "kind": "raw",
+      "valid": false,
+      "error": "malformed_json"
+    },
+    {
+      "name": "trailing_data",
+      "file": "trailing-data.json",
+      "kind": "raw",
+      "valid": false,
+      "error": "malformed_json"
+    },
+    {
+      "name": "nested_duplicate_keys",
+      "file": "nested-duplicate-keys.json",
+      "kind": "raw",
+      "valid": false,
+      "error": "duplicate_key"
+    },
+    {
+      "name": "invalid_utf8",
+      "file": "invalid-utf8.json",
+      "kind": "raw",
+      "valid": false,
+      "error": "malformed_json"
+    },
+    {
+      "name": "unpaired_surrogate",
+      "file": "unpaired-surrogate.json",
+      "kind": "raw",
+      "valid": false,
+      "error": "malformed_json"
+    },
+    {
+      "name": "excessive_nesting",
+      "file": "excessive-nesting.json",
+      "kind": "raw",
+      "valid": false,
+      "error": "malformed_json"
+    },
+    {
+      "name": "maximum_size_valid",
+      "file": "maximum-size-valid.json",
+      "kind": "raw",
+      "valid": true,
+      "canonical_digest": "30bbd0c990dc596e91393f632890995a149538f6f69e44959ef69c196edaf253"
+    },
+    {
+      "name": "maximum_nesting_valid",
+      "file": "maximum-nesting-valid.json",
+      "kind": "raw",
+      "valid": true,
+      "canonical_digest": "f0244ae1938270f711155b0a26a4307cde7050495140dd858a88a1cfc378cf40"
+    }
+  ]
+}
