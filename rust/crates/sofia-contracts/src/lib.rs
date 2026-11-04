@@ -13,6 +13,7 @@ use std::sync::OnceLock;
 use thiserror::Error;
 
 pub const MAX_MESSAGE_BYTES: usize = 64 * 1024;
+pub const MAX_NESTING_DEPTH: usize = 64;
 pub const SUPPORTED_PROTOCOL: &str = "1.0";
 
 #[derive(Debug, Error)]
@@ -111,6 +112,24 @@ impl<'de> Deserialize<'de> for StrictValue {
     }
 }
 
+fn check_depth(value: &Value, depth: usize) -> Result<(), ContractError> {
+    if depth > MAX_NESTING_DEPTH {
+        return Err(ContractError::new(
+            "malformed_json",
+            "contract nesting exceeds 64 levels",
+        ));
+    }
+    match value {
+        Value::Array(values) => values
+            .iter()
+            .try_for_each(|child| check_depth(child, depth + 1)),
+        Value::Object(values) => values
+            .values()
+            .try_for_each(|child| check_depth(child, depth + 1)),
+        _ => Ok(()),
+    }
+}
+
 /// Parse one bounded JSON document while rejecting duplicate keys.
 ///
 /// # Errors
@@ -136,6 +155,7 @@ pub fn parse_strict(raw: &[u8]) -> Result<Value, ContractError> {
     decoder
         .end()
         .map_err(|error| ContractError::new("malformed_json", error.to_string()))?;
+    check_depth(&value.0, 0)?;
     Ok(value.0)
 }
 
@@ -480,5 +500,19 @@ mod tests {
             canonical_sha256(&left).expect("digest"),
             canonical_sha256(&right).expect("digest")
         );
+    }
+
+    #[test]
+    fn deterministic_canonical_property_corpus_is_order_independent() {
+        for index in 0..128_u64 {
+            let left = format!(r#"{{"z":{index},"a":[true,null,"value"]}}"#);
+            let right = format!(r#"{{"a":[true,null,"value"],"z":{index}}}"#);
+            let left = parse_strict(left.as_bytes()).expect("valid generated JSON");
+            let right = parse_strict(right.as_bytes()).expect("valid generated JSON");
+            assert_eq!(
+                canonical_sha256(&left).expect("left digest"),
+                canonical_sha256(&right).expect("right digest")
+            );
+        }
     }
 }

@@ -16,6 +16,28 @@
     "evidence_refs": {"type": "array", "maxItems": 32, "items": {"$ref": "#/$defs/id"}},
     "completed_at": {"type": "string", "format": "date-time"}
   },
+  "allOf": [
+    {
+      "oneOf": [
+        {
+          "properties": {
+            "payload_type": {"type": "null"},
+            "payload_digest": {"type": "null"}
+          }
+        },
+        {
+          "properties": {
+            "payload_type": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,127}\\.v[1-9][0-9]*$"},
+            "payload_digest": {"$ref": "#/$defs/digest"}
+          }
+        }
+      ]
+    },
+    {
+      "if": {"properties": {"outcome": {"const": "succeeded_verified"}}, "required": ["outcome"]},
+      "then": {"properties": {"evidence_refs": {"minItems": 1}}}
+    }
+  ],
   "$defs": {
     "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$"},
     "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}

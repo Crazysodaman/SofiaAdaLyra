@@ -13,6 +13,13 @@
     "platform_instance_id": {"$ref": "#/$defs/id"},
     "core_identity_id": {"oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]}
   },
+  "allOf": [
+    {
+      "if": {"properties": {"kind": {"const": "core"}}, "required": ["kind"]},
+      "then": {"properties": {"core_identity_id": {"$ref": "#/$defs/id"}}},
+      "else": {"properties": {"core_identity_id": {"type": "null"}}}
+    }
+  ],
   "$defs": {
     "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$"},
     "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}

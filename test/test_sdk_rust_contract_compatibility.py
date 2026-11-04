@@ -7,6 +7,8 @@ from pathlib import Path
 import subprocess
 
 import pytest
+from jsonschema import Draft202012Validator, FormatChecker
+from referencing import Registry, Resource
 
 from sofia.sdk.contract_wire import (
     ContractWireError,
@@ -20,6 +22,19 @@ from sofia.sdk.contract_wire import (
 
 ROOT = Path(__file__).resolve().parents[1]
 CORPUS = ROOT / "contracts" / "fixtures" / "manifest.v1.json"
+SCHEMAS = ROOT / "contracts" / "schemas"
+CORRECTED_RULE_CASES = {
+    "core_endpoint_with_identity": (True, True),
+    "noncore_endpoint_without_identity": (True, True),
+    "core_endpoint_missing_identity": (False, False),
+    "noncore_endpoint_with_identity": (False, False),
+    "response_payload_pair_present": (True, True),
+    "response_payload_pair_null": (True, True),
+    "response_payload_type_only": (False, False),
+    "response_payload_digest_only": (False, False),
+    "verified_response_with_evidence": (True, True),
+    "verified_response_without_evidence": (False, False),
+}
 
 
 def _python_report() -> dict[str, dict[str, object]]:
@@ -71,6 +86,49 @@ def test_python_corpus_matches_manifest_expectations():
     assert report == expected
 
 
+def test_typed_fixtures_match_versioned_json_schemas():
+    documents = {
+        path.name: json.loads(path.read_text(encoding="utf-8"))
+        for path in SCHEMAS.glob("*.json")
+    }
+    for document in documents.values():
+        Draft202012Validator.check_schema(document)
+    registry = Registry().with_resources(
+        (document["$id"], Resource.from_contents(document))
+        for document in documents.values()
+    )
+    validators = {
+        "request": Draft202012Validator(
+            documents["component-request.v1.schema.json"],
+            registry=registry,
+            format_checker=FormatChecker(),
+        ),
+        "response": Draft202012Validator(
+            documents["component-response.v1.schema.json"],
+            registry=registry,
+            format_checker=FormatChecker(),
+        ),
+    }
+    manifest = json.loads(CORPUS.read_text(encoding="utf-8"))
+    for case in manifest["cases"]:
+        if case["kind"] not in validators:
+            continue
+        document = loads_strict((CORPUS.parent / case["file"]).read_bytes())
+        errors = list(validators[case["kind"]].iter_errors(document))
+        assert (not errors) is case["schema_valid"], (
+            case["name"], [error.message for error in errors]
+        )
+
+
+def test_corrected_rules_have_explicit_positive_and_negative_conformance_cases():
+    manifest = json.loads(CORPUS.read_text(encoding="utf-8"))
+    cases = {case["name"]: case for case in manifest["cases"]}
+    report = _python_report()
+    for name, (schema_valid, runtime_valid) in CORRECTED_RULE_CASES.items():
+        assert cases[name]["schema_valid"] is schema_valid
+        assert report[name]["valid"] is runtime_valid
+
+
 def test_python_and_rust_accept_and_reject_identically():
     executable = os.environ.get("SOFIA_RUST_CONTRACT_TOOL")
     if executable:
@@ -97,3 +155,10 @@ def test_duplicate_key_is_rejected_before_typed_decode():
     with pytest.raises(ContractWireError, match="duplicate") as caught:
         loads_strict(b'{"protocol":"1.0","protocol":"1.0"}')
     assert caught.value.code == "duplicate_key"
+
+
+def test_deterministic_canonical_property_corpus_is_order_independent():
+    for index in range(128):
+        left = {"z": index, "a": [True, None, "value"]}
+        right = {"a": [True, None, "value"], "z": index}
+        assert canonical_sha256(left) == canonical_sha256(right)

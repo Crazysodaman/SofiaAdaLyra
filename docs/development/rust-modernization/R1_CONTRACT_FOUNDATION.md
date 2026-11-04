@@ -28,7 +28,8 @@ Duplicate object keys are rejected before typed decoding. SHA-256 is lowercase
 hex over those canonical bytes. R1 canonical digests allow strings, booleans,
 null, arrays, objects, and integers in `-2^63..2^64-1`; fractional numbers are
 rejected because Python and `serde_json` do not guarantee identical spellings.
-Messages are rejected above 65,536 bytes.
+Messages are rejected above 65,536 bytes and documents deeper than 64 nested
+array/object levels are rejected before typed validation.
 
 ## Ambiguities discovered
 
@@ -64,3 +65,16 @@ Dependencies are exact-pinned in `Cargo.toml` and locked by `Cargo.lock`.
 CI produces a CycloneDX SBOM, runs formatting and Clippy with warnings denied,
 tests debug and release builds on Windows and Linux, and runs Python 3.12 and
 3.14 compatibility legs against the same fixture corpus.
+
+## Test coverage limits
+
+- JSON Schema validates document shape and RFC 3339 syntax. Cross-field time
+  ordering, current time, audience, destination generation, and external
+  payload digest remain runtime/context checks because JSON Schema cannot
+  establish those facts.
+- The deterministic corpus covers the message-size boundary, nesting boundary,
+  invalid UTF-8, duplicate keys at multiple levels, trailing data, unsupported
+  versions/schemas, numeric bounds, Unicode, response status, and corrected
+  cross-field rules. It is not an exhaustive byte-level fuzzer.
+- Windows and Python 3.14 evidence is produced by the dedicated GitHub matrix;
+  local validation in this development environment is Linux/Python 3.12.

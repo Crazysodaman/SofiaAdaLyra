@@ -68,7 +68,7 @@ jobs:
         with:
           toolchain: 1.85.1
       - uses: Swatinem/rust-cache@v2
-      - run: python -m pip install -e . pytest
+      - run: python -m pip install -e ".[rust-contract-tests]" pytest
       - run: cargo build --locked -p sofia-contracts --bin sofia-contract-tool
       - name: Cross-language corpus
         run: python -m pytest -q test/test_sdk_component_contracts.py test/test_sdk_rust_contract_compatibility.py

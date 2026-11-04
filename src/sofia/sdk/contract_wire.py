@@ -18,6 +18,7 @@ from .contracts import ComponentRequestEnvelope, ComponentResponseEnvelope
 
 
 MAX_MESSAGE_BYTES = 64 * 1024
+MAX_NESTING_DEPTH = 64
 SUPPORTED_PROTOCOL = "1.0"
 _PAYLOAD_TYPE = re.compile(r"^[a-z][a-z0-9_.-]{0,127}\.v[1-9][0-9]*$")
 
@@ -49,7 +50,7 @@ def loads_strict(raw: bytes) -> object:
     except UnicodeDecodeError as exc:
         raise ContractWireError("malformed_json", "contract message is not UTF-8") from exc
     try:
-        return json.loads(
+        value = json.loads(
             text,
             object_pairs_hook=_unique_object,
             parse_constant=lambda value: (_ for _ in ()).throw(
@@ -60,6 +61,18 @@ def loads_strict(raw: bytes) -> object:
         raise
     except (json.JSONDecodeError, RecursionError) as exc:
         raise ContractWireError("malformed_json", "contract message is invalid JSON") from exc
+    def check_depth(item: object, depth: int) -> None:
+        if depth > MAX_NESTING_DEPTH:
+            raise ContractWireError("malformed_json", "contract nesting exceeds 64 levels")
+        if isinstance(item, list):
+            for child in item:
+                check_depth(child, depth + 1)
+        elif isinstance(item, Mapping):
+            for child in item.values():
+                check_depth(child, depth + 1)
+
+    check_depth(value, 0)
+    return value
 
 
 def canonical_json_bytes(value: object) -> bytes:
