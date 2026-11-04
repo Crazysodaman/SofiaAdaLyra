@@ -58,8 +58,9 @@ behavior.
 | The repository has no Rust source or manifest | OBSERVED | No `Cargo.toml`, `.rs`, `.slint`, or Tauri configuration was found. Rust begins as a new workspace, not an extension of existing Rust. |
 | Python remains the only build root | OBSERVED | `pyproject.toml` builds `sofia-ada-lyra` and exposes `companion-runtime`; component-wheel generation is separately described by `packaging/components.toml`. |
 | Eight PRs are open and all are drafts | OBSERVED | Public PR list: #122–#128 and #133. They cover G7-A, G3–G7 audit fixes, and the 700-task ownership plan. The modernization must rebase around, not duplicate, those changes. |
-| Current main CI is not fully green | OBSERVED | Final public snapshot for this audit showed Platform Compatibility, Matrix, both Phase 00 jobs, multiple V18 gates, and Mentor jobs passing. Package jobs `pkg_ui`, `pkg_dev`, `pkg_know`, and `pkg_integrate` were failing. Package jobs `pkg_core`, `pkg_social`, `pkg_run`, `pkg_ops`, `pkg_safe`, and `pkg_verify`, both RC builds, and Manual Verification remained in progress. |
-| Exact final CI conclusion for the audited SHA | UNKNOWN | The public page was a live snapshot. Authenticated `gh` access is unavailable because the injected `GH_TOKEN` is invalid. Do not treat the snapshot as final certification. |
+| Exact-SHA package matrix is 15/22 green | OBSERVED | Completed run [`41827400956`](https://github.com/Crazysodaman/SofiaAdaLyra/actions/runs/41827400956) failed `pkg_social`, `pkg_core`, `pkg_ui`, `pkg_know`, `pkg_dev`, `pkg_safe`, and `pkg_integrate`; the other 15 jobs passed. All seven contain the same permission CLI failure: production denied a missing owner secret and returned status 2 while the test still expected `SystemExit`. `pkg_core` and `pkg_safe` also contain the same stale FIDO2-only error-message assertion. This is one shared owner-authentication/test-contract reconciliation blocker, not seven demonstrated package-specific defects. |
+| Windows RC, Debian RC, and Manual Verification failed | OBSERVED / INFERRED | Completed Windows run [`41827400858`](https://github.com/Crazysodaman/SofiaAdaLyra/actions/runs/41827400858) failed full verification; Debian run [`41827400887`](https://github.com/Crazysodaman/SofiaAdaLyra/actions/runs/41827400887) failed full installed-wheel verification; Manual run [`41827400879`](https://github.com/Crazysodaman/SofiaAdaLyra/actions/runs/41827400879) failed revision-pinned verification. Public annotations prove the failing steps and skipped downstream keyless jobs, but not their detailed cause. Attribution to the shared package mismatch remains INFERRED pending diagnostic-log review. |
+| Current exact-SHA release conclusion | OBSERVED | `bb1fd13b6abfabfe6d30c356d06ae8469533deac` is not release-certified: seven package legs and all three full verification jobs failed, and both RC keyless provenance jobs were skipped downstream. Passing workflows on the SHA do not override these failures. |
 | G8 production evidence | UNKNOWN / DEFERRED | Issue #129 says 16 physical acceptance items remain and production GO is not authorized. |
 
 ### Audit validation actually executed
@@ -74,8 +75,32 @@ behavior.
   replaced all seven infrastructure failures.
 - **OBSERVED:** no Rust tests were run because no Rust implementation exists and
   this assignment changes planning documents only.
+- **OBSERVED:** follow-up capture validation ran the three focused vision files
+  and produced **32 passed**. The two owner-authentication regressions were run
+  separately and produced the expected **2 failed** diagnostic reproduction;
+  they were not counted as a passing validation suite.
 - **UNKNOWN:** focused tests do not establish full-suite, installed-artifact,
   Windows-native, Debian RC, or G8 acceptance.
+
+### CI failure diagnosis and GO LIVE relationship
+
+The package evidence is **OBSERVED**. `permissions_cli.main()` intentionally
+catches authorization failures, emits a refusal, and returns `2`; the shared
+test still asserts that the function raises `SystemExit`. The missing owner
+secret was denied before any permission mutation. In `pkg_core` and `pkg_safe`,
+the protected-approval test expects the word `FIDO2`, while the current denial
+is “level-3+ execution requires freshly verified owner authentication.” A local
+two-test reproduction produced **2 failed** with these exact mismatches. This
+planning audit does not decide whether CLI compatibility or test expectations
+must change.
+
+The correction belongs to existing SAFE/GO LIVE work: reconcile the owner-secret
+and FIDO2 contract, document which protected actions require a physical key,
+preserve exact-action freshness and one-use binding, and rerun all 22 packages,
+both installed-wheel RCs, and Manual Verification on one SHA. No Rust phase may
+reinterpret this failure, relax SAFE, or substitute a Rust authentication path.
+The RC provenance skips are downstream missing evidence, not signing successes
+or independent signing defects.
 
 ### Open draft PR inventory
 
@@ -108,7 +133,7 @@ behavior.
 | Supervision | component/runtime supervisors, heartbeat, watchdog, Windows/systemd service adapters | Strong early Rust candidate after behavioral conformance | Durable STOP, lease epoch, generation, readiness, uncertain effects |
 | Configuration | typed defaults, roles, user settings, reviewed projections, saved/effective revisions | Rust config broker reads/writes through versioned API | Existing config and settings authority, secret references |
 | Current UI | Tk desktop, tray, settings, Core Link desktop/tray/control center | Remains fallback and oracle while Rust clients reach parity | Conversation, Core Link, SAFE/RUN, and state owners |
-| Screen permissions | SAFE capability catalog and UI proposal-only journey; no capture backend | UI broker can request consent but cannot capture until a real OS picker provider exists | SAFE exact scope and independently truthful capture receipt |
+| Screen capture | `ScreenCaptureService` plus `WindowsExactWindowCapture` provide a real one-shot, owner-approved exact-window backend; settings UI still exposes proposal preparation only | Preserve this backend as compatibility oracle and integrate through a broker only after equivalent consent, target, STOP, approval, and receipt checks | SAFE exact scope, owner authentication, local canonical state, STOP, foreground HWND/PID binding, digest-only receipt owner |
 
 ## 5. Documentation and code discrepancies
 
@@ -121,10 +146,43 @@ behavior.
 | Core worker is process-isolated for cognition, but imports Python Core engines from a Platform-owned module | OBSERVED | Move worker entrypoint and engine factory into the Core package; leave Platform with a protocol client and process supervisor. |
 | Core Link conversation service imports Core conversation implementation | OBSERVED | Split server adapter into Core-host composition; keep Core Link client and transport Platform-owned. |
 | The settings UI describes broad functionality, but a Core Link control center is presently read-only and only exposes selected settings snapshots | OBSERVED | Do not reproduce direct SQLite panels in Rust. Expand reviewed Platform query/command APIs by use case. |
-| Screen UI explicitly says “no capture yet” | OBSERVED | The approved “ask before capture” policy is a future provider requirement; no receipt may claim pixels today. |
+| Settings UI says it prepares consent without capturing, while a production capture CLI and backend exist | OBSERVED | The gap is UI/broker integration, not pixel acquisition. Never infer capture from the proposal UI; only a post-capture digest receipt can attest a frame. |
 | Existing quiet-hours settings govern ACT/outreach | OBSERVED | The approved Companion appearance policy has no quiet-hours restriction. Keep the policies separate rather than disabling ACT quiet hours. |
 | No implementation of the new five-per-day appearance cap, DND/lock suppression, or durable manual-hide latch was found | OBSERVED | Implement these in the UI broker, not in Companion rendering code. |
 | Documentation contains historical pass counts and older SHAs | OBSERVED | Use it for design provenance only. Current acceptance must bind the implementing SHA and artifacts. |
+
+### 5.1 Screen-capture capability correction
+
+**OBSERVED:** `ScreenCaptureService.capture_once` accepts an original typed
+screen journey request and nonempty approval ID. It supports one-shot snapshots
+for `LOOK_AT_WINDOW`, `SHOW_CHANGES`, and `NAVIGATE_GUIDANCE`; bounded follow is
+rejected. The target is local hostname plus foreground HWND and PID, with
+principal `person:sparks` and audience `local:text`. It rechecks STOP, permit
+freshness, workstation-clear state, and the foreground tuple around the one-use
+`screen.capture_once` execution approval and capture. PNG is bounded to 16 MiB,
+digest-verified, retained in memory, and represented in canonical SQLite by a
+digest-only receipt with no pixels.
+
+**OBSERVED:** `WindowsExactWindowCapture` uses Win32/GDI `PrintWindow` for one
+visible, titled exact HWND/PID after a topmost local YES/NO prompt. It caps the
+frame at 12 million pixels, encodes PNG in memory, and fails closed on changed
+foreground, hidden/titleless windows, invalid geometry, allocation/GDI failure,
+and oversized output. It is a custom confirmation path rather than the Windows
+Graphics Capture picker, and does not claim protected, accelerated, DRM, or
+black surfaces are readable.
+
+**OBSERVED:** `desktop_control_cli` is the current production composition. It
+requires an owner-invoked CLI, pre-inspected exact HWND/PID, owner authentication
+through `authorize_exact_action`, local canonical state, and the capture service.
+Optional local Ollama interpretation is untrusted and cannot execute tools.
+`settings_sections.py` prepares consent only; no tray, Workbench, or Core Link UI
+capture invocation was found.
+
+**INFERRED:** a Rust UI broker should call a narrow Platform capture service,
+not recreate consent or SAFE. **UNKNOWN:** live Venus behavior, physical
+owner-secret/FIDO2 flows, DPI/multi-monitor and focus races, protected surfaces,
+lock transitions, model quality, and broker/Workbench integration remain
+unverified and become candidate/G8 evidence only when included.
 
 ## 6. Target ownership
 
@@ -238,7 +296,7 @@ it cannot open a window directly.
 | Event | Broker rule |
 |---|---|
 | Companion autonomous appearance | Conditional; admit only an eligible Core proposal and all Platform gates |
-| Workbench opening | Always ask first; no autonomous open |
+| Workbench opening | A direct authenticated user launch opens directly; every Core-initiated opening requires explicit permission and cannot be inferred from conversational assent |
 | Screen perception | Ask before every capture authority grant; selection must be explicit and scoped |
 | Daily autonomous Companion limit | Maximum 5 admitted appearances per local calendar day; manual opens do not consume the autonomous quota |
 | Quiet hours | No restriction for this Companion appearance policy |
@@ -247,10 +305,23 @@ it cannot open a window directly.
 | Manual hide | Set a durable latch; block autonomous reopening until an explicit reset action |
 | Receipts | Record proposed, suppressed/denied, window-created, visible, animation-started/completed/cancelled, capture-authorized/captured/failed, execution-dispatched/verified/uncertain separately |
 
-The date boundary must use a configured local timezone and survive restart.
-Clock rollback must not replenish quota; retain monotonic counter evidence for
-the active date window. Policy reset is an authenticated Platform setting
-mutation, not a renderer callback.
+Quota enforcement is a durable broker state machine. In one transaction it
+reserves a slot before window creation, keyed by idempotency identity, and counts
+`RESERVED`, `VISIBLE`, and `UNCERTAIN` slots so concurrent requests cannot
+oversubscribe. A renderer/OS acknowledgment bound to window, session, host, and
+broker generation moves it to `VISIBLE`; window creation alone does not. A
+failure proven before possible visibility moves it to `RELEASED`. A crash,
+timeout, or ambiguous result after creation moves it to `UNCERTAIN` and consumes
+quota until reconciliation proves visibility or no effect. Duplicates return
+the existing reservation and receipt rather than consume another slot.
+
+The broker reloads and reconciles reservations after restart. Date boundaries
+use configured local timezone, last accepted wall-clock boundary, and persisted
+monotonic/boot evidence. Clock rollback cannot replenish quota or release
+uncertain reservations; forward jumps and timezone changes require auditable
+boundary transitions. Suppression proven before reservation consumes no quota.
+User-initiated manual opens do not use autonomous quota. Policy and manual-hide
+reset are authenticated Platform setting mutations, not renderer callbacks.
 
 ### 9.3 Truthful receipts
 
@@ -268,9 +339,9 @@ the Core or UI client.
 - **Companion:** separately startable, lightweight presentation window; broker
   can create or hide it under policy; it consumes expression and animation
   contracts only.
-- **Workbench:** explicit owner-opened operational UI for conversation,
-  settings, receipts, Fleet/module status, and reviewed actions. It asks before
-  opening even when Core suggests it.
+- **Workbench:** an authenticated user launch is direct. A Core proposal must
+  obtain explicit permission for that opening. Protected operations inside it
+  still pass SAFE; opening permission grants no action authority.
 
 ## 10. Tauri versus Slint
 
@@ -375,6 +446,23 @@ Each numbered item is a separate reviewable PR unless explicitly split further.
 
 **Rollback:** remove Rust artifacts; Python behavior is untouched.
 
+**Proposed first implementation PR scope:** add only the pinned Rust workspace,
+`sofia-contracts`, language-neutral schemas, reviewed types, canonical positive
+and negative fixtures, compatibility manifest, build metadata, SBOM/dependency
+policy, and Python↔Rust codec/validator harness. Owner authentication is an
+opaque typed evidence reference and policy requirement; the PR does not choose,
+implement, or bypass owner-secret or FIDO2. It contains no UI, transport,
+service/process manager, database access, SAFE decision, STOP writer, capture,
+state mutation, installer activation, or production feature flag.
+
+**Phase 1 test matrix:** Windows and Linux; pinned stable Rust; supported Python
+versions in current CI; debug/release; fmt, clippy, unit/doc, dependency/license/
+advisory checks; bidirectional golden round trips; unknown versions/fields,
+malformed encoding, duplicate keys, bounds, oversized payloads, digest mismatch,
+deadline/timezone, identity/audience/generation/idempotency confusion; previous
+minor acceptance and next-major rejection; deterministic property/fuzz seeds;
+Core-asset/secret absence, reproducible digest, and exact-SHA provenance.
+
 ### Phase 2 — read-only Core Link client
 
 1. Implement Rust status and conversation-read client against the existing
@@ -469,9 +557,9 @@ security review, shadow comparison, crash injection, and rollback.
 | Boundary | Minimum acceptance |
 |---|---|
 | Core Link | pinned mTLS; wrong CA/host/Core/generation; revocation; deadline; duplicate; oversized; partition/reconnect; history continuity |
-| UI broker | 0–5 autonomous appearances; sixth denied; date/restart/clock rollback; manual-hide latch/reset; lock/DND suppression; no quiet-hours gate; concurrent clients |
-| Workbench | ask required; denial; stale answer; broker restart; no direct SAFE/state access |
-| Screen | no pixels before exact consent; target/session/expiry binding; one-use; cancel; lock; DND as policy specifies; truthful capture/failure receipt |
+| UI broker | atomic 0–5 reservations; concurrent sixth denied; visible acknowledgment; proven-before-effect release; uncertainty reconciliation; duplicate idempotency; restart/date/timezone/clock rollback; manual-hide latch/reset; lock/DND suppression; no quiet-hours gate |
+| Workbench | direct user launch; explicit permission for Core-initiated launch; denial; stale answer; broker restart; no direct SAFE/state access; opening grants no protected action |
+| Screen | Python exact-window backend remains oracle; no pixels before exact consent; target/session/expiry binding; one-use; cancel; lock; truthful receipt; UI cannot synthesize capture |
 | Receipts | request is not visible/rendered/captured/executed; forged/stale/wrong-host/wrong-generation receipts denied |
 | Supervision | durable STOP; service stop distinction; stale supervisor cannot kill new generation; frozen/crashed child; DB readiness; bounded shutdown |
 | Configuration | schema parity; invalid/unknown field; saved/effective revision; secret reference; compensation; concurrent update |
@@ -485,6 +573,16 @@ dedicated required compatibility workflow, then add Rust-mode legs to G2/G4/G5
 and RC workflows at phase exits. Package matrix selection must make Rust crates
 visible without turning optional UI work into a blocker before its declared
 gate. Exact-SHA Windows and Debian installed-artifact RCs remain final evidence.
+
+### Rust acceptance gate separation
+
+Rust uses separate gates: **R0** plan approval, **R1** contract conformance,
+**R2** read-only client, **R3** broker/tray, **R4** Companion, **R5** Workbench,
+**R6** Platform service/transport slices, and **R7** replacement acceptance.
+They do not close, replace, or block G0–G7/G7-A or G8 while Rust is outside the
+candidate. Once a release explicitly includes a Rust slice, that exact artifact
+must repeat every affected GO LIVE gate and later physical G8 case. Historical
+Python acceptance cannot certify Rust; Rust planning cannot claim existing items.
 
 ## 15. Rollback strategy
 
@@ -519,12 +617,16 @@ approved dual-version migration strategy.
   candidates unless they directly close an already-open requirement without
   expanding risk.
 - No Rust plan item closes a checklist entry by design alone.
+- R-gates remain separate from #120 until an owner-reviewed release candidate
+  explicitly includes the corresponding Rust slice.
 
 ### Issue #129 / G8
 
 - **OBSERVED:** G8 remains NOT STARTED/NO PRODUCTION GO with 16 physical criteria.
 - Rust replacement adds Windows/Linux UI, service, reconnect, rollback, mTLS,
   resource, and real-render/capture acceptance cases; it removes none.
+- Until a candidate includes Rust, these are R-gate tests and do not alter the
+  16 deferred G8 items.
 - Real Venus lock/DND behavior, transparent Companion behavior, notification
   area, display scaling, GPU contention, capture picker, sleep/reboot, and
   Venus-to-Artemis continuity remain G8 evidence.
@@ -547,7 +649,11 @@ approved dual-version migration strategy.
 
 ## 17. Unresolved decisions and dependencies
 
-1. **UNKNOWN:** final CI state for `bb1fd13b`; current snapshot was incomplete.
+1. Resolve the observed owner-secret/FIDO2/CLI test-contract mismatch and obtain
+   green exact-SHA package, Manual, and installed-wheel RC evidence. Decide which
+   protected actions require physical FIDO2 versus another fresh owner secret.
+   Preserve one-use exact-action binding, SAFE, and STOP; Rust only consumes the
+   reconciled contract.
 2. **UNKNOWN:** final disposition and merge order for draft PRs #122–#128/#133.
 3. Define the local authenticated IPC transport for Rust clients: named pipe on
    Windows, Unix domain socket on Linux, peer credential verification, and
@@ -568,7 +674,18 @@ approved dual-version migration strategy.
 12. Establish signed cross-language compatibility manifests and deprecation
     duration before any protocol version is retired.
 
-## 18. Recommendation
+## 18. Follow-up discrepancy closure
+
+| Required correction | Closure | Remaining evidence |
+|---|---|---|
+| Capture described as absent | Corrected to the one-shot exact-window service, Windows backend, CLI composition, local assumptions, and UI gap | Live Windows, physical authentication, display/focus edges, integrated UI |
+| CI snapshot incomplete | Added completed run links; seven package failures reduce to shared auth test-contract mismatches; RC/Manual failures recorded | RC diagnostic logs needed before common cause is OBSERVED |
+| Quota transaction semantics absent | Added reservation, acknowledgment, release, uncertainty, concurrency, restart, and clock rules | Durable namespace and OS visibility probe |
+| Workbench always asked | Direct user launch is direct; Core opening requires explicit permission | Authenticated prompt/receipt UX |
+| Rust/release gates conflated | Added R0–R7 and explicit candidate-inclusion rule | Future release scope decision |
+| Owner authentication implicit | Added owner-secret/FIDO2 reconciliation dependency without changing SAFE/STOP | Security decision and green evidence |
+
+## 19. Recommendation
 
 Approve the architecture direction and Phase 1 only after current GO LIVE work
 has an explicit scheduling boundary. The first implementation PR should contain

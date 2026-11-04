@@ -13,6 +13,7 @@ is an inspection map, not acceptance evidence for an unexecuted Rust system.
 - `src/sofia/platform/verify/component_artifacts.py`
 - `.github/workflows/compatibility.yml`
 - `.github/workflows/package-tests.yml`
+- `.github/workflows/manual-verify.yml`
 - `.github/workflows/release-candidate.yml`
 - `.github/workflows/debian-release-candidate.yml`
 - `.github/workflows/g4-core-link-pr.yml`
@@ -98,6 +99,20 @@ is an inspection map, not acceptance evidence for an unexecuted Rust system.
 - `src/sofia/modules/ui/avatar2d_renderer.py`
 - `src/sofia/modules/ui/avatar3d_renderer.py`
 
+## Screen capture and owner authorization follow-up
+
+- `src/sofia/modules/vision/capture.py`
+- `src/sofia/modules/vision/windows_capture.py`
+- `src/sofia/modules/vision/consent.py`
+- `src/sofia/modules/vision/desktop_control_cli.py`
+- `src/sofia/modules/vision/linux_capture.py`
+- `src/sofia/modules/ui/settings_sections.py`
+- `src/sofia/platform/safe/owner_browser.py`
+- `src/sofia/platform/safe/owner_secret.py`
+- `src/sofia/platform/safe/owner_webauthn.py`
+- `src/sofia/platform/safe/permissions_cli.py`
+- `src/sofia/platform/safe/execution_approval.py`
+
 ## Focused existing tests inspected
 
 - `test/test_sdk_component_contracts.py`
@@ -116,6 +131,10 @@ is an inspection map, not acceptance evidence for an unexecuted Rust system.
 - `test/test_ui_tray_lifecycle.py`
 - `test/test_ui_windows_startup.py`
 - `test/test_screen_capability_authority.py`
+- `test/test_vision_action_workflow.py`
+- `test/test_vision_cross_platform.py`
+- `test/test_permission_runtime_wiring.py`
+- `test/test_safe_owner_webauthn.py`
 - `test/test_canonical_sqlite_protection.py`
 - `test/test_memory_canonical_state_fencing.py`
 - `test/test_state_replication.py`
@@ -133,3 +152,20 @@ is an inspection map, not acceptance evidence for an unexecuted Rust system.
 
 These counts are bound to the audited commit and must be refreshed after the
 open development PRs change `main`.
+
+## Exact-SHA CI evidence refreshed 2026-11-04 UTC
+
+- Package matrix run `41827400956`: 15 passed jobs; failed `pkg_social`,
+  `pkg_core`, `pkg_ui`, `pkg_know`, `pkg_dev`, `pkg_safe`, `pkg_integrate`.
+- Windows RC run `41827400858`: full revision-bound verification failed;
+  downstream keyless provenance skipped.
+- Debian RC run `41827400887`: full installed-wheel verification failed;
+  downstream keyless provenance skipped.
+- Manual Verification run `41827400879`: revision-pinned verification failed.
+- Local focused reproduction of the permission CLI and protected approval
+  tests: **2 failed**, with CLI return/exception and generalized-owner-auth/
+  FIDO2 message-contract mismatches respectively.
+
+Public workflow annotations establish the RC/Manual failing steps, but their
+diagnostic logs were not independently available. Attribution of those three
+jobs to the shared package mismatch remains **INFERRED**, not observed.
