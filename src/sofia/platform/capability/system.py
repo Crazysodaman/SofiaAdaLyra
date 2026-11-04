@@ -1,4 +1,5 @@
 ﻿from collections.abc import Callable
+import threading
 from typing import Any
 
 from sofia.platform.capability.model import (
@@ -43,6 +44,10 @@ class CapabilitySystem:
             str,
             tuple[Capability, CapabilityHandler],
         ] = {}
+        # Registration may race with module activation and dispatch from
+        # concurrent RUN workers; dictionary mutation/iteration safety is
+        # required without changing any authorization semantics.
+        self._lock = threading.RLock()
         self._authorization_checker = authorization_checker
 
     def register(
@@ -56,26 +61,43 @@ class CapabilitySystem:
         if not callable(handler):
             raise TypeError("handler must be callable.")
 
-        if capability.name in self._capabilities:
-            raise ValueError(
-                f"Capability already registered: {capability.name}"
-            )
+        with self._lock:
+            if capability.name in self._capabilities:
+                raise ValueError(
+                    f"Capability already registered: {capability.name}"
+                )
 
-        self._capabilities[capability.name] = (
-            capability,
-            handler,
-        )
+            self._capabilities[capability.name] = (
+                capability,
+                handler,
+            )
 
     def register_batch(
         self,
         registrations: tuple[tuple[Capability, CapabilityHandler], ...],
     ) -> None:
         """Register one module's capabilities atomically in memory."""
-        self.validate_batch(registrations)
-        self._capabilities.update(
-            (capability.name, (capability, handler))
-            for capability, handler in registrations
-        )
+        if type(registrations) is not tuple or not registrations:
+            raise ValueError("registrations must be a nonempty tuple")
+        names: list[str] = []
+        for capability, handler in registrations:
+            if not isinstance(capability, Capability):
+                raise TypeError("capability must be a Capability")
+            if not callable(handler):
+                raise TypeError("handler must be callable")
+            names.append(capability.name)
+        if len(names) != len(set(names)):
+            raise ValueError("batch contains duplicate capability names")
+        with self._lock:
+            conflicts = sorted(set(names) & set(self._capabilities))
+            if conflicts:
+                raise ValueError(
+                    f"Capabilities already registered: {', '.join(conflicts)}"
+                )
+            self._capabilities.update(
+                (capability.name, (capability, handler))
+                for capability, handler in registrations
+            )
 
     def validate_batch(
         self,
@@ -93,7 +115,8 @@ class CapabilitySystem:
             names.append(capability.name)
         if len(names) != len(set(names)):
             raise ValueError("batch contains duplicate capability names")
-        conflicts = sorted(set(names) & set(self._capabilities))
+        with self._lock:
+            conflicts = sorted(set(names) & set(self._capabilities))
         if conflicts:
             raise ValueError(
                 f"Capabilities already registered: {', '.join(conflicts)}"
@@ -106,35 +129,38 @@ class CapabilitySystem:
         """Remove exactly a previously registered batch, never look-alikes."""
         if type(registrations) is not tuple or not registrations:
             raise ValueError("registrations must be a nonempty tuple")
-        for capability, handler in registrations:
-            current = self._capabilities.get(capability.name)
-            if current is None or current[0] != capability or current[1] is not handler:
-                raise RuntimeError(
-                    "capability batch changed; refusing partial unregister"
-                )
-        for capability, _ in registrations:
-            del self._capabilities[capability.name]
+        with self._lock:
+            for capability, handler in registrations:
+                current = self._capabilities.get(capability.name)
+                if current is None or current[0] != capability or current[1] is not handler:
+                    raise RuntimeError(
+                        "capability batch changed; refusing partial unregister"
+                    )
+            for capability, _ in registrations:
+                del self._capabilities[capability.name]
 
     def capabilities(self) -> tuple[Capability, ...]:
         """Return the registered canonical capability descriptors."""
-        return tuple(
-            self._capabilities[name][0]
-            for name in sorted(self._capabilities)
-        )
+        with self._lock:
+            names = tuple(sorted(self._capabilities))
+            capabilities = tuple(
+                self._capabilities[name][0] for name in names
+            )
+        return capabilities
 
     def capability_names(self) -> tuple[str, ...]:
         """Return registered capability names in stable order."""
         return tuple(capability.name for capability in self.capabilities())
 
     def resolve(self, name: str) -> Capability:
-        try:
-            capability, _ = self._capabilities[name]
-        except KeyError as exc:
+        with self._lock:
+            entry = self._capabilities.get(name)
+        if entry is None:
             raise CapabilityResolutionError(
                 f"Unknown capability: {name}"
-            ) from exc
+            )
 
-        return capability
+        return entry[0]
 
     def execute(self, request: CapabilityRequest) -> CapabilityResult:
         if not isinstance(request, CapabilityRequest):
@@ -155,18 +181,16 @@ class CapabilitySystem:
                 error="Dispatch context capability does not match request.",
             )
 
-        try:
-            registered_capability, handler = self._capabilities[
-                capability_name
-            ]
-        except KeyError:
+        with self._lock:
+            handler_entry = self._capabilities.get(capability_name)
+        if handler_entry is None:
             return CapabilityResult(
                 capability=capability_name,
                 kind=CapabilityResultKind.UNAVAILABLE,
                 evidence=None,
                 error=f"Unknown capability: {capability_name}",
             )
-
+        registered_capability, handler = handler_entry
         if request.capability != registered_capability:
             return CapabilityResult(
                 capability=capability_name,

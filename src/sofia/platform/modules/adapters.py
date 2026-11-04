@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import re
+import threading
 
 from sofia.platform.capability.model import Capability
 from sofia.platform.capability.system import CapabilityHandler
@@ -155,38 +156,47 @@ class AdapterFactoryRegistry:
 
     def __init__(self) -> None:
         self._factories: dict[str, ReviewedAdapterFactory] = {}
+        # Factory registration can race coordinated resolve/dispatch from
+        # module operations; avoid dictionary mutation during iteration.
+        self._lock = threading.RLock()
 
     def register(self, factory: ReviewedAdapterFactory) -> None:
         if not isinstance(factory, ReviewedAdapterFactory):
             raise TypeError("factory must implement ReviewedAdapterFactory")
         contract = factory.contract
-        if contract.factory_id in self._factories:
-            if self._factories[contract.factory_id] is factory:
-                return
-            raise ValueError("adapter factory identity already registered")
-        self._factories[contract.factory_id] = factory
+        with self._lock:
+            if contract.factory_id in self._factories:
+                if self._factories[contract.factory_id] is factory:
+                    return
+                raise ValueError("adapter factory identity already registered")
+            self._factories[contract.factory_id] = factory
 
     def contracts(self) -> tuple[AdapterFactoryContract, ...]:
-        return tuple(
-            self._factories[key].contract for key in sorted(self._factories)
-        )
+        with self._lock:
+            return tuple(
+                self._factories[key].contract for key in sorted(self._factories)
+            )
 
     def resolve(
         self, *, module_id: str, package_digest: str,
         profile: OperationProfileKind, component_id: str,
         host_identity: str,
     ) -> ReviewedAdapterFactory:
-        matches = []
-        for factory in self._factories.values():
-            contract = factory.contract
-            if (
-                contract.module_id == module_id
-                and package_digest in contract.package_digests
-                and component_id in contract.component_ids
-                and profile in contract.profiles
-                and (not contract.host_bindings or host_identity in contract.host_bindings)
-            ):
-                matches.append(factory)
+        with self._lock:
+            matches = []
+            for factory in self._factories.values():
+                contract = factory.contract
+                if (
+                    contract.module_id == module_id
+                    and package_digest in contract.package_digests
+                    and component_id in contract.component_ids
+                    and profile in contract.profiles
+                    and (
+                        not contract.host_bindings
+                        or host_identity in contract.host_bindings
+                    )
+                ):
+                    matches.append(factory)
         if not matches:
             raise LookupError("no reviewed adapter factory matches exact module context")
         if len(matches) != 1:
