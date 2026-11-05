@@ -116,6 +116,8 @@ class CoreLinkClientAccess:
         moment = _utc(now, "now")
         if self.revoked_at is not None:
             raise PermissionError("Core Link client access is revoked")
+        if moment < _utc(self.enrolled_at, "enrolled_at"):
+            raise PermissionError("Core Link client enrollment is not yet active")
         if moment >= _utc(self.expires_at, "expires_at"):
             raise PermissionError("Core Link client access expired")
         if scope not in self.scopes:
@@ -244,8 +246,10 @@ class CoreLinkClientAccessStore:
             access = self._decode(row)
         except (TypeError, ValueError):
             return None
-        if access.revoked_at is not None or moment >= access.expires_at.astimezone(
-            timezone.utc
+        if (
+            access.revoked_at is not None
+            or moment < _utc(access.enrolled_at, "enrolled_at")
+            or moment >= _utc(access.expires_at, "expires_at")
         ):
             return None
         return access
