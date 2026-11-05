@@ -58,11 +58,17 @@ def installed_core_release_digest(package_root: Path | None = None) -> str:
     Bytecode/cache files are execution artifacts rather than release inputs.
     Symlinks are rejected so a digest can never attest to a redirected tree.
     """
-    root = (
-        package_root.resolve()
-        if package_root is not None
-        else Path(__file__).resolve().parents[2]
-    )
+    if package_root is not None:
+        # Do not resolve an explicitly supplied installed package root before
+        # checking it: resolve() hides a symlink/junction at the root itself.
+        # The caller must attest to real installed bytes, not a redirected tree.
+        if package_root.is_symlink() or (
+            hasattr(package_root, "is_junction") and package_root.is_junction()
+        ):
+            raise CoreWorkerError("installed Sofía package root is a symlink or junction")
+        root = package_root.resolve()
+    else:
+        root = Path(__file__).resolve().parents[2]
     if not root.is_dir():
         raise FileNotFoundError("installed Sofía package root is missing")
     digest = sha256()
