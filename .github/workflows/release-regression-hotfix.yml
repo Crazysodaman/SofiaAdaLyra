@@ -7,6 +7,7 @@ on:
       - "test/test_life_procedure_catalog.py"
       - "test/test_life_postrun_verification.py"
       - "test/test_presence_initiative.py"
+      - "test/test_life_project_forge.py"
       - ".github/workflows/release-regression-hotfix.yml"
   workflow_dispatch:
 
@@ -37,5 +38,6 @@ jobs:
           test/test_run_effect_broker.py
           test/test_life_procedure_catalog.py::test_catalog_writer_rejects_stale_bytes_even_when_original_run_was_completed
           test/test_life_postrun_verification.py
+          test/test_life_project_forge.py::test_independent_failed_artifact_critique_accepts_exact_failure
           test/test_presence_initiative.py::test_life_outreach_operator_stop_after_model_choice_is_honored
           test/test_presence_initiative.py::test_verified_personal_life_work_can_start_owner_conversation
