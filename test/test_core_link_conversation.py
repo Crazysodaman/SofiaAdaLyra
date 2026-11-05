@@ -1,6 +1,7 @@
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from ipaddress import ip_address
+import json
 from pathlib import Path
 import threading
 from uuid import uuid4
@@ -837,3 +838,101 @@ def test_core_link_revoked_during_tls_setup_cannot_send_http(
         assert current.selected() is None
     else:
         assert current.selected().state is CoreLinkBindingState.OFFLINE
+
+
+@pytest.mark.parametrize("new_state", [
+    CoreLinkBindingState.OFFLINE,
+    CoreLinkBindingState.REVOKED,
+])
+def test_core_link_revoked_during_http_processing_never_delivers_response(
+    monkeypatch, tmp_path, new_state,
+):
+    """TLS and POST may succeed before an owner revokes the selected binding.
+
+    This deliberately simulates that exact race with no real socket or model.
+    It prevents delivering data after revocation, but does not claim that
+    the already-sent request was atomically cancelled by the host.
+    """
+    from types import SimpleNamespace
+    import sofia.platform.core_link.transport as transport
+    from test.test_core_link_binding import activate, store
+
+    registry = store(tmp_path)
+    selected = registry.select(
+        "binding:sofia-primary", expected_store_revision=activate(registry).revision,
+    )
+    binding = selected.selected()
+    assert binding is not None
+    endpoint = CoreLinkEndpoint(binding.endpoint_id, "localhost", 443)
+    client = PinnedCoreLinkClient(
+        registry, endpoint_resolver=lambda _id: endpoint,
+        credential_resolver=lambda _ref: CoreLinkTLSCredentials(
+            tmp_path / "ca.pem", tmp_path / "client.pem", tmp_path / "client.key",
+        ),
+        timeout_seconds=3,
+    )
+    original = CoreLinkRequest(
+        request_id="request:response-revocation",
+        idempotency_key="idempotency:response-revocation",
+        local_platform_id=binding.local_platform_id,
+        remote_platform_id=binding.remote_platform_id,
+        remote_core_identity_id=binding.remote_core_identity_id,
+        remote_core_generation=binding.remote_core_generation,
+        operation="status", payload={},
+        created_at=NOW, deadline=NOW + timedelta(minutes=1),
+    )
+    posted, closed = [], []
+    completed_response = CoreLinkResponse(
+        original.request_id, CoreLinkResponseStatus.COMPLETED,
+        {"ready": True}, NOW,
+    )
+    encoded = json.dumps(completed_response.to_payload()).encode("utf-8")
+
+    class ConnectionWithMidflightRevocation:
+        def __init__(self, *_args, **_kwargs):
+            self.sock = SimpleNamespace(getpeercert=lambda binary_form: b"der")
+
+        def connect(self):
+            return None
+
+        def request(self, method, *_args, **_kwargs):
+            posted.append(method)
+
+        def getresponse(self):
+            current = registry.load()
+            active = current.selected()
+            assert active is not None
+            registry.transition(
+                active.binding_id,
+                expected_binding_revision=active.revision,
+                expected_store_revision=current.revision,
+                state=new_state,
+                at=NOW + timedelta(seconds=8),
+            )
+            return SimpleNamespace(
+                status=200,
+                read=lambda _maximum: encoded,
+            )
+
+        def close(self):
+            closed.append(True)
+
+    monkeypatch.setattr(
+        transport, "HTTPSConnection", ConnectionWithMidflightRevocation,
+    )
+    monkeypatch.setattr(
+        PinnedCoreLinkClient, "_context", staticmethod(lambda _credentials: object()),
+    )
+    monkeypatch.setattr(
+        transport, "public_key_fingerprint_from_der_certificate",
+        lambda _cert: "a" * 64,
+    )
+    with pytest.raises(CoreLinkTransportError, match="changed before response acceptance"):
+        client.request(original)
+    assert posted == ["POST"]
+    assert closed == [True]
+    after = registry.load().selected()
+    if new_state is CoreLinkBindingState.REVOKED:
+        assert after is None
+    else:
+        assert after.state is CoreLinkBindingState.OFFLINE
