@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'docs/sofia2/V18_700_TASK_OWNER_CROSSWALK_2026-11-02.csv'
+      - 'docs/sofia2/CA700_CANONICAL_IDS.txt'
       - 'tools/hybrid_700_reconciliation.py'
       - 'test/test_hybrid_700_reconciliation.py'
       - '.github/workflows/hybrid-700-reconciliation.yml'
