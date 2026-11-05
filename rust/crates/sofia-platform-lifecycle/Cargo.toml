@@ -1,0 +1,11 @@
+[package]
+name = "sofia-platform-lifecycle"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Non-authoritative R6-R7 process observations and hybrid release decision contracts"
+publish = false
+
+[lints]
+workspace = true
