@@ -298,11 +298,12 @@ pub struct CoreLinkClient {
 }
 
 impl CoreLinkClient {
-    /// Constructs an HTTPS-only client from an active enrolled binding.
+    /// Constructs the internal pinned HTTPS transport. Only the authorized
+    /// wrapper exposes production dispatch after fresh owner enrollment.
     ///
     /// # Errors
     /// Returns an error for an invalid binding, certificate, key, trust anchor, or TLS configuration.
-    pub fn new(
+    fn new(
         binding: EnrolledBinding,
         credentials: &TlsCredentials,
         timeout: StdDuration,
@@ -380,11 +381,12 @@ impl CoreLinkClient {
         Ok(Self { binding, client })
     }
 
-    /// Executes exactly one read-only request without automatic retry.
+    /// Executes one pinned read-only request, reachable only after a fresh
+    /// authorization check in `AuthorizedCoreLinkClient` outside diagnostic mode.
     ///
     /// # Errors
     /// Fails closed on binding, deadline, TLS, pin, HTTP, size, or response validation errors.
-    pub fn execute(&self, request: &Request, now: DateTime<Utc>) -> Result<Response, Error> {
+    fn execute(&self, request: &Request, now: DateTime<Utc>) -> Result<Response, Error> {
         if !self.binding.active {
             return Err(Error::RevokedBinding);
         }
@@ -437,6 +439,34 @@ impl CoreLinkClient {
             return Err(Error::BindingMismatch);
         }
         Ok(response)
+    }
+
+    /// Construct a pinned transport for the explicitly enabled compatibility
+    /// probe. The production SDK does not expose this unchecked constructor.
+    ///
+    /// # Errors
+    /// Rejects invalid TLS credentials, endpoint, protocol or host pin.
+    #[cfg(feature = "diagnostic-probe")]
+    pub fn diagnostic_new(
+        binding: EnrolledBinding,
+        credentials: &TlsCredentials,
+        timeout: StdDuration,
+    ) -> Result<Self, Error> {
+        Self::new(binding, credentials, timeout)
+    }
+
+    /// Execute test-only mTLS read probes without canonical enrollment.
+    /// Never enable `diagnostic-probe` in production Platform builds.
+    ///
+    /// # Errors
+    /// Refuses malformed requests, mismatched bindings, TLS and HTTP failures.
+    #[cfg(feature = "diagnostic-probe")]
+    pub fn diagnostic_execute(
+        &self,
+        request: &Request,
+        now: DateTime<Utc>,
+    ) -> Result<Response, Error> {
+        self.execute(request, now)
     }
 }
 
