@@ -23,15 +23,24 @@ REQUIRED_FIELDS = frozenset({
     "source_alignment",
 })
 ID_REGISTER = SOURCE.with_name("CA700_CANONICAL_IDS.txt")
-EXPECTED_IDS = {
-    row.strip()
-    for row in ID_REGISTER.read_text(encoding="utf-8").splitlines()
-    if row.strip() and not row.lstrip().startswith("#")
-}
-if len(EXPECTED_IDS) != 700 or any(
-    re.fullmatch(r"CA-\d{3,4}", task_id) is None for task_id in EXPECTED_IDS
-):
-    raise ValueError("audited CA700 ID manifest must contain 700 unique phase IDs")
+
+
+def load_expected_ids(path: Path = ID_REGISTER) -> frozenset[str]:
+    """Require 700 exact, nonduplicated audited identities in the manifest."""
+    rows = [
+        row.strip()
+        for row in path.read_text(encoding="utf-8").splitlines()
+        if row.strip() and not row.lstrip().startswith("#")
+    ]
+    unique = frozenset(rows)
+    if len(rows) != 700 or len(unique) != 700 or any(
+        re.fullmatch(r"CA-\d{3,4}", task_id) is None for task_id in rows
+    ):
+        raise ValueError("audited CA700 ID manifest must contain 700 unique phase IDs")
+    return unique
+
+
+EXPECTED_IDS = load_expected_ids()
 CANDIDATE_LAYER = {
     "CORE": "PYTHON_COGNITION_CORE",
     "PLATFORM": "RUST_PLATFORM_OR_REVIEWED_PYTHON_BOUNDARY",
@@ -48,7 +57,9 @@ def reconcile(source: Path = SOURCE) -> dict:
     """
     with source.open("r", encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
-        if reader.fieldnames is None or not REQUIRED_FIELDS <= set(reader.fieldnames):
+        # The column must exist even though 396 original source anchors are blank.
+        required_columns = REQUIRED_FIELDS | {"source_anchor"}
+        if reader.fieldnames is None or not required_columns <= set(reader.fieldnames):
             raise ValueError("CA source crosswalk is missing required columns")
         rows = list(reader)
 
