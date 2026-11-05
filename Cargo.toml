@@ -1,5 +1,5 @@
 [workspace]
-members = ["rust/crates/sofia-contracts", "rust/crates/sofia-core-link"]
+members = ["rust/crates/sofia-contracts", "rust/crates/sofia-core-link", "rust/crates/sofia-ui-broker"]
 resolver = "2"
 
 [workspace.package]

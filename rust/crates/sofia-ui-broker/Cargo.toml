@@ -1,0 +1,11 @@
+[package]
+name = "sofia-ui-broker"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Authority-free R3-R5 UI broker policy and contract foundation"
+publish = false
+
+[lints]
+workspace = true
