@@ -556,9 +556,21 @@ impl AuthorizedCoreLinkClient {
         Ok(())
     }
 
-    /// Re-reads canonical enrollment immediately before each read-only HTTP
-    /// request. The owner must enforce revocation and selection atomically;
-    /// no credential, grant or permission is ever accepted from wire JSON.
+    // Never release a response after the owner revokes or reselects the
+    // binding while the remote host is processing the admitted request.
+    // This does not cancel already-admitted host work.
+    fn accept_checked_response(
+        &self,
+        response: Response,
+        authority: &impl BindingAuthority,
+    ) -> Result<Response, Error> {
+        self.assert_current(authority)?;
+        Ok(response)
+    }
+
+    /// Re-reads canonical enrollment before each read-only HTTP request and
+    /// again before releasing its response. The host must still enforce
+    /// revocation and dispatch atomically; wire JSON cannot grant authority.
     ///
     /// # Errors
     /// Fails closed on removed/changed selection, generation, pin, endpoint
@@ -570,7 +582,8 @@ impl AuthorizedCoreLinkClient {
         authority: &impl BindingAuthority,
     ) -> Result<Response, Error> {
         self.assert_current(authority)?;
-        self.transport.execute(request, now)
+        let response = self.transport.execute(request, now)?;
+        self.accept_checked_response(response, authority)
     }
 }
 
