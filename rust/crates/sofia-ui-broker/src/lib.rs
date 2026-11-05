@@ -503,6 +503,89 @@ mod tests {
     }
 
     #[test]
+    fn restored_ledger_preserves_uncertain_quota_and_owner_hide() {
+        let mut broker = BrokerState::new(7, "2026-11-04".into()).unwrap();
+        for i in 0..DAILY_AUTONOMOUS_LIMIT {
+            broker
+                .reserve_autonomous(appearance(&format!("request:{i}"), "2026-11-04"), IDLE)
+                .unwrap();
+        }
+        broker
+            .mark_visible("request:0", "host:venus", "session:owner", 7)
+            .unwrap();
+        broker.set_manual_hide(true);
+        let persisted = broker.reservations();
+        let mut restarted = BrokerState::restore(
+            8,
+            "2026-11-03".into(),
+            broker.owner_hidden(),
+            persisted,
+        )
+        .unwrap();
+        assert_eq!(restarted.last_accepted_day(), "2026-11-04");
+        assert!(restarted.owner_hidden());
+        assert_eq!(restarted.reserved_or_uncertain_count("2026-11-04"), 5);
+        assert!(restarted
+            .reservations()
+            .iter()
+            .all(|row| row.state == SlotState::Uncertain));
+        assert_eq!(
+            restarted.reserve_autonomous(appearance("request:rollback", "2026-11-03"), IDLE),
+            Err(BrokerError::StaleGeneration)
+        );
+        restarted.set_manual_hide(false);
+        let mut extra = appearance("request:extra", "2026-11-04");
+        extra.broker_generation = 8;
+        assert_eq!(
+            restarted.reserve_autonomous(extra, IDLE),
+            Ok(Admission::Suppressed(Suppression::DailyLimit))
+        );
+        assert_eq!(restarted.reserved_or_uncertain_count("2026-11-04"), 5);
+    }
+
+    #[test]
+    fn corrupted_restore_cannot_reset_or_exceed_quota() {
+        let item = appearance("request:one", "2026-11-04");
+        assert_eq!(
+            BrokerState::restore(
+                7, "2026-11-04".into(), false, vec![item.clone(), item.clone()],
+            )
+            .unwrap_err(),
+            BrokerError::RequestCollision
+        );
+        let mut wrong_generation = item.clone();
+        wrong_generation.broker_generation = 8;
+        assert_eq!(
+            BrokerState::restore(7, "2026-11-04".into(), false, vec![wrong_generation])
+                .unwrap_err(),
+            BrokerError::InvalidIdentity
+        );
+        let mut malformed = item;
+        malformed.host_id = "bad\nidentity".into();
+        assert_eq!(
+            BrokerState::restore(7, "2026-11-04".into(), false, vec![malformed])
+                .unwrap_err(),
+            BrokerError::InvalidIdentity
+        );
+        let over_limit: Vec<Appearance> = (0..6)
+            .map(|i| appearance(&format!("request:{i}"), "2026-11-04"))
+            .collect();
+        assert_eq!(
+            BrokerState::restore(7, "2026-11-04".into(), false, over_limit).unwrap_err(),
+            BrokerError::InvalidIdentity
+        );
+        let mut prior = appearance("request:prior", "2026-11-04");
+        prior.broker_generation = 6;
+        prior.state = SlotState::Released;
+        assert_eq!(
+            BrokerState::restore(7, "2026-11-04".into(), false, vec![prior])
+                .unwrap()
+                .reserved_or_uncertain_count("2026-11-04"),
+            0
+        );
+    }
+
+    #[test]
     fn request_collision_and_wrong_generation_are_rejected() {
         let mut broker = BrokerState::new(7, "2026-11-04".into()).unwrap();
         broker
