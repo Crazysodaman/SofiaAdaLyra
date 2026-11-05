@@ -235,12 +235,37 @@ pub struct TrayProjection {
 
 fn valid_day(value: &str) -> bool {
     let b = value.as_bytes();
-    b.len() == 10
-        && b[4] == b'-'
-        && b[7] == b'-'
-        && b.iter()
+    if b.len() != 10
+        || b[4] != b'-'
+        || b[7] != b'-'
+        || !b
+            .iter()
             .enumerate()
             .all(|(i, byte)| i == 4 || i == 7 || byte.is_ascii_digit())
+    {
+        return false;
+    }
+    // Lexicographic rollback protection is sound only for real ISO dates.
+    // A bogus future day must not permanently poison the appearance quota.
+    let (Ok(year), Ok(month), Ok(day)) = (
+        value[..4].parse::<u16>(),
+        value[5..7].parse::<u8>(),
+        value[8..].parse::<u8>(),
+    ) else {
+        return false;
+    };
+    if year == 0 {
+        return false;
+    }
+    let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let max_day = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap => 29,
+        2 => 28,
+        _ => return false,
+    };
+    (1..=max_day).contains(&day)
 }
 
 #[cfg(test)]
@@ -359,6 +384,33 @@ mod tests {
         assert!(!BrokerState::new(7, "2026-11-04".into())
             .unwrap()
             .manual_open_allowed(false));
+    }
+
+    #[test]
+    fn rejects_nonexistent_calendar_days_before_mutating_quota() {
+        assert!(valid_day("2028-02-29"));
+        assert!(valid_day("2000-02-29"));
+        for invalid in [
+            "2026-02-29", "2100-02-29", "2026-04-31", "2026-00-10",
+            "2026-13-01", "2026-11-00", "2026-11-32", "0000-01-01",
+            "2026-1-05", "2026-11-0x",
+        ] {
+            assert!(!valid_day(invalid), "{invalid} must be refused");
+        }
+        assert_eq!(
+            BrokerState::new(7, "9999-99-99".into()).unwrap_err(),
+            BrokerError::InvalidIdentity
+        );
+        let mut broker = BrokerState::new(7, "2026-11-04".into()).unwrap();
+        assert_eq!(
+            broker.reserve_autonomous(appearance("request:bad", "2026-02-29"), IDLE),
+            Err(BrokerError::InvalidIdentity)
+        );
+        assert_eq!(broker.reserved_or_uncertain_count("2026-11-04"), 0);
+        assert_eq!(
+            broker.reserve_autonomous(appearance("request:good", "2026-11-04"), IDLE),
+            Ok(Admission::Reserved)
+        );
     }
 
     #[test]
