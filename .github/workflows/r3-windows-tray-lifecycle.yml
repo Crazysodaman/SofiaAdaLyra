@@ -1,0 +1,35 @@
+name: R3 Windows Tray Lifecycle
+
+on:
+  pull_request:
+    paths:
+      - "src/sofia/modules/ui/windows_tray.py"
+      - "test/test_ui_windows_tray.py"
+      - ".github/workflows/r3-windows-tray-lifecycle.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tray:
+    name: Tray shutdown contract / ${{ matrix.os }} / Python 3.12
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-24.04]
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install package and test runner
+        run: python -m pip install -e . pytest
+      - name: Test tray thread lifecycle, timeout and restart isolation
+        run: python -m pytest -q test/test_ui_windows_tray.py
