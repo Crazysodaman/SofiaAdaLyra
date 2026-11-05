@@ -97,10 +97,7 @@ impl Supervision {
     /// # Errors
     /// Denies uncertain/active/draining workers, reused/older/zero generations
     /// and an initial launch with no previous independent stopped witness.
-    pub fn note_restart_prepared(
-        &mut self,
-        next_generation: u64,
-    ) -> Result<(), LifecycleError> {
+    pub fn note_restart_prepared(&mut self, next_generation: u64) -> Result<(), LifecycleError> {
         if self.phase != ProcessPhase::Stopped || self.last_observation_sequence == 0 {
             return Err(LifecycleError::InvalidTransition);
         }
