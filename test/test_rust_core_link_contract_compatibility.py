@@ -70,7 +70,11 @@ def test_rust_read_only_client_uses_disposable_python_mtls_server(tmp_path: Path
     ca, (server_cert, server_key), (client_cert, client_key) = tls_material(tmp_path)
 
     class Gateway:
+        def __init__(self):
+            self.request_count = 0
+
         def dispatch(self, *, certificate_public_key_sha256, request):
+            self.request_count += 1
             assert certificate_public_key_sha256 == public_key_fingerprint_from_pem_certificate(client_cert)
             assert request.operation in {"status", "conversation.history"}
             payload = (
@@ -92,11 +96,12 @@ def test_rust_read_only_client_uses_disposable_python_mtls_server(tmp_path: Path
         def close(self):
             return None
 
+    gateway = Gateway()
     server = CoreLinkServer(
         CoreLinkServerConfiguration(
             "127.0.0.1", 0, server_cert, server_key, ca, socket_timeout_seconds=3
         ),
-        Gateway(),
+        gateway,
     )
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -145,7 +150,10 @@ def test_rust_read_only_client_uses_disposable_python_mtls_server(tmp_path: Path
             bad_pin_args, check=False, capture_output=True, text=True, timeout=10,
         )
         assert rejected.returncode != 0
-        assert "request does not match enrolled binding" in rejected.stderr
+        assert "Core Link authentication or connection failed" in rejected.stderr
+        # Wrong enrolled host pin must abort during TLS handshake: the
+        # disposable Python server must never see its HTTP request.
+        assert gateway.request_count == 2
     finally:
         server.close()
         thread.join(timeout=3)
