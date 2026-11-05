@@ -339,6 +339,15 @@ class PinnedCoreLinkClient:
                 raise CoreLinkTransportError("Core Link response request identity mismatch")
             if response.protocol != binding.protocol_version:
                 raise CoreLinkTransportError("Core Link response protocol mismatch")
+            # A binding can be revoked after POST while the host processes
+            # an already-admitted request. Do not deliver its response using
+            # the now-stale selection, even if the host finished successfully.
+            # Server-side dispatch still requires independent atomic fencing.
+            current = self.binding_store.load().selected()
+            if current is None or current.state is not CoreLinkBindingState.ACTIVE or current != binding:
+                raise CoreLinkTransportError(
+                    "selected Core Link binding changed before response acceptance"
+                )
             return response
         except (OSError, ssl.SSLError) as exc:
             raise CoreLinkTransportError("Core Link connection failed") from exc
