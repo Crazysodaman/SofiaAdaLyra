@@ -37,10 +37,28 @@ fn run() -> Result<(), String> {
     let response = client
         .execute(&request, now)
         .map_err(|error| error.to_string())?;
-    println!(
-        "{}",
-        serde_json::to_string(&response.payload).map_err(|_| "response serialization failed")?
-    );
+    // Diagnostic output intentionally excludes private message content and Core state.
+    // The probe reports only the requested operation, outcome and message count.
+    if response.status != "completed" {
+        return Err("Core Link read did not complete".into());
+    }
+    let summary = if args.len() == 11 {
+        let count = response.payload["messages"]
+            .as_array()
+            .ok_or("history response is missing messages")?
+            .len();
+        serde_json::json!({
+            "operation": "conversation.history",
+            "status": response.status,
+            "message_count": count,
+        })
+    } else {
+        serde_json::json!({
+            "operation": "status",
+            "status": response.status,
+        })
+    };
+    println!("{summary}");
     Ok(())
 }
 
