@@ -5,7 +5,9 @@ import csv
 
 import pytest
 
-from tools.hybrid_700_reconciliation import EXPECTED_IDS, SOURCE, reconcile
+from tools.hybrid_700_reconciliation import (
+    EXPECTED_IDS, ID_REGISTER, SOURCE, load_expected_ids, reconcile,
+)
 
 
 def test_all_700_owner_assignments_are_preserved_without_acceptance():
@@ -72,3 +74,28 @@ def test_missing_source_anchor_remains_unknown_not_missing_task(tmp_path):
     assert result["count"] == 700
     assert result["tasks"][0]["source_anchor_present"] is False
     assert result["tasks"][0]["accepted"] is False
+
+
+def test_canonical_manifest_duplicates_are_not_hidden_by_set_deduplication(tmp_path):
+    lines = ID_REGISTER.read_text(encoding="utf-8").splitlines()
+    positions = [index for index, line in enumerate(lines) if line.startswith("CA-")]
+    assert len(positions) == 700
+    lines[positions[-1]] = lines[positions[0]]
+    edited = tmp_path / "duplicate-ids.txt"
+    edited.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="700 unique"):
+        load_expected_ids(edited)
+
+
+def test_missing_anchor_column_is_not_accepted_as_blank_anchor(tmp_path):
+    with SOURCE.open(encoding="utf-8-sig", newline="") as handle:
+        reader = csv.DictReader(handle)
+        fields = [field for field in (reader.fieldnames or []) if field != "source_anchor"]
+        rows = list(reader)
+    target = tmp_path / "missing-column.csv"
+    with target.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(rows)
+    with pytest.raises(ValueError, match="required columns"):
+        reconcile(target)
