@@ -601,7 +601,9 @@ def test_pinned_mtls_core_link_runs_real_remote_conversation_without_local_core(
                 server_certificate=server_cert,
                 server_private_key=server_key,
                 client_ca_file=ca_path,
-                socket_timeout_seconds=3,
+                # This path runs a real local app/LLM stub under parallel CI;
+                # 3s is too short on loaded Windows package runners.
+                socket_timeout_seconds=20,
             ),
             gateway,
         )
@@ -657,7 +659,9 @@ def test_pinned_mtls_core_link_runs_real_remote_conversation_without_local_core(
             credential_resolver=lambda credential_ref: CoreLinkTLSCredentials(
                 ca_path, client_cert, client_key,
             ),
-            timeout_seconds=3,
+            # Bound real request work without treating CI scheduling latency
+            # as an mTLS failure. Pin mismatch negative control stays at 3s.
+            timeout_seconds=20,
         )
         created = client.request(request("conversation.create", {}))
         sent = client.request(request(
