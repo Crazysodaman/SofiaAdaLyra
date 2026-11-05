@@ -76,7 +76,11 @@ def test_rust_read_only_client_uses_disposable_python_mtls_server(tmp_path: Path
             payload = (
                 {"ready": True, "generation": 7}
                 if request.operation == "status"
-                else {"session_id": "session:existing", "messages": [], "next_cursor": None}
+                else {
+                    "session_id": "session:existing",
+                    "messages": [{"content": "PRIVATE_HISTORY_DO_NOT_LOG"}],
+                    "next_cursor": None,
+                }
             )
             return CoreLinkResponse(
                 request.request_id,
@@ -116,15 +120,25 @@ def test_rust_read_only_client_uses_disposable_python_mtls_server(tmp_path: Path
             timeout=10,
         )
         assert result.returncode == 0, result.stderr
-        assert json.loads(result.stdout) == {"generation": 7, "ready": True}
+        assert json.loads(result.stdout) == {
+            "operation": "status",
+            "status": "completed",
+        }
+        assert "ready" not in result.stdout
+        assert "generation" not in result.stdout
         history = subprocess.run(
             result.args + ["session:existing"], check=False, capture_output=True,
             text=True, timeout=10,
         )
         assert history.returncode == 0, history.stderr
         assert json.loads(history.stdout) == {
-            "messages": [], "next_cursor": None, "session_id": "session:existing"
+            "operation": "conversation.history",
+            "status": "completed",
+            "message_count": 1,
         }
+        assert "PRIVATE_HISTORY_DO_NOT_LOG" not in history.stdout
+        assert "PRIVATE_HISTORY_DO_NOT_LOG" not in history.stderr
+        assert "session:existing" not in history.stdout
         bad_pin_args = list(result.args)
         bad_pin_args[2] = "0" * 64
         rejected = subprocess.run(
