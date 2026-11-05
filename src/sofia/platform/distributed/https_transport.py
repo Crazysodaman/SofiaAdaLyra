@@ -160,6 +160,8 @@ class PinnedHttpsRemoteTransport(RemoteTransport):
         return result
 
     def execute(self,enrollment:NodeEnrollment,request:RemoteOperationRequest)->RemoteOperationResult:
+        if request.node_id!=enrollment.node.node_id:
+            raise HttpsTransportError("operation request node does not match enrollment")
         payload={
             "request_id":str(request.request_id),
             "node_id":str(request.node_id),
@@ -178,7 +180,7 @@ class PinnedHttpsRemoteTransport(RemoteTransport):
         data=self._request(enrollment,"POST","/v1/operations",payload)
         if not isinstance(data,dict): raise HttpsTransportError("invalid remote operation response")
         try:
-            return RemoteOperationResult(
+            result=RemoteOperationResult(
                 request_id=UUID(data["request_id"]),
                 node_id=UUID(data["node_id"]),
                 outcome=RemoteOutcome(data["outcome"]),
@@ -186,6 +188,9 @@ class PinnedHttpsRemoteTransport(RemoteTransport):
             )
         except (KeyError,TypeError,ValueError) as exc:
             raise HttpsTransportError("invalid remote operation result payload") from exc
+        if result.request_id!=request.request_id or result.node_id!=request.node_id:
+            raise HttpsTransportError("remote operation response identity mismatch")
+        return result
 
     def host_effect(self,enrollment:NodeEnrollment,dispatch_id:str)->dict[str,Any]:
         """Read an integrity-checked effect row from the pinned mTLS host."""

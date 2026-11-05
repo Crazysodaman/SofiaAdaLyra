@@ -13,6 +13,7 @@ from sofia.platform.distributed.https_transport import (
 from sofia.platform.distributed.model import (
     DistributedNode, NodeEndpoint, NodeEnrollment, NodeTransport,
 )
+from sofia.platform.distributed.operations import RemoteOperationRequest
 
 
 def _request(monkeypatch, body, status=200, *, pin_matches=True):
@@ -82,3 +83,35 @@ def test_pin_failure_never_reads_response(monkeypatch):
         request()
     assert reads == []
     assert closed == [True]
+
+
+@pytest.mark.parametrize("wrong_field", ["request_id", "node_id"])
+def test_operation_response_must_match_exact_request_and_node(wrong_field):
+    node_id = uuid4()
+    enrollment = NodeEnrollment(
+        DistributedNode(node_id, "test peer"), "a" * 64,
+        datetime.now(timezone.utc), "test owner",
+    )
+    operation = RemoteOperationRequest(uuid4(), node_id, uuid4(), "system.inspect", "system", {})
+    response = {
+        "request_id": str(operation.request_id), "node_id": str(node_id),
+        "outcome": "reported_success", "message": "observed",
+    }
+    transport = object.__new__(PinnedHttpsRemoteTransport)
+    transport._request = lambda *args: response
+    assert transport.execute(enrollment, operation).request_id == operation.request_id
+    response[wrong_field] = str(uuid4())
+    with pytest.raises(HttpsTransportError, match="response identity mismatch"):
+        transport.execute(enrollment, operation)
+
+
+def test_operation_for_foreign_node_never_reaches_transport():
+    enrollment = NodeEnrollment(
+        DistributedNode(uuid4(), "test peer"), "a" * 64,
+        datetime.now(timezone.utc), "test owner",
+    )
+    operation = RemoteOperationRequest(uuid4(), uuid4(), uuid4(), "system.inspect", "system", {})
+    transport = object.__new__(PinnedHttpsRemoteTransport)
+    transport._request = lambda *args: pytest.fail("foreign node reached network")
+    with pytest.raises(HttpsTransportError, match="does not match enrollment"):
+        transport.execute(enrollment, operation)
