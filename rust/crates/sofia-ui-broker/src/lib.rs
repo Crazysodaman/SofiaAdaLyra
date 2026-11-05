@@ -97,6 +97,80 @@ impl BrokerState {
         })
     }
 
+    /// Recover a complete ledger previously read by a trusted Platform
+    /// storage adapter. This function neither loads bytes nor authenticates
+    /// the storage source; callers must fail closed if that durable source is
+    /// missing, corrupt, or incomplete.
+    ///
+    /// Any reserved/visible appearance from before restart remains uncertain
+    /// and keeps its quota slot. A previous generation can never be used to
+    /// claim a new visible receipt, and the watermark cannot move backwards.
+    ///
+    /// # Errors
+    /// Refuses invalid identity/day, impossible future generation, duplicate
+    /// request IDs, or a ledger that already exceeds the daily hard limit.
+    pub fn restore(
+        generation: u64,
+        last_accepted_day: String,
+        owner_hidden: bool,
+        records: Vec<Appearance>,
+    ) -> Result<Self, BrokerError> {
+        let mut broker = Self::new(generation, last_accepted_day)?;
+        broker.owner_hidden = owner_hidden;
+        for mut item in records {
+            if !valid_appearance_id(&item.request_id)
+                || !valid_appearance_id(&item.host_id)
+                || !valid_appearance_id(&item.session_id)
+                || !valid_day(&item.local_day)
+                || item.broker_generation == 0
+                || item.broker_generation > generation
+            {
+                return Err(BrokerError::InvalidIdentity);
+            }
+            if matches!(item.state, SlotState::Reserved | SlotState::Visible) {
+                item.state = SlotState::Uncertain;
+            }
+            if item.local_day > broker.last_accepted_day {
+                broker.last_accepted_day.clone_from(&item.local_day);
+            }
+            if broker
+                .reservations
+                .insert(item.request_id.clone(), item)
+                .is_some()
+            {
+                return Err(BrokerError::RequestCollision);
+            }
+        }
+        let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
+        for item in broker.reservations.values() {
+            if item.state != SlotState::Released {
+                let count = counts.entry(item.local_day.as_str()).or_default();
+                *count += 1;
+                if *count > DAILY_AUTONOMOUS_LIMIT {
+                    return Err(BrokerError::InvalidIdentity);
+                }
+            }
+        }
+        Ok(broker)
+    }
+
+    /// Immutable restored reservation projection for the trusted journal
+    /// adapter to persist. This is not authorization to release a slot.
+    #[must_use]
+    pub fn reservations(&self) -> Vec<Appearance> {
+        self.reservations.values().cloned().collect()
+    }
+
+    #[must_use]
+    pub fn last_accepted_day(&self) -> &str {
+        &self.last_accepted_day
+    }
+
+    #[must_use]
+    pub fn owner_hidden(&self) -> bool {
+        self.owner_hidden
+    }
+
     #[must_use]
     pub fn reserved_or_uncertain_count(&self, day: &str) -> usize {
         self.reservations
@@ -480,6 +554,86 @@ mod tests {
             Ok(Admission::Reserved)
         );
         assert_eq!(broker.reserved_or_uncertain_count("2026-11-04"), 1);
+    }
+
+    #[test]
+    fn restored_ledger_preserves_uncertain_quota_and_owner_hide() {
+        let mut broker = BrokerState::new(7, "2026-11-04".into()).unwrap();
+        for i in 0..DAILY_AUTONOMOUS_LIMIT {
+            broker
+                .reserve_autonomous(appearance(&format!("request:{i}"), "2026-11-04"), IDLE)
+                .unwrap();
+        }
+        broker
+            .mark_visible("request:0", "host:venus", "session:owner", 7)
+            .unwrap();
+        broker.set_manual_hide(true);
+        let persisted = broker.reservations();
+        let mut restarted =
+            BrokerState::restore(8, "2026-11-03".into(), broker.owner_hidden(), persisted).unwrap();
+        assert_eq!(restarted.last_accepted_day(), "2026-11-04");
+        assert!(restarted.owner_hidden());
+        assert_eq!(restarted.reserved_or_uncertain_count("2026-11-04"), 5);
+        assert!(restarted
+            .reservations()
+            .iter()
+            .all(|row| row.state == SlotState::Uncertain));
+        assert_eq!(
+            restarted.reserve_autonomous(appearance("request:rollback", "2026-11-03"), IDLE),
+            Err(BrokerError::StaleGeneration)
+        );
+        restarted.set_manual_hide(false);
+        let mut extra = appearance("request:extra", "2026-11-04");
+        extra.broker_generation = 8;
+        assert_eq!(
+            restarted.reserve_autonomous(extra, IDLE),
+            Ok(Admission::Suppressed(Suppression::DailyLimit))
+        );
+        assert_eq!(restarted.reserved_or_uncertain_count("2026-11-04"), 5);
+    }
+
+    #[test]
+    fn corrupted_restore_cannot_reset_or_exceed_quota() {
+        let item = appearance("request:one", "2026-11-04");
+        assert_eq!(
+            BrokerState::restore(
+                7,
+                "2026-11-04".into(),
+                false,
+                vec![item.clone(), item.clone()],
+            )
+            .unwrap_err(),
+            BrokerError::RequestCollision
+        );
+        let mut wrong_generation = item.clone();
+        wrong_generation.broker_generation = 8;
+        assert_eq!(
+            BrokerState::restore(7, "2026-11-04".into(), false, vec![wrong_generation])
+                .unwrap_err(),
+            BrokerError::InvalidIdentity
+        );
+        let mut malformed = item;
+        malformed.host_id = "bad\nidentity".into();
+        assert_eq!(
+            BrokerState::restore(7, "2026-11-04".into(), false, vec![malformed]).unwrap_err(),
+            BrokerError::InvalidIdentity
+        );
+        let over_limit: Vec<Appearance> = (0..6)
+            .map(|i| appearance(&format!("request:{i}"), "2026-11-04"))
+            .collect();
+        assert_eq!(
+            BrokerState::restore(7, "2026-11-04".into(), false, over_limit).unwrap_err(),
+            BrokerError::InvalidIdentity
+        );
+        let mut prior = appearance("request:prior", "2026-11-04");
+        prior.broker_generation = 6;
+        prior.state = SlotState::Released;
+        assert_eq!(
+            BrokerState::restore(7, "2026-11-04".into(), false, vec![prior])
+                .unwrap()
+                .reserved_or_uncertain_count("2026-11-04"),
+            0
+        );
     }
 
     #[test]
