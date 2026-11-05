@@ -467,7 +467,7 @@ pub trait BindingAuthority {
     fn selected_binding(&self) -> Result<CurrentEnrollment, Error>;
 }
 
-/// Production-facing read-only client. The legacy CoreLinkClient is retained
+/// Production-facing read-only client. The legacy `CoreLinkClient` is retained
 /// for disposable compatibility probes but cannot establish fresh enrollment.
 pub struct AuthorizedCoreLinkClient {
     transport: CoreLinkClient,
