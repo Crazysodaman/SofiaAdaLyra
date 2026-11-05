@@ -141,19 +141,25 @@ pub enum ReleaseBlocker {
     RealHostShakedownUnverified,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EvidenceState {
+    Verified,
+    Missing,
+}
+
 /// Receipts must be populated by independent release and host verifiers.
 /// None of these boolean fields is a signed grant or authorization to act.
 #[derive(Debug, Clone)]
 pub struct HybridReleaseEvidence {
     pub source_sha: String,
-    pub separate_installed_artifacts_verified: bool,
-    pub single_writer_and_fencing_verified: bool,
-    pub security_revocation_verified: bool,
-    pub windows_release_candidate_verified: bool,
-    pub debian_release_candidate_verified: bool,
-    pub rollback_verified: bool,
-    pub owner_approved: bool,
-    pub real_host_shakedown_verified: bool,
+    pub separate_installed_artifacts_verified: EvidenceState,
+    pub single_writer_and_fencing_verified: EvidenceState,
+    pub security_revocation_verified: EvidenceState,
+    pub windows_release_candidate_verified: EvidenceState,
+    pub debian_release_candidate_verified: EvidenceState,
+    pub rollback_verified: EvidenceState,
+    pub owner_approved: EvidenceState,
+    pub real_host_shakedown_verified: EvidenceState,
 }
 
 impl HybridReleaseEvidence {
@@ -170,28 +176,28 @@ impl HybridReleaseEvidence {
         {
             blockers.push(ReleaseBlocker::InvalidSourceRevision);
         }
-        if !self.separate_installed_artifacts_verified {
+        if self.separate_installed_artifacts_verified != EvidenceState::Verified {
             blockers.push(ReleaseBlocker::SeparateInstalledArtifactsUnverified);
         }
-        if !self.single_writer_and_fencing_verified {
+        if self.single_writer_and_fencing_verified != EvidenceState::Verified {
             blockers.push(ReleaseBlocker::CanonicalWriterOrFenceUnverified);
         }
-        if !self.security_revocation_verified {
+        if self.security_revocation_verified != EvidenceState::Verified {
             blockers.push(ReleaseBlocker::SecurityAndRevocationUnverified);
         }
-        if !self.windows_release_candidate_verified {
+        if self.windows_release_candidate_verified != EvidenceState::Verified {
             blockers.push(ReleaseBlocker::WindowsReleaseCandidateUnverified);
         }
-        if !self.debian_release_candidate_verified {
+        if self.debian_release_candidate_verified != EvidenceState::Verified {
             blockers.push(ReleaseBlocker::DebianReleaseCandidateUnverified);
         }
-        if !self.rollback_verified {
+        if self.rollback_verified != EvidenceState::Verified {
             blockers.push(ReleaseBlocker::RollbackUnverified);
         }
-        if !self.owner_approved {
+        if self.owner_approved != EvidenceState::Verified {
             blockers.push(ReleaseBlocker::OwnerApprovalMissing);
         }
-        if !self.real_host_shakedown_verified {
+        if self.real_host_shakedown_verified != EvidenceState::Verified {
             blockers.push(ReleaseBlocker::RealHostShakedownUnverified);
         }
         blockers
@@ -260,14 +266,14 @@ mod tests {
     fn incomplete_hybrid_release_is_never_accepted() {
         let evidence = HybridReleaseEvidence {
             source_sha: "a".repeat(40),
-            separate_installed_artifacts_verified: true,
-            single_writer_and_fencing_verified: false,
-            security_revocation_verified: false,
-            windows_release_candidate_verified: true,
-            debian_release_candidate_verified: false,
-            rollback_verified: false,
-            owner_approved: false,
-            real_host_shakedown_verified: false,
+            separate_installed_artifacts_verified: EvidenceState::Verified,
+            single_writer_and_fencing_verified: EvidenceState::Missing,
+            security_revocation_verified: EvidenceState::Missing,
+            windows_release_candidate_verified: EvidenceState::Verified,
+            debian_release_candidate_verified: EvidenceState::Missing,
+            rollback_verified: EvidenceState::Missing,
+            owner_approved: EvidenceState::Missing,
+            real_host_shakedown_verified: EvidenceState::Missing,
         };
         let blockers = evidence.assess();
         assert!(blockers.contains(&ReleaseBlocker::CanonicalWriterOrFenceUnverified));
@@ -282,14 +288,14 @@ mod tests {
     fn release_assessment_rejects_unknown_revision_even_with_all_flags() {
         let evidence = HybridReleaseEvidence {
             source_sha: "unverified".into(),
-            separate_installed_artifacts_verified: true,
-            single_writer_and_fencing_verified: true,
-            security_revocation_verified: true,
-            windows_release_candidate_verified: true,
-            debian_release_candidate_verified: true,
-            rollback_verified: true,
-            owner_approved: true,
-            real_host_shakedown_verified: true,
+            separate_installed_artifacts_verified: EvidenceState::Verified,
+            single_writer_and_fencing_verified: EvidenceState::Verified,
+            security_revocation_verified: EvidenceState::Verified,
+            windows_release_candidate_verified: EvidenceState::Verified,
+            debian_release_candidate_verified: EvidenceState::Verified,
+            rollback_verified: EvidenceState::Verified,
+            owner_approved: EvidenceState::Verified,
+            real_host_shakedown_verified: EvidenceState::Verified,
         };
         assert_eq!(
             evidence.assess(),
