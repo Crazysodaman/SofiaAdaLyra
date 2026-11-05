@@ -1,0 +1,37 @@
+name: Hybrid owner proof regression
+
+on:
+  pull_request:
+    paths:
+      - 'test/test_permission_runtime_wiring.py'
+      - 'test/test_safe_owner_webauthn.py'
+      - '.github/workflows/hybrid-owner-proof-regressions.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  owner-proof:
+    name: Owner authentication (Python 3.12 / ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-24.04]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install test environment
+        run: python -m pip install -e ".[rust-contract-tests]" pytest
+      - name: Verify failed owner attempts never create authority
+        run: >-
+          python -m pytest -q
+          test/test_permission_runtime_wiring.py::test_permissions_cli_grant_list_revoke_and_private
+          test/test_safe_owner_webauthn.py::test_protected_approval_requires_one_fresh_owner_security_key_proof
+          test/test_safe_owner_secret.py

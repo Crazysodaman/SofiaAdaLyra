@@ -818,17 +818,18 @@ def test_named_domain_permission_contract_is_locked():
 def test_permissions_cli_grant_list_revoke_and_private(tmp_path, capsys):
     state = tmp_path / "sofia.db"
 
-    # A CLI command cannot manufacture the owner's FIDO2 ceremony from
-    # a display name. Noninteractive scripts must not acquire standing grants.
-    with pytest.raises(SystemExit) as missing_credential:
-        permissions_cli_main([
-            "--state-path", str(state),
-            "grant",
-            "portainer.container.restart",
-            "--scope-json", '{"container_id":"mealie"}',
-        ])
-    assert missing_credential.value.code == 2
-    assert "--credential-id" in capsys.readouterr().err
+    # Noninteractive scripts cannot manufacture an attended 256-bit owner
+    # secret or an enrolled WebAuthn assertion. The CLI returns a denied
+    # status without creating any standing grant.
+    result = permissions_cli_main([
+        "--state-path", str(state),
+        "grant",
+        "portainer.container.restart",
+        "--scope-json", '{"container_id":"mealie"}',
+    ])
+    assert result == 2
+    assert "owner secret not enrolled" in capsys.readouterr().err
+    assert PermissionStore(state).grants(active_only=True) == ()
 
     # The canonical store is tested through a genuinely signed synthetic
     # WebAuthn assertion, not by bypassing owner authentication.
