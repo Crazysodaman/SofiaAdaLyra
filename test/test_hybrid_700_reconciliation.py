@@ -29,6 +29,30 @@ def test_all_700_owner_assignments_are_preserved_without_acceptance():
     assert sum(projection["original_coding_status_counts"].values()) == 700
 
 
+def test_phase_rollup_preserves_all_tasks_and_never_infers_acceptance():
+    projection = reconcile()
+    phases = projection["phase_rollup"]
+    assert set(phases) == {f"{number:02d}" for number in range(17)}
+    assert phases["00"]["tasks"] == 65
+    assert phases["06"]["tasks"] == 73
+    assert phases["16"]["tasks"] == 12
+    assert sum(item["tasks"] for item in phases.values()) == 700
+    assert sum(item["source_anchors_missing"] for item in phases.values()) == 396
+    assert sum(item["unmapped_to_go_live_gate"] for item in phases.values()) == 700
+    assert sum(item["accepted"] for item in phases.values()) == 0
+    counts = {}
+    for item in phases.values():
+        for status, count in item["historical_coding_status_counts"].items():
+            counts[status] = counts.get(status, 0) + count
+    assert counts == projection["original_coding_status_counts"]
+    assert counts == {
+        "CODED_SOURCE_EVIDENCE": 118,
+        "PARTIAL_SOURCE_EVIDENCE": 189,
+        "SUPERSEDED": 3,
+        "UNVERIFIED": 390,
+    }
+
+
 def _mutate_source(tmp_path, modify):
     with SOURCE.open(encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
