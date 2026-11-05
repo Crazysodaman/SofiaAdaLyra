@@ -4,7 +4,12 @@
 use chrono::{DateTime, Duration, Utc};
 use regex::Regex;
 use reqwest::blocking::Client;
-use reqwest::{Certificate, Identity, StatusCode, Url};
+use reqwest::{StatusCode, Url};
+use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
+use rustls::client::WebPkiServerVerifier;
+use rustls::pki_types::{pem::PemObject, CertificateDer, PrivateKeyDer, ServerName, UnixTime};
+use rustls::{DigitallySignedStruct, RootCertStore, SignatureScheme};
+use std::sync::Arc;
 use serde::de::{self, Deserializer, MapAccess, SeqAccess, Visitor};
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
@@ -227,6 +232,67 @@ impl Request {
     }
 }
 
+
+/// Enforce the existing Python Core Link SPKI pin *during* TLS certificate
+/// validation, before reqwest can transmit an HTTP request on that connection.
+/// The standard verifier must still validate hostname, CA chain and validity.
+#[derive(Debug)]
+struct PinnedServerVerifier {
+    standard: Arc<dyn ServerCertVerifier>,
+    sha256: String,
+}
+
+impl ServerCertVerifier for PinnedServerVerifier {
+    fn verify_server_cert(
+        &self,
+        end_entity: &CertificateDer<'_>,
+        intermediates: &[CertificateDer<'_>],
+        server_name: &ServerName<'_>,
+        ocsp_response: &[u8],
+        now: UnixTime,
+    ) -> Result<ServerCertVerified, rustls::Error> {
+        let verified = self.standard.verify_server_cert(
+            end_entity,
+            intermediates,
+            server_name,
+            ocsp_response,
+            now,
+        )?;
+        let (_, certificate) = parse_x509_certificate(end_entity.as_ref())
+            .map_err(|_| rustls::Error::General("invalid Core Link host certificate".into()))?;
+        // Python's certificate pin hashes DER SubjectPublicKeyInfo, not the leaf.
+        let observed = format!("{:x}", Sha256::digest(certificate.public_key().raw));
+        if observed != self.sha256 {
+            return Err(rustls::Error::General(
+                "Core Link host public-key pin mismatch".into(),
+            ));
+        }
+        Ok(verified)
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, rustls::Error> {
+        self.standard.verify_tls12_signature(message, cert, dss)
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, rustls::Error> {
+        self.standard.verify_tls13_signature(message, cert, dss)
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
+        self.standard.supported_verify_schemes()
+    }
+}
+
 pub struct CoreLinkClient {
     binding: EnrolledBinding,
     client: Client,
@@ -267,15 +333,46 @@ impl CoreLinkClient {
                 "endpoint must be the exact Core Link HTTPS path without credentials, query or fragment",
             ));
         }
-        let ca = Certificate::from_pem(&credentials.ca_pem).map_err(Error::Connection)?;
-        let identity =
-            Identity::from_pem(&credentials.client_identity_pem).map_err(Error::Connection)?;
+        let ca_certificates = CertificateDer::pem_slice_iter(&credentials.ca_pem)
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| Error::Contract("invalid Core Link CA certificate PEM"))?;
+        if ca_certificates.is_empty() {
+            return Err(Error::Contract("Core Link CA certificate required"));
+        }
+        let mut roots = RootCertStore::empty();
+        for ca in ca_certificates {
+            roots
+                .add(ca)
+                .map_err(|_| Error::Contract("invalid Core Link CA certificate"))?;
+        }
+        let identity_certificates =
+            CertificateDer::pem_slice_iter(&credentials.client_identity_pem)
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|_| Error::Contract("invalid Core Link client certificate PEM"))?;
+        if identity_certificates.is_empty() {
+            return Err(Error::Contract("Core Link client certificate required"));
+        }
+        let identity_key = PrivateKeyDer::from_pem_slice(&credentials.client_identity_pem)
+            .map_err(|_| Error::Contract("invalid Core Link client private key PEM"))?;
+        let standard = WebPkiServerVerifier::builder(Arc::new(roots))
+            .build()
+            .map_err(|_| Error::Contract("invalid Core Link trust anchor"))?;
+        let pinned = Arc::new(PinnedServerVerifier {
+            standard,
+            sha256: binding.trust_anchor_sha256.clone(),
+        });
+        let tls = rustls::ClientConfig::builder()
+            .dangerous()
+            .with_custom_certificate_verifier(pinned)
+            .with_client_auth_cert(identity_certificates, identity_key)
+            .map_err(|_| Error::Contract("invalid Core Link client identity"))?;
+        // A preconfigured rustls verifier is invoked on each actual TLS
+        // connection, never on a disconnected preflight socket.
         let client = Client::builder()
-            .tls_built_in_root_certs(false)
-            .add_root_certificate(ca)
-            .identity(identity)
+            .use_preconfigured_tls(tls)
             .tls_info(true)
             .https_only(true)
+            .no_proxy()
             .redirect(reqwest::redirect::Policy::none())
             .min_tls_version(reqwest::tls::Version::TLS_1_2)
             .timeout(timeout)
