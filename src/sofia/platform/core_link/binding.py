@@ -269,6 +269,37 @@ class CoreLinkBindingStore:
             bindings=tuple(CoreLinkBinding.from_payload(item) for item in raw_bindings),
         )
 
+    def require_current_selected(
+        self, *, binding_id: str, expected_binding_revision: int,
+        minimum_store_revision: int,
+    ) -> tuple[CoreLinkBinding, int]:
+        """Re-read owner-private selection for a Rust Core Link admission.
+
+        An offline, quarantined, revoked, missing or replaced selection must
+        never be treated as a previously cached ACTIVE grant. This method
+        does not open sockets or grant a Core writer, and does not replace
+        the host-owned atomic authorization at actual request dispatch.
+        """
+        _identifier(binding_id, "binding_id")
+        if (
+            type(expected_binding_revision) is not int
+            or expected_binding_revision < 1
+            or type(minimum_store_revision) is not int
+            or minimum_store_revision < 1
+        ):
+            raise ValueError("positive binding and store revisions required")
+        snapshot = self.load()
+        if snapshot.revision < minimum_store_revision:
+            raise PermissionError("Core Link store revision rolled backwards")
+        selected = snapshot.selected()
+        if selected is None or selected.binding_id != binding_id:
+            raise PermissionError("enrolled Core Link binding is no longer selected")
+        if selected.state is not CoreLinkBindingState.ACTIVE:
+            raise PermissionError("enrolled Core Link binding is not active")
+        if selected.revision != expected_binding_revision:
+            raise PermissionError("enrolled Core Link binding revision changed")
+        return selected, snapshot.revision
+
     def _write(self, snapshot: CoreLinkStoreSnapshot) -> None:
         self._secure_parent()
         payload = {
