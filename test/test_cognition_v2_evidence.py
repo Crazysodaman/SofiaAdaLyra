@@ -785,3 +785,82 @@ def test_application_uses_configured_pinned_fleet_outcome_verifier(
     verifier = app._goal_production.independent_outcome_verifier
     assert verifier.__self__ is app._host_effect_attestation
     assert verifier.__name__ == "verify_goal_dispatch"
+
+def test_g7a_conflicting_same_instant_observations_are_unknown(tmp_path):
+    path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    ledger = CognitiveEvidenceLedger(path)
+    first = _atom("evidence:conflict-ryzen", value="Ryzen")
+    second = _atom("evidence:conflict-xeon", value="Xeon")
+    ledger.append(first)
+    ledger.append(second)
+
+    resolution = EvidenceGraph(ledger).resolve(_need(), now=NOW)
+    assert resolution.acquisition_state is AcquisitionState.CONTRADICTED
+    assert resolution.atoms == ()
+    assert "conflicting" in resolution.reason
+
+    restarted = EvidenceGraph(CognitiveEvidenceLedger(path))
+    assert restarted.resolve(_need(), now=NOW).acquisition_state is AcquisitionState.CONTRADICTED
+
+def test_g7a_consistent_duplicate_observations_are_eligible(tmp_path):
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
+    first = _atom("evidence:sensor-a", value={"cpu": "Ryzen", "cores": 8})
+    second = _atom("evidence:sensor-b", value={"cores": 8, "cpu": "Ryzen"})
+    ledger.append(first)
+    ledger.append(second)
+    resolution = EvidenceGraph(ledger).resolve(_need(), now=NOW)
+    assert resolution.acquisition_state is AcquisitionState.CURRENT
+    assert {atom.evidence_id for atom in resolution.atoms} == {
+        first.evidence_id, second.evidence_id,
+    }
+
+def test_g7a_newer_observation_cannot_override_fresh_conflicting_evidence(tmp_path):
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
+    earlier = _atom(
+        "evidence:older-cpu", value="Xeon",
+        observed_at=NOW - timedelta(seconds=30),
+    )
+    latest = _atom("evidence:newer-cpu", value="Ryzen")
+    ledger.append(earlier)
+    ledger.append(latest)
+    resolution = EvidenceGraph(ledger).resolve(_need(), now=NOW)
+    # The older observation is still inside the 300-second freshness
+    # window: arbitrarily choosing the newest would fabricate certainty.
+    assert resolution.acquisition_state is AcquisitionState.CONTRADICTED
+    assert resolution.atoms == ()
+
+
+def test_g7a_expired_older_observation_does_not_conflict_with_current(tmp_path):
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
+    earlier = _atom(
+        "evidence:expired-cpu", value="Xeon",
+        observed_at=NOW - timedelta(seconds=301),
+    )
+    latest = _atom("evidence:valid-cpu", value="Ryzen")
+    ledger.append(earlier)
+    ledger.append(latest)
+    resolution = EvidenceGraph(ledger).resolve(_need(), now=NOW)
+    assert resolution.acquisition_state is AcquisitionState.CURRENT
+    assert resolution.atoms == (latest,)
+
+def test_g7a_correction_removes_conflicting_source_without_erasing_history(tmp_path):
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
+    original = _atom("evidence:wrong-cpu", value="Xeon")
+    valid = _atom("evidence:verified-cpu", value="Ryzen")
+    ledger.append(original)
+    ledger.append(valid)
+    graph = EvidenceGraph(ledger)
+    assert graph.resolve(_need(), now=NOW).acquisition_state is AcquisitionState.CONTRADICTED
+
+    graph.correct(
+        correction_id="correction:cpu-conflict",
+        need=_need(),
+        target_ids=(original.evidence_id,),
+        source_ref="user-report:verified-correction",
+        reason="Incorrect host CPU reading",
+        corrected_at=NOW + timedelta(seconds=1),
+    )
+    resolved = graph.resolve(_need(), now=NOW + timedelta(seconds=2))
+    assert resolved.acquisition_state is AcquisitionState.CURRENT
+    assert resolved.atoms == (valid,)
+    assert ledger.get(original.evidence_id).acquisition_state is AcquisitionState.CONTRADICTED
