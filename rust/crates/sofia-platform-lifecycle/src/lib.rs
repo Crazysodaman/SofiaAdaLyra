@@ -230,8 +230,8 @@ mod tests {
             " ",
             " host:artemis",
             "host:artemis ",
-            "host:artemis\\nother",
-            "host:artemis\\t",
+            "host:artemis\nother",
+            "host:artemis\t",
             "host:artemis?",
         ] {
             assert_eq!(
