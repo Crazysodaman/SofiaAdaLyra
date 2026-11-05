@@ -140,7 +140,12 @@ def test_python_and_rust_accept_and_reject_identically():
             "--bin", "sofia-contract-tool", "--", "validate-corpus", str(CORPUS),
         ]
     completed = subprocess.run(
-        command, cwd=ROOT, check=True, capture_output=True, text=True,
+        command, cwd=ROOT, check=False, capture_output=True, text=True,
+    )
+    assert completed.returncode == 0, (
+        f"Rust contract validator failed (exit {completed.returncode}):\n"
+        f"stderr:\n{completed.stderr[-4000:]}\n"
+        f"stdout:\n{completed.stdout[-2000:]}"
     )
     assert json.loads(completed.stdout) == _python_report()
 
