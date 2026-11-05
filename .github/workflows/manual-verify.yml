@@ -37,7 +37,7 @@ jobs:
 
       - name: Install project
         shell: pwsh
-        run: python -m pip install -e . pytest
+        run: python -m pip install -e ".[rust-contract-tests]" pytest
 
       - name: Run revision-pinned verification
         shell: pwsh
