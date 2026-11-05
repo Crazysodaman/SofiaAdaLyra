@@ -758,10 +758,20 @@ def _verified_private_project_for_unprompted_sharing(
     assert initial["scheduled"] == 1
     job = wait_for_job(life, life.store.jobs(project.project_id)[0])
     assert job.status is WorkStatus.COMPLETED
-    finished = life.tick(now=now + timedelta(seconds=8))
+    # RUN's real worker clock can postdate the fixture's synthetic schedule.
+    # Never use the original receipt to certify completion before it exists.
+    receipt = life.evidence_index.lookup(str(job.result["evidence_ref"]))
+    assert receipt is not None
+    assert receipt.kind == "operation_receipt"
+    assert receipt.successful is True
+    verified_at = max(
+        now + timedelta(seconds=8),
+        receipt.observed_at + timedelta(microseconds=1),
+    )
+    finished = life.tick(now=verified_at)
     assert finished["follow_through"] == "independently_completed"
     assert life._project(project.project_id).status is ProjectStatus.COMPLETED
-    return life, project, now + timedelta(seconds=8)
+    return life, project, verified_at
 
 
 def _owner_only_outreach(life):
