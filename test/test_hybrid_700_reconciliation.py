@@ -5,7 +5,7 @@ import csv
 
 import pytest
 
-from tools.hybrid_700_reconciliation import SOURCE, reconcile
+from tools.hybrid_700_reconciliation import EXPECTED_IDS, SOURCE, reconcile
 
 
 def test_all_700_owner_assignments_are_preserved_without_acceptance():
@@ -15,9 +15,7 @@ def test_all_700_owner_assignments_are_preserved_without_acceptance():
     assert projection["supplemental_ml_tasks"] == 40
     assert projection["supplemental_ga_tasks"] == 40
     assert projection["acceptance_state"] == "NOT_PROVEN_BY_SOURCE_CROSSWALK"
-    assert {row["task_id"] for row in projection["tasks"]} == {
-        f"CA-{number:03d}" for number in range(1, 701)
-    }
+    assert {row["task_id"] for row in projection["tasks"]} == EXPECTED_IDS
     assert all(
         row["accepted"] is False
         and row["owner_acceptance_verified"] is False
