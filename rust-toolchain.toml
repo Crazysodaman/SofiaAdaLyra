@@ -1,4 +1,7 @@
 [toolchain]
 channel = "1.88.0"
-components = ["clippy", "rustfmt"]
+# Python-only verification also invokes cargo for SDK corpus parity. Avoid
+# installing optional components into preconfigured Windows runners, where
+# rustup can collide with the already-installed cargo-clippy binary.
+# Dedicated Rust CI requests rustfmt and clippy explicitly.
 profile = "minimal"
