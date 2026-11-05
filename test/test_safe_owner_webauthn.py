@@ -197,8 +197,15 @@ def test_protected_approval_requires_one_fresh_owner_security_key_proof(tmp_path
             expires_at=when + timedelta(minutes=5),
         )
 
-    with pytest.raises(PermissionError, match="FIDO2"):
+    # FIDO2 stays available but is not mandatory under the approved owner
+    # secret policy. Both credential paths still require a fresh exact-action
+    # proof, and no unauthenticated approval may be recorded.
+    with pytest.raises(PermissionError, match="freshly verified owner authentication"):
         approver.record(approval(NOW + timedelta(seconds=1)))
+    with sqlite3.connect(state) as db:
+        assert db.execute(
+            "SELECT COUNT(*) FROM safe_execution_approval"
+        ).fetchone()[0] == 0
     challenge = verifier.issue(
         credential_id=credential, action_fingerprint=fingerprint, now=NOW,
     )
