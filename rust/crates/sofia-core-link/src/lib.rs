@@ -256,9 +256,15 @@ impl CoreLinkClient {
         {
             return Err(Error::Contract("invalid host public-key pin"));
         }
-        if binding.endpoint.scheme() != "https" || binding.endpoint.path() != "/v1/core-link" {
+        if binding.endpoint.scheme() != "https"
+            || binding.endpoint.path() != "/v1/core-link"
+            || binding.endpoint.query().is_some()
+            || binding.endpoint.fragment().is_some()
+            || !binding.endpoint.username().is_empty()
+            || binding.endpoint.password().is_some()
+        {
             return Err(Error::Contract(
-                "endpoint must be the exact Core Link HTTPS path",
+                "endpoint must be the exact Core Link HTTPS path without credentials, query or fragment",
             ));
         }
         let ca = Certificate::from_pem(&credentials.ca_pem).map_err(Error::Connection)?;
@@ -570,4 +576,34 @@ mod tests {
         assert!(!output.contains("TEST_CA_MATERIAL"));
         assert!(!output.contains("TEST_PRIVATE_KEY_MATERIAL"));
     }
+    #[test]
+    fn rejects_endpoint_userinfo_query_and_fragment_before_network() {
+        for address in [
+            "https://user:password@localhost/v1/core-link",
+            "https://localhost/v1/core-link?debug=1",
+            "https://localhost/v1/core-link#fragment",
+            "http://localhost/v1/core-link",
+            "https://localhost/wrong-path",
+        ] {
+            let binding = EnrolledBinding {
+                active: true,
+                local_platform_id: "platform:local".into(),
+                remote_platform_id: "platform:host".into(),
+                remote_core_identity_id: "core:one".into(),
+                remote_core_generation: 1,
+                endpoint: Url::parse(address).unwrap(),
+                protocol: PROTOCOL.into(),
+                trust_anchor_sha256: "a".repeat(64),
+            };
+            let credentials = TlsCredentials {
+                ca_pem: b"not-a-ca".to_vec(),
+                client_identity_pem: b"not-a-key".to_vec(),
+            };
+            assert!(matches!(
+                CoreLinkClient::new(binding, &credentials, StdDuration::from_secs(1)),
+                Err(Error::Contract(_))
+            ));
+        }
+    }
+
 }
