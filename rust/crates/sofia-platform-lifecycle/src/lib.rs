@@ -163,7 +163,10 @@ impl HybridReleaseEvidence {
     pub fn assess(&self) -> Vec<ReleaseBlocker> {
         let mut blockers = Vec::new();
         if self.source_sha.len() != 40
-            || !self.source_sha.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+            || !self
+                .source_sha
+                .bytes()
+                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
         {
             blockers.push(ReleaseBlocker::InvalidSourceRevision);
         }
@@ -288,6 +291,9 @@ mod tests {
             owner_approved: true,
             real_host_shakedown_verified: true,
         };
-        assert_eq!(evidence.assess(), vec![ReleaseBlocker::InvalidSourceRevision]);
+        assert_eq!(
+            evidence.assess(),
+            vec![ReleaseBlocker::InvalidSourceRevision]
+        );
     }
 }
