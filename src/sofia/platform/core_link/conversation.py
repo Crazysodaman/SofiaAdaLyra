@@ -341,6 +341,18 @@ class CoreLinkConversationGateway:
                 else datetime.fromisoformat(client_created_raw)
             )
             service = self._service(access, payload["session_id"])
+            # Session acquisition can block while another thread/owner
+            # revokes this credential or changes the Core generation. Recheck
+            # authoritative access before entering the canonical turn engine.
+            # This reduces the race window; host-owned admission still needs
+            # an atomic transaction or serialized dispatch/revocation gate.
+            current_access, _, current_generation = self._authenticate(
+                certificate_public_key_sha256, request,
+            )
+            if current_access != access or current_generation != generation:
+                raise PermissionError(
+                    "Core Link enrollment changed before conversation dispatch"
+                )
             event_id = self._event_id(access, request.idempotency_key)
             try:
                 response = service.respond(
