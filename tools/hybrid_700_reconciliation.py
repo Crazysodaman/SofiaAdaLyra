@@ -106,8 +106,28 @@ def reconcile(source: Path = SOURCE) -> dict:
             "review_status": "UNMAPPED_REQUIRES_INDEPENDENT_REVIEW",
         })
 
+    # A phase rollup makes the historical coding queue reviewable without
+    # promoting source anchors or source classifications into acceptance.
+    phase_rollup = {}
+    for phase in sorted({item["original_phase"] for item in projected}):
+        group = [item for item in projected if item["original_phase"] == phase]
+        phase_rollup[phase] = {
+            "tasks": len(group),
+            "source_anchors_missing": sum(
+                not item["source_anchor_present"] for item in group
+            ),
+            "historical_coding_status_counts": dict(sorted(
+                Counter(item["historical_coding_status"] for item in group).items()
+            )),
+            "unmapped_to_go_live_gate": sum(
+                item["go_live_gate"] is None for item in group
+            ),
+            "accepted": sum(item["accepted"] for item in group),
+        }
+
     return {
         "schema": "sofia.hybrid.ca700.review.v1",
+        "phase_rollup": phase_rollup,
         "count": len(projected),
         "source_anchors_missing": sum(not item["source_anchor_present"] for item in projected),
         "original_coding_status_counts": dict(
