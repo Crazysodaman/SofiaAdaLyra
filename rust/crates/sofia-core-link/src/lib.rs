@@ -54,12 +54,29 @@ pub struct EnrolledBinding {
     pub trust_anchor_sha256: String,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct TlsCredentials {
     /// PEM trust anchor and combined PEM client certificate/private key.
     /// Callers must resolve these from the Platform secret owner at use time.
     pub ca_pem: Vec<u8>,
     pub client_identity_pem: Vec<u8>,
+}
+
+// Never derive Debug for a structure containing PEM private-key bytes.
+impl fmt::Debug for TlsCredentials {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TlsCredentials")
+            .field("ca_pem", &"[REDACTED]")
+            .field("client_identity_pem", &"[REDACTED]")
+            .finish()
+    }
+}
+
+/// Exact non-null Core Link history cursor used by the Python gateway.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HistoryCursor {
+    pub created_at: DateTime<Utc>,
+    pub message_id: String,
 }
 
 #[derive(Clone, Debug)]
@@ -117,16 +134,20 @@ impl Request {
         binding: &EnrolledBinding,
         request_id: &str,
         session_id: &str,
-        after: Option<&str>,
+        after: Option<&HistoryCursor>,
         limit: u16,
         now: DateTime<Utc>,
     ) -> Result<Self, Error> {
         if !valid_id(session_id)
-            || after.is_some_and(|value| !valid_id(value))
+            || after.is_some_and(|cursor| !valid_id(&cursor.message_id))
             || !(1..=200).contains(&limit)
         {
             return Err(Error::Contract("invalid history query"));
         }
+        let after = after.map(|cursor| serde_json::json!({
+            "created_at": cursor.created_at.to_rfc3339(),
+            "message_id": cursor.message_id,
+        }));
         let payload = serde_json::json!({"session_id": session_id, "after": after, "limit": limit});
         Ok(Self::new(
             binding,
@@ -485,4 +506,67 @@ mod tests {
             assert!(value.get(forbidden).is_none());
         }
     }
+    #[test]
+    fn nonnull_history_cursor_matches_python_gateway_fixture() {
+        let now = DateTime::parse_from_rfc3339("2026-01-01T00:00:00+00:00")
+            .unwrap()
+            .with_timezone(&Utc);
+        let cursor = HistoryCursor {
+            created_at: DateTime::parse_from_rfc3339("2025-12-31T23:59:59+00:00")
+                .unwrap()
+                .with_timezone(&Utc),
+            message_id: "message:1".into(),
+        };
+        let binding = EnrolledBinding {
+            active: true,
+            local_platform_id: "platform:windows".into(),
+            remote_platform_id: "platform:canonical".into(),
+            remote_core_identity_id: "core:sofia".into(),
+            remote_core_generation: 7,
+            endpoint: Url::parse("https://localhost/v1/core-link").unwrap(),
+            protocol: PROTOCOL.into(),
+            trust_anchor_sha256: "0".repeat(64),
+        };
+        let request = Request::history(
+            &binding,
+            "request:history:1",
+            "session:existing",
+            Some(&cursor),
+            100,
+            now,
+        )
+        .unwrap();
+        let actual = request.to_value().unwrap();
+        let expected: Value = serde_json::from_str(include_str!(
+            "../../../../contracts/core-link/valid-history-page-2-request.json"
+        ))
+        .unwrap();
+        assert_eq!(actual, expected);
+        assert_eq!(actual["payload"]["after"]["message_id"], "message:1");
+        assert!(Request::history(
+            &binding,
+            "request:history:1",
+            "session:existing",
+            Some(&HistoryCursor {
+                created_at: cursor.created_at,
+                message_id: "invalid cursor with whitespace".into(),
+            }),
+            100,
+            now,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn tls_credentials_debug_redacts_private_bytes() {
+        let credentials = TlsCredentials {
+            ca_pem: b"TEST_CA_MATERIAL".to_vec(),
+            client_identity_pem: b"TEST_PRIVATE_KEY_MATERIAL".to_vec(),
+        };
+        let output = format!("{credentials:?}");
+        assert!(output.contains("[REDACTED]"));
+        assert!(!output.contains("TEST_CA_MATERIAL"));
+        assert!(!output.contains("TEST_PRIVATE_KEY_MATERIAL"));
+    }
+
 }
