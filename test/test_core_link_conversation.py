@@ -362,6 +362,68 @@ def test_core_link_module_settings_derive_identity_and_do_not_mint_authority(
         application.shutdown()
 
 
+
+@pytest.mark.parametrize("intervening_change", ["revocation", "core_generation"])
+def test_core_link_host_rechecks_enrollment_after_session_acquisition(
+    tmp_path, monkeypatch, intervening_change,
+):
+    """A legitimate TLS admission must not authorize a later stale chat send."""
+    state = tmp_path / "sofia.db"
+    bootstrap_canonical_sqlite(state)
+    application = SofiaApplication(configuration(tmp_path))
+    application.start()
+    gateway = None
+    try:
+        store = enrolled_store(state)
+        generation = {"value": 7}
+        gateway = CoreLinkConversationGateway(
+            application, access_store=store,
+            remote_platform_id="platform:canonical",
+            remote_core_identity_id="core:sofia",
+            generation_provider=lambda: generation["value"],
+            clock=lambda: NOW + timedelta(seconds=1),
+        )
+        called = []
+        class ShouldNotSend:
+            def respond(self, *_args, **_kwargs):
+                called.append("sent")
+                raise AssertionError("revoked or replaced Core sent a turn")
+
+        def acquire_then_change(_access, _session_id):
+            if intervening_change == "revocation":
+                approval_id = authorize(
+                    state, capability="core-link.revoke",
+                    parameters={"client_id": access().client_id, "expected_revision": 1},
+                    now=NOW,
+                )
+                store.revoke(
+                    access().client_id, expected_revision=1,
+                    approval_id=approval_id, now=NOW + timedelta(seconds=1),
+                )
+            else:
+                generation["value"] = 8
+            return ShouldNotSend()
+
+        monkeypatch.setattr(gateway, "_service", acquire_then_change)
+        with pytest.raises(PermissionError, match=(
+            "not actively enrolled" if intervening_change == "revocation"
+            else "destination identity or generation mismatch"
+        )):
+            gateway.dispatch(
+                certificate_public_key_sha256="a" * 64,
+                request=request(
+                    "conversation.send",
+                    {"session_id": "session:owner", "content": "Private turn",
+                     "client_created_at": None},
+                ),
+            )
+        assert called == []
+    finally:
+        if gateway is not None:
+            gateway.close()
+        application.shutdown()
+
+
 def test_real_application_core_link_turn_is_deduplicated_and_audience_scoped(
     tmp_path,
 ):
