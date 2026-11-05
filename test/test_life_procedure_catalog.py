@@ -633,7 +633,12 @@ def test_catalog_writer_rejects_stale_bytes_even_when_original_run_was_completed
             "The source bytes changed after the original RUN receipt.",
             encoding="utf-8",
         )
-        with pytest.raises(ValueError, match="current original creative bytes"):
+        # Source mutation may invalidate the RUN receipt before the later
+        # creative-byte digest check. Either failure must block promotion.
+        with pytest.raises(
+            ValueError,
+            match="current original creative bytes|real original scoped RUN receipt",
+        ):
             life.procedures.record_verified_attempt(
                 project=life._project(project.project_id),
                 job_id=job.job_id,
