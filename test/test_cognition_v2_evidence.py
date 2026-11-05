@@ -814,13 +814,29 @@ def test_g7a_consistent_duplicate_observations_are_eligible(tmp_path):
         first.evidence_id, second.evidence_id,
     }
 
-def test_g7a_newer_observation_replaces_older_current_sample(tmp_path):
+def test_g7a_newer_observation_cannot_override_fresh_conflicting_evidence(tmp_path):
     ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
     earlier = _atom(
         "evidence:older-cpu", value="Xeon",
         observed_at=NOW - timedelta(seconds=30),
     )
     latest = _atom("evidence:newer-cpu", value="Ryzen")
+    ledger.append(earlier)
+    ledger.append(latest)
+    resolution = EvidenceGraph(ledger).resolve(_need(), now=NOW)
+    # The older observation is still inside the 300-second freshness
+    # window: arbitrarily choosing the newest would fabricate certainty.
+    assert resolution.acquisition_state is AcquisitionState.CONTRADICTED
+    assert resolution.atoms == ()
+
+
+def test_g7a_expired_older_observation_does_not_conflict_with_current(tmp_path):
+    ledger = CognitiveEvidenceLedger(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
+    earlier = _atom(
+        "evidence:expired-cpu", value="Xeon",
+        observed_at=NOW - timedelta(seconds=301),
+    )
+    latest = _atom("evidence:valid-cpu", value="Ryzen")
     ledger.append(earlier)
     ledger.append(latest)
     resolution = EvidenceGraph(ledger).resolve(_need(), now=NOW)
