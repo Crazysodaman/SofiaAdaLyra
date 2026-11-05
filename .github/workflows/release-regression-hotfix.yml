@@ -7,6 +7,9 @@ on:
       - "test/test_life_procedure_catalog.py"
       - "test/test_life_postrun_verification.py"
       - "test/test_presence_initiative.py"
+      - "test/test_life_project_forge.py"
+      - "test/test_sdk_rust_contract_compatibility.py"
+      - "rust-toolchain.toml"
       - ".github/workflows/release-regression-hotfix.yml"
   workflow_dispatch:
 
@@ -39,3 +42,6 @@ jobs:
           test/test_life_postrun_verification.py
           test/test_presence_initiative.py::test_life_outreach_operator_stop_after_model_choice_is_honored
           test/test_presence_initiative.py::test_verified_personal_life_work_can_start_owner_conversation
+          test/test_life_project_forge.py::test_canonical_private_life_causal_trace_links_actual_work
+      - name: Verify cross-language contract tool without Windows component collision
+        run: python -m pytest -q test/test_sdk_rust_contract_compatibility.py::test_python_and_rust_accept_and_reject_identically
