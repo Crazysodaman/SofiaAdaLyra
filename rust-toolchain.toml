@@ -1,4 +1,6 @@
 [toolchain]
 channel = "1.88.0"
-components = ["clippy", "rustfmt"]
+# Python-only release CI invokes Cargo for SDK parity; forcing optional
+# components here makes rustup's Windows bootstrap collide with the preinstalled
+# cargo-clippy.exe. Dedicated Rust CI installs rustfmt/clippy explicitly.
 profile = "minimal"
