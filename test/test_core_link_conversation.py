@@ -232,7 +232,14 @@ def test_enrollment_consumes_exact_owner_approval_and_revocation_is_immediate(
         parameters=value.parameters(),
     )
     store.enroll(value, approval_id=enrollment_id, now=NOW)
+    # An earlier/rolled-back verifier clock must not make enrolled access
+    # valid before its recorded activation instant.
+    before_enrollment = NOW - timedelta(microseconds=1)
+    assert store.authenticate("a" * 64, now=before_enrollment) is None
+    with pytest.raises(PermissionError, match="not yet active"):
+        value.require_scope("conversation.send", now=before_enrollment)
     assert store.authenticate("a" * 64, now=NOW) == value
+    value.require_scope("conversation.send", now=NOW)
     with pytest.raises(PermissionError, match="already consumed"):
         store.enroll(value, approval_id=enrollment_id, now=NOW)
     revoke_parameters = {"client_id": value.client_id, "expected_revision": 1}
