@@ -4,6 +4,22 @@
 use std::collections::BTreeMap;
 
 pub const DAILY_AUTONOMOUS_LIMIT: usize = 5;
+const MAX_APPEARANCE_ID_BYTES: usize = 256;
+
+/// An IPC-provided identity must never be unbounded, blank, or include
+/// control/whitespace characters. These fields are routing identifiers,
+/// never OS credentials or owner permission grants.
+fn valid_appearance_id(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.is_empty() || bytes.len() > MAX_APPEARANCE_ID_BYTES {
+        return false;
+    }
+    let mut iter = value.bytes();
+    iter.next().is_some_and(|byte| byte.is_ascii_alphanumeric())
+        && iter.all(|byte| {
+            byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-' | b':' | b'@' | b'/')
+        })
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SlotState {
@@ -105,9 +121,9 @@ impl BrokerState {
         request: Appearance,
         os: OsSignals,
     ) -> Result<Admission, BrokerError> {
-        if request.request_id.is_empty()
-            || request.host_id.is_empty()
-            || request.session_id.is_empty()
+        if !valid_appearance_id(&request.request_id)
+            || !valid_appearance_id(&request.host_id)
+            || !valid_appearance_id(&request.session_id)
             || !valid_day(&request.local_day)
         {
             return Err(BrokerError::InvalidIdentity);
@@ -418,6 +434,52 @@ mod tests {
             broker.reserve_autonomous(appearance("request:good", "2026-11-04"), IDLE),
             Ok(Admission::Reserved)
         );
+    }
+
+    #[test]
+    fn malformed_and_unbounded_appearance_ids_never_reserve_quota() {
+        let invalid = [
+            "",
+            " ",
+            "host with space",
+            "request:\nline",
+            "session:\tcontrol",
+            "bad?token",
+            "é",
+        ];
+        let mut broker = BrokerState::new(7, "2026-11-04".into()).unwrap();
+        for value in invalid {
+            for field in 0..3 {
+                let mut request = appearance("request:good", "2026-11-04");
+                match field {
+                    0 => request.request_id = value.into(),
+                    1 => request.host_id = value.into(),
+                    _ => request.session_id = value.into(),
+                }
+                assert_eq!(
+                    broker.reserve_autonomous(request, IDLE),
+                    Err(BrokerError::InvalidIdentity)
+                );
+            }
+        }
+        for field in 0..3 {
+            let mut request = appearance("request:good", "2026-11-04");
+            match field {
+                0 => request.request_id = "a".repeat(257),
+                1 => request.host_id = "a".repeat(257),
+                _ => request.session_id = "a".repeat(257),
+            }
+            assert_eq!(
+                broker.reserve_autonomous(request, IDLE),
+                Err(BrokerError::InvalidIdentity)
+            );
+        }
+        assert_eq!(broker.reserved_or_uncertain_count("2026-11-04"), 0);
+        assert_eq!(
+            broker.reserve_autonomous(appearance("request:good", "2026-11-04"), IDLE),
+            Ok(Admission::Reserved)
+        );
+        assert_eq!(broker.reserved_or_uncertain_count("2026-11-04"), 1);
     }
 
     #[test]
