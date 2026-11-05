@@ -1,0 +1,37 @@
+name: Hybrid CA700 source reconciliation
+
+on:
+  pull_request:
+    paths:
+      - 'docs/sofia2/V18_700_TASK_OWNER_CROSSWALK_2026-11-02.csv'
+      - 'tools/hybrid_700_reconciliation.py'
+      - 'test/test_hybrid_700_reconciliation.py'
+      - '.github/workflows/hybrid-700-reconciliation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install test runner
+        run: python -m pip install pytest
+      - name: Prove CA ID coverage and zero false approvals
+        run: python -m pytest -q test/test_hybrid_700_reconciliation.py
+      - name: Project evidence without changing task states
+        run: python tools/hybrid_700_reconciliation.py --output hybrid-ca700-review.json
+      - name: Retain reviewed projection for audit
+        uses: actions/upload-artifact@v7
+        with:
+          name: hybrid-ca700-evidence-${{ github.sha }}
+          path: hybrid-ca700-review.json
+          if-no-files-found: error
