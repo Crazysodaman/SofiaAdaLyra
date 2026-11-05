@@ -1130,6 +1130,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "sofia-platform-lifecycle"
+version = "0.1.0"
+
+[[package]]
 name = "sofia-ui-broker"
 version = "0.1.0"
 
