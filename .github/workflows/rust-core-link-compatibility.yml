@@ -57,7 +57,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - run: python -m pip install -e . pytest cryptography
-      - run: cargo build --locked -p sofia-core-link --bin r2_core_link_probe
+      - run: cargo build --locked -p sofia-core-link --features diagnostic-probe --bin r2_core_link_probe
       - name: Python oracle and disposable mTLS interoperability
         env:
           SOFIA_R2_PROBE: ${{ runner.os == 'Windows' && format('{0}/target/debug/r2_core_link_probe.exe', github.workspace) || format('{0}/target/debug/r2_core_link_probe', github.workspace) }}
