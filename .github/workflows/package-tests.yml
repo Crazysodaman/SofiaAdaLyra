@@ -59,7 +59,7 @@ jobs:
 
       - name: Install project
         shell: pwsh
-        run: python -m pip install -e . pytest
+        run: python -m pip install -e ".[rust-contract-tests]" pytest
 
       - name: Prove nonempty package selection without running tests
         shell: pwsh
