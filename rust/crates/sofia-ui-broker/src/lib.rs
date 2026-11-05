@@ -117,7 +117,11 @@ impl BrokerState {
             if item.local_day > broker.last_accepted_day {
                 broker.last_accepted_day.clone_from(&item.local_day);
             }
-            if broker.reservations.insert(item.request_id.clone(), item).is_some() {
+            if broker
+                .reservations
+                .insert(item.request_id.clone(), item)
+                .is_some()
+            {
                 return Err(BrokerError::RequestCollision);
             }
         }
@@ -515,13 +519,8 @@ mod tests {
             .unwrap();
         broker.set_manual_hide(true);
         let persisted = broker.reservations();
-        let mut restarted = BrokerState::restore(
-            8,
-            "2026-11-03".into(),
-            broker.owner_hidden(),
-            persisted,
-        )
-        .unwrap();
+        let mut restarted =
+            BrokerState::restore(8, "2026-11-03".into(), broker.owner_hidden(), persisted).unwrap();
         assert_eq!(restarted.last_accepted_day(), "2026-11-04");
         assert!(restarted.owner_hidden());
         assert_eq!(restarted.reserved_or_uncertain_count("2026-11-04"), 5);
@@ -548,7 +547,10 @@ mod tests {
         let item = appearance("request:one", "2026-11-04");
         assert_eq!(
             BrokerState::restore(
-                7, "2026-11-04".into(), false, vec![item.clone(), item.clone()],
+                7,
+                "2026-11-04".into(),
+                false,
+                vec![item.clone(), item.clone()],
             )
             .unwrap_err(),
             BrokerError::RequestCollision
@@ -563,8 +565,7 @@ mod tests {
         let mut malformed = item;
         malformed.host_id = "bad\nidentity".into();
         assert_eq!(
-            BrokerState::restore(7, "2026-11-04".into(), false, vec![malformed])
-                .unwrap_err(),
+            BrokerState::restore(7, "2026-11-04".into(), false, vec![malformed]).unwrap_err(),
             BrokerError::InvalidIdentity
         );
         let over_limit: Vec<Appearance> = (0..6)
