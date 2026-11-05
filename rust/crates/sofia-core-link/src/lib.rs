@@ -9,13 +9,13 @@ use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, Server
 use rustls::client::WebPkiServerVerifier;
 use rustls::pki_types::{pem::PemObject, CertificateDer, PrivateKeyDer, ServerName, UnixTime};
 use rustls::{DigitallySignedStruct, RootCertStore, SignatureScheme};
-use std::sync::Arc;
 use serde::de::{self, Deserializer, MapAccess, SeqAccess, Visitor};
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 use std::fmt;
 use std::io::Read;
+use std::sync::Arc;
 use std::time::Duration as StdDuration;
 use thiserror::Error;
 use x509_parser::parse_x509_certificate;
@@ -231,7 +231,6 @@ impl Request {
         }))
     }
 }
-
 
 /// Enforce the existing Python Core Link SPKI pin *during* TLS certificate
 /// validation, before reqwest can transmit an HTTP request on that connection.
@@ -702,5 +701,4 @@ mod tests {
             ));
         }
     }
-
 }
