@@ -20,7 +20,7 @@ SOURCE = Path(__file__).resolve().parents[1] / "docs" / "sofia2" / (
 REQUIRED_FIELDS = frozenset({
     "task_id", "phase", "task_type", "task_summary",
     "primary_layer", "primary_owner", "coding_status", "disposition",
-    "source_anchor", "source_alignment",
+    "source_alignment",
 })
 EXPECTED_IDS = {f"CA-{number:03d}" for number in range(1, 701)}
 CANDIDATE_LAYER = {
@@ -73,6 +73,7 @@ def reconcile(source: Path = SOURCE) -> dict:
             "historical_coding_status": row["coding_status"],
             "historical_disposition": row["disposition"],
             "source_anchor": row["source_anchor"],
+            "source_anchor_present": bool(row["source_anchor"].strip()),
             "source_alignment": row["source_alignment"],
             "go_live_gate": None,
             "rust_gate": None,
@@ -87,6 +88,7 @@ def reconcile(source: Path = SOURCE) -> dict:
     return {
         "schema": "sofia.hybrid.ca700.review.v1",
         "count": len(projected),
+        "source_anchors_missing": sum(not item["source_anchor_present"] for item in projected),
         "original_coding_status_counts": dict(
             sorted(Counter(item["historical_coding_status"] for item in projected).items())
         ),
