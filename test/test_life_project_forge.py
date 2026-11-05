@@ -3152,6 +3152,18 @@ def test_canonical_private_life_causal_trace_links_actual_work(tmp_path):
         life.manager.tick(now=now + timedelta(seconds=4))
         result = wait_for_job(life, job.job_id)
         assert result.status is WorkStatus.COMPLETED
+        # The async worker records the authoritative receipt at real time.
+        # A slow Windows job may complete after the synthetic test clock.
+        # Never backdate review ahead of the original scoped RUN operation.
+        receipt_ref = str(result.result["evidence_ref"])
+        receipt = life.evidence_index.lookup(receipt_ref)
+        assert receipt is not None
+        assert receipt.kind == "operation_receipt"
+        assert receipt.successful is True
+        review_at = max(
+            now + timedelta(seconds=5),
+            receipt.observed_at + timedelta(microseconds=1),
+        )
         evaluation = life.evaluate_artifact(
             project.project_id,
             artifact_id=str(result.result["artifact_id"]),
@@ -3159,16 +3171,17 @@ def test_canonical_private_life_causal_trace_links_actual_work(tmp_path):
             personal_judgment=PersonalJudgment.UNKNOWN,
             objective_results={"text_contains:Foxfire": True},
             reason="Source predicate passed.",
-            evidence_refs=(str(result.result["evidence_ref"]),),
-            preserve_for_research=False, now=now + timedelta(seconds=5),
+            evidence_refs=(receipt_ref,),
+            preserve_for_research=False, now=review_at,
         )
         before = len(life.store.events(
             project.project_id,
             owner_principal_id=project.owner_principal_id,
             audience_id=project.audience_id,
         ))
+        trace_at = max(now + timedelta(seconds=6), review_at)
         trace = life.project_causal_trace(
-            project.project_id, now=now + timedelta(seconds=6),
+            project.project_id, now=trace_at,
         )
         assert trace["project_id"] == project.project_id
         assert trace["audience_id"] == project.audience_id
@@ -3187,7 +3200,7 @@ def test_canonical_private_life_causal_trace_links_actual_work(tmp_path):
             for item in trace["experiences"]
         )
         assert life.project_causal_trace(
-            project.project_id, now=now + timedelta(seconds=6),
+            project.project_id, now=trace_at,
         ) == trace
         assert len(life.store.events(
             project.project_id,
