@@ -14,8 +14,8 @@ fn valid_appearance_id(value: &str) -> bool {
     if bytes.is_empty() || bytes.len() > MAX_APPEARANCE_ID_BYTES {
         return false;
     }
-    let mut iter = bytes.iter();
-    iter.next().is_some_and(u8::is_ascii_alphanumeric)
+    let mut iter = value.bytes();
+    iter.next().is_some_and(|byte| byte.is_ascii_alphanumeric())
         && iter.all(|byte| {
             byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-' | b':' | b'@' | b'/')
         })
