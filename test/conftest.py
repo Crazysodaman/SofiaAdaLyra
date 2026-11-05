@@ -84,6 +84,11 @@ FILENAME_PACKAGE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("test_mentor_", ("pkg_verify", "pkg_safe")),
     # Core Link is a UI/network projection whose binding and credentials are
     # SAFE-owned.  Keep all three package jobs responsible for the boundary.
+    # Cross-language SDK conformance and 700-task audit have explicit owners.
+    ("test_sdk_rust_contract_compatibility.py", (
+        "pkg_verify", "pkg_integrate", "pkg_safe",
+    )),
+    ("test_hybrid_task_register.py", ("pkg_verify", "pkg_dev")),
     ("test_core_link_binding.py", ("pkg_ui", "pkg_net", "pkg_safe")),
     # Optional-module source/release checks exercise the RUN lifecycle and
     # SAFE trust boundary; static preflight is also release verification.
