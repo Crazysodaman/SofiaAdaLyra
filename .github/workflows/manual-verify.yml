@@ -1,8 +1,12 @@
 name: Manual Verification
 
 concurrency:
-  group: verify-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Preserve in-flight exact-SHA verification evidence when main advances.
+  # Manual dispatches are revision-specific and should never replace another
+  # explicit verification. Automatic main pushes may coalesce pending runs,
+  # but must not terminate a started 8K+ test verification.
+  group: verify-${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && github.sha || github.ref }}
+  cancel-in-progress: false
 
 on:
   push:
