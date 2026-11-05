@@ -848,15 +848,16 @@ mod tests {
             ));
         }
     }
-    #[test]
-    fn authorized_client_rejects_revoked_changed_and_missing_enrollments_before_io() {
-        #[derive(Clone)]
-        struct FakeAuthority(Option<CurrentEnrollment>);
-        impl BindingAuthority for FakeAuthority {
-            fn selected_binding(&self) -> Result<CurrentEnrollment, Error> {
-                self.0.clone().ok_or(Error::RevokedBinding)
-            }
+    #[derive(Clone)]
+    struct FakeAuthority(Option<CurrentEnrollment>);
+
+    impl BindingAuthority for FakeAuthority {
+        fn selected_binding(&self) -> Result<CurrentEnrollment, Error> {
+            self.0.clone().ok_or(Error::RevokedBinding)
         }
+    }
+
+    fn fake_authorized_client() -> (AuthorizedCoreLinkClient, CurrentEnrollment) {
         let binding = EnrolledBinding {
             active: true,
             local_platform_id: "platform:venus".into(),
@@ -872,7 +873,7 @@ mod tests {
             binding_revision: 3,
             store_revision: 8,
         };
-        // Direct unit construction isolates pre-send checks from TLS/network.
+        // Only checks owner enrollment against a synthesized transport; no I/O.
         let client = AuthorizedCoreLinkClient {
             transport: CoreLinkClient {
                 binding: binding.clone(),
@@ -880,11 +881,17 @@ mod tests {
             },
             enrollment: identity.clone(),
         };
-        let valid = CurrentEnrollment {
-            identity: identity.clone(),
+        let current = CurrentEnrollment {
+            identity,
             selected: true,
-            binding: binding.clone(),
+            binding,
         };
+        (client, current)
+    }
+
+    #[test]
+    fn authorized_client_rejects_revoked_changed_and_missing_enrollments_before_io() {
+        let (client, valid) = fake_authorized_client();
         assert!(client
             .assert_current(&FakeAuthority(Some(valid.clone())))
             .is_ok());
@@ -922,9 +929,19 @@ mod tests {
             client.assert_current(&FakeAuthority(Some(pin_changed))),
             Err(Error::BindingMismatch)
         ));
+        let mut rollback = valid;
+        rollback.identity.store_revision -= 1;
+        assert!(matches!(
+            client.assert_current(&FakeAuthority(Some(rollback))),
+            Err(Error::BindingMismatch)
+        ));
+    }
+
+    #[test]
+    fn authorized_client_denies_reply_after_midflight_enrollment_change() {
+        let (client, valid) = fake_authorized_client();
         // A valid already-received response must not escape after the owner
-        // changes enrollment. The response is synthesized here because this
-        // boundary deliberately does not need network or secret material.
+        // changes enrollment. No network or secret material is required.
         let response = || Response {
             request_id: "request:pending".into(),
             status: "completed".into(),
@@ -949,12 +966,6 @@ mod tests {
         assert!(matches!(
             client.accept_checked_response(response(), &FakeAuthority(None)),
             Err(Error::RevokedBinding)
-        ));
-        let mut rollback = valid;
-        rollback.identity.store_revision -= 1;
-        assert!(matches!(
-            client.assert_current(&FakeAuthority(Some(rollback))),
-            Err(Error::BindingMismatch)
         ));
     }
 }
