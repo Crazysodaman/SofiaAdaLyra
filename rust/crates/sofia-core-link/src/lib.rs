@@ -556,9 +556,21 @@ impl AuthorizedCoreLinkClient {
         Ok(())
     }
 
-    /// Re-reads canonical enrollment immediately before each read-only HTTP
-    /// request. The owner must enforce revocation and selection atomically;
-    /// no credential, grant or permission is ever accepted from wire JSON.
+    // Never release a response after the owner revokes or reselects the
+    // binding while the remote host is processing the admitted request.
+    // This does not cancel already-admitted host work.
+    fn accept_checked_response(
+        &self,
+        response: Response,
+        authority: &impl BindingAuthority,
+    ) -> Result<Response, Error> {
+        self.assert_current(authority)?;
+        Ok(response)
+    }
+
+    /// Re-reads canonical enrollment before each read-only HTTP request and
+    /// again before releasing its response. The host must still enforce
+    /// revocation and dispatch atomically; wire JSON cannot grant authority.
     ///
     /// # Errors
     /// Fails closed on removed/changed selection, generation, pin, endpoint
@@ -570,7 +582,8 @@ impl AuthorizedCoreLinkClient {
         authority: &impl BindingAuthority,
     ) -> Result<Response, Error> {
         self.assert_current(authority)?;
-        self.transport.execute(request, now)
+        let response = self.transport.execute(request, now)?;
+        self.accept_checked_response(response, authority)
     }
 }
 
@@ -835,15 +848,16 @@ mod tests {
             ));
         }
     }
-    #[test]
-    fn authorized_client_rejects_revoked_changed_and_missing_enrollments_before_io() {
-        #[derive(Clone)]
-        struct FakeAuthority(Option<CurrentEnrollment>);
-        impl BindingAuthority for FakeAuthority {
-            fn selected_binding(&self) -> Result<CurrentEnrollment, Error> {
-                self.0.clone().ok_or(Error::RevokedBinding)
-            }
+    #[derive(Clone)]
+    struct FakeAuthority(Option<CurrentEnrollment>);
+
+    impl BindingAuthority for FakeAuthority {
+        fn selected_binding(&self) -> Result<CurrentEnrollment, Error> {
+            self.0.clone().ok_or(Error::RevokedBinding)
         }
+    }
+
+    fn fake_authorized_client() -> (AuthorizedCoreLinkClient, CurrentEnrollment) {
         let binding = EnrolledBinding {
             active: true,
             local_platform_id: "platform:venus".into(),
@@ -859,7 +873,7 @@ mod tests {
             binding_revision: 3,
             store_revision: 8,
         };
-        // Direct unit construction isolates pre-send checks from TLS/network.
+        // Only checks owner enrollment against a synthesized transport; no I/O.
         let client = AuthorizedCoreLinkClient {
             transport: CoreLinkClient {
                 binding: binding.clone(),
@@ -867,11 +881,17 @@ mod tests {
             },
             enrollment: identity.clone(),
         };
-        let valid = CurrentEnrollment {
-            identity: identity.clone(),
+        let current = CurrentEnrollment {
+            identity,
             selected: true,
-            binding: binding.clone(),
+            binding,
         };
+        (client, current)
+    }
+
+    #[test]
+    fn authorized_client_rejects_revoked_changed_and_missing_enrollments_before_io() {
+        let (client, valid) = fake_authorized_client();
         assert!(client
             .assert_current(&FakeAuthority(Some(valid.clone())))
             .is_ok());
@@ -914,6 +934,38 @@ mod tests {
         assert!(matches!(
             client.assert_current(&FakeAuthority(Some(rollback))),
             Err(Error::BindingMismatch)
+        ));
+    }
+
+    #[test]
+    fn authorized_client_denies_reply_after_midflight_enrollment_change() {
+        let (client, valid) = fake_authorized_client();
+        // A valid already-received response must not escape after the owner
+        // changes enrollment. No network or secret material is required.
+        let response = || Response {
+            request_id: "request:pending".into(),
+            status: "completed".into(),
+            payload: serde_json::json!({"private": "do-not-release"}),
+            server_at: Utc::now(),
+        };
+        assert!(client
+            .accept_checked_response(response(), &FakeAuthority(Some(valid.clone())))
+            .is_ok());
+        let mut revoked_during_io = valid.clone();
+        revoked_during_io.binding.active = false;
+        assert!(matches!(
+            client.accept_checked_response(response(), &FakeAuthority(Some(revoked_during_io))),
+            Err(Error::RevokedBinding)
+        ));
+        let mut replaced_during_io = valid.clone();
+        replaced_during_io.identity.binding_revision += 1;
+        assert!(matches!(
+            client.accept_checked_response(response(), &FakeAuthority(Some(replaced_during_io))),
+            Err(Error::BindingMismatch)
+        ));
+        assert!(matches!(
+            client.accept_checked_response(response(), &FakeAuthority(None)),
+            Err(Error::RevokedBinding)
         ));
     }
 }
