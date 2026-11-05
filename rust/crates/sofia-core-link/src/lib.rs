@@ -489,7 +489,9 @@ impl AuthorizedCoreLinkClient {
             || enrollment.binding_revision == 0
             || enrollment.store_revision == 0
         {
-            return Err(Error::Contract("valid enrolled binding and revisions required"));
+            return Err(Error::Contract(
+                "valid enrolled binding and revisions required",
+            ));
         }
         let transport = CoreLinkClient::new(binding, credentials, timeout)?;
         Ok(Self {
@@ -840,7 +842,9 @@ mod tests {
             selected: true,
             binding: binding.clone(),
         };
-        assert!(client.assert_current(&FakeAuthority(Some(valid.clone()))).is_ok());
+        assert!(client
+            .assert_current(&FakeAuthority(Some(valid.clone())))
+            .is_ok());
         assert!(matches!(
             client.assert_current(&FakeAuthority(None)),
             Err(Error::RevokedBinding)
@@ -882,5 +886,4 @@ mod tests {
             Err(Error::BindingMismatch)
         ));
     }
-
 }
