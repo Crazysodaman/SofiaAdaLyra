@@ -258,7 +258,10 @@ mod tests {
         let mut broker = BrokerState::new(7, "2026-11-04".into()).unwrap();
         for i in 0..DAILY_AUTONOMOUS_LIMIT {
             let item = appearance(&format!("request:{i}"), "2026-11-04");
-            assert_eq!(broker.reserve_autonomous(item.clone(), IDLE), Ok(Admission::Reserved));
+            assert_eq!(
+                broker.reserve_autonomous(item.clone(), IDLE),
+                Ok(Admission::Reserved)
+            );
             assert_eq!(
                 broker.reserve_autonomous(item, IDLE),
                 Ok(Admission::Duplicate(SlotState::Reserved))
@@ -277,15 +280,23 @@ mod tests {
     fn lock_dnd_hide_and_clock_rollback_fail_closed_without_quota_consumption() {
         let mut broker = BrokerState::new(7, "2026-11-04".into()).unwrap();
         assert_eq!(
-            broker.reserve_autonomous(appearance("request:lock", "2026-11-04"), OsSignals {
-                session_locked: true, do_not_disturb: false,
-            }),
+            broker.reserve_autonomous(
+                appearance("request:lock", "2026-11-04"),
+                OsSignals {
+                    session_locked: true,
+                    do_not_disturb: false,
+                }
+            ),
             Ok(Admission::Suppressed(Suppression::LockedSession))
         );
         assert_eq!(
-            broker.reserve_autonomous(appearance("request:dnd", "2026-11-04"), OsSignals {
-                session_locked: false, do_not_disturb: true,
-            }),
+            broker.reserve_autonomous(
+                appearance("request:dnd", "2026-11-04"),
+                OsSignals {
+                    session_locked: false,
+                    do_not_disturb: true,
+                }
+            ),
             Ok(Admission::Suppressed(Suppression::DoNotDisturb))
         );
         broker.set_manual_hide(true);
@@ -304,12 +315,16 @@ mod tests {
     #[test]
     fn observer_receipt_requires_exact_host_session_and_generation() {
         let mut broker = BrokerState::new(7, "2026-11-04".into()).unwrap();
-        broker.reserve_autonomous(appearance("request:one", "2026-11-04"), IDLE).unwrap();
+        broker
+            .reserve_autonomous(appearance("request:one", "2026-11-04"), IDLE)
+            .unwrap();
         assert_eq!(
             broker.mark_visible("request:one", "host:other", "session:owner", 7),
             Err(BrokerError::ReceiptMismatch)
         );
-        broker.mark_visible("request:one", "host:venus", "session:owner", 7).unwrap();
+        broker
+            .mark_visible("request:one", "host:venus", "session:owner", 7)
+            .unwrap();
         assert_eq!(
             broker.mark_visible("request:one", "host:venus", "session:owner", 7),
             Err(BrokerError::AlreadyVisible)
@@ -318,25 +333,41 @@ mod tests {
 
     #[test]
     fn workbench_never_infers_permission_from_a_core_proposal() {
-        assert!(BrokerState::workbench_open_allowed(WorkbenchOrigin::AuthenticatedUser));
-        assert!(!BrokerState::workbench_open_allowed(WorkbenchOrigin::CoreProposal {
-            explicit_open_permission: false,
-        }));
-        assert!(BrokerState::workbench_open_allowed(WorkbenchOrigin::CoreProposal {
-            explicit_open_permission: true,
-        }));
-        assert!(!BrokerState::new(7, "2026-11-04".into()).unwrap().manual_open_allowed(false));
+        assert!(BrokerState::workbench_open_allowed(
+            WorkbenchOrigin::AuthenticatedUser
+        ));
+        assert!(!BrokerState::workbench_open_allowed(
+            WorkbenchOrigin::CoreProposal {
+                explicit_open_permission: false,
+            }
+        ));
+        assert!(BrokerState::workbench_open_allowed(
+            WorkbenchOrigin::CoreProposal {
+                explicit_open_permission: true,
+            }
+        ));
+        assert!(!BrokerState::new(7, "2026-11-04".into())
+            .unwrap()
+            .manual_open_allowed(false));
     }
 
     #[test]
     fn request_collision_and_wrong_generation_are_rejected() {
         let mut broker = BrokerState::new(7, "2026-11-04".into()).unwrap();
-        broker.reserve_autonomous(appearance("request:one", "2026-11-04"), IDLE).unwrap();
+        broker
+            .reserve_autonomous(appearance("request:one", "2026-11-04"), IDLE)
+            .unwrap();
         let mut collision = appearance("request:one", "2026-11-04");
         collision.session_id = "session:other".into();
-        assert_eq!(broker.reserve_autonomous(collision, IDLE), Err(BrokerError::RequestCollision));
+        assert_eq!(
+            broker.reserve_autonomous(collision, IDLE),
+            Err(BrokerError::RequestCollision)
+        );
         let mut stale = appearance("request:two", "2026-11-04");
         stale.broker_generation = 6;
-        assert_eq!(broker.reserve_autonomous(stale, IDLE), Err(BrokerError::StaleGeneration));
+        assert_eq!(
+            broker.reserve_autonomous(stale, IDLE),
+            Err(BrokerError::StaleGeneration)
+        );
     }
 }
