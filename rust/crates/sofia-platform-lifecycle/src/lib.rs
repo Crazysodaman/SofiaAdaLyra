@@ -28,8 +28,7 @@ fn valid_host_id(host: &str) -> bool {
     };
     first.is_ascii_alphanumeric()
         && bytes.all(|byte| {
-            byte.is_ascii_alphanumeric()
-                || matches!(byte, b'.' | b'_' | b'-' | b':' | b'@' | b'/')
+            byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-' | b':' | b'@' | b'/')
         })
 }
 
