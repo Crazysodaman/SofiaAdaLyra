@@ -25,7 +25,7 @@ fn run() -> Result<(), String> {
         ca_pem: fs::read(&args[3]).map_err(|_| "CA unavailable")?,
         client_identity_pem: identity,
     };
-    let client = CoreLinkClient::new(binding.clone(), &credentials, Duration::from_secs(3))
+    let client = CoreLinkClient::diagnostic_new(binding.clone(), &credentials, Duration::from_secs(3))
         .map_err(|error| error.to_string())?;
     let now = Utc::now();
     let request = if args.len() == 11 {
@@ -35,7 +35,7 @@ fn run() -> Result<(), String> {
         Request::status(&binding, "r2:probe", now)
     };
     let response = client
-        .execute(&request, now)
+        .diagnostic_execute(&request, now)
         .map_err(|error| error.to_string())?;
     // Diagnostic output intentionally excludes private message content and Core state.
     // The probe reports only the requested operation, outcome and message count.
