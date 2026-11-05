@@ -1668,6 +1668,17 @@ def test_independent_failed_artifact_critique_accepts_exact_failure(tmp_path):
         life.tick(now=now + timedelta(seconds=3), generate=authored_foxfire_text)
         finished = wait_for_job(life, life.store.jobs(project.project_id)[0])
         assert finished.status is WorkStatus.COMPLETED
+        # The asynchronous RUN worker stamps its receipt using wall clock.
+        # The original scoped receipt cannot be reviewed at a synthetic time
+        # that precedes actual completion on a slow Windows CI runner.
+        receipt = life.evidence_index.lookup(str(finished.result["evidence_ref"]))
+        assert receipt is not None
+        assert receipt.kind == "operation_receipt"
+        assert receipt.successful is True
+        reviewed_at = max(
+            now + timedelta(seconds=4),
+            receipt.observed_at + timedelta(microseconds=1),
+        )
         critique = life.evaluate_artifact(
             project.project_id,
             artifact_id=str(finished.result["artifact_id"]),
@@ -1677,7 +1688,7 @@ def test_independent_failed_artifact_critique_accepts_exact_failure(tmp_path):
             reason="The exact original text predicate was independently absent.",
             evidence_refs=(str(finished.result["evidence_ref"]),),
             preserve_for_research=False,
-            now=now + timedelta(seconds=4),
+            now=reviewed_at,
         )
         assert critique.objective_results[original] is False
         assert critique.technical_outcome is TechnicalOutcome.INVALID
