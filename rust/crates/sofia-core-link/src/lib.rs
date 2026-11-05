@@ -937,19 +937,13 @@ mod tests {
         let mut revoked_during_io = valid.clone();
         revoked_during_io.binding.active = false;
         assert!(matches!(
-            client.accept_checked_response(
-                response(),
-                &FakeAuthority(Some(revoked_during_io))
-            ),
+            client.accept_checked_response(response(), &FakeAuthority(Some(revoked_during_io))),
             Err(Error::RevokedBinding)
         ));
         let mut replaced_during_io = valid.clone();
         replaced_during_io.identity.binding_revision += 1;
         assert!(matches!(
-            client.accept_checked_response(
-                response(),
-                &FakeAuthority(Some(replaced_during_io))
-            ),
+            client.accept_checked_response(response(), &FakeAuthority(Some(replaced_during_io))),
             Err(Error::BindingMismatch)
         ));
         assert!(matches!(
