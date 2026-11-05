@@ -124,7 +124,8 @@ def test_restart_clears_stale_tray_events_and_startup_error(monkeypatch):
             agent._hwnd = 100
             agent._ready.set()
 
-    import sofia.modules.ui.windows_tray as tray_module
-    monkeypatch.setattr(tray_module, "Thread", FakeThread)
+    # The import-safety test reloads this module. Patch the exact globals
+    # used by the bound class rather than a potentially reimported module.
+    monkeypatch.setitem(WindowsTrayAgent.start.__globals__, "Thread", FakeThread)
     agent.start()
     assert agent._hwnd == 100
