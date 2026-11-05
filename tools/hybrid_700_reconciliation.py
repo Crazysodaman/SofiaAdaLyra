@@ -22,7 +22,16 @@ REQUIRED_FIELDS = frozenset({
     "primary_layer", "primary_owner", "coding_status", "disposition",
     "source_alignment",
 })
-EXPECTED_IDS = {f"CA-{number:03d}" for number in range(1, 701)}
+ID_REGISTER = SOURCE.with_name("CA700_CANONICAL_IDS.txt")
+EXPECTED_IDS = {
+    row.strip()
+    for row in ID_REGISTER.read_text(encoding="utf-8").splitlines()
+    if row.strip() and not row.lstrip().startswith("#")
+}
+if len(EXPECTED_IDS) != 700 or any(
+    re.fullmatch(r"CA-\d{3,4}", task_id) is None for task_id in EXPECTED_IDS
+):
+    raise ValueError("audited CA700 ID manifest must contain 700 unique phase IDs")
 CANDIDATE_LAYER = {
     "CORE": "PYTHON_COGNITION_CORE",
     "PLATFORM": "RUST_PLATFORM_OR_REVIEWED_PYTHON_BOUNDARY",
@@ -50,8 +59,9 @@ def reconcile(source: Path = SOURCE) -> dict:
     extra = set(ids).difference(EXPECTED_IDS)
     if missing or extra:
         raise ValueError(
-            f"CA task inventory mismatch: missing={sorted(missing)} "
-            f"extra={sorted(extra)}"
+            f"CA task inventory mismatch: missing={len(missing)} "
+            f"examples={sorted(missing)[:5]} extra={len(extra)} "
+            f"examples={sorted(extra)[:5]}"
         )
 
     projected = []
@@ -61,7 +71,7 @@ def reconcile(source: Path = SOURCE) -> dict:
         layer = row["primary_layer"]
         if layer not in CANDIDATE_LAYER:
             raise ValueError(f"unrecognized architecture layer for {row['task_id']}")
-        if re.fullmatch(r"CA-\d{3}", row["task_id"]) is None:
+        if re.fullmatch(r"CA-\d{3,4}", row["task_id"]) is None:
             raise ValueError("malformed CA task ID")
         projected.append({
             "task_id": row["task_id"],
