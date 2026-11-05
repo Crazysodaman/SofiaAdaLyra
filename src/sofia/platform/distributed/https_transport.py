@@ -20,6 +20,8 @@ from sofia.platform.distributed.version import FleetProtocolVersion
 
 class HttpsTransportError(RuntimeError): pass
 
+MAX_RESPONSE_BYTES = 1_400_000
+
 class PinnedHttpsRemoteTransport(RemoteTransport):
     """Authenticated transport using CA validation + mutual TLS + SPKI pinning."""
 
@@ -71,7 +73,11 @@ class PinnedHttpsRemoteTransport(RemoteTransport):
                 raise HttpsTransportError("peer TLS public key does not match enrolled node pin")
             connection.request(method,path,body=body,headers=headers)
             response=connection.getresponse()
-            raw=response.read()
+            # Bound actual bytes, including chunked bodies and HTTP errors;
+            # Content-Length is supplied by the peer and cannot enforce this.
+            raw=response.read(MAX_RESPONSE_BYTES + 1)
+            if len(raw)>MAX_RESPONSE_BYTES:
+                raise HttpsTransportError("agent response exceeds maximum size")
             if response.status<200 or response.status>=300:
                 text=raw.decode("utf-8",errors="replace")[:500]
                 raise HttpsTransportError(f"agent HTTP {response.status}: {text}")
