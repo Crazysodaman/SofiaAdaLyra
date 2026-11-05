@@ -144,10 +144,12 @@ impl Request {
         {
             return Err(Error::Contract("invalid history query"));
         }
-        let after = after.map(|cursor| serde_json::json!({
-            "created_at": cursor.created_at.to_rfc3339(),
-            "message_id": cursor.message_id,
-        }));
+        let after = after.map(|cursor| {
+            serde_json::json!({
+                "created_at": cursor.created_at.to_rfc3339(),
+                "message_id": cursor.message_id,
+            })
+        });
         let payload = serde_json::json!({"session_id": session_id, "after": after, "limit": limit});
         Ok(Self::new(
             binding,
@@ -568,5 +570,4 @@ mod tests {
         assert!(!output.contains("TEST_CA_MATERIAL"));
         assert!(!output.contains("TEST_PRIVATE_KEY_MATERIAL"));
     }
-
 }
