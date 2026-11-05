@@ -440,6 +440,110 @@ impl CoreLinkClient {
     }
 }
 
+/// Identity of a binding selected by the canonical Platform owner.
+/// A revisioned, selected binding is required before production read requests.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EnrollmentIdentity {
+    pub binding_id: String,
+    pub binding_revision: u64,
+    pub store_revision: u64,
+}
+
+/// Fresh owner-issued state, loaded for each dispatch, not a cached GUI flag.
+#[derive(Clone, Debug)]
+pub struct CurrentEnrollment {
+    pub identity: EnrollmentIdentity,
+    pub selected: bool,
+    pub binding: EnrolledBinding,
+}
+
+/// Implement only through the canonical Platform binding store. Failure to
+/// read the store must return an error, never substitute an earlier snapshot.
+pub trait BindingAuthority {
+    /// Read the selected binding and revisions directly from the owner.
+    ///
+    /// # Errors
+    /// Fail closed if the authoritative store is unavailable or inconsistent.
+    fn selected_binding(&self) -> Result<CurrentEnrollment, Error>;
+}
+
+/// Production-facing read-only client. The legacy `CoreLinkClient` is retained
+/// for disposable compatibility probes but cannot establish fresh enrollment.
+pub struct AuthorizedCoreLinkClient {
+    transport: CoreLinkClient,
+    enrollment: EnrollmentIdentity,
+}
+
+impl AuthorizedCoreLinkClient {
+    /// Captures the exact enrolled binding identity for later fresh checks.
+    ///
+    /// # Errors
+    /// Rejects invalid binding IDs, zero revisions or invalid mTLS identity.
+    pub fn new(
+        binding: EnrolledBinding,
+        enrollment: EnrollmentIdentity,
+        credentials: &TlsCredentials,
+        timeout: StdDuration,
+    ) -> Result<Self, Error> {
+        if !valid_id(&enrollment.binding_id)
+            || enrollment.binding_revision == 0
+            || enrollment.store_revision == 0
+        {
+            return Err(Error::Contract(
+                "valid enrolled binding and revisions required",
+            ));
+        }
+        let transport = CoreLinkClient::new(binding, credentials, timeout)?;
+        Ok(Self {
+            transport,
+            enrollment,
+        })
+    }
+
+    fn assert_current(&self, authority: &impl BindingAuthority) -> Result<(), Error> {
+        let current = authority.selected_binding()?;
+        if !current.selected || !current.binding.active {
+            return Err(Error::RevokedBinding);
+        }
+        if current.identity.binding_id != self.enrollment.binding_id
+            || current.identity.binding_revision != self.enrollment.binding_revision
+            || current.identity.store_revision < self.enrollment.store_revision
+        {
+            return Err(Error::BindingMismatch);
+        }
+        let previous = &self.transport.binding;
+        let binding = &current.binding;
+        if binding.local_platform_id != previous.local_platform_id
+            || binding.remote_platform_id != previous.remote_platform_id
+            || binding.remote_core_identity_id != previous.remote_core_identity_id
+            || binding.remote_core_generation != previous.remote_core_generation
+            || binding.endpoint != previous.endpoint
+            || binding.protocol != previous.protocol
+            || binding.trust_anchor_sha256 != previous.trust_anchor_sha256
+        {
+            return Err(Error::BindingMismatch);
+        }
+        Ok(())
+    }
+
+    /// Re-reads canonical enrollment immediately before each read-only HTTP
+    /// request. The owner must enforce revocation and selection atomically;
+    /// no credential, grant or permission is ever accepted from wire JSON.
+    ///
+    /// # Errors
+    /// Fails closed on removed/changed selection, generation, pin, endpoint
+    /// or authority-store errors, in addition to Core Link transport errors.
+    pub fn execute(
+        &self,
+        request: &Request,
+        now: DateTime<Utc>,
+        authority: &impl BindingAuthority,
+    ) -> Result<Response, Error> {
+        self.assert_current(authority)?;
+        self.transport.execute(request, now)
+    }
+}
+
 /// Parses one bounded response using the strict Python-compatible field set.
 ///
 /// # Errors
@@ -700,5 +804,86 @@ mod tests {
                 Err(Error::Contract(_))
             ));
         }
+    }
+    #[test]
+    fn authorized_client_rejects_revoked_changed_and_missing_enrollments_before_io() {
+        #[derive(Clone)]
+        struct FakeAuthority(Option<CurrentEnrollment>);
+        impl BindingAuthority for FakeAuthority {
+            fn selected_binding(&self) -> Result<CurrentEnrollment, Error> {
+                self.0.clone().ok_or(Error::RevokedBinding)
+            }
+        }
+        let binding = EnrolledBinding {
+            active: true,
+            local_platform_id: "platform:venus".into(),
+            remote_platform_id: "platform:artemis".into(),
+            remote_core_identity_id: "core:sofia".into(),
+            remote_core_generation: 7,
+            endpoint: Url::parse("https://localhost/v1/core-link").unwrap(),
+            protocol: PROTOCOL.into(),
+            trust_anchor_sha256: "a".repeat(64),
+        };
+        let identity = EnrollmentIdentity {
+            binding_id: "binding:sofia".into(),
+            binding_revision: 3,
+            store_revision: 8,
+        };
+        // Direct unit construction isolates pre-send checks from TLS/network.
+        let client = AuthorizedCoreLinkClient {
+            transport: CoreLinkClient {
+                binding: binding.clone(),
+                client: Client::new(),
+            },
+            enrollment: identity.clone(),
+        };
+        let valid = CurrentEnrollment {
+            identity: identity.clone(),
+            selected: true,
+            binding: binding.clone(),
+        };
+        assert!(client
+            .assert_current(&FakeAuthority(Some(valid.clone())))
+            .is_ok());
+        assert!(matches!(
+            client.assert_current(&FakeAuthority(None)),
+            Err(Error::RevokedBinding)
+        ));
+        let mut revoked = valid.clone();
+        revoked.binding.active = false;
+        assert!(matches!(
+            client.assert_current(&FakeAuthority(Some(revoked))),
+            Err(Error::RevokedBinding)
+        ));
+        let mut unselected = valid.clone();
+        unselected.selected = false;
+        assert!(matches!(
+            client.assert_current(&FakeAuthority(Some(unselected))),
+            Err(Error::RevokedBinding)
+        ));
+        let mut changed = valid.clone();
+        changed.identity.binding_revision += 1;
+        assert!(matches!(
+            client.assert_current(&FakeAuthority(Some(changed))),
+            Err(Error::BindingMismatch)
+        ));
+        let mut replaced = valid.clone();
+        replaced.binding.remote_core_generation += 1;
+        assert!(matches!(
+            client.assert_current(&FakeAuthority(Some(replaced))),
+            Err(Error::BindingMismatch)
+        ));
+        let mut pin_changed = valid.clone();
+        pin_changed.binding.trust_anchor_sha256 = "b".repeat(64);
+        assert!(matches!(
+            client.assert_current(&FakeAuthority(Some(pin_changed))),
+            Err(Error::BindingMismatch)
+        ));
+        let mut rollback = valid;
+        rollback.identity.store_revision -= 1;
+        assert!(matches!(
+            client.assert_current(&FakeAuthority(Some(rollback))),
+            Err(Error::BindingMismatch)
+        ));
     }
 }
