@@ -382,7 +382,7 @@ impl CoreLinkClient {
     }
 
     /// Executes one pinned read-only request, reachable only after a fresh
-    /// authorization check in AuthorizedCoreLinkClient outside diagnostic mode.
+    /// authorization check in `AuthorizedCoreLinkClient` outside diagnostic mode.
     ///
     /// # Errors
     /// Fails closed on binding, deadline, TLS, pin, HTTP, size, or response validation errors.
