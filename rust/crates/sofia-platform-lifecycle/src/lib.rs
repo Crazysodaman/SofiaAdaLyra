@@ -36,9 +36,9 @@ fn valid_host_id(host: &str) -> bool {
 /// observation is not permission to start a Core or mint a writer lease.
 #[derive(Debug, Clone)]
 pub struct Supervision {
-    pub host_id: String,
-    pub generation: u64,
-    pub phase: ProcessPhase,
+    host_id: String,
+    generation: u64,
+    phase: ProcessPhase,
     last_observation_sequence: u64,
 }
 
@@ -57,14 +57,55 @@ impl Supervision {
         })
     }
 
+    /// Immutable host identity for the current supervision contract.
+    #[must_use]
+    pub fn host_id(&self) -> &str {
+        &self.host_id
+    }
+
+    /// Exact launch generation associated with subsequent observations.
+    #[must_use]
+    pub fn generation(&self) -> u64 {
+        self.generation
+    }
+
+    /// Current observed lifecycle state, not a writer lease or process grant.
+    #[must_use]
+    pub fn phase(&self) -> ProcessPhase {
+        self.phase
+    }
+
     /// A prepared process is not an observed ready process.
     ///
     /// # Errors
-    /// Denies transitions from uncertain, draining, or running states.
+    /// Only permits the first launch with the initial generation. A completed
+    /// prior launch must be fenced by `note_restart_prepared` with a higher
+    /// generation; the old generation cannot be silently reused.
     pub fn note_start_prepared(&mut self) -> Result<(), LifecycleError> {
-        if self.phase != ProcessPhase::Stopped {
+        if self.phase != ProcessPhase::Stopped || self.last_observation_sequence != 0 {
             return Err(LifecycleError::InvalidTransition);
         }
+        self.phase = ProcessPhase::Starting;
+        Ok(())
+    }
+
+    /// Stage another launch only after an independently observed prior stop.
+    /// A new generation fences late observations from the previous process.
+    /// The actual Platform service owner must allocate/persist this generation
+    /// and independently control OS process start and the canonical writer.
+    ///
+    /// # Errors
+    /// Denies uncertain/active/draining workers, reused/older/zero generations
+    /// and an initial launch with no previous independent stopped witness.
+    pub fn note_restart_prepared(&mut self, next_generation: u64) -> Result<(), LifecycleError> {
+        if self.phase != ProcessPhase::Stopped || self.last_observation_sequence == 0 {
+            return Err(LifecycleError::InvalidTransition);
+        }
+        if next_generation <= self.generation {
+            return Err(LifecycleError::InvalidGeneration);
+        }
+        self.generation = next_generation;
+        self.last_observation_sequence = 0;
         self.phase = ProcessPhase::Starting;
         Ok(())
     }
@@ -281,7 +322,63 @@ mod tests {
             Err(LifecycleError::NoIndependentProof)
         );
         state.note_stopped("artemis", 12, 3, true).unwrap();
+        assert_eq!(
+            state.note_start_prepared(),
+            Err(LifecycleError::InvalidTransition)
+        );
+        assert_eq!(
+            state.note_restart_prepared(12),
+            Err(LifecycleError::InvalidGeneration)
+        );
+        state.note_restart_prepared(13).unwrap();
+        assert_eq!(state.generation(), 13);
+        assert_eq!(
+            state.note_ready("artemis", 12, 4, true),
+            Err(LifecycleError::StaleObserver)
+        );
+        state.note_ready("artemis", 13, 1, true).unwrap();
+    }
+
+    #[test]
+    fn a_restart_requires_a_verified_stop_and_increasing_generation() {
+        let mut state = Supervision::new("host:artemis".into(), 7).unwrap();
+        assert_eq!(
+            state.note_restart_prepared(8),
+            Err(LifecycleError::InvalidTransition)
+        );
         state.note_start_prepared().unwrap();
+        assert_eq!(
+            state.note_restart_prepared(8),
+            Err(LifecycleError::InvalidTransition)
+        );
+        state.note_ready("host:artemis", 7, 1, true).unwrap();
+        state.note_drain_requested().unwrap();
+        assert_eq!(
+            state.note_restart_prepared(8),
+            Err(LifecycleError::InvalidTransition)
+        );
+        state.note_stopped("host:artemis", 7, 2, true).unwrap();
+        assert_eq!(state.phase(), ProcessPhase::Stopped);
+        for stale in [0, 6, 7] {
+            assert_eq!(
+                state.note_restart_prepared(stale),
+                Err(LifecycleError::InvalidGeneration)
+            );
+        }
+        assert_eq!(state.generation(), 7);
+        state.note_restart_prepared(8).unwrap();
+        assert_eq!(state.generation(), 8);
+        assert_eq!(state.host_id(), "host:artemis");
+        assert_eq!(
+            state.note_ready("host:artemis", 7, 3, true),
+            Err(LifecycleError::StaleObserver)
+        );
+        assert_eq!(
+            state.note_ready("host:other", 8, 1, true),
+            Err(LifecycleError::StaleObserver)
+        );
+        state.note_ready("host:artemis", 8, 1, true).unwrap();
+        assert_eq!(state.phase(), ProcessPhase::Ready);
     }
 
     #[test]
