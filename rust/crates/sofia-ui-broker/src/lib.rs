@@ -81,6 +81,76 @@ impl BrokerState {
         })
     }
 
+    /// Recover a complete ledger previously read by a trusted Platform
+    /// storage adapter. This function neither loads bytes nor authenticates
+    /// the storage source; callers must fail closed if that durable source is
+    /// missing, corrupt, or incomplete.
+    ///
+    /// Any reserved/visible appearance from before restart remains uncertain
+    /// and keeps its quota slot. A previous generation can never be used to
+    /// claim a new visible receipt, and the watermark cannot move backwards.
+    ///
+    /// # Errors
+    /// Refuses invalid identity/day, impossible future generation, duplicate
+    /// request IDs, or a ledger that already exceeds the daily hard limit.
+    pub fn restore(
+        generation: u64,
+        last_accepted_day: String,
+        owner_hidden: bool,
+        records: Vec<Appearance>,
+    ) -> Result<Self, BrokerError> {
+        let mut broker = Self::new(generation, last_accepted_day)?;
+        broker.owner_hidden = owner_hidden;
+        for mut item in records {
+            if !valid_restored_id(&item.request_id)
+                || !valid_restored_id(&item.host_id)
+                || !valid_restored_id(&item.session_id)
+                || !valid_day(&item.local_day)
+                || item.broker_generation == 0
+                || item.broker_generation > generation
+            {
+                return Err(BrokerError::InvalidIdentity);
+            }
+            if matches!(item.state, SlotState::Reserved | SlotState::Visible) {
+                item.state = SlotState::Uncertain;
+            }
+            if item.local_day > broker.last_accepted_day {
+                broker.last_accepted_day.clone_from(&item.local_day);
+            }
+            if broker.reservations.insert(item.request_id.clone(), item).is_some() {
+                return Err(BrokerError::RequestCollision);
+            }
+        }
+        let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
+        for item in broker.reservations.values() {
+            if item.state != SlotState::Released {
+                let count = counts.entry(item.local_day.as_str()).or_default();
+                *count += 1;
+                if *count > DAILY_AUTONOMOUS_LIMIT {
+                    return Err(BrokerError::InvalidIdentity);
+                }
+            }
+        }
+        Ok(broker)
+    }
+
+    /// Immutable restored reservation projection for the trusted journal
+    /// adapter to persist. This is not authorization to release a slot.
+    #[must_use]
+    pub fn reservations(&self) -> Vec<Appearance> {
+        self.reservations.values().cloned().collect()
+    }
+
+    #[must_use]
+    pub fn last_accepted_day(&self) -> &str {
+        &self.last_accepted_day
+    }
+
+    #[must_use]
+    pub fn owner_hidden(&self) -> bool {
+        self.owner_hidden
+    }
+
     #[must_use]
     pub fn reserved_or_uncertain_count(&self, day: &str) -> usize {
         self.reservations
@@ -231,6 +301,18 @@ pub struct TrayProjection {
     pub core_connected: bool,
     pub broker_generation: u64,
     pub stop_active: bool,
+}
+
+fn valid_restored_id(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.is_empty() || bytes.len() > 256 {
+        return false;
+    }
+    let mut iter = value.bytes();
+    iter.next().is_some_and(|byte| byte.is_ascii_alphanumeric())
+        && iter.all(|byte| {
+            byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-' | b':' | b'@' | b'/')
+        })
 }
 
 fn valid_day(value: &str) -> bool {
