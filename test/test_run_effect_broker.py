@@ -46,7 +46,7 @@ def request(*, key="key-1", value="one", request_id="request:1"):
             requested_scope={"target": "fixture"},
         ),
         expected_effect="fixture updated",
-        expires_at=NOW + timedelta(hours=1),
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
         correlation_id="correlation:1",
         risk="isolated_change",
     )
@@ -54,8 +54,9 @@ def request(*, key="key-1", value="one", request_id="request:1"):
 
 def test_idempotent_submission_returns_one_canonical_run_job(canonical_state_path):
     broker = make_broker(canonical_state_path, lambda request: {"ok": True})
-    first = broker.submit(request(), now=NOW)
-    second = broker.submit(request(), now=NOW + timedelta(seconds=1))
+    original = request()
+    first = broker.submit(original, now=NOW)
+    second = broker.submit(original, now=NOW + timedelta(seconds=1))
     assert first.job_id == second.job_id
     assert len(broker.work_store.list()) == 1
 
