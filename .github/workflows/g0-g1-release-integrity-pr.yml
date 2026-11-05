@@ -47,4 +47,4 @@ jobs:
           python -m pip check
           python -m compileall -q src/sofia test
       - name: Run g0g1 regressions
-        run: python -m pytest -q test/test_run_active_release.py
+        run: python -m pytest -q test/test_run_active_release.py test/test_manual_verify_concurrency.py
