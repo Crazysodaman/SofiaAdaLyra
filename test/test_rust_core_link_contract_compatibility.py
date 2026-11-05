@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import sys
 import threading
+import tomllib
 from datetime import datetime, timezone
 
 import pytest
@@ -19,6 +20,28 @@ from test_core_link_conversation import tls_material  # noqa: E402
 
 
 FIXTURES = Path(__file__).parents[1] / "contracts" / "core-link"
+
+
+def test_rust_raw_core_link_probe_is_explicitly_opt_in():
+    """A normal production Cargo build must not expose the diagnostic CLI."""
+    root = Path(__file__).parents[1]
+    manifest = tomllib.loads(
+        (root / "rust" / "crates" / "sofia-core-link" / "Cargo.toml")
+        .read_text(encoding="utf-8")
+    )
+    assert manifest["features"]["diagnostic-probe"] == []
+    assert next(
+        binary for binary in manifest["bin"]
+        if binary["name"] == "r2_core_link_probe"
+    )["required-features"] == ["diagnostic-probe"]
+    source = (
+        root / "rust" / "crates" / "sofia-core-link" / "src" / "lib.rs"
+    ).read_text(encoding="utf-8")
+    assert "pub fn diagnostic_execute(" in source
+    assert "pub fn diagnostic_new(" in source
+    assert "#[cfg(feature = \"diagnostic-probe\")]" in source
+    assert "    fn execute(&self, request: &Request, now: DateTime<Utc>)" in source
+    assert "    pub fn execute(&self, request: &Request, now: DateTime<Utc>)" not in source
 
 
 @pytest.mark.parametrize(
