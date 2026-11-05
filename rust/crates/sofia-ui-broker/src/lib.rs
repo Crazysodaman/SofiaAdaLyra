@@ -66,6 +66,9 @@ pub struct BrokerState {
 impl BrokerState {
     /// Construct an isolated broker state; production must restore the durable
     /// reservation ledger before autonomous admission is enabled.
+    ///
+    /// # Errors
+    /// Reject invalid broker generation or malformed calendar day.
     pub fn new(generation: u64, last_accepted_day: String) -> Result<Self, BrokerError> {
         if generation == 0 || !valid_day(&last_accepted_day) {
             return Err(BrokerError::InvalidIdentity);
@@ -94,6 +97,9 @@ impl BrokerState {
 
     /// Called only after Platform OS lock/DND observation and admission checks.
     /// Quiet hours intentionally do not suppress this Companion appearance policy.
+    ///
+    /// # Errors
+    /// Reject malformed, collided, stale-generation or rollback-day requests.
     pub fn reserve_autonomous(
         &mut self,
         request: Appearance,
@@ -134,7 +140,7 @@ impl BrokerState {
         if self.reserved_or_uncertain_count(&request.local_day) >= DAILY_AUTONOMOUS_LIMIT {
             return Ok(Admission::Suppressed(Suppression::DailyLimit));
         }
-        self.last_accepted_day = request.local_day.clone();
+        self.last_accepted_day.clone_from(&request.local_day);
         self.reservations.insert(
             request.request_id.clone(),
             Appearance {
@@ -173,6 +179,7 @@ impl BrokerState {
 
     /// Only the Platform observer adapter can produce trusted visible receipts.
     /// This crate does not expose this transition to renderer/IPC clients.
+    #[cfg(test)]
     fn mark_visible(
         &mut self,
         request_id: &str,
@@ -198,6 +205,9 @@ impl BrokerState {
     }
 
     /// A restart cannot silently free an ambiguous attempted appearance.
+    ///
+    /// # Errors
+    /// Reject unknown reservation identifiers.
     pub fn reconcile_uncertain(&mut self, request_id: &str) -> Result<(), BrokerError> {
         let item = self
             .reservations
