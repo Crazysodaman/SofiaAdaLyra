@@ -68,6 +68,14 @@ class WindowsTrayAgent:
             raise WindowsTrayUnavailable("Windows notification-area UI requires Windows")
         if self._thread is not None:
             raise RuntimeError("tray agent already started")
+        # The same agent can be started again after a clean, observed stop.
+        # Events/handles from the previous window must never satisfy startup
+        # or shutdown checks for a replacement worker.
+        self._ready.clear()
+        self._stopped.clear()
+        self._startup_error = None
+        self._hwnd = None
+        self._wndproc = None
         self._thread = Thread(target=self._run, name="sofia-windows-tray", daemon=True)
         self._thread.start()
         self._ready.wait(timeout=5)
@@ -77,9 +85,10 @@ class WindowsTrayAgent:
             raise WindowsTrayUnavailable("Windows tray window did not initialize")
 
     def stop(self) -> None:
-        if self._thread is None:
+        thread = self._thread
+        if thread is None:
             return
-        if self._hwnd is not None and sys.platform == "win32":
+        if not self._stopped.is_set() and self._hwnd is not None and sys.platform == "win32":
             import ctypes
             from ctypes import wintypes
 
@@ -91,9 +100,17 @@ class WindowsTrayAgent:
                 wintypes.LPARAM,
             ]
             post_message.restype = wintypes.BOOL
-            post_message(self._hwnd, 0x0010, 0, 0)  # WM_CLOSE
-        self._stopped.wait(timeout=5)
+            if not post_message(self._hwnd, 0x0010, 0, 0):  # WM_CLOSE
+                raise WindowsTrayUnavailable("Windows tray close message was not delivered")
+        if not self._stopped.wait(timeout=5):
+            # Never forget a live worker and permit a second tray to start.
+            raise WindowsTrayUnavailable("Windows tray thread did not acknowledge shutdown")
+        thread.join(timeout=1)
+        if thread.is_alive():
+            raise WindowsTrayUnavailable("Windows tray thread remained alive after shutdown")
         self._thread = None
+        self._hwnd = None
+        self._wndproc = None
 
     def notify(self, *, title: str, content: str) -> None:
         """Ask the tray thread to display one bounded native notification."""
