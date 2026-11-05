@@ -20,6 +20,10 @@ jobs:
     name: Verified Python lock and SDK parity (${{ matrix.os }}, Python ${{ matrix.python }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    # This lane proves Python lock parity; Rust MSRV is separately checked
+    # by dedicated R1/R2 matrix jobs. Avoid Windows rustfmt toolchain collision.
+    env:
+      RUSTUP_TOOLCHAIN: stable
     strategy:
       fail-fast: false
       matrix:
@@ -37,9 +41,6 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.85.1
       - name: Install immutable runtime and verification wheels
         run: |
           python -m pip install --require-hashes --only-binary=:all: -r "${{ matrix.runtime }}"
