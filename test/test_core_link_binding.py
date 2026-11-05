@@ -560,3 +560,77 @@ def test_launcher_status_projects_selected_binding_without_secret_refs(
     assert "credential_ref" not in projection
     assert "trust_anchor_ref" not in projection
 
+def test_rust_owner_projection_reloads_active_selected_binding(tmp_path):
+    registry = store(tmp_path)
+    chosen = registry.select(
+        "binding:sofia-primary", expected_store_revision=activate(registry).revision,
+    )
+    active, revision = registry.require_current_selected(
+        binding_id="binding:sofia-primary",
+        expected_binding_revision=chosen.selected().revision,
+        minimum_store_revision=chosen.revision,
+    )
+    assert active.state is CoreLinkBindingState.ACTIVE
+    assert active.remote_core_generation == 7
+    assert revision == chosen.revision
+    with pytest.raises(PermissionError, match="no longer selected"):
+        registry.require_current_selected(
+            binding_id="binding:another",
+            expected_binding_revision=active.revision,
+            minimum_store_revision=chosen.revision,
+        )
+    with pytest.raises(PermissionError, match="rolled backwards"):
+        registry.require_current_selected(
+            binding_id="binding:sofia-primary",
+            expected_binding_revision=active.revision,
+            minimum_store_revision=chosen.revision + 1,
+        )
+
+
+def test_rust_owner_projection_denies_stale_revision_and_revocation(tmp_path):
+    registry = store(tmp_path)
+    chosen = registry.select(
+        "binding:sofia-primary", expected_store_revision=activate(registry).revision,
+    )
+    initial = chosen.selected()
+    offline = registry.transition(
+        initial.binding_id,
+        expected_binding_revision=initial.revision,
+        expected_store_revision=chosen.revision,
+        state=CoreLinkBindingState.OFFLINE,
+        at=NOW + timedelta(seconds=3),
+    )
+    with pytest.raises(PermissionError, match="not active"):
+        registry.require_current_selected(
+            binding_id=initial.binding_id,
+            expected_binding_revision=initial.revision,
+            minimum_store_revision=chosen.revision,
+        )
+    reactivated = registry.transition(
+        initial.binding_id,
+        expected_binding_revision=offline.selected().revision,
+        expected_store_revision=offline.revision,
+        state=CoreLinkBindingState.ACTIVE,
+        at=NOW + timedelta(seconds=4),
+    )
+    with pytest.raises(PermissionError, match="revision changed"):
+        registry.require_current_selected(
+            binding_id=initial.binding_id,
+            expected_binding_revision=initial.revision,
+            minimum_store_revision=chosen.revision,
+        )
+    revoked = registry.transition(
+        initial.binding_id,
+        expected_binding_revision=reactivated.selected().revision,
+        expected_store_revision=reactivated.revision,
+        state=CoreLinkBindingState.REVOKED,
+        at=NOW + timedelta(seconds=5),
+    )
+    assert revoked.selected_binding_id is None
+    with pytest.raises(PermissionError, match="no longer selected"):
+        registry.require_current_selected(
+            binding_id=initial.binding_id,
+            expected_binding_revision=initial.revision,
+            minimum_store_revision=chosen.revision,
+        )
+
