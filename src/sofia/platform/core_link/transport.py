@@ -311,6 +311,15 @@ class PinnedCoreLinkClient:
             expected = binding.trust_anchor_ref.removeprefix("sha256:")
             if _FP.fullmatch(expected) is None or observed != expected:
                 raise CoreLinkTransportError("Core Link host public key pin mismatch")
+            # TLS negotiation can take long enough for the owner to revoke
+            # or reselect this binding. Never send on the older snapshot.
+            # This is a second, fail-closed check, not the atomic
+            # host-owned dispatch/revocation gate required for Rust R2.
+            current = self.binding_store.load().selected()
+            if current is None or current.state is not CoreLinkBindingState.ACTIVE or current != binding:
+                raise CoreLinkTransportError(
+                    "selected Core Link binding changed before request dispatch"
+                )
             connection.request(
                 "POST", "/v1/core-link", body=body,
                 headers={"Content-Type": "application/json", "Accept": "application/json"},

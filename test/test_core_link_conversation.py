@@ -747,3 +747,89 @@ def test_g4_outbound_core_link_frame_rejected_before_network(monkeypatch, tmp_pa
     with pytest.raises(CoreLinkTransportError, match="outbound request exceeds size"):
         client.request(request("status", {}))
     assert selected == ["selected"]
+
+
+@pytest.mark.parametrize("new_state", [
+    CoreLinkBindingState.OFFLINE,
+    CoreLinkBindingState.REVOKED,
+])
+def test_core_link_revoked_during_tls_setup_cannot_send_http(
+    monkeypatch, tmp_path, new_state,
+):
+    """The selected binding may change while mTLS is being established.
+
+    This isolates the pre-send check. Other tests exercise real pinned mTLS;
+    this fixture never opens a socket or claims an atomic Rust IPC gate.
+    """
+    from types import SimpleNamespace
+    import sofia.platform.core_link.transport as transport
+    from test.test_core_link_binding import activate, store
+
+    registry = store(tmp_path)
+    selected = registry.select(
+        "binding:sofia-primary", expected_store_revision=activate(registry).revision,
+    )
+    binding = selected.selected()
+    assert binding is not None
+    endpoint = CoreLinkEndpoint(binding.endpoint_id, "localhost", 443)
+    client = PinnedCoreLinkClient(
+        registry, endpoint_resolver=lambda _id: endpoint,
+        credential_resolver=lambda _ref: CoreLinkTLSCredentials(
+            tmp_path / "ca.pem", tmp_path / "client.pem", tmp_path / "client.key",
+        ),
+        timeout_seconds=3,
+    )
+    posted, closed = [], []
+
+    class ConnectionAfterRevocation:
+        def __init__(self, *_args, **_kwargs):
+            self.sock = None
+
+        def connect(self):
+            self.sock = SimpleNamespace(
+                getpeercert=lambda binary_form: b"synthetic-der",
+            )
+            previous = registry.load()
+            current = previous.selected()
+            assert current is not None
+            registry.transition(
+                binding.binding_id,
+                expected_binding_revision=current.revision,
+                expected_store_revision=previous.revision,
+                state=new_state, at=NOW,
+            )
+
+        def request(self, *_args, **_kwargs):
+            posted.append(True)
+            raise AssertionError("revoked or offline binding sent HTTP")
+
+        def close(self):
+            closed.append(True)
+
+    monkeypatch.setattr(transport, "HTTPSConnection", ConnectionAfterRevocation)
+    monkeypatch.setattr(
+        PinnedCoreLinkClient, "_context", staticmethod(lambda _credentials: object()),
+    )
+    monkeypatch.setattr(
+        transport, "public_key_fingerprint_from_der_certificate",
+        lambda _cert: "a" * 64,
+    )
+    original = CoreLinkRequest(
+        request_id="request:revocation-race",
+        idempotency_key="idempotency:revocation-race",
+        local_platform_id=binding.local_platform_id,
+        remote_platform_id=binding.remote_platform_id,
+        remote_core_identity_id=binding.remote_core_identity_id,
+        remote_core_generation=binding.remote_core_generation,
+        operation="status", payload={},
+        created_at=NOW, deadline=NOW + timedelta(minutes=1),
+    )
+    with pytest.raises(CoreLinkTransportError, match="changed before request dispatch"):
+        client.request(original)
+    assert posted == []
+    assert closed == [True]
+    current = registry.load()
+    if new_state is CoreLinkBindingState.REVOKED:
+        assert current.selected() is None
+    else:
+        assert current.selected().state is CoreLinkBindingState.OFFLINE
