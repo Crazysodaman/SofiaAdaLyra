@@ -18,6 +18,20 @@ pub enum LifecycleError {
     NoIndependentProof,
 }
 
+fn valid_host_id(host: &str) -> bool {
+    if host.is_empty() || host.len() > 160 {
+        return false;
+    }
+    let mut bytes = host.bytes();
+    let Some(first) = bytes.next() else {
+        return false;
+    };
+    first.is_ascii_alphanumeric()
+        && bytes.all(|byte| {
+            byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-' | b':' | b'@' | b'/')
+        })
+}
+
 /// Process observations are fenced by host and launch generation. An
 /// observation is not permission to start a Core or mint a writer lease.
 #[derive(Debug, Clone)]
@@ -32,7 +46,7 @@ impl Supervision {
     /// # Errors
     /// Reject a missing host identity or zero generation.
     pub fn new(host_id: String, generation: u64) -> Result<Self, LifecycleError> {
-        if host_id.is_empty() || generation == 0 {
+        if !valid_host_id(&host_id) || generation == 0 {
             return Err(LifecycleError::InvalidGeneration);
         }
         Ok(Self {
@@ -207,6 +221,30 @@ impl HybridReleaseEvidence {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn invalid_or_unbounded_host_identity_never_enters_fenced_supervision() {
+        for invalid in [
+            "",
+            " ",
+            " host:artemis",
+            "host:artemis ",
+            "host:artemis\nother",
+            "host:artemis\t",
+            "host:artemis?",
+        ] {
+            assert_eq!(
+                Supervision::new(invalid.into(), 7).unwrap_err(),
+                LifecycleError::InvalidGeneration
+            );
+        }
+        assert_eq!(
+            Supervision::new("a".repeat(161), 7).unwrap_err(),
+            LifecycleError::InvalidGeneration
+        );
+        assert!(Supervision::new("host:artemis-vm".into(), 7).is_ok());
+        assert!(Supervision::new("VENUS_PC".into(), 7).is_ok());
+    }
 
     #[test]
     fn never_claim_ready_from_stale_or_unverified_process_observation() {
