@@ -1337,6 +1337,20 @@ def test_child_independently_rejects_parent_claimed_release_digest(
     assert rows is None
 
 
+def test_installed_release_digest_rejects_redirected_package_root(tmp_path):
+    installed = tmp_path / "installed-package"
+    installed.mkdir()
+    (installed / "core.py").write_text("value = 1\n", encoding="utf-8")
+    assert len(installed_core_release_digest(installed)) == 64
+    redirected = tmp_path / "redirected-root"
+    try:
+        redirected.symlink_to(installed, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("host denies unprivileged directory symlinks")
+    with pytest.raises(CoreWorkerError, match="symlink or junction"):
+        installed_core_release_digest(redirected)
+
+
 def test_installed_release_digest_rejects_symlinked_package_input(tmp_path):
     package = tmp_path / "package"
     package.mkdir()
