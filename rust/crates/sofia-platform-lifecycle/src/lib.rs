@@ -79,7 +79,7 @@ impl Supervision {
     ///
     /// # Errors
     /// Only permits the first launch with the initial generation. A completed
-    /// prior launch must be fenced by note_restart_prepared with a higher
+    /// prior launch must be fenced by `note_restart_prepared` with a higher
     /// generation; the old generation cannot be silently reused.
     pub fn note_start_prepared(&mut self) -> Result<(), LifecycleError> {
         if self.phase != ProcessPhase::Stopped || self.last_observation_sequence != 0 {
