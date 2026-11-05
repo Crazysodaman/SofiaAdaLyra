@@ -21,10 +21,29 @@ from test_core_link_conversation import tls_material  # noqa: E402
 FIXTURES = Path(__file__).parents[1] / "contracts" / "core-link"
 
 
-@pytest.mark.parametrize("name", ["valid-status-request.json", "valid-history-request.json"])
+@pytest.mark.parametrize(
+    "name",
+    [
+        "valid-status-request.json",
+        "valid-history-request.json",
+        "valid-history-page-2-request.json",
+    ],
+)
 def test_python_accepts_r2_request_fixtures(name: str) -> None:
     CoreLinkRequest.from_payload(json.loads((FIXTURES / name).read_text(encoding="utf-8")))
 
+
+
+def test_page_two_history_cursor_is_accepted_by_python_contract() -> None:
+    payload = json.loads(
+        (FIXTURES / "valid-history-page-2-request.json").read_text(encoding="utf-8")
+    )
+    request = CoreLinkRequest.from_payload(payload)
+    assert request.operation == "conversation.history"
+    assert request.payload["after"] == {
+        "created_at": "2025-12-31T23:59:59+00:00",
+        "message_id": "message:1",
+    }
 
 @pytest.mark.parametrize("name", ["valid-status-response.json", "valid-history-response.json"])
 def test_python_accepts_r2_response_fixtures(name: str) -> None:
