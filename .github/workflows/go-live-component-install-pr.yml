@@ -16,6 +16,9 @@ on:
       - 'src/sofia/platform/run/active_release.py'
       - 'test/test_core_component_install.py'
       - 'test/test_run_active_release.py'
+      - 'test/test_platform_installation_identity.py'
+      - 'src/sofia/platform/state/installation_identity.py'
+      - 'packaging/components.toml'
       - 'test/test_component_artifact_separation.py'
       - 'test/test_component_install_production.py'
       - '.github/workflows/go-live-component-install-pr.yml'
@@ -62,4 +65,4 @@ jobs:
         run: python -m compileall -q src/sofia test
       - name: Run component release and installer regression tests
         run: |
-          python -m pytest -q test/test_core_component_install.py test/test_run_active_release.py test/test_component_artifact_separation.py test/test_component_install_production.py test/test_platform_tool_binding_isolation.py
+          python -m pytest -q test/test_core_component_install.py test/test_run_active_release.py test/test_component_artifact_separation.py test/test_component_install_production.py test/test_platform_tool_binding_isolation.py test/test_platform_installation_identity.py test/test_platform_import_isolation.py test/test_platform_roles_and_launcher.py
