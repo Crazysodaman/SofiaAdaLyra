@@ -156,11 +156,18 @@ def test_clean_venv_platform_status_survives_core_uninstall(component_wheels, tm
 def test_single_component_cli_reports_built_distribution(component_wheels, monkeypatch, capsys, component, tmp_path):
     from sofia.platform.verify import component_artifacts
 
+    # RC verification imports this module from an installed wheel. Source
+    # selection is explicit; package location need not be a checkout.
+    monkeypatch.setattr(
+        component_artifacts, "__file__", str(tmp_path / "site-packages" / "component_artifacts.py"),
+    )
     monkeypatch.setattr(
         component_artifacts, "build_component",
         lambda distribution, *args, **kwargs: component_wheels[distribution],
     )
-    assert component_artifacts.main(["--dist", component, "--output", str(tmp_path)]) == 0
+    assert component_artifacts.main([
+        "--dist", component, "--output", str(tmp_path), "--repo", str(ROOT),
+    ]) == 0
     report = json.loads(capsys.readouterr().out)
     assert report["distribution"] == f"sofia-{component}"
     assert report["wheel"] == str(component_wheels[component])

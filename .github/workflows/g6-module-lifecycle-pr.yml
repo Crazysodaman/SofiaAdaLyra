@@ -48,5 +48,7 @@ jobs:
           python -m compileall -q src/sofia test
       - name: Run g6 regressions
         run: python -m pytest -q test/test_module_lifecycle_v1.py
+      - name: Run module owner principal regressions
+        run: python -m pytest -q test/test_platform_module_owner_principal.py test/test_platform_module_command_service.py test/test_platform_module_host_local_state.py test/test_platform_module_settings.py
       - name: Run Platform-local path protection regressions
         run: python -m pytest -q test/test_platform_local_state_redirect.py test/test_canonical_sqlite_protection.py

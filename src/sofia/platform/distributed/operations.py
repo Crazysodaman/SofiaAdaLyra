@@ -9,10 +9,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from json import dumps
 from math import isfinite
+from time import monotonic
 from types import MappingProxyType
 from typing import Mapping
 from uuid import UUID
@@ -154,6 +155,21 @@ class DistributedGateway:
     def invoke(self, enrollment: NodeEnrollment, request: RemoteOperationRequest,
                *, now: datetime) -> RemoteOperationResult:
         _aware(now, "now")
+        started = monotonic()
+
+        def current_time() -> datetime:
+            elapsed = monotonic() - started
+            if not isfinite(elapsed) or elapsed < 0:
+                raise ValueError("Invalid elapsed operation time.")
+            return now.astimezone(timezone.utc) + timedelta(seconds=elapsed)
+
+        def grant_active() -> bool:
+            return self._authorization.permits(
+                request.grant_id, node_id=request.node_id,
+                capability=request.capability, operation=request.operation,
+                now=current_time(),
+            ) is True
+
         if not isinstance(enrollment, NodeEnrollment):
             raise TypeError("enrollment must be NodeEnrollment.")
         if not isinstance(request, RemoteOperationRequest):
@@ -178,13 +194,15 @@ class DistributedGateway:
                 raise RemoteOperationDenied("Invalid capability inventory.")
             if inventory.node_id != request.node_id or not inventory_is_current(
                 inventory,
-                now=now,
+                now=current_time(),
                 max_age=self._max_age,
                 max_future_skew=timedelta(seconds=5),
             ):
                 raise RemoteOperationDenied("Wrong-node, stale, or future capability inventory.")
             if not inventory.advertises(request.capability, request.operation):
                 raise RemoteOperationDenied("Capability/operation is not advertised.")
+            if not grant_active():
+                raise RemoteOperationDenied("No active exact-scope human grant before execution.")
         except RemoteOperationDenied:
             self._events.append((request.request_id, "denied:pre_execute"))
             raise
@@ -198,6 +216,15 @@ class DistributedGateway:
         except Exception as exc:
             self._events.append((request.request_id, "uncertain:transport_error"))
             raise RemoteOperationUncertain("Remote outcome unknown; do not retry.") from exc
+        # A revoked/expired grant cannot release a response, even when execution
+        # already happened. This cannot recall remote effects; preserve uncertainty.
+        try:
+            active = grant_active()
+        except Exception:
+            active = False
+        if not active:
+            self._events.append((request.request_id, "uncertain:inactive_grant"))
+            raise RemoteOperationUncertain("Remote grant inactive; outcome withheld; do not retry.")
         if not isinstance(result, RemoteOperationResult) or (
             result.request_id != request.request_id or result.node_id != request.node_id
         ):
