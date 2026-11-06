@@ -91,6 +91,7 @@ FILENAME_PACKAGE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("test_generic_cognition_providers.py", ("pkg_core", "pkg_integrate", "pkg_net")),
     ("test_generic_core_worker_isolation.py", ("pkg_core", "pkg_run", "pkg_integrate")),
     ("test_signed_core_definitions.py", ("pkg_core", "pkg_integrate", "pkg_safe")),
+    ("test_core_definition_path_security.py", ("pkg_run", "pkg_integrate", "pkg_safe")),
     ("test_sdk_aegis_identity.py", ("pkg_integrate", "pkg_safe")),
     ("test_hybrid_task_register.py", ("pkg_verify", "pkg_dev")),
     ("test_hybrid_700_reconciliation.py", ("pkg_verify", "pkg_dev")),
