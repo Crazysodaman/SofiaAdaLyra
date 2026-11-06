@@ -36,9 +36,7 @@ def test_process_registry_blocks_windows_handle_reentry(tmp_path, monkeypatch):
         LK_NBLCK=1, LK_UNLCK=2,
         locking=lambda descriptor, mode, count: calls.append((mode, count)),
     ))
-    monkeypatch.setattr(process_lock, "os", SimpleNamespace(
-        name="nt", path=os.path, fstat=os.fstat,
-    ))
+    monkeypatch.setattr(process_lock, "os", SimpleNamespace(**(vars(os) | {"name": "nt"})))
     with first:
         with pytest.raises(RuntimeError, match="another live Sofía Discord process"):
             second.acquire()
