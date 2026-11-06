@@ -88,6 +88,7 @@ FILENAME_PACKAGE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("test_sdk_rust_contract_compatibility.py", (
         "pkg_verify", "pkg_integrate", "pkg_safe",
     )),
+    ("test_sdk_aegis_identity.py", ("pkg_integrate", "pkg_safe")),
     ("test_hybrid_task_register.py", ("pkg_verify", "pkg_dev")),
     ("test_hybrid_700_reconciliation.py", ("pkg_verify", "pkg_dev")),
     ("test_core_link_binding.py", ("pkg_ui", "pkg_net", "pkg_safe")),
