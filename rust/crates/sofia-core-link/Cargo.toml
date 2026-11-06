@@ -16,6 +16,11 @@ name = "r2_core_link_probe"
 path = "src/bin/r2_core_link_probe.rs"
 required-features = ["diagnostic-probe"]
 
+[[bin]]
+name = "r2_platform_status_probe"
+path = "src/bin/r2_platform_status_probe.rs"
+required-features = ["diagnostic-probe"]
+
 [dependencies]
 chrono = { version = "=0.4.40", default-features = false, features = ["std", "clock"] }
 regex = "=1.11.1"

@@ -634,3 +634,32 @@ def test_rust_owner_projection_denies_stale_revision_and_revocation(tmp_path):
             minimum_store_revision=chosen.revision,
         )
 
+
+
+def test_binding_store_rejects_duplicate_authority_fields(tmp_path):
+    registry = store(tmp_path)
+    activate(registry)
+    original = registry.path.read_text(encoding='utf-8')
+    registry.path.write_text('{"revision": 0,' + original[1:], encoding='utf-8')
+    with pytest.raises((RuntimeError, ValueError)):
+        registry.load()
+
+
+def test_binding_store_rejects_oversized_valid_json(tmp_path):
+    registry = store(tmp_path)
+    activate(registry)
+    original = registry.path.read_text(encoding='utf-8')
+    registry.path.write_text(original + ' ' * (2 * 1024 * 1024), encoding='utf-8')
+    with pytest.raises((RuntimeError, ValueError)):
+        registry.load()
+
+
+def test_binding_store_rejects_overflow_before_publishing_unreadable_state(tmp_path):
+    registry = store(tmp_path)
+    for index in range(128):
+        registry.add_pending(binding(binding_id=f'binding:synthetic-{index}'), expected_store_revision=index)
+    original = registry.path.read_bytes()
+    with pytest.raises(ValueError):
+        registry.add_pending(binding(binding_id='binding:overflow'), expected_store_revision=128)
+    assert registry.path.read_bytes() == original
+    assert len(registry.load().bindings) == 128

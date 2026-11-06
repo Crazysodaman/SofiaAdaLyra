@@ -1,6 +1,8 @@
 //! Read-only Core Link client. Authority comes exclusively from the enrolled
 //! client certificate; wire JSON contains routing data, never grants.
 
+pub mod platform_authority;
+
 use chrono::{DateTime, Duration, Utc};
 use regex::Regex;
 use reqwest::blocking::Client;

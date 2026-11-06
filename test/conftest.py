@@ -94,6 +94,8 @@ FILENAME_PACKAGE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("test_sdk_aegis_identity.py", ("pkg_integrate", "pkg_safe")),
     ("test_hybrid_task_register.py", ("pkg_verify", "pkg_dev")),
     ("test_hybrid_700_reconciliation.py", ("pkg_verify", "pkg_dev")),
+    ("test_core_link_rust_authority.py", ("pkg_net", "pkg_ui", "pkg_safe")),
+    ("test_rust_core_link_authority.py", ("pkg_net", "pkg_integrate", "pkg_verify")),
     ("test_core_link_binding.py", ("pkg_ui", "pkg_net", "pkg_safe")),
     # Optional-module source/release checks exercise the RUN lifecycle and
     # SAFE trust boundary; static preflight is also release verification.

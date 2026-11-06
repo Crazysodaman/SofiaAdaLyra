@@ -24,7 +24,11 @@ from sofia.platform.state.private_file import (
     ensure_owner_private_directory,
 )
 from sofia.sdk.contracts import ProtocolVersion
+from sofia.sdk.cognition_json import loads_strict_model_json
 
+
+MAX_CORE_LINK_STORE_BYTES = 2 * 1024 * 1024
+MAX_CORE_LINK_BINDINGS = 128
 
 CORE_LINK_BINDING_STORE_ENV = "SOFIA_CORE_LINK_BINDING_STORE"
 _STORE_SCHEMA = "companion.platform.core_link_store.v1"
@@ -212,6 +216,8 @@ class CoreLinkStoreSnapshot:
             not isinstance(binding, CoreLinkBinding) for binding in self.bindings
         ):
             raise TypeError("bindings must contain CoreLinkBinding values")
+        if len(self.bindings) > MAX_CORE_LINK_BINDINGS:
+            raise ValueError("Core Link store bindings must be a bounded list")
         ids = tuple(binding.binding_id for binding in self.bindings)
         if len(set(ids)) != len(ids):
             raise ValueError("binding IDs must be unique")
@@ -254,14 +260,18 @@ class CoreLinkBindingStore:
         self._secure_parent()
         assert_owner_private_path(self.path, directory=False)
         try:
-            payload = json.loads(self.path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            with self.path.open("rb") as stream:
+                raw = stream.read(MAX_CORE_LINK_STORE_BYTES + 1)
+            if len(raw) > MAX_CORE_LINK_STORE_BYTES:
+                raise ValueError("Core Link store exceeds bounded file size")
+            payload = loads_strict_model_json(raw.decode("utf-8"))
+        except (OSError, UnicodeError, ValueError) as exc:
             raise RuntimeError("Core Link binding store is unreadable or corrupt") from exc
         keys = {"schema", "revision", "selected_binding_id", "bindings"}
         if not isinstance(payload, dict) or set(payload) != keys or payload["schema"] != _STORE_SCHEMA:
             raise ValueError("Core Link store has an unsupported or malformed schema")
         raw_bindings = payload["bindings"]
-        if not isinstance(raw_bindings, list) or len(raw_bindings) > 128:
+        if not isinstance(raw_bindings, list) or len(raw_bindings) > MAX_CORE_LINK_BINDINGS:
             raise ValueError("Core Link store bindings must be a bounded list")
         return CoreLinkStoreSnapshot(
             revision=payload["revision"],
@@ -301,16 +311,17 @@ class CoreLinkBindingStore:
         return selected, snapshot.revision
 
     def _write(self, snapshot: CoreLinkStoreSnapshot) -> None:
-        self._secure_parent()
         payload = {
             "schema": _STORE_SCHEMA,
             "revision": snapshot.revision,
             "selected_binding_id": snapshot.selected_binding_id,
             "bindings": [item.to_payload() for item in snapshot.bindings],
         }
-        atomic_write_private_text(
-            self.path, json.dumps(payload, sort_keys=True) + "\n"
-        )
+        encoded = json.dumps(payload, sort_keys=True) + "\n"
+        if len(encoded.encode("utf-8")) > MAX_CORE_LINK_STORE_BYTES:
+            raise ValueError("Core Link store exceeds bounded file size")
+        self._secure_parent()
+        atomic_write_private_text(self.path, encoded)
 
     @staticmethod
     def _require_store_revision(

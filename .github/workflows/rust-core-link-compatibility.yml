@@ -8,6 +8,9 @@ on:
       - "rust/crates/sofia-core-link/**"
       - "contracts/core-link/**"
       - "test/test_rust_core_link_contract_compatibility.py"
+      - "test/test_core_link_rust_authority.py"
+      - "test/test_rust_core_link_authority.py"
+      - "src/sofia/platform/core_link/**"
       - ".github/workflows/rust-core-link-compatibility.yml"
   push:
     branches: ["codex/r2-readonly-core-link"]
@@ -61,4 +64,4 @@ jobs:
       - name: Python oracle and disposable mTLS interoperability
         env:
           SOFIA_R2_PROBE: ${{ runner.os == 'Windows' && format('{0}/target/debug/r2_core_link_probe.exe', github.workspace) || format('{0}/target/debug/r2_core_link_probe', github.workspace) }}
-        run: python -m pytest -q test/test_rust_core_link_contract_compatibility.py test/test_core_link_conversation.py
+        run: python -m pytest -q test/test_rust_core_link_contract_compatibility.py test/test_core_link_conversation.py test/test_core_link_rust_authority.py test/test_rust_core_link_authority.py
