@@ -35,11 +35,11 @@ def service_environment(tmp_path_factory, component_wheels):
     return python, target/'debug'/('aegis-platform-service.exe' if os.name == 'nt' else 'aegis-platform-service')
 
 
-def line(stream):
+def line(stream, child=None):
     replies = queue.Queue()
     threading.Thread(target=lambda: replies.put(stream.readline()), daemon=True).start()
     raw = replies.get(timeout=15)
-    assert raw, 'supervisor exited before readiness'
+    assert raw, ('supervisor exited before readiness: '+child.stderr.read(4096) if child else 'supervisor exited before readiness')
     return json.loads(raw)
 
 
@@ -50,13 +50,32 @@ def arguments(service_environment, identity, current, state):
         '--public-key-sha256', current.public_key_sha256]
 
 
+@pytest.mark.parametrize('mode', ['eof', 'replay', 'wrong_generation'])
+def test_installed_adapter_bounds_parent_control_and_closes_on_eof(tmp_path, service_environment, mode):
+    identity, current, state = provision(tmp_path)
+    python, _ = service_environment
+    args = [str(python), '-I', '-m', 'sofia.platform.run.platform_service',
+        '--identity-home', str(identity.home), '--state', str(state),
+        '--platform-id', current.identity.canonical_uuid, '--public-key-sha256', current.public_key_sha256,
+        '--supervisor-pid', str(os.getpid())]
+    request = json.dumps(dict(schema='aegis.platform.service-control.v1', sequence=1,
+        generation=2 if mode == 'wrong_generation' else 1, operation='status'))+'\n'
+    result = subprocess.run(args, input='' if mode == 'eof' else request*2,
+        capture_output=True, text=True, timeout=15)
+    assert result.returncode == (0 if mode == 'eof' else 2), result.stderr
+    replies = [json.loads(value) for value in result.stdout.splitlines()]
+    assert replies[0]['phase'] == 'ready'
+    assert len(replies) == (2 if mode == 'replay' else 1)
+    assert 'Traceback' not in result.stderr
+
+
 def test_installed_rust_service_stops_gracefully_and_excludes_duplicate(tmp_path, service_environment):
     identity, current, state = provision(tmp_path)
     args = arguments(service_environment, identity, current, state)
     child = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
         creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0)
     try:
-        ready = line(child.stdout)
+        ready = line(child.stdout, child)
         assert ready['phase'] == 'ready'
         assert ready['supervisor_pid'] == child.pid
         assert ready['platform_id'] == current.identity.canonical_uuid
@@ -92,7 +111,7 @@ def test_abrupt_supervisor_exit_releases_adapter_and_allows_new_generation(tmp_p
         creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0)
     child = subprocess.Popen(args, **options)
     try:
-        first = line(child.stdout)
+        first = line(child.stdout, child)
         child.kill()
         child.wait(timeout=5)
         # EOF releases the adapter's existing RUN lease and lifetime lock.
@@ -106,7 +125,7 @@ def test_abrupt_supervisor_exit_releases_adapter_and_allows_new_generation(tmp_p
             time.sleep(.02)
         replacement = subprocess.Popen(args, **options)
         try:
-            second = line(replacement.stdout)
+            second = line(replacement.stdout, replacement)
             assert second['generation'] > first['generation']
             replacement.send_signal(signal.CTRL_BREAK_EVENT if os.name == 'nt' else signal.SIGTERM)
             _, err = replacement.communicate(timeout=15)
@@ -132,7 +151,7 @@ def test_supervisor_notifies_ready_and_draining(tmp_path, service_environment):
         child = subprocess.Popen(arguments(service_environment, identity, current, state),
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
         try:
-            assert line(child.stdout)['phase'] == 'ready'
+            assert line(child.stdout, child)['phase'] == 'ready'
             assert notify.recv(4096).startswith(b'READY=1\n')
             child.send_signal(signal.SIGTERM)
             assert notify.recv(4096) == b'STOPPING=1'

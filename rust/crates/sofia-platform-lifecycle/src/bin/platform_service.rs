@@ -270,7 +270,8 @@ fn notify(message: &str) -> Result<(), Failure> {
 fn console(config: &Configuration) -> Result<(), Failure> {
     let stopped = Arc::new(AtomicBool::new(false));
     let signal = stopped.clone();
-    ctrlc::set_handler(move || signal.store(true, Ordering::SeqCst))?;
+    ctrlc::set_handler(move || signal.store(true, Ordering::SeqCst))
+        .map_err(|error| format!("console control handler unavailable: {error}"))?;
     let result = run(
         config,
         &stopped,
@@ -316,8 +317,14 @@ fn main() {
     #[cfg(not(windows))]
     let _ = &mut args;
     let result = Configuration::parse(&args).and_then(|config| console(&config));
-    if result.is_err() {
-        eprintln!("Platform service failed closed; inspect canonical identity, local state and service configuration");
+    if let Err(error) = result {
+        let detail: String = error
+            .to_string()
+            .chars()
+            .take(160)
+            .map(|c| if c.is_control() { '?' } else { c })
+            .collect();
+        eprintln!("Platform service failed closed: {detail}");
         std::process::exit(2);
     }
 }

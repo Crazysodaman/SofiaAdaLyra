@@ -64,8 +64,9 @@ Start-ScheduledTask -TaskName $TaskName
             win32service.CloseServiceHandle(existing)
             pytest.fail('AegisPlatform already exists; refusing to modify it')
         arguments = subprocess.list2cmdline(['-I', str(bootstrap), str(state_root), str(receipt)])
-        subprocess.run(['powershell', '-NoProfile', '-NonInteractive', '-File', str(ps),
-            task, str(python), arguments], check=True, capture_output=True, text=True, timeout=30)
+        registration = subprocess.run(['powershell', '-NoProfile', '-NonInteractive', '-File', str(ps),
+            task, str(python), arguments], capture_output=True, text=True, timeout=30)
+        assert registration.returncode == 0, registration.stderr[:4096]
         deadline = time.monotonic()+30
         while not receipt.exists():
             assert time.monotonic() < deadline, 'SYSTEM fixture bootstrap did not finish'
