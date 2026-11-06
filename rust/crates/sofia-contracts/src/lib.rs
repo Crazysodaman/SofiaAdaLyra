@@ -1,6 +1,9 @@
 //! Authority-free, strict wire contracts shared with the Python SDK.
 #![forbid(unsafe_code)]
 
+pub mod identity;
+pub use identity::{AegisIdentity, IdentityKind, IDENTITY_SCHEMA};
+
 use chrono::{DateTime, FixedOffset};
 use regex::Regex;
 use serde::de::{self, Deserialize, Deserializer, MapAccess, SeqAccess, Visitor};

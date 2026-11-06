@@ -12,6 +12,29 @@ import pytest
 from sofia.sdk.identity import AegisIdentity, IDENTITY_SCHEMA, IdentityKind
 
 
+IDENTITY_FIXTURES = json.loads(
+    (Path(__file__).resolve().parents[1] / "contracts" / "identity" / "fixtures.v1.json").read_text(encoding="utf-8")
+)
+
+
+@pytest.mark.parametrize("case", IDENTITY_FIXTURES["cases"], ids=lambda case: case["name"])
+def test_shared_python_rust_identity_fixtures(case):
+    def decode():
+        if case["form"] == "serial":
+            return AegisIdentity.from_serial(case["input"])
+        if case["form"] == "uuid":
+            return AegisIdentity.from_uuid_text(IdentityKind(case["kind"]), case["input"])
+        return AegisIdentity.from_payload(case["input"])
+
+    if case["valid"]:
+        identity = decode()
+        assert identity.to_payload() == case["expected"]
+        assert identity.serial == case["serial"]
+    else:
+        with pytest.raises((TypeError, ValueError)):
+            decode()
+
+
 @pytest.mark.parametrize("kind,prefix", [(IdentityKind.PLATFORM, "P"), (IdentityKind.CORE, "C")])
 def test_full_uuid_serial_contract_known_vector(kind, prefix):
     identity = AegisIdentity(kind, UUID("01234567-89ab-cdef-fedc-ba9876543210"))

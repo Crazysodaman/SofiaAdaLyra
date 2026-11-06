@@ -62,3 +62,14 @@ unverified continuity evidence must not be treated as successful recovery or
 silently remapped by this codec. Those behaviors remain implementation and
 acceptance work; codec tests do not certify them. Sofía's existing identity,
 Constitution, memories and writer lineage remain untouched.
+
+## Rust/Python conformance
+
+`sofia_contracts::identity` exposes the same inert identity using exact 16-byte
+UUID storage, with no allocation or credential dependencies. Both implementations
+consume `contracts/identity/fixtures.v1.json`: canonical and case-normalized
+positive examples, maximal/null UUIDs, unknown versions/kinds, malformed lengths,
+whitespace, non-ASCII lookalikes, missing fields and forged authority fields.
+Each implementation also tests every one of the 128 UUID bit positions. The
+shared fixture tests compare decoded payloads and canonical serials with the
+same expected values; they do not certify a transport, enrollment or lifecycle.
