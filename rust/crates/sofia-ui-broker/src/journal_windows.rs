@@ -46,6 +46,25 @@ fn verify_descriptor(
     if owner != user && owner != default_owner {
         return Err(JournalError::UnsafeStorage);
     }
+    // The descriptor crate panics on a present NULL DACL. Inspect native
+    // canonical SDDL first: required data access needs at least one ordinary
+    // allow ACE. This also fences unknown ACE types before typed decoding.
+    let encoded = wrappers::ConvertSecurityDescriptorToStringSecurityDescriptor(
+        descriptor,
+        SecurityInformation::Dacl,
+    )
+    .map_err(|_| JournalError::UnsafeStorage)?
+    .into_string()
+    .map_err(|_| JournalError::UnsafeStorage)?;
+    if !encoded.starts_with("D:")
+        || !encoded.contains('(')
+        || encoded.contains("NO_ACCESS_CONTROL")
+        || encoded
+            .match_indices('(')
+            .any(|(index, _)| !encoded[index..].starts_with("(A;"))
+    {
+        return Err(JournalError::UnsafeStorage);
+    }
     let dacl = descriptor.dacl().ok_or(JournalError::UnsafeStorage)?;
     let mut read = false;
     let mut write = false;
@@ -200,6 +219,9 @@ mod tests {
             format!("O:{user}D:P(A;;FA;;;OW)").parse().unwrap();
         assert!(verify_descriptor(&rights, &user, &owner).is_ok());
         for sddl in [
+            format!("D:P(A;;FA;;;{user})"),
+            format!("O:{user}"),
+            format!("O:{user}D:P(OA;;FA;00112233-4455-6677-8899-aabbccddeeff;;{user})"),
             format!("O:S-1-5-32-546D:P(A;;FA;;;{user})"),
             format!("O:{user}D:NO_ACCESS_CONTROL"),
             format!("O:{user}D:P"),
