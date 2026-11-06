@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - chatgpt/go-live-release-env-version
+      - codex/aegis-shakedown
   workflow_dispatch:
     inputs:
       release_id:

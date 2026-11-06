@@ -12,6 +12,7 @@ on:
   push:
     branches:
       - main
+      - codex/aegis-shakedown
   workflow_dispatch:
     inputs:
       phase:
