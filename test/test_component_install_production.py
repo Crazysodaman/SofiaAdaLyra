@@ -200,3 +200,77 @@ def test_platform_uninstall_reinstall_preserves_callsign_authority(production_ve
     run(['-m','pip','check'])
     assert 'callsign-install-ok' in run(['-I','-c',probe])
     assert naming.authority.witness_path.read_bytes() == witness
+
+
+@pytest.mark.parametrize('kind', ['test', 'provider'])
+def test_installed_generic_worker_runs_without_core(production_venv, tmp_path, kind):
+    """Spawn a real installed worker; the venv contains no personal Core code."""
+    import textwrap
+    program = textwrap.dedent('''
+        import importlib.util
+        import os
+        import sys
+        from datetime import datetime, timedelta, timezone
+        from pathlib import Path
+        from uuid import uuid4
+        from sofia.sdk.cognition_engine import LLMProvider
+        from sofia.sdk.cognition_model import CognitiveMessage, CognitiveRole, CognitiveRequest, CognitiveResponse
+        from sofia.platform.config.model import ProviderConfiguration
+        from sofia.platform.config.roles import PlatformRole, PlatformRoleConfiguration
+        from sofia.platform.state.local_store import PlatformLocalStore
+        from sofia.platform.state.installation_identity import InstallationIdentityStore
+        from sofia.platform.run import ComponentGenerationStore, LocalRunLeaseStore
+        from sofia.platform.core_worker import CoreEngineProcessSpec, CoreWorkerController
+        from sofia.platform.core_worker.process import (
+            PlatformProviderBinding, installed_core_release_digest,
+        )
+
+        assert importlib.util.find_spec('sofia.core') is None
+        root = Path(sys.argv[1])
+        kind = sys.argv[2]
+        platform = InstallationIdentityStore(root / 'identity').initialize()
+        platform_id = str(platform.identity.canonical_uuid)
+        core_id = str(uuid4())
+        local = PlatformLocalStore(root / 'operational.db',
+            roles=PlatformRoleConfiguration((PlatformRole.MODULE_HOST,)),
+            host_identity=platform_id)
+        leases = LocalRunLeaseStore(local.path)
+        now = datetime.now(timezone.utc)
+        lease = leases.acquire(owner_id=platform_id, now=now, ttl_seconds=300).lease
+        assert lease is not None
+        generations = ComponentGenerationStore(state_path=local.path, lease_store=leases)
+        controller = CoreWorkerController(generations=generations, lease=lease,
+            platform_instance_id=platform_id, core_identity_id=core_id,
+            component_id='core.disposable', runtime_dir=root / 'ipc',
+            response_timeout=timedelta(seconds=10))
+        configuration = ProviderConfiguration(provider='test', model='disposable')
+        class Provider(LLMProvider):
+            def respond(self, request):
+                assert request.messages[0].content == 'independent'
+                return CognitiveResponse(content=f'provider-pid:{os.getpid()}')
+        if kind == 'provider':
+            controller.bind_providers({'primary': PlatformProviderBinding(configuration, Provider())})
+        digest = installed_core_release_digest()
+        spec = CoreEngineProcessSpec(kind,
+            provider=configuration if kind == 'provider' else None,
+            expected_runtime_digest=digest)
+        try:
+            health = controller.start(release_digest=digest, spec=spec, now=now)
+            assert health.pid != os.getpid() and health.ready
+            response = controller.respond(CognitiveRequest(messages=(CognitiveMessage(CognitiveRole.USER, 'independent'),)))
+            expected = 'Test cognitive response.' if kind == 'test' else f'provider-pid:{os.getpid()}'
+            assert response.content == expected
+            assert not any(n == 'sofia.core' or n.startswith('sofia.core.') for n in sys.modules)
+        finally:
+            controller.shutdown(now=datetime.now(timezone.utc))
+            leases.release(lease, now=datetime.now(timezone.utc))
+        assert controller.pid is None
+        assert InstallationIdentityStore(root / 'identity').load() == platform
+        print('installed-worker-ok')
+    ''')
+    completed = subprocess.run(
+        [str(production_venv['python']), '-I', '-c', program, str(tmp_path), kind],
+        cwd=str(production_venv['venv_root']), capture_output=True, text=True, timeout=120,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    assert 'installed-worker-ok' in completed.stdout

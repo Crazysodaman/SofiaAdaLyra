@@ -20,6 +20,8 @@ on:
       - 'src/sofia/platform/state/installation_identity.py'
       - 'src/sofia/platform/ops/callsign*.py'
       - 'test/test_fleet_callsigns.py'
+      - 'src/sofia/sdk/cognition_engine.py'
+      - 'src/sofia/platform/core_worker/**'
       - 'src/sofia/sdk/core_definition.py'
       - 'src/sofia/platform/ops/core_definition.py'
       - 'test/test_signed_core_definitions.py'

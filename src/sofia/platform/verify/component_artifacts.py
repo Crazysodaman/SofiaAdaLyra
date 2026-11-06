@@ -51,6 +51,9 @@ COMPONENT_DISTRIBUTIONS: tuple[str, ...] = ("sdk", "platform", "core")
 INSTALLED_ISOLATED_MODULES: tuple[str, ...] = (
     "sofia.sdk.tool_binding",
     "sofia.sdk.core_definition",
+    "sofia.sdk.cognition_engine",
+    "sofia.platform.core_worker",
+    "sofia.platform.core_worker.engines",
     "sofia.platform.ops.core_definition",
     "sofia.platform.state.installation_identity",
     "sofia.platform.ops.callsigns",

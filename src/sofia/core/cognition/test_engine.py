@@ -1,26 +1,4 @@
-﻿from sofia.core.cognition.engine import CognitiveEngine
-from sofia.core.cognition.model import (
-    CognitiveRequest,
-    CognitiveResponse,
-)
-from sofia.platform.config.model import ProviderConfiguration
+"""Compatibility alias for the generic deterministic worker engine."""
+from sofia.platform.core_worker.engines import TestCognitiveEngine
 
-
-class TestCognitiveEngine(CognitiveEngine):
-    """
-    Deterministic cognitive engine used for testing composition.
-    """
-
-    def __init__(
-        self,
-        configuration: ProviderConfiguration,
-    ):
-        self.configuration = configuration
-
-    def respond(
-        self,
-        request: CognitiveRequest,
-    ) -> CognitiveResponse:
-        return CognitiveResponse(
-            content="Test cognitive response.",
-        )
+__all__ = ['TestCognitiveEngine']
