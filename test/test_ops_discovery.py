@@ -530,7 +530,7 @@ def test_fleet_enrollment_service_requires_exact_sparks_approval():
     )
     service = FleetEnrollmentService(registry)
 
-    with pytest.raises(PermissionError, match="exact Sparks approval"):
+    with pytest.raises(PermissionError, match="exact owner approval"):
         service.enroll(
             candidate,
             binding=binding,
@@ -564,14 +564,14 @@ def test_fleet_enrollment_service_requires_exact_sparks_approval():
         approved_by="Sparks",
         approved_at=NOW,
     )
-    enrolled = service.enroll(
-        candidate,
-        binding=binding,
-        enrollment=enrollment,
-        peer=peer,
-        approval=approval,
-    )
-
-    assert enrolled.lifecycle is HostLifecycle.ENROLLED
-    assert enrolled.trusted is True
-    assert enrolled.node_id == node_id
+    # A caller-constructed label/DTO is not a durable authenticated approval.
+    with pytest.raises(PermissionError, match="canonical transactional"):
+        service.enroll(
+            candidate,
+            binding=binding,
+            enrollment=enrollment,
+            peer=peer,
+            approval=approval,
+        )
+    assert registry.host("Terra").lifecycle is HostLifecycle.CANDIDATE
+    assert registry.host("Terra").trusted is False
