@@ -14,6 +14,7 @@ from pathlib import Path
 
 ISOLATED_MODULES: tuple[str, ...] = (
     "sofia.sdk.tool_binding",
+    "sofia.platform.state.installation_identity",
     "sofia.platform.capability.catalog",
     "sofia.platform.filesystem.change_capability",
     "sofia.platform.net.capability",

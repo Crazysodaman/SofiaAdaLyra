@@ -201,3 +201,25 @@ def test_unknown_distribution_is_rejected(component_wheels, tmp_path):
     components = load_component_manifest(ROOT)
     with pytest.raises(ComponentArtifactError):
         build_component("unknown", tmp_path, repo=ROOT, manifest=components)
+
+
+def test_installed_platform_bootstraps_identity_without_core(component_wheels, tmp_path):
+    from sofia.platform.verify.component_artifacts import _extract_wheel, _run_core_blocked_probe
+    from test.test_platform_import_isolation import _BLOCK_CORE
+
+    site_dir = tmp_path / 'identity-site'
+    for distribution in ('sdk', 'platform'):
+        _extract_wheel(component_wheels[distribution], site_dir)
+    home = tmp_path / 'private-identity'
+    _run_core_blocked_probe([site_dir], _BLOCK_CORE + (
+        'from pathlib import Path\n'
+        'import sys\n'
+        'from sofia.platform.state.installation_identity import InstallationIdentityStore\n'
+        f'store = InstallationIdentityStore(Path({str(home)!r}))\n'
+        'first = store.initialize()\n'
+        'assert InstallationIdentityStore(store.home).initialize() == first\n'
+        f'assert str(Path(sys.modules[InstallationIdentityStore.__module__].__file__)).startswith({str(site_dir)!r})\n'
+        'from sofia.platform.launcher import main\n'
+        f"assert main(['identity-show', '--home', {str(home)!r}]) == 0\n"
+        "assert not any(n == 'sofia.core' or n.startswith('sofia.core.') for n in sys.modules)\n"
+    ))

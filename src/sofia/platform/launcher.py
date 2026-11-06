@@ -52,11 +52,28 @@ def main(argv: Sequence[str] | None = None) -> int:
     install.add_argument("--tray-autostart", action="store_true")
     install.add_argument("--desktop-autostart", action="store_true")
     install.add_argument("--desktop-shortcuts", action="store_true")
+    for command in ("identity-init", "identity-show"):
+        identity_command = subparsers.add_parser(command, help="Initialize or inspect private Platform identity without a Core")
+        identity_command.add_argument("--home", type=Path, required=True)
     args = parser.parse_args(argv)
 
     try:
+        if args.command in {"identity-init", "identity-show"}:
+            from sofia.platform.state.installation_identity import InstallationIdentityStore
+
+            store = InstallationIdentityStore(args.home)
+            identity = store.initialize() if args.command == "identity-init" else store.load()
+            payload = identity.to_payload()
+            print(json.dumps(payload, sort_keys=True))
+            return 0
+
         if args.command == "status":
             payload = _roles().to_payload()
+            identity_home = os.environ.get("AEGIS_PLATFORM_IDENTITY_HOME", "").strip()
+            if identity_home:
+                from sofia.platform.state.installation_identity import InstallationIdentityStore
+
+                payload["platform_identity"] = InstallationIdentityStore(Path(identity_home)).load().to_payload()
             store_path = os.environ.get("SOFIA_CORE_LINK_BINDING_STORE", "").strip()
             if store_path:
                 from sofia.platform.core_link import CoreLinkBindingStore

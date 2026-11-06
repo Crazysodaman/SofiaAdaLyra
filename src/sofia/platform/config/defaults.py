@@ -74,12 +74,12 @@ def _environment_csv(name: str) -> tuple[str, ...]:
 def _core_worker_configuration_from_environ() -> CoreWorkerConfiguration:
     enabled = _environment_flag("SOFIA_CORE_WORKER_ENABLED", default=False)
     digest = os.environ.get("SOFIA_CORE_WORKER_RELEASE_SHA256", "").strip() or None
+    from sofia.platform.state.installation_identity import configured_platform_identity_id
+
     return CoreWorkerConfiguration(
         enabled=enabled,
         release_digest=digest,
-        platform_instance_id=os.environ.get(
-            "SOFIA_PLATFORM_INSTANCE_ID", "platform:local"
-        ).strip(),
+        platform_instance_id=configured_platform_identity_id(),
         core_identity_id=os.environ.get(
             "SOFIA_CORE_IDENTITY_ID", "core:sofia"
         ).strip(),

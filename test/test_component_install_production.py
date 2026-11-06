@@ -66,8 +66,11 @@ def production_venv(tmp_path_factory, component_wheels) -> dict[str, object]:
          str(component_wheels["sdk"])])
     run(["-m", "pip", "install", "--disable-pip-version-check", "--no-deps",
          str(component_wheels["platform"])])
+    runtime_dependencies = ["cryptography", "tzdata"]
+    if sys.platform == "win32":
+        runtime_dependencies.append("pywin32")
     run(["-m", "pip", "install", "--disable-pip-version-check",
-         "cryptography", "tzdata"])
+         *runtime_dependencies])
     run(["-m", "pip", "check"])
     return context
 
