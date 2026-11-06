@@ -23,6 +23,7 @@ from sofia.platform.core_worker.engines import LLMCognitiveEngine, TestCognitive
 from sofia.sdk.cognition_model import CognitiveRequest, CognitiveResponse
 from sofia.sdk.cognition_engine import LLMProvider, LLMProviderError
 from sofia.platform.config.model import ProviderConfiguration
+from sofia.platform.state.private_file import assert_no_redirected_components
 from sofia.platform.run.generation import ComponentGenerationStore, GenerationState
 from sofia.platform.run.lease import LocalRunLeaseStore, RunLease
 from sofia.platform.run.components import (
@@ -56,42 +57,41 @@ def installed_core_release_digest(package_root: Path | None = None) -> str:
     Bytecode/cache files are execution artifacts rather than release inputs.
     Symlinks are rejected so a digest can never attest to a redirected tree.
     """
-    if package_root is not None:
-        # Do not resolve an explicitly supplied installed package root before
-        # checking it: resolve() hides a symlink/junction at the root itself.
-        # The caller must attest to real installed bytes, not a redirected tree.
-        if package_root.is_symlink() or (
-            hasattr(package_root, "is_junction") and package_root.is_junction()
-        ):
-            raise CoreWorkerError("installed Sofía package root is a symlink or junction")
-        root = package_root.resolve()
-    else:
-        root = Path(__file__).resolve().parents[2]
+    # Preserve the lexical path until every root/ancestor is checked. Resolving
+    # first hides redirects in both an explicit root and the installed module's
+    # default location.
+    root = (Path(package_root).absolute() if package_root is not None
+            else Path(__file__).absolute().parents[2])
+
+    def reject_redirect(path: Path) -> None:
+        try:
+            assert_no_redirected_components(path, include_leaf=True)
+        except PermissionError as exc:
+            raise CoreWorkerError(
+                "installed Sofía package contains a symlink or junction"
+            ) from exc
+
+    reject_redirect(root)
     if not root.is_dir():
         raise FileNotFoundError("installed Sofía package root is missing")
+    # Inspect every discovered entry before reading any release bytes. This
+    # includes directories: junctions and empty redirected trees are not files.
+    paths = []
+    for path in root.rglob("*"):
+        reject_redirect(path)
+        if (path.is_file() and "__pycache__" not in path.parts
+                and path.suffix not in {".pyc", ".pyo"}):
+            paths.append(path)
+    paths.sort(key=lambda path: path.relative_to(root).as_posix())
     digest = sha256()
-    paths = sorted(
-        (
-            path for path in root.rglob("*")
-            if path.is_symlink()
-            or (
-                path.is_file()
-                and "__pycache__" not in path.parts
-                and path.suffix not in {".pyc", ".pyo"}
-            )
-        ),
-        key=lambda path: path.relative_to(root).as_posix(),
-    )
     if not paths:
         raise CoreWorkerError("installed Sofía package contains no release files")
     for path in paths:
-        if path.is_symlink():
-            raise CoreWorkerError(
-                f"installed Sofía package contains symlink: {path.relative_to(root)}"
-            )
+        reject_redirect(path)
         before = path.stat()
         data = path.read_bytes()
         after = path.stat()
+        reject_redirect(path)
         if (
             before.st_size != after.st_size
             or before.st_mtime_ns != after.st_mtime_ns
@@ -103,6 +103,7 @@ def installed_core_release_digest(package_root: Path | None = None) -> str:
         digest.update(relative)
         digest.update(len(data).to_bytes(8, "big"))
         digest.update(data)
+    reject_redirect(root)
     return digest.hexdigest()
 
 

@@ -1,3 +1,4 @@
+from dataclasses import replace
 from uuid import uuid4
 
 import pytest
@@ -21,12 +22,15 @@ from sofia.platform.distributed.inference_service import (
 
 
 class Provider(LLMProvider):
-    def __init__(self, configuration, calls):
+    def __init__(self, configuration, calls, *, text_only=False):
         self.configuration=configuration
         self.calls=calls
+        self.text_only=text_only
 
     def respond(self, request):
         self.calls.append((self.configuration,request))
+        if self.text_only:
+            return CognitiveResponse(content="remote text")
         return CognitiveResponse(
             content="remote text",
             tool_calls=(
@@ -141,10 +145,11 @@ def test_worker_can_disable_tool_schemas_without_affecting_text_inference():
             allowed_models=("owner/custom:any",),
             allow_tools=False,
         ),
-        provider_factory=lambda config: Provider(config,calls),
+        provider_factory=lambda config: Provider(config,calls,text_only=True),
     )
     text=service.infer(_request(node_id,tools=()))
     assert text.response.content=="remote text"
+    assert text.response.tool_calls==()
 
     tool=CognitiveToolDefinition(
         name="inspect_system",
@@ -153,3 +158,24 @@ def test_worker_can_disable_tool_schemas_without_affecting_text_inference():
     )
     with pytest.raises(RemoteInferenceDenied,match="tool schemas"):
         service.infer(_request(node_id,tools=(tool,)))
+
+
+@pytest.mark.parametrize(('worker_tools', 'request_tools'), [(False, True), (False, False), (True, False)])
+def test_worker_rejects_returned_tool_proposals_when_tools_are_disabled(worker_tools, request_tools):
+    node_id = uuid4()
+    calls = []
+    service = LocalOllamaInferenceService(
+        node_id=node_id,
+        policy=RemoteInferencePolicy(
+            allowed_models=("owner/custom:any",), allow_tools=worker_tools,
+        ),
+        provider_factory=lambda config: Provider(config, calls),
+    )
+    request = _request(node_id)
+    request = replace(request, request=replace(request.request, allow_tools=request_tools))
+
+    with pytest.raises(RemoteInferenceDenied, match="tool proposals"):
+        service.infer(request)
+
+    # Inference ran, but the prohibited proposal was never released as a response.
+    assert len(calls) == 1

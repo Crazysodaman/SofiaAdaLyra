@@ -218,6 +218,15 @@ def load_component_manifest(repo: Path | None = None) -> dict[str, dict[str, obj
         deps = component.get("dependencies", [])
         if not isinstance(deps, list):
             raise ComponentArtifactError(f"component {name!r} dependencies must be a list")
+        extras = component.get("optional_dependencies", {})
+        if not isinstance(extras, dict) or any(
+            not isinstance(extra, str) or not extra or not extra.isascii()
+            or not all(char.isalnum() or char in "-_" for char in extra)
+            or not isinstance(requirements, list)
+            or any(not isinstance(item, str) or not item.strip() for item in requirements)
+            for extra, requirements in extras.items()
+        ):
+            raise ComponentArtifactError(f"component {name!r} optional_dependencies must be a requirement table")
         if not isinstance(component.get("package_data", {}), dict):
             raise ComponentArtifactError(f"component {name!r} package_data must be a table")
         if not isinstance(component.get("entry_points", {}), dict):
@@ -331,6 +340,11 @@ def _generate_pyproject(
         lines.append("]")
     else:
         lines.append("dependencies = []")
+    extras = component.get("optional_dependencies", {})
+    if extras:
+        lines.append("[project.optional-dependencies]")
+        for extra, requirements in extras.items():
+            lines.append(f'{json.dumps(extra)} = {json.dumps(requirements)}')
     if entry_points:
         lines.append("[project.scripts]")
         for script, target in entry_points.items():
