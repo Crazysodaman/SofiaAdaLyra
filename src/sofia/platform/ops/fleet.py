@@ -10,7 +10,9 @@ class FleetRemovalApproval:
         if not all((self.approval_id.strip(),self.host_id.strip(),self.proposal_revision.strip(),self.approved_by.strip())):
             raise ValueError("complete removal approval evidence required")
         if self.approved_at.tzinfo is None: raise ValueError("approved_at must be timezone-aware")
-        if self.approved_by!="Sparks": raise PermissionError("final fleet removal approval must come from Sparks")
+        # Display metadata is not authentication. The durable registry consumes
+        # an independently verified exact approval before publishing removal.
+        if len(self.approved_by)>160: raise ValueError("removal actor metadata is too long")
 
 class FleetRemovalApprovalRequired(PermissionError): pass
 
@@ -89,10 +91,17 @@ class FleetRegistry:
         host=self._hosts[host_id]; updated=replace(host,telemetry=telemetry); self._hosts[host_id]=updated; return updated
 
     def decommission(self,host_id:str,*,proposal_revision:str,approval:FleetRemovalApproval)->FleetHost:
+        self._require_removal_reference(host_id,proposal_revision,approval)
+        raise FleetRemovalApprovalRequired("final removal requires canonical authenticated owner approval")
+
+    @staticmethod
+    def _require_removal_reference(host_id:str,proposal_revision:str,approval:FleetRemovalApproval)->None:
         if not isinstance(approval,FleetRemovalApproval): raise TypeError("FleetRemovalApproval required")
         if approval.host_id!=host_id: raise FleetRemovalApprovalRequired("approval is for a different machine")
         if approval.proposal_revision!=proposal_revision: raise FleetRemovalApprovalRequired("approval revision does not match removal proposal")
-        host=self._hosts[host_id]
+
+    @staticmethod
+    def _removed_host(host:FleetHost)->FleetHost:
         if HostLifecycle.DECOMMISSIONED not in _ALLOWED[host.lifecycle]:
             raise ValueError(f"invalid fleet transition: {host.lifecycle.value} -> decommissioned")
-        updated=replace(host,lifecycle=HostLifecycle.DECOMMISSIONED); self._hosts[host_id]=updated; return updated
+        return replace(host,lifecycle=HostLifecycle.DECOMMISSIONED,trusted=False)

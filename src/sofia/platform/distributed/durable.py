@@ -51,6 +51,7 @@ class DurableRemoteAuthorization(RemoteAuthorization):
 
     def __init__(self, state_path: Path | str) -> None:
         self._db = _connect(state_path)
+        self._database_path = Path(state_path).resolve()
         self._db.execute("""
             CREATE TABLE IF NOT EXISTS remote_standing_grant (
                 grant_id TEXT PRIMARY KEY,
@@ -92,7 +93,16 @@ class DurableRemoteAuthorization(RemoteAuthorization):
         if not isinstance(node_id, UUID):
             raise TypeError("node_id must be a UUID.")
         with self._db:
-            cursor = self._db.execute(
+            self._db.execute("BEGIN IMMEDIATE")
+            return self._revoke_node_in_transaction(self._db, node_id)
+
+    def _revoke_node_in_transaction(self, db: sqlite3.Connection, node_id: UUID) -> int:
+        main = next((row[2] for row in db.execute("PRAGMA database_list") if row[1] == "main"), "")
+        if not db.in_transaction or not main or Path(main).resolve() != self._database_path:
+            raise RuntimeError("grant revocation requires its own database transaction")
+        if not isinstance(node_id, UUID):
+            raise TypeError("node_id must be a UUID")
+        cursor = db.execute(
                 "UPDATE remote_standing_grant SET revoked = 1 WHERE node_id = ? AND revoked = 0",
                 (str(node_id),),
             )

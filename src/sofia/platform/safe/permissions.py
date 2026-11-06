@@ -358,6 +358,7 @@ _NEVER_SELF_AUTHORIZED = frozenset({
     "permissions.classify",
     "privacy.authority.change",
     "fleet.trust-policy.change",
+    "fleet.decommission",
 })
 
 
