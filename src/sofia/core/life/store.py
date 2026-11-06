@@ -1,7 +1,7 @@
 """Canonical SQLite persistence for independent-life projects and experiences."""
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
@@ -38,7 +38,12 @@ class ProjectWorkPending(RuntimeError):
 
 
 class LifeStore:
-    def __init__(self, state_path: Path | str) -> None:
+    def __init__(
+        self, state_path: Path | str, *, clock: Callable[[], datetime] | None = None,
+    ) -> None:
+        if clock is not None and not callable(clock):
+            raise TypeError("clock must be callable or None")
+        self._clock = clock if clock is not None else (lambda: datetime.now(timezone.utc))
         self.path = Path(state_path)
         self._guard = CanonicalSQLiteGuard(self.path)
         with closing(self._connect()) as db, db:
@@ -1211,7 +1216,7 @@ class LifeStore:
                 """UPDATE life_artifact_authorization SET status=?,finished_at=?
                 WHERE request_id=? AND status='claimed'""",
                 ("completed" if successful else "failed",
-                 datetime.now(timezone.utc).isoformat(), request_id),
+                 aware(self._clock(), "clock timestamp").astimezone(timezone.utc).isoformat(), request_id),
             )
             if changed.rowcount != 1:
                 raise RuntimeError("creative execution grant is not claimed")
@@ -1223,5 +1228,5 @@ class LifeStore:
                 """UPDATE life_artifact_authorization
                 SET status='failed',finished_at=?
                 WHERE request_id=? AND status='authorized'""",
-                (datetime.now(timezone.utc).isoformat(), request_id),
+                (aware(self._clock(), "clock timestamp").astimezone(timezone.utc).isoformat(), request_id),
             )
