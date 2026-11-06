@@ -3,6 +3,8 @@
 
 use std::collections::BTreeMap;
 
+pub mod journal;
+
 pub const DAILY_AUTONOMOUS_LIMIT: usize = 5;
 const MAX_APPEARANCE_ID_BYTES: usize = 256;
 
