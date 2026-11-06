@@ -11,6 +11,7 @@ from contextlib import closing, contextmanager
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import json
+import os
 from pathlib import Path
 import sqlite3
 import time
@@ -143,6 +144,29 @@ def core_request_bytes(request):
     return _DOMAIN + encoded
 
 
+def _publish_witness(installation, path, value):
+    """Durable secure rename, retaining the shared private-file implementation."""
+    staging = path.with_name(path.name + '.next')
+    installation._private(path.parent, directory=True)
+    if path.exists() or path.is_symlink():
+        installation._private(path, directory=False)
+    atomic_write_private_text(staging, canonical_json(value))
+    installation._private(staging, directory=False)
+    if os.name == 'nt':
+        import win32file
+        import win32con
+        win32file.MoveFileEx(str(staging), str(path),
+            win32con.MOVEFILE_REPLACE_EXISTING | win32con.MOVEFILE_WRITE_THROUGH)
+    else:
+        os.replace(staging, path)
+        descriptor = os.open(path.parent, os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+    installation._private(path, directory=False)
+
+
 def _existing_local_store(path, installation):
     try:
         installation._private(Path(path).absolute().parent, directory=True)
@@ -220,7 +244,7 @@ class CallsignAuthority:
             witness = {**parameters, 'installation_key_sha256': installation.load().public_key_sha256,
                        'revision': 0, 'head_hash': GENESIS, 'last_time': now.isoformat(), 'pending': None}
             # A partial bootstrap is retained and refused, never auto-recreated.
-            atomic_write_private_text(witness_path, canonical_json(witness))
+            _publish_witness(installation, witness_path, witness)
         return cls(path, installation)
 
     @contextmanager
@@ -327,7 +351,7 @@ class CallsignAuthority:
             elif last_receipt['state_sha256'] != self._state_hash(db) or last_receipt['occurred_at'] != meta['last_time']:
                 raise CallsignUnavailable('authority state differs from acknowledged history')
             if had_pending:
-                atomic_write_private_text(self.witness_path, canonical_json(witness))
+                _publish_witness(self.installation, self.witness_path, witness)
             self.authority_id = meta['authority_id']
             return meta, witness
         except CallsignUnavailable:
@@ -566,10 +590,10 @@ class CallsignAuthority:
                 # Publish a bounded intent before SQLite commit, then confirm it.
                 # All reads/writes share this cross-process witness lock.
                 witness['pending'] = next_state
-                atomic_write_private_text(self.witness_path, canonical_json(witness))
+                _publish_witness(self.installation, self.witness_path, witness)
                 db.commit()
                 witness.update(next_state, pending=None)
-                atomic_write_private_text(self.witness_path, canonical_json(witness))
+                _publish_witness(self.installation, self.witness_path, witness)
                 self.guard.validate()
                 return receipt  # only after DB + witness are durably published
             except BaseException:

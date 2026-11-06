@@ -111,7 +111,8 @@ All current owner mutations use one-use exact approvals, including lock override
 A shared OS process lock coordinates the private witness across connections;
 it does not replace SQLite constraints or transactions. Before commit the
 witness records a pending next revision/hash/time. After commit it records the
-committed revision before success returns. Restart accepts only the exact old
+committed revision before success returns. Witness publication flushes the
+parent directory on POSIX and uses Windows write-through MoveFileEx. Restart accepts only the exact old
 or pending committed state, validates history/state hashes, and reconciles that
 unacknowledged intent. An acknowledged database rollback against the preserved
 witness fails closed. Restoring both database and witness to an older whole-host

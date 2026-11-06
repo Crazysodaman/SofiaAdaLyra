@@ -499,3 +499,25 @@ def test_core_cannot_create_own_naming_grant(naming):
             payload={'grant_id':str(uuid4()),'expires_at':(datetime.now(timezone.utc)+timedelta(hours=1)).isoformat()},
             approval_id=core)
     assert naming.authority.permissions.grants() == ()
+
+
+def test_witness_publication_reaches_platform_durability_boundary(naming, monkeypatch):
+    import os
+    import stat
+    events = []
+    if os.name == 'nt':
+        import win32file
+        import win32con
+        move = win32file.MoveFileEx
+        def observe(source, target, flags):
+            events.append(bool(flags & win32con.MOVEFILE_WRITE_THROUGH))
+            return move(source, target, flags)
+        monkeypatch.setattr(win32file, 'MoveFileEx', observe)
+    else:
+        flush = os.fsync
+        def observe(descriptor):
+            if stat.S_ISDIR(os.fstat(descriptor).st_mode): events.append(True)
+            return flush(descriptor)
+        monkeypatch.setattr(os, 'fsync', observe)
+    naming.rename(naming.first, 'Durable Dawn')
+    assert events == [True, True]  # pending intent and acknowledged revision
