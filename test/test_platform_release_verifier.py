@@ -174,7 +174,7 @@ def replace_signed_asset(tmp_path, manifest, key, kind, data):
     return manifest, b64encode(key.sign(manifest.digest.encode())).decode()
 
 
-@pytest.mark.parametrize('defect', ['invalid_zip', 'sdk_dependency', 'core_dependency', 'duplicate_entry', 'core_case', 'data_relocation', 'lowercase_dependency'])
+@pytest.mark.parametrize('defect', ['invalid_zip', 'sdk_dependency', 'core_dependency', 'duplicate_entry', 'core_case', 'data_relocation', 'lowercase_dependency', 'nul_header'])
 def test_signed_component_content_still_obeys_platform_boundary(tmp_path, platform_wheels, defect):
     import io
     import zipfile
@@ -191,12 +191,14 @@ def test_signed_component_content_still_obeys_platform_boundary(tmp_path, platfo
                     if defect == 'lowercase_dependency': data += b'requires-dist: unexpected-runtime\n'
                     if defect == 'core_dependency': data += b'Requires-Dist: sofia-core; extra == "core"\n'
                 archive.writestr(entry, data)
+            if defect == 'nul_header': archive.writestr('sofia/sdk/partXignored.py', b'# ambiguous original header')
             if defect == 'core_case': archive.writestr('SOFIA/CORE/synthetic.py', b'# forbidden Core')
             if defect == 'data_relocation': archive.writestr('sofia_sdk-0.1.0.data/purelib/sofia/core/synthetic.py', b'# forbidden relocation')
             if defect == 'duplicate_entry':
                 # A case variant is a different ZIP name but an ambiguous Windows path.
                 archive.writestr('SOFIA/SDK/__INIT__.PY', b'# ambiguous package path')
     data = b'invalid archive' if defect == 'invalid_zip' else output.getvalue()
+    if defect == 'nul_header': data = data.replace(b'partXignored.py', b'part\0ignored.py')
     manifest, signature = replace_signed_asset(tmp_path, manifest, key, kind, data)
     with pytest.raises(PlatformReleaseRejected):
         verify(tmp_path, manifest, public, signature)

@@ -61,6 +61,8 @@ def _component_wheel(path,kind,version,data):
             metadata = None
             names=set()
             for info in infos:
+                if info.orig_filename != info.filename:
+                    raise PlatformReleaseRejected('archive header name was normalized or truncated')
                 name=info.filename.rstrip('/')
                 validate_artifact_path(name)
                 normalized=unicodedata.normalize('NFKC',name).casefold()
