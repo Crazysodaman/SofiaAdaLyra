@@ -107,3 +107,45 @@ def test_explicit_replace_existing_can_replace_verified_protected_assets(
     assert result.succeeded
     assert target.is_file()
     assert identity.read_bytes() != b"old-offline-identity"
+
+
+@pytest.mark.parametrize("database_name", (
+    "personality.json", "PERSONALITY.JSON", "protected", "PROTECTED",
+))
+@pytest.mark.parametrize("replace_existing", (False, True))
+def test_database_destination_cannot_alias_bundle_asset(
+    tmp_path, monkeypatch, database_name, replace_existing,
+):
+    engine, archive, journal = _ready(tmp_path, monkeypatch)
+    target = tmp_path / "recovered" / database_name
+    replacement = ProtectedRestoreLedger.initialize(
+        tmp_path / "owner-ledger" / "restore-authority.db"
+    )
+    manifest = engine.verify(archive)
+    mint_replacement(replacement, target, manifest)
+
+    with pytest.raises(BackupError, match="database destination conflicts"):
+        engine.restore(
+            backup_dir=archive, target_state_path=target,
+            verifier="offline-reviewed", erasure_journal=journal,
+            replace_existing=replace_existing,
+            replacement_authority=replacement if replace_existing else None,
+            now=NOW,
+        )
+
+    # Reject before staging, consuming owner authority, or publishing assets.
+    assert not target.parent.exists()
+    replacement.require_replacement(target, manifest, now=NOW)
+
+
+def test_distinct_custom_database_destination_preserves_bundle(tmp_path, monkeypatch):
+    engine, archive, journal = _ready(tmp_path, monkeypatch)
+    target = tmp_path / "recovered" / "restored.sqlite"
+    result = engine.restore(
+        backup_dir=archive, target_state_path=target,
+        verifier="offline-reviewed", erasure_journal=journal,
+    )
+    assert result.succeeded
+    assert target.read_bytes().startswith(b"SQLite format 3")
+    assert (target.parent / "personality.json").read_bytes() == b"{}"
+    assert (target.parent / "protected" / "identity.json").is_file()

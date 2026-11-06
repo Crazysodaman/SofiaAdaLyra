@@ -703,6 +703,18 @@ class BackupEngine:
         if not isinstance(target_state_path, Path):
             raise TypeError("target_state_path must be a Path")
         target_root = target_state_path.parent
+        # The canonical database may be restored under a custom filename.
+        # Manifest uniqueness alone cannot protect this remapping: naming
+        # the database "personality.json" overwrites that asset on an explicit
+        # replacement, while "protected" collides with its directory. Reject
+        # portable case aliases before staging or consuming owner authority.
+        database_name = target_state_path.name.casefold()
+        if any(
+            entry.logical_path != "sofia.db"
+            and PurePosixPath(entry.logical_path).parts[0].casefold() == database_name
+            for entry in manifest.entries
+        ):
+            raise BackupError("restore database destination conflicts with bundle asset")
         # Authority is an owner-minted single-use receipt bound to the exact
         # destination and manifest. A boolean callback is not proof of owner
         # intent and is no longer an accepted authorization format.
