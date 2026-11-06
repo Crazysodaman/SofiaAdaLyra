@@ -62,4 +62,4 @@ jobs:
         run: python -m compileall -q src/sofia test
       - name: Run component release and installer regression tests
         run: |
-          python -m pytest -q test/test_core_component_install.py test/test_run_active_release.py test/test_component_artifact_separation.py test/test_component_install_production.py
+          python -m pytest -q test/test_core_component_install.py test/test_run_active_release.py test/test_component_artifact_separation.py test/test_component_install_production.py test/test_platform_tool_binding_isolation.py

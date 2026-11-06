@@ -7,21 +7,22 @@ import os
 from pathlib import Path
 from time import perf_counter
 from hashlib import sha256
-from typing import Any,Callable
+from typing import Any,Callable,TYPE_CHECKING
 from uuid import UUID,uuid4
 
 from sofia.platform.capability.model import Capability,CapabilityRequest
-from sofia.core.cognition.model import CognitiveToolDefinition
-from sofia.core.cognition.tools import CognitiveToolBinding
+from sofia.sdk.cognition_model import CognitiveToolDefinition
+from sofia.sdk.tool_binding import CognitiveToolBinding
 from sofia.platform.ops.model import HostLifecycle
 from sofia.platform.ops.latency import FleetLatencyStore
 from sofia.platform.ops.state_registry import StatePlaneFleetRegistry
 from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
-from sofia.core.goals.evidence import GoalEvidence, GoalEvidenceLedger
-from sofia.core.goals.service import audience_scope
-from sofia.core.social.model import PrincipalContext
+from sofia.sdk.principals import PrincipalContext
+
+if TYPE_CHECKING:
+    from sofia.core.goals.evidence import GoalEvidence
 
 from .authorization import remote_operation_is_read_only
 from .endpoint_policy_durable import DurableEndpointPolicy
@@ -389,6 +390,8 @@ class RemoteFleetToolService:
         self,dispatch_id:str,*,principal:PrincipalContext,now:datetime,
     )->GoalEvidence:
         """Project one pinned-host observation into typed scoped GOALS evidence."""
+        from sofia.core.goals.evidence import GoalEvidenceLedger
+        from sofia.core.goals.service import audience_scope
         if not isinstance(principal,PrincipalContext):
             raise TypeError("authenticated PrincipalContext required")
         if not isinstance(now,datetime) or now.tzinfo is None:
