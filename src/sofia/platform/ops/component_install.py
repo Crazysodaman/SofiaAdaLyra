@@ -97,23 +97,38 @@ class Ed25519ComponentSignatureVerifier(ComponentSignatureVerifier):
         self._keys = loaded
 
     def verify(self, artifact: CoreComponentArtifact, wheel_path: Path) -> None:
+        self.verify_digest(artifact.sha256, signature_b64=artifact.signature_b64,
+                           signer_key_id=artifact.signer_key_id)
+
+    def verify_digest(self, digest: str, *, signature_b64: str, signer_key_id: str) -> None:
+        """Reuse the configured signature trust boundary for a typed data digest.
+
+        The caller must derive the digest from bounded, reviewed bytes. This
+        verifies content provenance only, never install or execution authority.
+        """
         import base64
 
         from cryptography.exceptions import InvalidSignature
 
-        key = self._keys.get(artifact.signer_key_id)
+        if not isinstance(digest, str) or _SHA256.fullmatch(digest) is None:
+            raise CoreComponentInstallError("signature requires lowercase SHA-256")
+        if not isinstance(signer_key_id, str) or not 1 <= len(signer_key_id) <= 500:
+            raise CoreComponentInstallError("signature requires bounded signer identity")
+        if not isinstance(signature_b64, str) or not 1 <= len(signature_b64) <= 2000:
+            raise CoreComponentInstallError("component signature must be bounded base64")
+        key = self._keys.get(signer_key_id)
         if key is None:
             raise CoreComponentInstallError(
-                f"component signer {artifact.signer_key_id!r} is not trusted"
+                f"component signer {signer_key_id!r} is not trusted"
             )
         try:
-            signature = base64.b64decode(artifact.signature_b64, validate=True)
+            signature = base64.b64decode(signature_b64, validate=True)
         except (ValueError, TypeError) as error:
             raise CoreComponentInstallError(
                 "component signature is not valid base64"
             ) from error
         try:
-            key.verify(signature, artifact.sha256.encode("ascii"))
+            key.verify(signature, digest.encode("ascii"))
         except InvalidSignature:
             raise CoreComponentInstallError(
                 "component signature does not verify against the trusted keyring"

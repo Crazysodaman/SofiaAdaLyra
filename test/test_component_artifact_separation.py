@@ -245,3 +245,25 @@ def test_installed_callsign_authority_operates_without_core(component_wheels, tm
         'from sofia.platform.ops.callsign_cli import main\n'
         f"assert main(['--database', {str(naming.path)!r}, '--installation-home', {str(naming.installation.home)!r}, 'show', '--platform-id', {naming.first!r}]) == 0\n"
     ))
+
+
+def test_installed_signed_core_definition_verifier_is_core_free(component_wheels, tmp_path):
+    from test.test_signed_core_definitions import fixture_definition
+    from test.test_platform_import_isolation import _BLOCK_CORE
+    from sofia.platform.verify.component_artifacts import _extract_wheel, _run_core_blocked_probe
+    directory, definition, _, public, signature = fixture_definition(tmp_path)
+    site_dir = tmp_path/'definition-site'
+    for distribution in ('sdk','platform'):
+        _extract_wheel(component_wheels[distribution],site_dir)
+    _run_core_blocked_probe([site_dir],_BLOCK_CORE + (
+        'from pathlib import Path\n'
+        'import sys\n'
+        'from sofia.sdk.core_definition import CoreDefinition\n'
+        'from sofia.platform.ops.core_definition import CoreDefinitionVerifier\n'
+        f'verified = CoreDefinitionVerifier({{"operator":{public!r}}}).verify({definition.to_payload()!r},\n'
+        f' signature_b64={signature!r},signer_key_id="operator",assets_root=Path({str(directory)!r}),\n'
+        f' expected_core_id={definition.identity.canonical_uuid!r},expected_runtime_sha256={definition.runtime_release_sha256!r},minimum_revision=1)\n'
+        f'assert verified.identity.canonical_uuid == {definition.identity.canonical_uuid!r}\n'
+        f'assert Path(sys.modules[CoreDefinition.__module__].__file__).is_relative_to(Path({str(site_dir)!r}))\n'
+        f'assert Path(sys.modules[CoreDefinitionVerifier.__module__].__file__).is_relative_to(Path({str(site_dir)!r}))\n'
+    ))
