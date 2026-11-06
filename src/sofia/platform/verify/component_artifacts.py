@@ -620,7 +620,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.dist, args.output, repo=args.repo, version=args.version
             )
         }
-        report = inspect_wheel(wheels[args.dist], args.dist)
+        components = load_component_manifest(args.repo)
+        report = inspect_wheel(
+            wheels[args.dist], str(components[args.dist]["distribution"])
+        )
         print(
             json.dumps(
                 {

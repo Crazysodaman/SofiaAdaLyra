@@ -9,6 +9,10 @@ semantics (extracted wheel payloads), not checkout source-tree semantics.
 from __future__ import annotations
 
 from pathlib import Path
+import json
+import os
+import subprocess
+import venv
 
 import pytest
 
@@ -88,6 +92,78 @@ def test_installed_platform_imports_without_core(component_wheels):
     result = verify_installed_imports(component_wheels)
     assert result["schema"] == BUILD_SCHEMA
     assert result["launcher_status"] is True
+
+
+def test_unconfigured_installed_platform_has_no_core_host_role(component_wheels, tmp_path):
+    from sofia.platform.verify.component_artifacts import (
+        _extract_wheel, _run_core_blocked_probe,
+    )
+
+    site_dir = tmp_path / "site"
+    for distribution in ("sdk", "platform"):
+        _extract_wheel(component_wheels[distribution], site_dir)
+    _run_core_blocked_probe([site_dir], (
+        "import sys\n"
+        "from sofia.platform.config.roles import PlatformRole, PlatformRoleConfiguration\n"
+        "assert PlatformRoleConfiguration.from_environment().roles == (PlatformRole.MODULE_HOST,)\n"
+        "from sofia.platform.launcher import main\n"
+        "assert main(['status']) == 0\n"
+        "assert not [name for name in sys.modules if name == 'sofia.core' or name.startswith('sofia.core.')]\n"
+    ))
+
+
+def test_clean_venv_platform_status_survives_core_uninstall(component_wheels, tmp_path):
+    """Exercise actual pip installation with no checkout/user-site fallback."""
+    environment_root = tmp_path / "installation"
+    venv.EnvBuilder(with_pip=True).create(environment_root)
+    python = environment_root / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    environment = {
+        key: value for key, value in os.environ.items()
+        if not key.startswith("SOFIA_") and key not in {"PYTHONPATH", "PYTHONHOME"}
+    }
+    state_root = tmp_path / "personal-state"
+    state_root.mkdir()
+    marker = state_root / "preserved.txt"
+    marker.write_text("disposable private state", encoding="utf-8")
+    environment["SOFIA_STATE_ROOT"] = str(state_root)
+
+    def run(*arguments):
+        completed = subprocess.run(
+            [str(python), "-I", *arguments], cwd=tmp_path,
+            capture_output=True, text=True, timeout=120, env=environment,
+        )
+        assert completed.returncode == 0, completed.stderr
+        return completed.stdout
+
+    run("-m", "pip", "install", "--no-index", "--no-deps",
+        str(component_wheels["sdk"]), str(component_wheels["platform"]))
+    status_probe = (
+        "import sys\n"
+        "from sofia.platform.launcher import main\n"
+        "assert main(['status']) == 0\n"
+        "assert not [name for name in sys.modules if name == 'sofia.core' or name.startswith('sofia.core.')]\n"
+    )
+    assert json.loads(run("-c", status_probe))["roles"] == ["MODULE_HOST"]
+    run("-m", "pip", "install", "--no-index", "--no-deps", str(component_wheels["core"]))
+    assert json.loads(run("-c", status_probe))["roles"] == ["CORE_HOST", "MODULE_HOST"]
+    run("-m", "pip", "uninstall", "--yes", "sofia-core")
+    assert json.loads(run("-c", status_probe))["roles"] == ["MODULE_HOST"]
+    assert marker.read_text(encoding="utf-8") == "disposable private state"
+    assert sorted(path.name for path in state_root.iterdir()) == ["preserved.txt"]
+
+
+@pytest.mark.parametrize("component", COMPONENT_DISTRIBUTIONS)
+def test_single_component_cli_reports_built_distribution(component_wheels, monkeypatch, capsys, component, tmp_path):
+    from sofia.platform.verify import component_artifacts
+
+    monkeypatch.setattr(
+        component_artifacts, "build_component",
+        lambda distribution, *args, **kwargs: component_wheels[distribution],
+    )
+    assert component_artifacts.main(["--dist", component, "--output", str(tmp_path)]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["distribution"] == f"sofia-{component}"
+    assert report["wheel"] == str(component_wheels[component])
 
 
 def test_installed_isolation_surface_covers_source_canonical_list():
