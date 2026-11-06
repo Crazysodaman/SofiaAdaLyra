@@ -72,9 +72,15 @@ Design: browse signed installed/available modules, versions and compatibility; i
 
 ### AG-D007 | Aegis Control Center navigation
 
-**Status:** CAPTURED. **Target release:** TBD.
+**Status:** OWNER-DESIRED, DETAILED DESIGN CAPTURED. **Target release:** UI milestone TBD; **not scheduled** for Platform-only #201 by this document.
 
-Design question: one Aegis app with **Platform / Cores / Models / Modules / Fleet / Security / Diagnostics** views, or separate launchable managers sharing the same service API? Support Windows and Linux; servers remain headless and manageable by CLI/API. Keep high-risk actions visibly distinct from read-only status.
+**Detailed design:** [AG-D007: Aegis Control Center](AEGIS_CONTROL_CENTER_DESIGN.md), including layout, manager taxonomy, detachable windows, safe action flows, Rust service/API boundaries, Core-free behavior, Windows/Linux support, signed-package UX, test scenarios and staged acceptance.
+
+**Recommended UX direction:** One neutral **Aegis Control Center** app with Overview, Fleet, Cores, Models, Modules, Catalog, Jobs, Compute, Updates, Security, Backups, Diagnostics, Lab and Settings, with **Open in new window** for individual managers and optional tray shortcuts. The GUI is optional for headless hosts, and Sofía Workbench remains a separate optional personal Core client.
+
+**Hard separation:** Platform's authenticated Rust service owns identity, SAFE/STOP, approvals, installed-component effects, remote trust and receipts. GUI, optional Core and external developer agents cannot bypass or become that authority. Never make Platform startup depend on Sofía, an LLM, GPU, Tauri or a desktop session.
+
+**Pending owner decisions:** confirm single shell + detachable managers, separate Sofía Workbench, read-only-first GUI, isolated Lab/Developer Workshop and CLI-first Debian servers. This captures design intent, **not** permission to start UI coding, deploy production, or change Codex's Platform-only shakedown acceptance scope.
 
 ### AG-D008 | Core identity and state retention policy
 
