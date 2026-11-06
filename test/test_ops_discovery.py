@@ -1,3 +1,4 @@
+from test.fleet_state_fixture import register_fixture_candidate
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -234,10 +235,10 @@ def test_unapproved_discovered_identity_stays_candidate(tmp_path):
     endpoints.close()
 
 
-def test_state_plane_registry_persists_authenticated_candidate(tmp_path):
+def test_state_plane_registry_refuses_unverified_authentication(tmp_path):
     plane = SQLiteStatePlane(tmp_path / "state.db")
     registry = StatePlaneFleetRegistry(plane)
-    registry.register_candidate(
+    register_fixture_candidate(registry,
         FleetHost(
             host_id="Artemis",
             platform="windows",
@@ -248,17 +249,10 @@ def test_state_plane_registry_persists_authenticated_candidate(tmp_path):
     )
     node_id = UUID("11111111-2222-3333-4444-555555555555")
 
-    promoted = registry.authenticate_candidate("Artemis", node_id)
-
-    assert promoted.trusted is True
-    assert promoted.node_id == node_id
-
-    reloaded = StatePlaneFleetRegistry(plane)
-    durable = reloaded.host("Artemis")
-    assert durable is not None
-    assert durable.trusted is True
-    assert durable.node_id == node_id
-    assert durable.lifecycle is HostLifecycle.CANDIDATE
+    with pytest.raises(PermissionError, match="verified enrollment"):
+        registry.authenticate_candidate("Artemis", node_id)
+    durable = StatePlaneFleetRegistry(plane).host("Artemis")
+    assert durable is not None and not durable.trusted and durable.node_id is None
 
 
 def test_candidate_notifier_runs_once_for_new_host_only():
@@ -509,7 +503,7 @@ def test_fleet_enrollment_service_requires_exact_sparks_approval():
         tags=("discovered",),
         node_id=None,
     )
-    registry.register_candidate(candidate)
+    register_fixture_candidate(registry, candidate)
     enrollment = NodeEnrollment(
         DistributedNode(node_id, "Terra"),
         key,

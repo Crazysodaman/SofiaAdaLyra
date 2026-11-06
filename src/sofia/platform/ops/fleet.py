@@ -29,6 +29,7 @@ _ALLOWED={
 }
 
 class FleetRegistry:
+    """Legacy in-memory projection; durable admission belongs to verified enrollment."""
     def __init__(self)->None: self._hosts:dict[str,FleetHost]={}
     def register_candidate(self,host:FleetHost)->None:
         if host.lifecycle is not HostLifecycle.CANDIDATE: raise ValueError("new host must begin as candidate")

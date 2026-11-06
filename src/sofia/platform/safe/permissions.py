@@ -1,7 +1,7 @@
 """Unified project permission policy, standing grants, and private/adult authority."""
 from __future__ import annotations
 
-from contextlib import closing
+from contextlib import closing, contextmanager, nullcontext
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum, IntEnum
@@ -258,6 +258,7 @@ _SAFE_AUTONOMOUS = frozenset({
 })
 
 _REVERSIBLE = frozenset({
+    "fleet.callsign.core.rename",
     "notification.send",
     "portainer.container.restart",
     "jmri.power.set",
@@ -353,6 +354,13 @@ _SCREEN_NEVER_SELF = frozenset({
 })
 
 _NEVER_SELF_AUTHORIZED = frozenset({
+    "fleet.callsign.authority.initialize",
+    "fleet.callsign.register",
+    "fleet.callsign.rename",
+    "fleet.callsign.lock",
+    "fleet.callsign.unlock",
+    "fleet.callsign.attach",
+    "fleet.callsign.detach",
     "permissions.grant",
     "permissions.revoke",
     "permissions.classify",
@@ -557,7 +565,7 @@ class PermissionStore:
         # receipt and active authenticator. Tables must also exist before
         # the first owner credential is enrolled.
         from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
-        ExecutionApprovalVerifier(self.path)
+        self._approval_verifier = ExecutionApprovalVerifier(self.path)
 
     def _connect(self) -> sqlite3.Connection:
         db = self._guard.connect(timeout=10)
@@ -565,6 +573,22 @@ class PermissionStore:
         db.execute("PRAGMA busy_timeout=10000")
         db.execute("PRAGMA foreign_keys=ON")
         return db
+
+    @contextmanager
+    def _write_transaction(self, external=None):
+        if external is not None:
+            self._validate_transaction(external)
+            yield external
+        else:
+            with closing(self._connect()) as db, db:
+                db.execute("BEGIN IMMEDIATE")
+                yield db
+
+    def _validate_transaction(self, db):
+        self._guard.validate()
+        main = next((row[2] for row in db.execute("PRAGMA database_list") if row[1] == "main"), "")
+        if not db.in_transaction or Path(main).absolute() != self._guard.canonical_path:
+            raise RuntimeError("standing permission requires its own open authority transaction")
 
     @staticmethod
     def _validate_actor_metadata(actor: str | None) -> None:
@@ -608,6 +632,7 @@ class PermissionStore:
         grant_id: str | None = None,
         now: datetime | None = None,
         approval_id: str | None = None,
+        _transaction_db: sqlite3.Connection | None = None,
     ) -> StandingPermissionGrant:
         self._validate_actor_metadata(granted_by)
         policy = capability_permission_policy(capability)
@@ -636,10 +661,8 @@ class PermissionStore:
             raise PermissionError(
                 "standing permission requires fresh authenticated owner approval"
             )
-        from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
-        verifier = ExecutionApprovalVerifier(self.path)
-        with closing(self._connect()) as db, db:
-            db.execute("BEGIN IMMEDIATE")
+        verifier = self._approval_verifier
+        with self._write_transaction(_transaction_db) as db:
             approval = verifier.consume(
                 approval_id=approval_id,
                 capability="safe.permission.standing.grant",
@@ -705,6 +728,8 @@ class PermissionStore:
         revoked_by: str | None = None,
         now: datetime | None = None,
         approval_id: str | None = None,
+        _transaction_db: sqlite3.Connection | None = None,
+        authority_context: dict | None = None,
     ) -> StandingPermissionGrant:
         self._validate_actor_metadata(revoked_by)
         moment = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
@@ -712,14 +737,12 @@ class PermissionStore:
             raise PermissionError(
                 "standing permission revocation requires fresh authenticated owner approval"
             )
-        from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
-        verifier = ExecutionApprovalVerifier(self.path)
-        with closing(self._connect()) as db, db:
-            db.execute("BEGIN IMMEDIATE")
+        verifier = self._approval_verifier
+        with self._write_transaction(_transaction_db) as db:
             approval = verifier.consume(
                 approval_id=approval_id,
                 capability="safe.permission.standing.revoke",
-                parameters={"grant_id": grant_id},
+                parameters={"grant_id": grant_id, **({} if authority_context is None else {"authority_context": authority_context})},
                 now=moment,
                 _transaction_db=db,
             )
@@ -802,8 +825,10 @@ class PermissionStore:
             owner_authenticated=authenticated,
         )
 
-    def grants(self, *, active_only: bool = False) -> tuple[StandingPermissionGrant, ...]:
-        with closing(self._connect()) as db:
+    def grants(self, *, active_only: bool = False, _transaction_db=None) -> tuple[StandingPermissionGrant, ...]:
+        if _transaction_db is not None:
+            self._validate_transaction(_transaction_db)
+        with (closing(self._connect()) if _transaction_db is None else nullcontext(_transaction_db)) as db:
             rows = db.execute(
                 """
                 SELECT g.grant_id,g.capability,g.scope_json,g.granted_by,

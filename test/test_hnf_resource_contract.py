@@ -1,4 +1,5 @@
 """HNF-01 through HNF-03 typed resource and inventory regressions."""
+from test.fleet_state_fixture import register_fixture_candidate, authenticate_fixture_candidate
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
@@ -222,7 +223,7 @@ def test_production_ops_discovery_projects_untrusted_inventory(canonical_state_p
         "worker:any-name", "Owner Editable Name", "linux", "x86_64", NOW,
         "configured-subnet", True,
     )
-    service.registry.register_candidate(FleetHost(
+    register_fixture_candidate(service.registry, FleetHost(
         observation.host_id, observation.platform, observation.architecture,
         HostLifecycle.CANDIDATE, False,
     ))
@@ -299,10 +300,10 @@ def test_authenticated_legacy_telemetry_projects_one_gpu_without_aggregation(
 ) -> None:
     service = OpsToolService(canonical_state_path)
     host_id = "node:7f21"
-    service.registry.register_candidate(FleetHost(
+    register_fixture_candidate(service.registry, FleetHost(
         host_id, "linux", "x86_64", HostLifecycle.CANDIDATE, False,
     ))
-    service.registry.authenticate_candidate(host_id, uuid4())
+    authenticate_fixture_candidate(service.registry, host_id, uuid4())
     service.registry.transition(host_id, HostLifecycle.ENROLLED)
     observation = HostTelemetry(
         NOW, cpu_percent=10.0, ram_used_bytes=4 * GIB,

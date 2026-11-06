@@ -12,7 +12,7 @@ from sofia.platform.ops.fleet import FleetRegistry
 from sofia.platform.ops.model import FleetHost, HostLifecycle, HostTelemetry
 from sofia.platform.state.atomic_file import retire_legacy_file
 from sofia.platform.state.model import StateClass, StateKey, StateRecord
-from sofia.platform.state.plane import StatePlane
+from sofia.platform.state.plane import StatePlane, StatePlaneConflictError
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 
 
@@ -88,13 +88,13 @@ class StatePlaneFleetRegistry(FleetRegistry):
         return cls._decode_payload(json.loads(record.value.decode("utf-8")))
 
     def _load(self) -> None:
-        self._hosts = {
-            host.host_id: host
-            for host in (
-                self._decode(record)
-                for record in self.state_plane.list_namespace(self.NAMESPACE)
-            )
-        }
+        records = self.state_plane.list_namespace(self.NAMESPACE)
+        self._hosts = {}
+        self._revisions = {}
+        for record in records:
+            host = self._decode(record)
+            self._hosts[host.host_id] = host
+            self._revisions[host.host_id] = record.revision
 
     def _import_legacy_if_needed(self) -> None:
         if self.legacy_path is None or not self.legacy_path.is_file():
@@ -111,6 +111,8 @@ class StatePlaneFleetRegistry(FleetRegistry):
                 if existing.source == "legacy-json:fleet" and self._decode(existing) != host:
                     raise ValueError("conflicting partial legacy Fleet import")
                 continue
+            if host.trusted or host.node_id is not None:
+                raise PermissionError("legacy JSON cannot establish authenticated Fleet membership")
             self._persist(host, source="legacy-json:fleet")
             self._hosts[host.host_id] = host
         for host in hosts:
@@ -131,7 +133,17 @@ class StatePlaneFleetRegistry(FleetRegistry):
             namespace=self.NAMESPACE,
             key=host.host_id,
         )
-        existing = self.state_plane.read(key)
+        expected_revision = self._revisions.get(host.host_id)
+        current = self.state_plane.read(key)
+        if (None if current is None else current.revision) != expected_revision:
+            raise StatePlaneConflictError("Fleet state changed since this host was loaded")
+        if current is not None:
+            persisted = self._decode(current)
+            if (current.state_class is not StateClass.SHARED_AUTHORITATIVE or
+                persisted.trusted != host.trusted or persisted.node_id != host.node_id):
+                raise PermissionError("ordinary Fleet writes cannot change authenticated trust")
+        elif host.trusted or host.node_id is not None:
+            raise PermissionError("new Fleet records require verified enrollment authority")
         timestamp = (
             host.telemetry.observed_at
             if host.telemetry is not None
@@ -141,15 +153,18 @@ class StatePlaneFleetRegistry(FleetRegistry):
             StateRecord(
                 key=key,
                 state_class=StateClass.SHARED_AUTHORITATIVE,
-                revision=1 if existing is None else existing.revision + 1,
+                revision=1 if expected_revision is None else expected_revision + 1,
                 value=self._encode(host),
                 updated_at=timestamp,
                 source=source,
             ),
-            expected_revision=None if existing is None else existing.revision,
+            expected_revision=expected_revision,
         )
+        self._revisions[host.host_id] = 1 if expected_revision is None else expected_revision + 1
 
     def register_candidate(self, host: FleetHost) -> None:
+        if host.trusted or host.node_id is not None:
+            raise PermissionError("trusted Fleet admission requires verified enrollment authority")
         before = self._hosts.get(host.host_id)
         super().register_candidate(host)
         try:
@@ -205,17 +220,7 @@ class StatePlaneFleetRegistry(FleetRegistry):
         host_id: str,
         node_id: UUID,
     ) -> FleetHost:
-        before = self._hosts[host_id]
-        updated = super().authenticate_candidate(host_id, node_id)
-        try:
-            self._persist(
-                updated,
-                source="ops:fleet-authenticated-candidate",
-            )
-        except Exception:
-            self._hosts[host_id] = before
-            raise
-        return updated
+        raise PermissionError("durable Fleet authentication requires verified enrollment authority")
 
     def update_telemetry(
         self,
@@ -296,6 +301,7 @@ class StatePlaneFleetRegistry(FleetRegistry):
                     occurred_at=now, event_id=f"fleet-removal:{verified.approval_id}",
                 )
         self._hosts[host_id] = updated
+        self._revisions[host_id] = current.revision + 1
         return updated
 
     def removal_parameters(self, host_id: str, *, proposal_revision: str) -> dict:

@@ -1,3 +1,4 @@
+from test.fleet_state_fixture import register_fixture_candidate, authenticate_fixture_candidate
 from hashlib import sha256
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
@@ -45,10 +46,10 @@ def test_retirement_quarantines_host_and_revokes_cognitive_evidence(tmp_path):
     endpoints.close()
 
     registry = StatePlaneFleetRegistry(SQLiteStatePlane(state_path))
-    registry.register_candidate(FleetHost(
+    register_fixture_candidate(registry, FleetHost(
         "Artemis", "linux", "amd64", HostLifecycle.CANDIDATE, False,
     ))
-    registry.authenticate_candidate("Artemis", node.node_id)
+    authenticate_fixture_candidate(registry, "Artemis", node.node_id)
     registry.transition("Artemis", HostLifecycle.ENROLLED)
     evidence = CognitiveEvidenceLedger(state_path)
     atom = evidence.append(EvidenceAtom(

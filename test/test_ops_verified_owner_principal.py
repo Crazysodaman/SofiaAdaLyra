@@ -1,4 +1,5 @@
 """Real exact owner proof at OPS boundaries; external execution is a local fake."""
+from test.fleet_state_fixture import register_fixture_candidate, authenticate_fixture_candidate
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from uuid import uuid4
@@ -19,8 +20,8 @@ def prepared_service(path, monkeypatch):
     monkeypatch.delenv("SOFIA_WORKLOAD_CATALOG_FILE", raising=False)
     service = OpsToolService(path)
     for host, node in (("source", SOURCE_NODE), ("target", TARGET_NODE)):
-        service.registry.register_candidate(FleetHost(host, "linux", "x86_64", HostLifecycle.CANDIDATE, False))
-        service.registry.authenticate_candidate(host, node)
+        register_fixture_candidate(service.registry, FleetHost(host, "linux", "x86_64", HostLifecycle.CANDIDATE, False))
+        authenticate_fixture_candidate(service.registry, host, node)
         service.registry.transition(host, HostLifecycle.ENROLLED)
     return service
 

@@ -1,3 +1,4 @@
+from test.fleet_state_fixture import register_fixture_candidate
 from datetime import datetime, timezone
 import sqlite3
 
@@ -42,7 +43,7 @@ def test_ops_tool_placement_uses_same_durable_game_mode_evidence(tmp_path):
         _host("venus", 5, observed_at=observed_at),
         _host("artemis", 30, observed_at=observed_at),
     ):
-        service.registry.register_candidate(host)
+        register_fixture_candidate(service.registry, host)
         service.registry.transition(host.host_id, HostLifecycle.ENROLLED)
         service.registry.transition(host.host_id, HostLifecycle.HEALTHY)
 
@@ -73,7 +74,7 @@ def test_ops_tool_can_explicitly_allow_interactive_host(tmp_path):
         _host("venus", 5, observed_at=observed_at),
         _host("artemis", 30, observed_at=observed_at),
     ):
-        service.registry.register_candidate(host)
+        register_fixture_candidate(service.registry, host)
         service.registry.transition(host.host_id, HostLifecycle.ENROLLED)
         service.registry.transition(host.host_id, HostLifecycle.HEALTHY)
 
@@ -97,7 +98,7 @@ def test_ops_placement_projects_optional_ml_advice_without_transferring_policy(t
     with sqlite3.connect(state):
         pass
     service = OpsToolService(state)
-    service.registry.register_candidate(_host("venus", 5))
+    register_fixture_candidate(service.registry, _host("venus", 5))
     service.registry.transition("venus", HostLifecycle.ENROLLED)
     calls = []
 
@@ -128,7 +129,7 @@ def test_ops_placement_survives_advisor_failure_without_silent_authority(tmp_pat
     with sqlite3.connect(state):
         pass
     service = OpsToolService(state)
-    service.registry.register_candidate(_host("venus", 5))
+    register_fixture_candidate(service.registry, _host("venus", 5))
     service.registry.transition("venus", HostLifecycle.ENROLLED)
 
     def broken(*args, **kwargs):
@@ -181,7 +182,7 @@ def test_ops_drift_proposal_is_read_only_and_non_authoritative(tmp_path):
 
     service = OpsToolService(state)
     for host in (_host("venus", 5), _host("artemis", 30)):
-        service.registry.register_candidate(host)
+        register_fixture_candidate(service.registry, host)
         service.registry.transition(host.host_id, HostLifecycle.ENROLLED)
         service.registry.transition(host.host_id, HostLifecycle.HEALTHY)
 
@@ -229,7 +230,7 @@ def test_ops_reconciliation_preview_uses_durable_desired_and_observed_state(
 
     service = OpsToolService(state)
     for host in (_host("venus", 5), _host("artemis", 30)):
-        service.registry.register_candidate(host)
+        register_fixture_candidate(service.registry, host)
         service.registry.transition(host.host_id, HostLifecycle.ENROLLED)
         service.registry.transition(host.host_id, HostLifecycle.HEALTHY)
 

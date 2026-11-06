@@ -1,3 +1,4 @@
+from test.fleet_state_fixture import register_fixture_candidate
 from dataclasses import asdict
 import json
 
@@ -57,7 +58,7 @@ def test_legacy_import_resumes_after_partial_durable_failure(tmp_path, monkeypat
 def test_legacy_import_preserves_later_canonical_state(tmp_path):
     plane = SQLiteStatePlane(tmp_path / "sofia.db")
     registry = StatePlaneFleetRegistry(plane)
-    registry.register_candidate(FleetHost("venus", "windows", "amd64", HostLifecycle.CANDIDATE, False))
+    register_fixture_candidate(registry, FleetHost("venus", "windows", "amd64", HostLifecycle.CANDIDATE, False))
     legacy = legacy_file(tmp_path, (candidate("venus"), candidate("terra")))
     restored = StatePlaneFleetRegistry(plane, legacy_path=legacy)
     assert restored.host("venus").platform == "windows"
@@ -81,7 +82,7 @@ def test_failed_transition_keeps_canonical_and_cached_state(tmp_path, monkeypatc
     plane = SQLiteStatePlane(tmp_path / "sofia.db")
     registry = StatePlaneFleetRegistry(plane)
     host = FleetHost("venus", "linux", "x86_64", HostLifecycle.CANDIDATE, True)
-    registry.register_candidate(host)
+    register_fixture_candidate(registry, host)
 
     def fail_write(*args, **kwargs):
         raise RuntimeError("simulated storage failure")
