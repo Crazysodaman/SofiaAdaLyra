@@ -88,6 +88,7 @@ INSTALLED_ISOLATED_MODULES: tuple[str, ...] = (
     "sofia.sdk.core_link",
     "sofia.sdk.cognition_model",
     "sofia.sdk.principals",
+    "sofia.sdk.identity",
     "sofia.sdk.cognition",
     "sofia.sdk.module_settings",
     "sofia.sdk.state",
