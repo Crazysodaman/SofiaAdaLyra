@@ -25,9 +25,14 @@ it does not authenticate a hostile replacement. Rollback detection depends on
 the independently protected minimum revision; storing that checkpoint beside an
 attacker-replaceable journal would not provide rollback protection.
 
+Relative directory arguments are bound to an absolute path at initialization or
+recovery. A later process working-directory change cannot redirect journal writes.
+
 A transition clones the current policy state, writes a new private staging file,
-flushes that file, atomically replaces the committed snapshot, and flushes the
-directory before returning admission. No admitted appearance is exposed before
+flushes that file and atomically replaces the committed snapshot. Unix then
+flushes the parent directory. Windows uses native
+`MoveFileExW(REPLACE_EXISTING | WRITE_THROUGH)` on that same protected directory,
+without a cross-volume copy/delete fallback. No admitted appearance is exposed before
 that durability sequence succeeds. A storage failure poisons the handle and
 makes its state unavailable: an uncertain commit outcome requires recovery with
 a new generation, rather than continued admissions. Recovery discards interrupted
@@ -36,18 +41,36 @@ uncertain via the existing `BrokerState::restore` policy, and flushes the fresh
 generation before returning. A corrupt committed snapshot is not repaired from
 an unverified staging file.
 
-The new `fs2` dependency is exact-pinned to 0.4.3, uses safe Rust at this crate's
-boundary, and supplies OS advisory locks. Its MIT/Apache-2.0 licenses fit the
-existing dependency policy. serde/serde_json/sha2 reuse exact versions already
-in the workspace lock. No secret or credential is stored in this journal.
+Windows requires a local fixed drive and an owner-private DACL. It reads the
+current process token's user/default-owner SIDs and the opened file's security
+descriptor; caller-supplied account display names are never authentication.
+Only ordinary allow ACEs for that user, SYSTEM, Administrators or OWNER RIGHTS
+are accepted, with explicit owner read/write data rights. NULL/empty DACLs,
+foreign owners, broad readers, denies and conditional/object ACEs fail closed.
+The adapter does not repair existing permissions or provision a directory.
+These OS storage checks do not authenticate an Aegis owner or authorize a UI
+setting/proposal.
+
+Windows retains directory handles for every ancestor without delete sharing,
+rejects reparse points and pins the lexical path while the writer is active.
+Files are opened without delete/write sharing, checked through their handles,
+and rejected when hard-linked or redirected. UNC/device paths, parent escapes,
+remote/mapped/non-fixed drives and unsupported security descriptors are denied.
+Platform provisioning must supply a suitable local directory beforehand.
+
+Exact-pinned dependencies supply OS locking (`fs2` 0.4.3), safe token operations
+(`winsafe` 0.0.29), handle metadata (`winapi-util` 0.1.11), descriptors
+(`windows-permissions` 0.2.4) and write-through replacement (`atomicwrites` 0.4.4).
+The latter four are Windows-only. Workspace `unsafe_code = "forbid"` remains
+unchanged; no project-local raw FFI or unsafe blocks are added. Existing
+serde/serde_json/sha2 formats are reused. No secret or credential is stored.
 
 ## Limits and remaining acceptance
 
-Filesystem durability is currently Unix-only. Windows initialization and
-recovery return `UnsupportedPlatform`; no optimistic fallback reports a durable
-admission. Windows directory-flush and replacement semantics require a separate
-implementation and Windows tests before activation. The Python/Tk fallback is
-unchanged.
+Other operating systems without the Unix/Windows durability contract remain
+unsupported. Windows must pass native runtime, security, restart and child-exit
+tests; cross-compilation alone is not execution evidence. The Python/Tk fallback
+is unchanged.
 
 This is not native R3 completion. The trusted Platform directory/ACL provisioning,
 independent checkpoint owner, authenticated IPC wiring, native tray, DND/session
