@@ -1,0 +1,268 @@
+{
+  "schema": "aegis.identity.fixtures.v1",
+  "cases": [
+    {
+      "name": "platform_serial",
+      "form": "serial",
+      "input": "AEG-P-01234567-89ABCDEF-FEDCBA98-76543210",
+      "valid": true,
+      "expected": {
+        "schema": "aegis.identity.v1",
+        "kind": "platform",
+        "uuid": "01234567-89ab-cdef-fedc-ba9876543210"
+      },
+      "serial": "AEG-P-01234567-89ABCDEF-FEDCBA98-76543210"
+    },
+    {
+      "name": "core_serial_ascii_case",
+      "form": "serial",
+      "input": "aeg-c-01234567-89abcdef-fedcba98-76543210",
+      "valid": true,
+      "expected": {
+        "schema": "aegis.identity.v1",
+        "kind": "core",
+        "uuid": "01234567-89ab-cdef-fedc-ba9876543210"
+      },
+      "serial": "AEG-C-01234567-89ABCDEF-FEDCBA98-76543210"
+    },
+    {
+      "name": "canonical_uuid",
+      "form": "uuid",
+      "input": "01234567-89ab-cdef-fedc-ba9876543210",
+      "valid": true,
+      "kind": "platform",
+      "expected": {
+        "schema": "aegis.identity.v1",
+        "kind": "platform",
+        "uuid": "01234567-89ab-cdef-fedc-ba9876543210"
+      },
+      "serial": "AEG-P-01234567-89ABCDEF-FEDCBA98-76543210"
+    },
+    {
+      "name": "uppercase_uuid",
+      "form": "uuid",
+      "input": "01234567-89AB-CDEF-FEDC-BA9876543210",
+      "valid": true,
+      "kind": "core",
+      "expected": {
+        "schema": "aegis.identity.v1",
+        "kind": "core",
+        "uuid": "01234567-89ab-cdef-fedc-ba9876543210"
+      },
+      "serial": "AEG-C-01234567-89ABCDEF-FEDCBA98-76543210"
+    },
+    {
+      "name": "maximum_uuid",
+      "form": "uuid",
+      "input": "ffffffff-ffff-ffff-ffff-ffffffffffff",
+      "valid": true,
+      "kind": "platform",
+      "expected": {
+        "schema": "aegis.identity.v1",
+        "kind": "platform",
+        "uuid": "ffffffff-ffff-ffff-ffff-ffffffffffff"
+      },
+      "serial": "AEG-P-FFFFFFFF-FFFFFFFF-FFFFFFFF-FFFFFFFF"
+    },
+    {
+      "name": "zero_uuid",
+      "form": "uuid",
+      "input": "00000000-0000-0000-0000-000000000000",
+      "valid": true,
+      "kind": "core",
+      "expected": {
+        "schema": "aegis.identity.v1",
+        "kind": "core",
+        "uuid": "00000000-0000-0000-0000-000000000000"
+      },
+      "serial": "AEG-C-00000000-00000000-00000000-00000000"
+    },
+    {
+      "name": "platform_payload",
+      "form": "payload",
+      "input": {
+        "schema": "aegis.identity.v1",
+        "kind": "platform",
+        "uuid": "01234567-89ab-cdef-fedc-ba9876543210"
+      },
+      "valid": true,
+      "expected": {
+        "schema": "aegis.identity.v1",
+        "kind": "platform",
+        "uuid": "01234567-89ab-cdef-fedc-ba9876543210"
+      },
+      "serial": "AEG-P-01234567-89ABCDEF-FEDCBA98-76543210"
+    },
+    {
+      "name": "core_payload",
+      "form": "payload",
+      "input": {
+        "schema": "aegis.identity.v1",
+        "kind": "core",
+        "uuid": "01234567-89ab-cdef-fedc-ba9876543210"
+      },
+      "valid": true,
+      "expected": {
+        "schema": "aegis.identity.v1",
+        "kind": "core",
+        "uuid": "01234567-89ab-cdef-fedc-ba9876543210"
+      },
+      "serial": "AEG-C-01234567-89ABCDEF-FEDCBA98-76543210"
+    },
+    {
+      "name": "serial_truncated",
+      "form": "serial",
+      "input": "AEG-P-01234567-89ABCDEF-FEDCBA98-7654321",
+      "valid": false
+    },
+    {
+      "name": "serial_extra_digit",
+      "form": "serial",
+      "input": "AEG-P-01234567-89ABCDEF-FEDCBA98-765432100",
+      "valid": false
+    },
+    {
+      "name": "serial_trailing_newline",
+      "form": "serial",
+      "input": "AEG-P-01234567-89ABCDEF-FEDCBA98-76543210\n",
+      "valid": false
+    },
+    {
+      "name": "serial_leading_space",
+      "form": "serial",
+      "input": " AEG-P-01234567-89ABCDEF-FEDCBA98-76543210",
+      "valid": false
+    },
+    {
+      "name": "serial_unicode_prefix",
+      "form": "serial",
+      "input": "AEG-Ρ-01234567-89ABCDEF-FEDCBA98-76543210",
+      "valid": false
+    },
+    {
+      "name": "serial_unknown_kind",
+      "form": "serial",
+      "input": "AEG-X-01234567-89ABCDEF-FEDCBA98-76543210",
+      "valid": false
+    },
+    {
+      "name": "serial_future_suffix",
+      "form": "serial",
+      "input": "AEG-P-01234567-89ABCDEF-FEDCBA98-76543210-v2",
+      "valid": false
+    },
+    {
+      "name": "serial_missing_groups",
+      "form": "serial",
+      "input": "AEG-P-0123456789abcdeffedcba9876543210",
+      "valid": false
+    },
+    {
+      "name": "serial_nontext",
+      "form": "serial",
+      "input": null,
+      "valid": false
+    },
+    {
+      "name": "uuid_short",
+      "form": "uuid",
+      "input": "0123456789abcdeffedcba9876543210",
+      "valid": false,
+      "kind": "core"
+    },
+    {
+      "name": "uuid_braces",
+      "form": "uuid",
+      "input": "{01234567-89ab-cdef-fedc-ba9876543210}",
+      "valid": false,
+      "kind": "core"
+    },
+    {
+      "name": "uuid_urn",
+      "form": "uuid",
+      "input": "urn:uuid:01234567-89ab-cdef-fedc-ba9876543210",
+      "valid": false,
+      "kind": "core"
+    },
+    {
+      "name": "uuid_trailing_space",
+      "form": "uuid",
+      "input": "01234567-89ab-cdef-fedc-ba9876543210 ",
+      "valid": false,
+      "kind": "core"
+    },
+    {
+      "name": "uuid_nontext",
+      "form": "uuid",
+      "input": 42,
+      "valid": false,
+      "kind": "core"
+    },
+    {
+      "name": "future_schema",
+      "form": "payload",
+      "input": {
+        "schema": "aegis.identity.v2",
+        "kind": "platform",
+        "uuid": "01234567-89ab-cdef-fedc-ba9876543210"
+      },
+      "valid": false
+    },
+    {
+      "name": "wrong_kind",
+      "form": "payload",
+      "input": {
+        "schema": "aegis.identity.v1",
+        "kind": "module",
+        "uuid": "01234567-89ab-cdef-fedc-ba9876543210"
+      },
+      "valid": false
+    },
+    {
+      "name": "forged_authority",
+      "form": "payload",
+      "input": {
+        "schema": "aegis.identity.v1",
+        "kind": "platform",
+        "uuid": "01234567-89ab-cdef-fedc-ba9876543210",
+        "authenticated": true
+      },
+      "valid": false
+    },
+    {
+      "name": "missing_uuid",
+      "form": "payload",
+      "input": {
+        "schema": "aegis.identity.v1",
+        "kind": "platform"
+      },
+      "valid": false
+    },
+    {
+      "name": "wrong_uuid_type",
+      "form": "payload",
+      "input": {
+        "schema": "aegis.identity.v1",
+        "kind": "platform",
+        "uuid": null
+      },
+      "valid": false
+    },
+    {
+      "name": "wrong_kind_type",
+      "form": "payload",
+      "input": {
+        "schema": "aegis.identity.v1",
+        "kind": false,
+        "uuid": "01234567-89ab-cdef-fedc-ba9876543210"
+      },
+      "valid": false
+    },
+    {
+      "name": "payload_array",
+      "form": "payload",
+      "input": [],
+      "valid": false
+    }
+  ]
+}
