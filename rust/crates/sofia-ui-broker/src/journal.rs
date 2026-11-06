@@ -4,8 +4,8 @@
 //! adapter. The Platform must provision the directory and authenticate calls.
 //! The checksum detects corruption, not hostile replacement by its owner.
 //! An independently retained minimum revision detects an older valid snapshot.
-//! Filesystem durability is implemented only on Unix; other platforms fail
-//! closed until their directory-flush/replacement contract is implemented.
+//! Unix uses file/directory fsync; Windows uses flushed private files and
+//! native write-through replacement. Other platforms remain unsupported.
 
 use crate::{Admission, Appearance, BrokerError, BrokerState, OsSignals, SlotState};
 use fs2::FileExt;
@@ -14,6 +14,10 @@ use sha2::{Digest, Sha256};
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+
+#[cfg(windows)]
+#[path = "journal_windows.rs"]
+mod windows_storage;
 
 const MAX_BYTES: u64 = 4 * 1024 * 1024;
 const MAX_RECORDS: usize = 4096;
@@ -81,6 +85,20 @@ fn checksum(payload: &Payload) -> Result<String, JournalError> {
     Ok(format!("{:x}", Sha256::digest(encoded)))
 }
 
+fn absolute_directory(directory: &Path) -> Result<PathBuf, JournalError> {
+    if !cfg!(any(unix, windows)) {
+        return Err(JournalError::UnsupportedPlatform);
+    }
+    #[cfg(windows)]
+    {
+        windows_storage::absolute_directory(directory)
+    }
+    #[cfg(not(windows))]
+    {
+        Ok(std::path::absolute(directory)?)
+    }
+}
+
 fn private_regular_file(file: &File) -> Result<(), JournalError> {
     let metadata = file.metadata()?;
     if !metadata.is_file() {
@@ -93,6 +111,8 @@ fn private_regular_file(file: &File) -> Result<(), JournalError> {
             return Err(JournalError::UnsafeStorage);
         }
     }
+    #[cfg(windows)]
+    windows_storage::verify_private_file(file)?;
     Ok(())
 }
 
@@ -104,6 +124,8 @@ fn private_create(path: &Path) -> Result<File, JournalError> {
         use std::os::unix::fs::OpenOptionsExt;
         options.mode(0o600);
     }
+    #[cfg(windows)]
+    windows_storage::restrict_file_options(&mut options);
     let file = options.open(path)?;
     private_regular_file(&file)?;
     Ok(file)
@@ -114,7 +136,11 @@ fn open_existing(path: &Path) -> Result<File, JournalError> {
     if metadata.file_type().is_symlink() || !metadata.is_file() {
         return Err(JournalError::UnsafeStorage);
     }
-    let file = File::open(path)?;
+    let mut options = OpenOptions::new();
+    options.read(true);
+    #[cfg(windows)]
+    windows_storage::restrict_file_options(&mut options);
+    let file = options.open(path)?;
     private_regular_file(&file)?;
     Ok(file)
 }
@@ -133,22 +159,28 @@ pub struct DurableBroker {
     _lock: WriterLock,
 }
 
-struct WriterLock(File);
+struct WriterLock {
+    file: File,
+    #[cfg(windows)]
+    _directories: Vec<File>,
+}
 
 impl Drop for WriterLock {
     fn drop(&mut self) {
         // Unlock the open-file description explicitly. A concurrently spawned
         // child may briefly inherit an FD between fork and exec; closing only
         // our descriptor would otherwise leave the lock held until its exec.
-        let _ = FileExt::unlock(&self.0);
+        let _ = FileExt::unlock(&self.file);
     }
 }
 
 impl DurableBroker {
     fn acquire(directory: &Path) -> Result<WriterLock, JournalError> {
-        if !cfg!(unix) {
+        if !cfg!(any(unix, windows)) {
             return Err(JournalError::UnsupportedPlatform);
         }
+        #[cfg(windows)]
+        let directories = windows_storage::pin_directory(directory)?;
         let metadata = fs::symlink_metadata(directory)?;
         if metadata.file_type().is_symlink() || !metadata.is_dir() {
             return Err(JournalError::UnsafeStorage);
@@ -169,13 +201,21 @@ impl DurableBroker {
                 if metadata.file_type().is_symlink() {
                     return Err(JournalError::UnsafeStorage);
                 }
-                OpenOptions::new().read(true).write(true).open(&path)?
+                let mut options = OpenOptions::new();
+                options.read(true).write(true);
+                #[cfg(windows)]
+                windows_storage::restrict_file_options(&mut options);
+                options.open(&path)?
             }
             Err(error) => return Err(error),
         };
         private_regular_file(&lock)?;
         lock.try_lock_exclusive()?;
-        Ok(WriterLock(lock))
+        Ok(WriterLock {
+            file: lock,
+            #[cfg(windows)]
+            _directories: directories,
+        })
     }
 
     /// Explicit first-install operation. Never use as a fallback for failed
@@ -193,7 +233,8 @@ impl DurableBroker {
         if !crate::valid_appearance_id(&platform_id) {
             return Err(JournalError::WrongIdentity);
         }
-        let lock = Self::acquire(directory)?;
+        let directory = absolute_directory(directory)?;
+        let lock = Self::acquire(&directory)?;
         for name in [SNAPSHOT, STAGING] {
             match fs::symlink_metadata(directory.join(name)) {
                 Ok(_) => return Err(JournalError::InvalidSnapshot),
@@ -202,7 +243,7 @@ impl DurableBroker {
             }
         }
         let mut broker = Self {
-            directory: directory.into(),
+            directory,
             platform_id,
             revision: 0,
             state: BrokerState::new(generation, day)?,
@@ -227,7 +268,8 @@ impl DurableBroker {
         generation: u64,
         minimum_revision: u64,
     ) -> Result<Self, JournalError> {
-        let lock = Self::acquire(directory)?;
+        let directory = absolute_directory(directory)?;
+        let lock = Self::acquire(&directory)?;
         let mut raw = Vec::new();
         open_existing(&directory.join(SNAPSHOT))?
             .take(MAX_BYTES + 1)
@@ -286,7 +328,7 @@ impl DurableBroker {
             records,
         )?;
         let mut broker = Self {
-            directory: directory.into(),
+            directory,
             platform_id,
             revision: payload.revision,
             state,
@@ -357,7 +399,10 @@ impl DurableBroker {
         file.write_all(&bytes)?;
         file.sync_all()?;
         drop(file);
-        fs::rename(staging, self.directory.join(SNAPSHOT))?;
+        #[cfg(not(windows))]
+        fs::rename(&staging, self.directory.join(SNAPSHOT))?;
+        #[cfg(windows)]
+        windows_storage::replace(&staging, &self.directory.join(SNAPSHOT))?;
         #[cfg(unix)]
         File::open(&self.directory)?.sync_all()?;
         self.state = next;
@@ -408,12 +453,23 @@ impl DurableBroker {
     }
 }
 
-#[cfg(all(test, unix))]
+#[cfg(all(test, any(unix, windows)))]
 mod tests {
     use super::*;
     use crate::{SlotState, Suppression, DAILY_AUTONOMOUS_LIMIT};
+    #[cfg(unix)]
     use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
     use std::sync::atomic::{AtomicU64, Ordering};
+
+    fn create_directory(path: &Path) {
+        #[cfg(unix)]
+        fs::DirBuilder::new().mode(0o700).create(path).unwrap();
+        #[cfg(windows)]
+        {
+            fs::create_dir(path).unwrap();
+            windows_storage::protect_test_directory(path).unwrap();
+        }
+    }
 
     static NEXT: AtomicU64 = AtomicU64::new(0);
     struct Directory(PathBuf);
@@ -424,7 +480,7 @@ mod tests {
                 std::process::id(),
                 NEXT.fetch_add(1, Ordering::Relaxed)
             ));
-            fs::DirBuilder::new().mode(0o700).create(&path).unwrap();
+            create_directory(&path);
             Self(path)
         }
     }
@@ -619,6 +675,7 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
     #[test]
     fn public_storage_and_redirected_snapshots_are_rejected() {
         let directory = Directory::new();
@@ -719,9 +776,139 @@ mod tests {
         );
         assert!(broker.state().unwrap().owner_hidden());
     }
+    #[cfg(windows)]
+    #[test]
+    fn windows_public_directory_is_rejected_without_creating_a_ledger() {
+        use windows_permissions::constants::{SeObjectType, SecurityInformation};
+        use windows_permissions::{wrappers, LocalBox, SecurityDescriptor};
+        let directory = Directory::new();
+        let descriptor: LocalBox<SecurityDescriptor> =
+            "D:P(A;OICI;FA;;;OW)(A;OICI;FR;;;WD)".parse().unwrap();
+        wrappers::SetNamedSecurityInfo(
+            directory.0.as_os_str(),
+            SeObjectType::SE_FILE_OBJECT,
+            SecurityInformation::Dacl | SecurityInformation::ProtectedDacl,
+            None,
+            None,
+            descriptor.dacl(),
+            None,
+        )
+        .unwrap();
+        assert!(matches!(
+            DurableBroker::initialize(
+                &directory.0,
+                "platform:synthetic".into(),
+                1,
+                "2026-11-05".into()
+            ),
+            Err(JournalError::UnsafeStorage)
+        ));
+        assert!(!directory.0.join(SNAPSHOT).exists());
+        assert!(!directory.0.join("broker-writer.lock").exists());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_hardlinked_snapshot_is_not_adopted() {
+        let directory = Directory::new();
+        drop(initialize(&directory));
+        fs::hard_link(directory.0.join(SNAPSHOT), directory.0.join("other-link")).unwrap();
+        assert!(matches!(
+            recover(&directory, 2, 1),
+            Err(JournalError::UnsafeStorage)
+        ));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_directory_cannot_be_replaced_while_writer_is_active() {
+        let directory = Directory::new();
+        let path = directory.0.join("journal");
+        create_directory(&path);
+        let broker =
+            DurableBroker::initialize(&path, "platform:synthetic".into(), 1, "2026-11-05".into())
+                .unwrap();
+        let replacement = directory.0.join("renamed");
+        assert!(fs::rename(&path, &replacement).is_err());
+        drop(broker);
+        fs::rename(&path, &replacement).unwrap();
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_junction_ancestors_are_rejected_without_target_writes() {
+        let directory = Directory::new();
+        let target = directory.0.join("target");
+        create_directory(&target);
+        create_directory(&target.join("nested"));
+        let junction = directory.0.join("junction");
+        let output = std::process::Command::new("cmd.exe")
+            .args(["/D", "/C", "mklink", "/J"])
+            .arg(&junction)
+            .arg(&target)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "junction creation failed: {:?}",
+            output.stderr
+        );
+        for path in [&junction, &junction.join("nested")] {
+            assert!(matches!(
+                DurableBroker::initialize(
+                    path,
+                    "platform:synthetic".into(),
+                    1,
+                    "2026-11-05".into()
+                ),
+                Err(JournalError::UnsafeStorage)
+            ));
+        }
+        assert!(!target.join(SNAPSHOT).exists());
+        assert!(!target.join("nested").join(SNAPSHOT).exists());
+        fs::remove_dir(&junction).unwrap();
+    }
+
+    #[test]
+    fn relative_path_fixture() {
+        let Some(root) = std::env::var_os("AEGIS_BROKER_CWD_FIXTURE") else {
+            return;
+        };
+        create_directory(Path::new("journal"));
+        create_directory(Path::new("other"));
+        let mut broker = DurableBroker::initialize(
+            Path::new("journal"),
+            "platform:synthetic".into(),
+            1,
+            "2026-11-05".into(),
+        )
+        .unwrap();
+        std::env::set_current_dir(Path::new(&root).join("other")).unwrap();
+        broker.set_manual_hide(true).unwrap();
+    }
+
+    #[test]
+    fn relative_directory_remains_bound_after_process_cwd_changes() {
+        let directory = Directory::new();
+        let status = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "journal::tests::relative_path_fixture"])
+            .current_dir(&directory.0)
+            .env("AEGIS_BROKER_CWD_FIXTURE", &directory.0)
+            .status()
+            .unwrap();
+        assert!(status.success());
+        let broker = DurableBroker::recover(
+            &directory.0.join("journal"),
+            "platform:synthetic".into(),
+            2,
+            2,
+        )
+        .unwrap();
+        assert!(broker.state().unwrap().owner_hidden());
+    }
 }
 
-#[cfg(all(test, not(unix)))]
+#[cfg(all(test, not(any(unix, windows))))]
 mod unsupported_tests {
     use super::*;
     #[test]

@@ -15,3 +15,9 @@ sha2 = "=0.10.8"
 
 [lints]
 workspace = true
+
+[target.'cfg(windows)'.dependencies]
+atomicwrites = "=0.4.4"
+winapi-util = "=0.1.11"
+windows-permissions = "=0.2.4"
+winsafe = { version = "=0.0.29", features = ["advapi"] }
