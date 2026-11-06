@@ -81,7 +81,8 @@ Start-ScheduledTask -TaskName $settings.task
             '--public-key-sha256', public['public_key_sha256']])
         service = win32service.CreateService(manager, 'AegisPlatform', 'Aegis disposable SCM test',
             win32service.SERVICE_ALL_ACCESS, win32service.SERVICE_WIN32_OWN_PROCESS,
-            win32service.SERVICE_DEMAND_START, win32service.SERVICE_ERROR_NORMAL, command)
+            win32service.SERVICE_DEMAND_START, win32service.SERVICE_ERROR_NORMAL, command,
+            None, 0, None, None, None)
         win32service.StartService(service, None)
         wait_state(service, win32service.SERVICE_RUNNING)
         win32service.ControlService(service, win32service.SERVICE_CONTROL_STOP)
