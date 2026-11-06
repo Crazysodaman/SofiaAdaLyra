@@ -13,7 +13,8 @@ def test_final_removal_requires_sparks_approval():
     fleet=FleetRegistry(); fleet.register_candidate(host()); fleet.transition("venus",HostLifecycle.ENROLLED); fleet.transition("venus",HostLifecycle.QUARANTINED); fleet.transition("venus",HostLifecycle.DRAINING)
     with pytest.raises(FleetRemovalApprovalRequired): fleet.transition("venus",HostLifecycle.DECOMMISSIONED)
     approval=FleetRemovalApproval("approve-venus","venus","rev-1","Sparks",datetime.now(timezone.utc))
-    assert fleet.decommission("venus",proposal_revision="rev-1",approval=approval).lifecycle is HostLifecycle.DECOMMISSIONED
+    with pytest.raises(FleetRemovalApprovalRequired):
+        fleet.decommission("venus",proposal_revision="rev-1",approval=approval)
 
 def test_placement_prefers_lower_cpu_eligible_host():
     now=datetime.now(timezone.utc)

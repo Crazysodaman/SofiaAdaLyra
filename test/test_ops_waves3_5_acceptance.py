@@ -48,7 +48,7 @@ def test_final_removal_requires_exact_sparks_host_and_revision():
     with pytest.raises(FleetRemovalApprovalRequired):
         fleet.transition("venus",HostLifecycle.DECOMMISSIONED)
     with pytest.raises(PermissionError):
-        FleetRemovalApproval("a","venus","r1","Sofia",NOW)
+        fleet.decommission("venus",proposal_revision="r1",approval=FleetRemovalApproval("a","venus","r1","Sofia",NOW))
     wrong=FleetRemovalApproval("a","terra","r1","Sparks",NOW)
     with pytest.raises(FleetRemovalApprovalRequired):
         fleet.decommission("venus",proposal_revision="r1",approval=wrong)
@@ -56,7 +56,8 @@ def test_final_removal_requires_exact_sparks_host_and_revision():
     with pytest.raises(FleetRemovalApprovalRequired):
         fleet.decommission("venus",proposal_revision="r1",approval=stale)
     exact=FleetRemovalApproval("c","venus","r1","Sparks",NOW)
-    assert fleet.decommission("venus",proposal_revision="r1",approval=exact).lifecycle is HostLifecycle.DECOMMISSIONED
+    with pytest.raises(FleetRemovalApprovalRequired):
+        fleet.decommission("venus",proposal_revision="r1",approval=exact)
 
 def test_maintenance_is_typed_and_respects_no_reboot_pin():
     fleet=_fleet("venus")

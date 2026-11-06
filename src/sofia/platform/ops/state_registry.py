@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime
+from contextlib import closing, ExitStack
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 from uuid import UUID
@@ -12,6 +13,7 @@ from sofia.platform.ops.model import FleetHost, HostLifecycle, HostTelemetry
 from sofia.platform.state.atomic_file import retire_legacy_file
 from sofia.platform.state.model import StateClass, StateKey, StateRecord
 from sofia.platform.state.plane import StatePlane
+from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 
 
 class StatePlaneFleetRegistry(FleetRegistry):
@@ -236,15 +238,80 @@ class StatePlaneFleetRegistry(FleetRegistry):
         proposal_revision: str,
         approval: FleetRemovalApproval,
     ) -> FleetHost:
-        before = self._hosts[host_id]
-        updated = super().decommission(
-            host_id,
-            proposal_revision=proposal_revision,
-            approval=approval,
-        )
-        try:
-            self._persist(updated, source="ops:fleet-decommission")
-        except Exception:
-            self._hosts[host_id] = before
-            raise
+        from sofia.platform.distributed.identity_durable import DurableNodeIdentityRegistry
+        from sofia.platform.distributed.endpoint_policy_durable import DurableEndpointPolicy
+        from sofia.platform.distributed.durable import DurableRemoteAuthorization
+        from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
+
+        self._require_removal_reference(host_id, proposal_revision, approval)
+        if not isinstance(self.state_plane, SQLiteStatePlane):
+            raise PermissionError("removal requires canonical transactional SQLite state")
+        plane = self.state_plane
+        verifier = ExecutionApprovalVerifier(plane.path)
+        now = datetime.now(timezone.utc)
+        with ExitStack() as owners:
+            identities = DurableNodeIdentityRegistry(plane.path)
+            owners.callback(identities.close)
+            endpoints = DurableEndpointPolicy(plane.path)
+            owners.callback(endpoints.close)
+            grants = DurableRemoteAuthorization(plane.path)
+            owners.callback(grants.close)
+            with plane._lock, closing(plane._connect()) as db, db:
+                db.execute("BEGIN IMMEDIATE")
+                key = StateKey(namespace=self.NAMESPACE, key=host_id)
+                row = db.execute(
+                    "SELECT * FROM state_plane_record WHERE namespace=? AND record_key=? AND principal_id=? AND audience=?",
+                    plane._scope(key),
+                ).fetchone()
+                if row is None:
+                    raise KeyError(host_id)
+                current = plane._record(row)
+                if current.state_class is not StateClass.SHARED_AUTHORITATIVE:
+                    raise PermissionError("Fleet removal requires authoritative Fleet state")
+                before = self._decode(current)
+                # A fresh exact approval may clean up residual NET trust on a
+                # legacy tombstone; this never reactivates or reuses identity.
+                updated = (
+                    replace(before, trusted=False)
+                    if before.lifecycle is HostLifecycle.DECOMMISSIONED
+                    else self._removed_host(before)
+                )
+                parameters = self._removal_parameters(current, proposal_revision)
+                verified = verifier.consume(
+                    approval_id=approval.approval_id, capability="fleet.decommission",
+                    parameters=parameters, now=now, _transaction_db=db,
+                )
+                if before.node_id is not None:
+                    identities._retire_in_transaction(db, before.node_id)
+                    endpoints._revoke_in_transaction(db, before.node_id)
+                    grants._revoke_node_in_transaction(db, before.node_id)
+                plane._write_one(db, StateRecord(
+                    key=key, state_class=StateClass.SHARED_AUTHORITATIVE,
+                    revision=current.revision+1, value=self._encode(updated),
+                    updated_at=now, source="ops:fleet:owner-decommission",
+                ), current.revision)
+                verifier.audit.append_in_transaction(
+                    db, actor_id=verified.principal_id, event_type="fleet.decommissioned",
+                    payload={**parameters, "approval_id":verified.approval_id},
+                    occurred_at=now, event_id=f"fleet-removal:{verified.approval_id}",
+                )
+        self._hosts[host_id] = updated
         return updated
+
+    def removal_parameters(self, host_id: str, *, proposal_revision: str) -> dict:
+        """Return inert exact-target fields for the existing owner approval path."""
+        current = self.state_plane.read(StateKey(namespace=self.NAMESPACE, key=host_id))
+        if current is None:
+            raise KeyError(host_id)
+        return self._removal_parameters(current, proposal_revision)
+
+    def _removal_parameters(self, current: StateRecord, proposal_revision: str) -> dict:
+        if not isinstance(proposal_revision, str) or not proposal_revision.strip():
+            raise ValueError("proposal_revision must be nonempty text")
+        host = self._decode(current)
+        return {
+            "host_id":host.host_id, "proposal_revision":proposal_revision,
+            "expected_registry_revision":current.revision,
+            "node_id":None if host.node_id is None else str(host.node_id),
+            "previous_lifecycle":host.lifecycle.value,
+        }

@@ -79,7 +79,14 @@ class DurableEndpointPolicy:
         if not isinstance(node_id, UUID):
             raise TypeError("node_id must be a UUID")
         with self._db:
-            self._db.execute(
+            self._db.execute("BEGIN IMMEDIATE")
+            self._revoke_in_transaction(self._db, node_id)
+
+    def _revoke_in_transaction(self, db: sqlite3.Connection, node_id: UUID) -> None:
+        self._require_transaction(db)
+        if not isinstance(node_id, UUID):
+            raise TypeError("node_id must be a UUID")
+        db.execute(
                 "UPDATE approved_remote_endpoint SET revoked = 1 WHERE node_id = ?",
                 (str(node_id),),
             )
