@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import json
+import importlib.util
+from importlib.machinery import ModuleSpec
 import subprocess
 import sys
+from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
@@ -17,6 +20,35 @@ def test_integrated_compatibility_roles_preserve_current_runtime(monkeypatch):
     monkeypatch.delenv("SOFIA_PLATFORM_ROLES", raising=False)
     roles = PlatformRoleConfiguration.from_environment()
     assert roles.roles == (PlatformRole.CORE_HOST, PlatformRole.MODULE_HOST)
+
+
+def test_unconfigured_core_free_installation_defaults_to_module_host(monkeypatch):
+    monkeypatch.delenv("SOFIA_PLATFORM_ROLES", raising=False)
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name: None)
+    assert PlatformRoleConfiguration.from_environment().roles == (
+        PlatformRole.MODULE_HOST,
+    )
+
+
+def test_core_uninstall_leftover_namespace_does_not_enable_core_host(monkeypatch):
+    monkeypatch.delenv("SOFIA_PLATFORM_ROLES", raising=False)
+    monkeypatch.setattr(
+        importlib.util, "find_spec",
+        lambda name: ModuleSpec("sofia.core", loader=None, is_package=True),
+    )
+    assert PlatformRoleConfiguration.from_environment().roles == (
+        PlatformRole.MODULE_HOST,
+    )
+
+
+def test_explicit_core_host_without_core_package_is_refused(monkeypatch, capsys):
+    monkeypatch.setenv("SOFIA_PLATFORM_ROLES", "CORE_HOST,MODULE_HOST")
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name: None)
+    monkeypatch.setitem(sys.modules, "sofia.core.launcher", SimpleNamespace(
+        main=lambda **kwargs: pytest.fail("missing Core must not be started"),
+    ))
+    assert launcher.main(["desktop"]) == 2
+    assert "separately installed Core package" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("value", [

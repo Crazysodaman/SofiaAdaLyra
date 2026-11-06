@@ -8,7 +8,9 @@ from pathlib import Path
 import sys
 from typing import Sequence
 
-from sofia.platform.config.roles import PlatformRole, PlatformRoleConfiguration
+from sofia.platform.config.roles import (
+    PlatformRole, PlatformRoleConfiguration, core_package_available,
+)
 
 
 def _roles() -> PlatformRoleConfiguration:
@@ -25,6 +27,11 @@ def _require_local_core(command: str) -> PlatformRoleConfiguration:
             )
         raise RuntimeError(
             f"{command} requires CORE_HOST or an approved CORE_LINK binding"
+        )
+    if not core_package_available():
+        raise RuntimeError(
+            f"{command} requires a separately installed Core package; "
+            "refusing to instantiate a local Core or canonical database"
         )
     return roles
 
