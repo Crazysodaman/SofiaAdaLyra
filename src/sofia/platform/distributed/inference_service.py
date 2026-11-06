@@ -10,8 +10,7 @@ from dataclasses import dataclass
 from typing import Callable
 from uuid import UUID
 
-from sofia.core.cognition.provider import LLMProvider
-from sofia.modules.inference.ollama_provider import OllamaProvider
+from sofia.sdk.cognition_engine import LLMProvider
 from sofia.platform.config.model import ProviderConfiguration
 from sofia.platform.distributed.inference import (
     RemoteInferenceRequest,
@@ -57,6 +56,14 @@ class RemoteInferencePolicy:
 ProviderFactory = Callable[[ProviderConfiguration], LLMProvider]
 
 
+def _compatibility_provider(configuration: ProviderConfiguration) -> LLMProvider:
+    # Preserve the existing default's personal response policy. A generic
+    # worker supplies its neutral factory through the existing injection API.
+    from sofia.modules.inference.ollama_provider import OllamaProvider
+
+    return OllamaProvider(configuration)
+
+
 class LocalOllamaInferenceService:
     """Run one bounded cognitive request on an explicitly allowed local model."""
 
@@ -75,9 +82,7 @@ class LocalOllamaInferenceService:
             raise TypeError("provider_factory must be callable or None")
         self.node_id = node_id
         self.policy = policy
-        self._provider_factory = provider_factory or (
-            lambda configuration: OllamaProvider(configuration)
-        )
+        self._provider_factory = provider_factory or _compatibility_provider
 
     def infer(
         self,

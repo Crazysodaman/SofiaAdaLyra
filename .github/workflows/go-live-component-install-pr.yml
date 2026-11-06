@@ -20,6 +20,11 @@ on:
       - 'src/sofia/platform/state/installation_identity.py'
       - 'src/sofia/platform/ops/callsign*.py'
       - 'test/test_fleet_callsigns.py'
+      - 'src/sofia/platform/cognition_provider.py'
+      - 'src/sofia/platform/cognition_budget.py'
+      - 'src/sofia/modules/inference/ollama_provider.py'
+      - 'src/sofia/sdk/cognition_json.py'
+      - 'test/test_generic_cognition_providers.py'
       - 'src/sofia/sdk/cognition_engine.py'
       - 'src/sofia/platform/core_worker/**'
       - 'src/sofia/sdk/core_definition.py'
@@ -72,4 +77,4 @@ jobs:
         run: python -m compileall -q src/sofia test
       - name: Run component release and installer regression tests
         run: |
-          python -m pytest -q test/test_core_component_install.py test/test_run_active_release.py test/test_component_artifact_separation.py test/test_component_install_production.py test/test_platform_tool_binding_isolation.py test/test_platform_installation_identity.py test/test_platform_import_isolation.py test/test_platform_roles_and_launcher.py test/test_fleet_callsigns.py test/test_signed_core_definitions.py
+          python -m pytest -q test/test_core_component_install.py test/test_run_active_release.py test/test_component_artifact_separation.py test/test_component_install_production.py test/test_platform_tool_binding_isolation.py test/test_platform_installation_identity.py test/test_platform_import_isolation.py test/test_platform_roles_and_launcher.py test/test_fleet_callsigns.py test/test_signed_core_definitions.py test/test_generic_cognition_providers.py
