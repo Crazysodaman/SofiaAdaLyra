@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 from queue import Queue
 import secrets
+import tempfile
 import time
 from threading import Event, RLock, Thread
 from typing import Mapping
@@ -23,7 +24,7 @@ from sofia.platform.core_worker.engines import LLMCognitiveEngine, TestCognitive
 from sofia.sdk.cognition_model import CognitiveRequest, CognitiveResponse
 from sofia.sdk.cognition_engine import LLMProvider, LLMProviderError
 from sofia.platform.config.model import ProviderConfiguration
-from sofia.platform.state.private_file import assert_no_redirected_components
+from sofia.platform.state.private_file import assert_no_redirected_components, assert_owner_private_path
 from sofia.platform.run.generation import ComponentGenerationStore, GenerationState
 from sofia.platform.run.lease import LocalRunLeaseStore, RunLease
 from sofia.platform.run.components import (
@@ -533,6 +534,8 @@ class _CoreWorkerProcess:
         # Linux AF_UNIX paths are commonly capped at 108 bytes. Keep the IPC
         # filename compact while retaining the full digest for durable locks.
         self._socket_path = runtime_dir / f"c-{token[:12]}.sock"
+        self._socket_directory: Path | None = None
+        self._socket_owned = False
         self._lifetime_lock_path = runtime_dir / f"core-{token}.lifetime"
         self._family = "AF_PIPE" if os.name == "nt" else "AF_UNIX"
         self._address = (
@@ -550,14 +553,30 @@ class _CoreWorkerProcess:
 
     def start(self) -> CoreWorkerHealth:
         self.runtime_dir.mkdir(parents=True, exist_ok=True)
-        if self._family == "AF_UNIX" and (
-            self._socket_path.exists() or self._socket_path.is_symlink()
-        ):
-            raise CoreWorkerError("Core worker socket path already exists")
         authkey = secrets.token_bytes(32)
-        self._listener = Listener(
-            self._address, family=self._family, authkey=authkey,
-        )
+        try:
+            if self._family == "AF_UNIX" and len(os.fsencode(self._socket_path)) > 100:
+                # Only the ephemeral authenticated channel moves. Durable lifetime
+                # fencing stays at the configured installation runtime directory.
+                parent = Path(tempfile.gettempdir())
+                if len(os.fsencode(parent)) > 50:
+                    parent = Path("/tmp")
+                assert_no_redirected_components(parent, include_leaf=True)
+                self._socket_directory = Path(tempfile.mkdtemp(prefix="aegis-ipc-", dir=parent))
+                assert_owner_private_path(self._socket_directory, directory=True)
+                self._socket_path = self._socket_directory / self._socket_path.name
+                self._address = str(self._socket_path)
+            if self._family == "AF_UNIX" and (
+                self._socket_path.exists() or self._socket_path.is_symlink()
+            ):
+                raise CoreWorkerError("Core worker socket path already exists")
+            self._listener = Listener(
+                self._address, family=self._family, authkey=authkey,
+            )
+        except BaseException:
+            self._close_channel()
+            raise
+        self._socket_owned = self._family == "AF_UNIX"
         queue: Queue[object] = Queue(maxsize=1)
         def accept() -> None:
             try:
@@ -587,13 +606,7 @@ class _CoreWorkerProcess:
                     )
             else:
                 self._process = None
-                if self._listener is not None:
-                    self._listener.close()
-                    self._listener = None
-                if self._family == "AF_UNIX" and (
-                    self._socket_path.exists() or self._socket_path.is_symlink()
-                ):
-                    self._socket_path.unlink()
+                self._close_channel()
             raise
         deadline = time.monotonic() + self.startup_timeout
         while queue.empty() and self._process.is_alive():
@@ -760,6 +773,7 @@ class _CoreWorkerProcess:
     def terminate(self, *, timeout: float = 5.0, force: bool = False) -> bool:
         process = self._process
         if process is None:
+            self._close_channel()
             return True
         graceful = False
         if not force and process.is_alive() and self._connection is not None:
@@ -777,17 +791,26 @@ class _CoreWorkerProcess:
         if process.is_alive():
             process.kill()
             process.join(timeout)
+        self._close_channel()
+        return not process.is_alive()
+
+    def _close_channel(self) -> None:
         if self._connection is not None:
             self._connection.close()
             self._connection = None
         if self._listener is not None:
             self._listener.close()
             self._listener = None
-        if self._family == "AF_UNIX" and (
+        if self._socket_owned and (
             self._socket_path.exists() or self._socket_path.is_symlink()
         ):
             self._socket_path.unlink()
-        return not process.is_alive()
+        self._socket_owned = False
+        if self._socket_directory is not None:
+            self._socket_directory.rmdir()
+            self._socket_directory = None
+            self._socket_path = self.runtime_dir / self._socket_path.name
+            self._address = str(self._socket_path)
 
 
 class CoreWorkerController:

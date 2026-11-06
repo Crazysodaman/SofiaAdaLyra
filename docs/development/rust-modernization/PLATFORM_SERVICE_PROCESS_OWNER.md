@@ -73,3 +73,10 @@ A binary compiled on a newer Linux distribution is not a Debian12 artifact:
 the local Debian13-built binary was observed failing on Debian12 with
 GLIBC_2.39 missing. Release artifact construction must use the Debian12 ABI
 baseline (and execute the produced bytes there), not relabel newer-host output.
+
+Long Unix installation paths use a separately created owner-private temporary
+socket directory when the configured endpoint would exceed the Unix socket
+path bound. Only ephemeral authenticated IPC moves: durable generation and
+lifetime fencing remain in the configured runtime directory. Normal shutdown
+and failed spawn remove only the channel owned by that launch; existing
+endpoints are refused and preserved. Windows named-pipe behavior is unchanged.
