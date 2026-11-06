@@ -48,3 +48,5 @@ jobs:
           python -m compileall -q src/sofia test
       - name: Run g4 regressions
         run: python -m pytest -q test/test_core_link_conversation.py
+      - name: Run grant revocation boundary regressions
+        run: python -m pytest -q test/test_distributed_revocation_races.py test/test_distributed_operations.py test/test_distributed_durable.py
