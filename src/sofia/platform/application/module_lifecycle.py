@@ -29,7 +29,9 @@ from sofia.platform.modules.settings import (
     ModuleSettingsAuthorization,
     ModuleSettingsService,
 )
-from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
+from sofia.platform.safe.execution_approval import (
+    ExecutionApprovalVerifier, OWNER_PRINCIPAL_ID,
+)
 from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.platform.state.local_store import PlatformLocalStore
 
@@ -104,7 +106,7 @@ class ModuleLifecycleCommandService:
         if not isinstance(request, ModuleSettingsAuthorization):
             return False
         if (
-            request.principal_id != "principal:sparks"
+            request.principal_id not in (OWNER_PRINCIPAL_ID, "principal:sparks")
             or request.audience_id != "audience:owner-private"
         ):
             return False
@@ -129,14 +131,14 @@ class ModuleLifecycleCommandService:
             )
         except (LookupError, PermissionError, TypeError, ValueError):
             return False
-        return approval.approved_by == "Sparks"
+        return approval.principal_id == OWNER_PRINCIPAL_ID
 
     def _consume_exact_authority(
         self, request: ModuleLifecycleAuthorization,
     ) -> bool:
         if not isinstance(request, ModuleLifecycleAuthorization):
             return False
-        if request.actor != "Sparks":
+        if request.actor not in (OWNER_PRINCIPAL_ID, "Sparks"):
             return False
         if (
             self._operator_stop.current().active
@@ -152,7 +154,7 @@ class ModuleLifecycleCommandService:
             )
         except (LookupError, PermissionError, TypeError, ValueError):
             return False
-        return approval.approved_by == "Sparks"
+        return approval.principal_id == OWNER_PRINCIPAL_ID
 
     def discover(
         self, package: VerifiedModulePackage, *, now: datetime,
@@ -195,7 +197,7 @@ class ModuleLifecycleCommandService:
     ) -> ModuleLifecycleRecord:
         return self._manager.approve(
             module_id, expected_revision=expected_revision,
-            operation_ref=approval_id, actor="Sparks", now=now,
+            operation_ref=approval_id, actor=OWNER_PRINCIPAL_ID, now=now,
         )
 
     def stage(
@@ -204,7 +206,7 @@ class ModuleLifecycleCommandService:
     ) -> ModuleLifecycleRecord:
         return self._manager.stage(
             package, expected_revision=expected_revision,
-            operation_ref=approval_id, actor="Sparks", now=now,
+            operation_ref=approval_id, actor=OWNER_PRINCIPAL_ID, now=now,
         )
 
     def activate(
@@ -217,7 +219,7 @@ class ModuleLifecycleCommandService:
         return self._manager.activate(
             package, expected_revision=expected_revision, profile=profile,
             compatibility=compatibility, registrations=registrations,
-            operation_ref=approval_id, actor="Sparks", now=now,
+            operation_ref=approval_id, actor=OWNER_PRINCIPAL_ID, now=now,
         )
 
     def begin_activation(
@@ -230,7 +232,7 @@ class ModuleLifecycleCommandService:
         return self._manager.begin_activation(
             package, expected_revision=expected_revision, profile=profile,
             compatibility=compatibility, registrations=registrations,
-            operation_ref=approval_id, actor="Sparks", now=now,
+            operation_ref=approval_id, actor=OWNER_PRINCIPAL_ID, now=now,
         )
 
     def complete_activation(
@@ -243,7 +245,7 @@ class ModuleLifecycleCommandService:
         return self._manager.complete_activation(
             package, expected_revision=expected_revision, profile=profile,
             compatibility=compatibility, registrations=registrations,
-            operation_ref=approval_id, actor="Sparks", now=now,
+            operation_ref=approval_id, actor=OWNER_PRINCIPAL_ID, now=now,
         )
 
     def resume(
@@ -256,7 +258,7 @@ class ModuleLifecycleCommandService:
         return self._manager.resume(
             package, expected_revision=expected_revision, profile=profile,
             compatibility=compatibility, registrations=registrations,
-            operation_ref=approval_id, actor="Sparks", now=now,
+            operation_ref=approval_id, actor=OWNER_PRINCIPAL_ID, now=now,
         )
 
     def pause(
@@ -265,7 +267,7 @@ class ModuleLifecycleCommandService:
     ) -> ModuleLifecycleRecord:
         return self._manager.pause(
             module_id, expected_revision=expected_revision,
-            operation_ref=approval_id, actor="Sparks", now=now,
+            operation_ref=approval_id, actor=OWNER_PRINCIPAL_ID, now=now,
         )
 
     def begin_process_pause(
@@ -274,7 +276,7 @@ class ModuleLifecycleCommandService:
     ) -> ModuleLifecycleRecord:
         return self._manager.begin_process_pause(
             module_id, expected_revision=expected_revision,
-            operation_ref=approval_id, actor="Sparks", now=now,
+            operation_ref=approval_id, actor=OWNER_PRINCIPAL_ID, now=now,
         )
 
     def complete_process_pause(
@@ -292,7 +294,7 @@ class ModuleLifecycleCommandService:
     ) -> ModuleLifecycleRecord:
         return self._manager.disable(
             module_id, expected_revision=expected_revision,
-            operation_ref=approval_id, actor="Sparks", now=now,
+            operation_ref=approval_id, actor=OWNER_PRINCIPAL_ID, now=now,
         )
 
     def quarantine(
@@ -301,7 +303,7 @@ class ModuleLifecycleCommandService:
     ) -> ModuleLifecycleRecord:
         return self._manager.quarantine(
             module_id, expected_revision=expected_revision,
-            operation_ref=approval_id, actor="Sparks", reason=reason, now=now,
+            operation_ref=approval_id, actor=OWNER_PRINCIPAL_ID, reason=reason, now=now,
         )
 
     def update(
@@ -313,7 +315,7 @@ class ModuleLifecycleCommandService:
         return self._manager.update(
             package, expected_revision=expected_revision, profile=profile,
             compatibility=compatibility, operation_ref=approval_id,
-            actor="Sparks", now=now,
+            actor=OWNER_PRINCIPAL_ID, now=now,
         )
 
     def rollback(
@@ -325,7 +327,7 @@ class ModuleLifecycleCommandService:
         return self._manager.rollback(
             package, expected_revision=expected_revision, profile=profile,
             compatibility=compatibility, operation_ref=approval_id,
-            actor="Sparks", now=now,
+            actor=OWNER_PRINCIPAL_ID, now=now,
         )
 
     def remove(
@@ -334,5 +336,5 @@ class ModuleLifecycleCommandService:
     ) -> ModuleLifecycleRecord:
         return self._manager.remove(
             module_id, expected_revision=expected_revision,
-            operation_ref=approval_id, actor="Sparks", now=now,
+            operation_ref=approval_id, actor=OWNER_PRINCIPAL_ID, now=now,
         )
