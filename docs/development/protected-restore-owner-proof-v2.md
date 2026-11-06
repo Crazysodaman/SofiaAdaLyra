@@ -25,8 +25,10 @@ archive/key/target arguments. Its effective receipt window cannot exceed the
 owner approval window, and the CLI reports the stored effective expiry.
 Recording/preflight does not spend the proof. Immediately before publication,
 current owner proof and receipt are consumed in one external SQLite transaction.
-Expiry, credential revocation, secret rotation, wrong scope, another ledger or
-replay refuses publication. Audit failure rolls back both consumption records.
+The trusted UTC authorization time advances by monotonic elapsed time through
+archive verification and staging; slow work cannot freeze the proof deadline.
+Invalid elapsed clocks fail closed. Expiry, credential revocation, secret
+rotation, wrong scope, another ledger or replay refuses publication. Audit failure rolls back both consumption records.
 No raw secret is accepted through argv or written into Fleet traffic.
 
 Revocation similarly requires an exact authenticated

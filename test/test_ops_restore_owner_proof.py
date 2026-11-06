@@ -287,3 +287,51 @@ def test_late_secret_rotation_blocks_real_restore_before_publication(tmp_path, m
                        erasure_journal=make_erasure_journal(tmp_path), replacement_authority=ledger)
     assert not target.exists()
     assert not list(target.parent.glob(".*restore*"))
+
+
+@pytest.mark.parametrize("phase", ["verification", "staging", "clock_backwards", "clock_nan"])
+def test_owner_expiry_advances_through_real_restore_work(tmp_path, monkeypatch, phase):
+    from sofia.platform.ops import backup
+    from sofia.platform.ops.backup import BackupError
+    from sofia.platform.ops.restore_authority import RESTORE_REPLACEMENT_CAPABILITY, replacement_parameters
+    from test.test_ops_backup_restore import make_erasure_journal
+
+    state = make_state(tmp_path)
+    engine = BackupEngine(BackupCipher(b"k" * 32))
+    archive, _ = engine.create(state_path=state, destination_root=tmp_path / "backups",
+                               source_host_id="test-source", failure_domain="test-external",
+                               now=datetime.now(timezone.utc))
+    manifest = engine.verify(archive)
+    target = tmp_path / "target" / "sofia.db"
+    ledger = ProtectedRestoreLedger.initialize(tmp_path / "owner" / "restore.db")
+    proof, _, _ = software_proof(ledger, RESTORE_REPLACEMENT_CAPABILITY,
+                                 replacement_parameters(target, manifest), monkeypatch)
+    receipt = ProtectedRestoreReplacementApproval("restore:elapsed", str(target), manifest.backup_id,
+                                                  manifest.digest, "Sparks", proof.approved_at, proof.expires_at)
+    ledger.record(receipt, owner_approval_id=proof.approval_id, now=proof.approved_at)
+    ticks = [100.0]
+    monkeypatch.setattr(backup, "monotonic", lambda: ticks[0], raising=False)
+    verify = engine.verify
+
+    def slow_verify(path):
+        result = verify(path)
+        ticks[0] += 121
+        return result
+
+    def schema_check(path):
+        if phase == "staging":
+            ticks[0] += 121
+        elif phase == "clock_backwards":
+            ticks[0] = 99
+        elif phase == "clock_nan":
+            ticks[0] = float("nan")
+
+    if phase == "verification":
+        monkeypatch.setattr(engine, "verify", slow_verify)
+    monkeypatch.setattr(backup, "verify_production_component_schemas", schema_check)
+    with pytest.raises(BackupError, match="clock" if phase.startswith("clock_") else "expired"):
+        engine.restore(backup_dir=archive, target_state_path=target, verifier="test",
+                       replace_existing=True, now=proof.approved_at,
+                       erasure_journal=make_erasure_journal(tmp_path), replacement_authority=ledger)
+    assert not target.exists()
+    assert not list(target.parent.glob(".*restore*"))
