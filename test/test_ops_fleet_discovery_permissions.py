@@ -189,8 +189,8 @@ def test_network_discovery_and_fleet_candidate_discovery_are_independent(tmp_pat
     assert service.host("worker")["trusted"] is False
 
 
-def _ready_fleet_candidate(service, host_id="worker"):
-    now = datetime.now(timezone.utc)
+def _ready_fleet_candidate(service, host_id="worker", *, observed_at=None):
+    now = observed_at or datetime.now(timezone.utc)
     node_id = uuid4()
     key = "a" * 64
     observation = FleetDiscoveryEvidence(
@@ -410,3 +410,63 @@ def test_fleet_conflict_rejects_before_one_time_approval_is_consumed(tmp_path):
         now=now + timedelta(seconds=1),
     )
     assert consumed.approval_id == approval.approval_id
+
+
+@pytest.mark.parametrize("offset, denied", [
+    (timedelta(microseconds=1), "from the future"),
+    (-timedelta(minutes=30, microseconds=1), "stale"),
+    (timedelta(0), None),
+    (-timedelta(minutes=30), None),
+])
+@pytest.mark.parametrize("utc_offset", [0, -5])
+def test_enrollment_discovery_freshness_is_bounded_before_approval_consumption(
+    tmp_path, monkeypatch, offset, denied, utc_offset,
+):
+    from sofia.platform.ops import capability as module
+    from sofia.platform.distributed.endpoint_policy_durable import DurableEndpointPolicy
+
+    now = datetime(2026, 11, 6, 12, tzinfo=timezone.utc)
+
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return now.astimezone(tz)
+
+    monkeypatch.setattr(module, "datetime", Clock)
+    state = tmp_path / "sofia.db"
+    service = OpsToolService(state)
+    observed = (now + offset).astimezone(timezone(timedelta(hours=utc_offset)))
+    _, node_id, key = _ready_fleet_candidate(service, observed_at=observed)
+    parameters = {
+        "host_id": "worker", "node_id": str(node_id),
+        "public_key_sha256": key, "endpoint_hostname": "worker.lan",
+        "endpoint_port": 7443,
+    }
+    approval = ExecutionApproval(
+        approval_id="freshness-bound-owner-proof", capability="fleet.enroll",
+        request_fingerprint=execution_fingerprint("fleet.enroll", parameters),
+        approved_by="Sparks", approved_at=now,
+        expires_at=now + timedelta(minutes=3),
+    )
+    verifier = ExecutionApprovalVerifier(state)
+    record_verified_owner_approval(verifier, approval)
+    if denied is None:
+        result = service.enroll_candidate({**parameters, "approval_id": approval.approval_id})
+        assert result["trusted"] is True
+        assert result["lifecycle"] == "enrolled"
+    else:
+        with pytest.raises(PermissionError, match=denied):
+            service.enroll_candidate({**parameters, "approval_id": approval.approval_id})
+        assert verifier.matches_unconsumed(
+            approval_id=approval.approval_id, capability="fleet.enroll",
+            parameters=parameters, now=now,
+        )
+        assert service.host("worker")["trusted"] is False
+        identities = DurableNodeIdentityRegistry(state)
+        endpoints = DurableEndpointPolicy(state)
+        try:
+            assert identities.get(node_id) is None
+            assert endpoints.get(node_id) is None
+        finally:
+            identities.close()
+            endpoints.close()

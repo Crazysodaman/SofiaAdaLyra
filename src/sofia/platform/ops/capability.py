@@ -408,7 +408,12 @@ class OpsToolService:
         if observed_at.tzinfo is None or observed_at.utcoffset() is None:
             raise PermissionError("Fleet discovery timestamp is not trustworthy")
         now=datetime.now(timezone.utc)
-        if now-observed_at.astimezone(timezone.utc) > timedelta(minutes=30):
+        age=now-observed_at.astimezone(timezone.utc)
+        if age < timedelta(0):
+            raise PermissionError(
+                "Fleet discovery evidence is from the future; rediscover before enrollment"
+            )
+        if age > timedelta(minutes=30):
             raise PermissionError(
                 "Fleet discovery evidence is stale; rediscover before enrollment"
             )
