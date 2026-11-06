@@ -20,6 +20,7 @@ entry_points = {}
 
 [components.platform]
 distribution = "sofia-platform"
+optional_dependencies = { ollama = ["ollama"] }
 packages = ["sofia.platform"]
 dependencies = [
     "sofia-sdk",
