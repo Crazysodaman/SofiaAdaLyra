@@ -149,3 +149,26 @@ def test_distinct_custom_database_destination_preserves_bundle(tmp_path, monkeyp
     assert target.read_bytes().startswith(b"SQLite format 3")
     assert (target.parent / "personality.json").read_bytes() == b"{}"
     assert (target.parent / "protected" / "identity.json").is_file()
+
+
+@pytest.mark.parametrize("relative_target", (
+    "sofia.db", "recovered/sofia.db", "payload/restored.sqlite",
+))
+def test_restore_cannot_publish_plaintext_inside_source_archive(
+    tmp_path, monkeypatch, relative_target,
+):
+    engine, archive, journal = _ready(tmp_path, monkeypatch)
+    original = {
+        path.relative_to(archive): path.read_bytes()
+        for path in archive.rglob("*") if path.is_file()
+    }
+    with pytest.raises(BackupError, match="destination must be outside.*archive"):
+        engine.restore(
+            backup_dir=archive, target_state_path=archive / relative_target,
+            verifier="offline-reviewed", erasure_journal=journal,
+        )
+    assert {
+        path.relative_to(archive): path.read_bytes()
+        for path in archive.rglob("*") if path.is_file()
+    } == original
+    assert engine.verify(archive)

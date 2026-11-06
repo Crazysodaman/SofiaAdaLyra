@@ -703,6 +703,13 @@ class BackupEngine:
         if not isinstance(target_state_path, Path):
             raise TypeError("target_state_path must be a Path")
         target_root = target_state_path.parent
+        # Never mix restored plaintext into its authenticated encrypted source.
+        # Resolve existing ancestors so spelling aliases cannot evade this
+        # preflight; redirected restore paths are independently refused below.
+        archive_root = backup_dir.resolve()
+        destination_root = target_root.resolve()
+        if destination_root == archive_root or archive_root in destination_root.parents:
+            raise BackupError("restore destination must be outside the source archive")
         # The canonical database may be restored under a custom filename.
         # Manifest uniqueness alone cannot protect this remapping: naming
         # the database "personality.json" overwrites that asset on an explicit
