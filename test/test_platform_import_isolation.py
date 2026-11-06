@@ -25,6 +25,7 @@ ISOLATED_MODULES: tuple[str, ...] = (
     "sofia.platform.core_worker.engines",
     "sofia.platform.ops.core_definition",
     "sofia.platform.state.installation_identity",
+    "sofia.platform.run.platform_service",
     "sofia.platform.ops.callsigns",
     "sofia.platform.ops.callsign_client",
     "sofia.platform.capability.catalog",

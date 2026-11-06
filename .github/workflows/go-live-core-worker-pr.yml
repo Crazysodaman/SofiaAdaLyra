@@ -8,6 +8,7 @@ on:
       - 'src/sofia/platform/composition/**'
       - 'src/sofia/platform/run/**'
       - 'test/test_core_worker_process.py'
+      - 'test/test_core_worker_socket_paths.py'
       - 'test/test_generic_core_worker_isolation.py'
       - 'src/sofia/sdk/cognition_engine.py'
       - '.github/workflows/go-live-core-worker-pr.yml'
@@ -18,6 +19,7 @@ on:
       - 'src/sofia/platform/composition/**'
       - 'src/sofia/platform/run/**'
       - 'test/test_core_worker_process.py'
+      - 'test/test_core_worker_socket_paths.py'
       - 'test/test_generic_core_worker_isolation.py'
       - 'src/sofia/sdk/cognition_engine.py'
       - '.github/workflows/go-live-core-worker-pr.yml'
@@ -61,7 +63,7 @@ jobs:
       - name: Verify dependency graph
         run: python -m pip check
       - name: Exercise real spawned Core process, generation fence and restart
-        run: python -m pytest -q test/test_core_worker_process.py test/test_generic_core_worker_isolation.py test/test_v18_phase00_batch.py
+        run: python -m pytest -q test/test_core_worker_process.py test/test_core_worker_socket_paths.py test/test_generic_core_worker_isolation.py test/test_v18_phase00_batch.py
 
 # Targeted process lifecycle acceptance only. Does not prove independently
 # installed Core artifact, full app acceptance, authorizer composition,
