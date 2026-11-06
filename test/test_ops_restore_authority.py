@@ -5,6 +5,7 @@ operator-owned single-use receipt that binds the exact destination pathname
 and the exact authenticated backup manifest, while an active operator STOP
 and every placement rule deny the publication outright.
 """
+from test.owner_auth_fixture import record_verified_restore_receipt, revoke_verified_restore_receipt
 from datetime import timedelta
 from contextlib import closing
 from pathlib import Path
@@ -102,9 +103,9 @@ def test_receipt_identity_is_immutable(tmp_path, stub_manifest):
     ledger = make_restore_authority(tmp_path)
     target = str(tmp_path / "restore" / "sofia.db")
 
-    ledger.record(_receipt(target, stub_manifest, approval_id="restore.dup"))
+    record_verified_restore_receipt(ledger, _receipt(target, stub_manifest, approval_id="restore.dup"))
     with pytest.raises(PermissionError, match="immutable"):
-        ledger.record(_receipt(target, stub_manifest, approval_id="restore.dup"))
+        record_verified_restore_receipt(ledger, _receipt(target, stub_manifest, approval_id="restore.dup"))
 
 
 def test_engine_rejects_missing_or_improvised_authority(tmp_path, engine, monkeypatch):
@@ -164,7 +165,7 @@ def test_expired_or_revoked_receipts_deny_replacement(tmp_path, engine, monkeypa
     target = tmp_path / "restored" / "sofia.db"
     ledger = make_restore_authority(tmp_path)
 
-    ledger.record(
+    record_verified_restore_receipt(ledger,
         _receipt(
             target, manifest, approval_id="restore.expired",
             approved_at=NOW - timedelta(hours=3),
@@ -182,7 +183,7 @@ def test_expired_or_revoked_receipts_deny_replacement(tmp_path, engine, monkeypa
     approval = mint_replacement(
         ledger, target, manifest, approval_id="restore.revoke-me",
     )
-    ledger.revoke(approval.approval_id, reason="owner retraction", at=NOW)
+    revoke_verified_restore_receipt(ledger, approval.approval_id, reason="owner retraction", at=NOW)
     with pytest.raises(BackupError, match="receipt was revoked"):
         engine.restore(
             backup_dir=archive, target_state_path=target, verifier="test",
@@ -297,15 +298,15 @@ def test_active_receipts_expose_only_usable_windows(tmp_path, stub_manifest):
         approved_at=NOW - timedelta(hours=3),
         expires_at=NOW - timedelta(hours=1),
     )
-    ledger.record(live)
-    ledger.record(past)
+    record_verified_restore_receipt(ledger, live)
+    record_verified_restore_receipt(ledger, past)
 
     assert [
         receipt.approval_id
         for receipt in ledger.active_receipts(now=NOW)
     ] == ["restore.live"]
 
-    ledger.revoke("restore.live", reason="test revocation", at=NOW)
+    revoke_verified_restore_receipt(ledger, "restore.live", reason="test revocation", at=NOW)
     assert ledger.active_receipts(now=NOW) == ()
 
 
@@ -341,6 +342,9 @@ def test_owner_decisions_stay_in_the_append_only_evidence(
     types = [row[0] for row in events]
     assert types == [
         "ops.restore.replacement.denied",
+        "owner.webauthn.verified",
+        "execution.approval.recorded",
         "ops.restore.replacement.recorded",
+        "execution.approval.consumed",
         "ops.restore.replacement.consumed",
     ]

@@ -55,3 +55,13 @@ jobs:
           test/test_run_supervisor.py
           test/test_ui_control_center.py
           test/test_ui_tray_lifecycle.py
+      - name: Verify independent owner proof for protected restore
+        run: >-
+          python -m pytest -q
+          test/test_ops_restore_owner_proof.py
+          test/test_ops_restore_authority.py
+          test/test_ops_backup_restore.py
+          test/test_backup_restore_redirect_fencing.py
+          test/test_ws2_restore_whole_bundle_no_replace.py
+          test/test_safe_owner_secret.py
+          test/test_safe_permissions.py

@@ -183,3 +183,35 @@ def private_with_signed_owner(
     return store.set_private_adult_authority(
         **values, now=moment, approval_id=approval_id, **kwargs,
     )
+
+
+def record_verified_restore_receipt(ledger, receipt):
+    """Bind a real exact synthetic owner proof in the external restore ledger."""
+    from sofia.platform.ops.restore_authority import RESTORE_REPLACEMENT_CAPABILITY
+
+    approval = ExecutionApproval(
+        approval_id=str(uuid4()), capability=RESTORE_REPLACEMENT_CAPABILITY,
+        request_fingerprint=execution_fingerprint(RESTORE_REPLACEMENT_CAPABILITY, {
+            "backup_id": receipt.backup_id,
+            "backup_manifest_digest": receipt.manifest_digest,
+            "target_state_path": receipt.target_state_path,
+        }),
+        approved_by="person:sparks", approved_at=receipt.approved_at,
+        expires_at=receipt.expires_at,
+    )
+    record_verified_owner_approval(ExecutionApprovalVerifier(ledger.path), approval)
+    return ledger.record(receipt, owner_approval_id=approval.approval_id, now=receipt.approved_at)
+
+
+def revoke_verified_restore_receipt(ledger, approval_id, *, reason, at):
+    """Authenticate exact revocation without a name-only authority shortcut."""
+    from sofia.platform.ops.restore_authority import RESTORE_REVOCATION_CAPABILITY, restore_revocation_parameters
+
+    approval = ExecutionApproval(
+        approval_id=str(uuid4()), capability=RESTORE_REVOCATION_CAPABILITY,
+        request_fingerprint=execution_fingerprint(
+            RESTORE_REVOCATION_CAPABILITY, restore_revocation_parameters(approval_id, reason)),
+        approved_by="person:sparks", approved_at=at, expires_at=at + timedelta(minutes=5),
+    )
+    record_verified_owner_approval(ExecutionApprovalVerifier(ledger.path), approval)
+    return ledger.revoke(approval_id, reason=reason, at=at, owner_approval_id=approval.approval_id)
