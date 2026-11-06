@@ -50,6 +50,8 @@ COMPONENT_DISTRIBUTIONS: tuple[str, ...] = ("sdk", "platform", "core")
 #: surface; the source test asserts this list covers its canonical list.
 INSTALLED_ISOLATED_MODULES: tuple[str, ...] = (
     "sofia.sdk.tool_binding",
+    "sofia.sdk.core_definition",
+    "sofia.platform.ops.core_definition",
     "sofia.platform.state.installation_identity",
     "sofia.platform.ops.callsigns",
     "sofia.platform.ops.callsign_client",

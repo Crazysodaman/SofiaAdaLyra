@@ -131,3 +131,6 @@ jobs:
 
       - name: Verify atomic Fleet naming and admission fences
         run: python -m pytest -q test/test_fleet_callsigns.py test/test_fleet_stale_trust_regression.py test/test_ops_fleet_atomic_enrollment.py test/test_ops_fleet_removal_authority.py test/test_ops_fleet_migration.py test/test_ops_discovery.py
+
+      - name: Verify signed individual Core definitions without activation
+        run: python -m pytest -q test/test_signed_core_definitions.py
