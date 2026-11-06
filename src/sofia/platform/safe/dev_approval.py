@@ -13,6 +13,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from sofia.platform.dev.approval import DevApproval, DevOperation, dev_request_fingerprint
+from sofia.platform.safe.execution_approval import OWNER_PRINCIPAL_ID
 from sofia.platform.safe.audit import AuditChain
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
@@ -128,7 +129,7 @@ class DevApprovalVerifier:
     ) -> None:
         if not isinstance(approval, DevApproval):
             raise TypeError("approval must be a DevApproval")
-        if approval.approved_by != "Sparks":
+        if approval.approved_by not in (OWNER_PRINCIPAL_ID, "Sparks"):
             raise PermissionError("current DEV approval authority is explicitly Sparks")
         key = self._trusted_keys.get(signer_key_id)
         if key is None:
@@ -167,7 +168,7 @@ class DevApprovalVerifier:
                 )
                 self.audit.append_in_transaction(
                     db,
-                    actor_id=approval.approved_by,
+                    actor_id=OWNER_PRINCIPAL_ID,
                     event_type="dev.approval.recorded",
                     payload={
                         "approval_id": approval.approval_id,
@@ -220,7 +221,7 @@ class DevApprovalVerifier:
                 signature,
                 signature_digest,
             ) = row
-            if approved_by != "Sparks":
+            if approved_by not in (OWNER_PRINCIPAL_ID, "Sparks"):
                 continue
             try:
                 approved_at = datetime.fromisoformat(approved_at_raw)
@@ -343,7 +344,7 @@ class DevApprovalVerifier:
                     raise PermissionError("DEV approval could not be consumed")
                 self.audit.append_in_transaction(
                     db,
-                    actor_id=approval.approved_by,
+                    actor_id=OWNER_PRINCIPAL_ID,
                     event_type="dev.approval.consumed",
                     payload={
                         "approval_id": approval.approval_id,
@@ -364,6 +365,8 @@ class DevApprovalVerifier:
         signature,
         signature_digest,
     ) -> bool:
+        if approval.approved_by not in (OWNER_PRINCIPAL_ID, "Sparks"):
+            return False
         key = self._trusted_keys.get(signer_key_id)
         if key is None or not isinstance(signature, bytes) or not signature:
             return False

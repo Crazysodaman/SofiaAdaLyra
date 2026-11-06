@@ -16,6 +16,7 @@ from sofia.platform.evolve.lifecycle import (
     EvolutionProposalStatus,
 )
 from sofia.platform.dev.release_signing import load_ed25519_private_key
+from sofia.platform.safe.execution_approval import OWNER_PRINCIPAL_ID
 from sofia.platform.safe.evolve_approval import (
     DurableEvolutionApprovalVerifier,
     approval_signature_payload,
@@ -45,7 +46,7 @@ def main(argv: list[str] | None = None) -> int:
         choices=[item.value for item in ApprovalAction],
     )
     parser.add_argument("--ttl-seconds", type=int, default=900)
-    parser.add_argument("--approved-by", default="Sparks")
+    parser.add_argument("--approved-by", default=OWNER_PRINCIPAL_ID)
     parser.add_argument(
         "--private-key",
         required=True,
@@ -67,7 +68,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.ttl_seconds < 30 or args.ttl_seconds > 86400:
             raise ValueError("ttl-seconds must be in 30..86400")
-        if args.approved_by != "Sparks":
+        if args.approved_by not in (OWNER_PRINCIPAL_ID, "Sparks"):
             raise PermissionError(
                 "current EVOLVE approval authority is explicitly Sparks"
             )
