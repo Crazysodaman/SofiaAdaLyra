@@ -23,6 +23,7 @@ distribution = "sofia-platform"
 packages = ["sofia.platform"]
 dependencies = [
     "sofia-sdk",
+    "pywin32; sys_platform == 'win32'",
     "cryptography",
     "tzdata; sys_platform == 'win32'",
 ]
