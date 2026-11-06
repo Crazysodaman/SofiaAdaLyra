@@ -21,6 +21,7 @@ ISOLATED_MODULES: tuple[str, ...] = (
     "sofia.sdk.core_link",
     "sofia.sdk.module_settings",
     "sofia.sdk.principals",
+    "sofia.sdk.identity",
     "sofia.platform.config",
     "sofia.platform.config.identity_bootstrap",
     "sofia.platform.config.environment",
