@@ -18,6 +18,7 @@ from sofia.platform.evolve.approval import (
     ApprovalAction,
     ApprovalVerifier,
 )
+from sofia.platform.safe.execution_approval import OWNER_PRINCIPAL_ID
 from sofia.platform.safe.audit import AuditChain
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
@@ -248,7 +249,7 @@ class DurableEvolutionApprovalVerifier(
         signature: bytes,
         signed_payload: bytes,
     ) -> None:
-        if approved_by != "Sparks":
+        if approved_by not in (OWNER_PRINCIPAL_ID, "Sparks"):
             raise PermissionError(
                 "current EVOLVE approval authority is explicitly Sparks"
             )
@@ -294,7 +295,7 @@ class DurableEvolutionApprovalVerifier(
             )
             self.audit.append_in_transaction(
                 db,
-                actor_id=approved_by,
+                actor_id=OWNER_PRINCIPAL_ID,
                 event_type="evolve.approval.recorded",
                 payload={
                     "approval_id": approval_id,
@@ -372,7 +373,7 @@ class DurableEvolutionApprovalVerifier(
             if changed.rowcount == 1:
                 self.audit.append_in_transaction(
                     db,
-                    actor_id="Sparks",
+                    actor_id=OWNER_PRINCIPAL_ID,
                     event_type="evolve.approval.revoked",
                     payload={
                         "approval_id": approval_id,
@@ -426,7 +427,8 @@ class DurableEvolutionApprovalVerifier(
             and row["target_kind"] == target_kind
             and row["target_value"] == target_value
             and row["action"] == action
-            and row["approved_by"] == approved_by == "Sparks"
+            and row["approved_by"] == approved_by
+            and approved_by in (OWNER_PRINCIPAL_ID, "Sparks")
             and row["authority_reference"] == authority_reference
         )
         if not matches:
@@ -541,7 +543,7 @@ class DurableEvolutionApprovalVerifier(
                     continue
             except (TypeError, ValueError):
                 continue
-            if approval.approved_by != "Sparks" or not (
+            if approval.approved_by not in (OWNER_PRINCIPAL_ID, "Sparks") or not (
                 approved_at.astimezone(timezone.utc)
                 <= moment
                 < expires_at.astimezone(timezone.utc)

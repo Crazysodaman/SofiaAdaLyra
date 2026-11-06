@@ -125,3 +125,6 @@ jobs:
 # host migration rehearsal or full G7-A cognition-to-learning acceptance trace.
       - name: Verify canonical owner proofs at migration and rollout boundaries
         run: python -m pytest -q test/test_ops_verified_owner_principal.py test/test_ops_workload_migration_grants.py test/test_ops_workload_migration_execution.py test/test_run_release_rollout.py test/test_release_rollout_permissions.py
+
+      - name: Verify stable principals with external DEV and EVOLVE signatures
+        run: python -m pytest -q test/test_signed_owner_principals.py test/test_dev_approval_signatures.py test/test_evolve_production.py

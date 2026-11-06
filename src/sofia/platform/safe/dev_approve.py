@@ -10,6 +10,7 @@ from uuid import uuid4
 from sofia.platform.config import production_state_path
 from sofia.platform.dev.approval import DevApproval, DevOperation, dev_request_fingerprint
 from sofia.platform.dev.release_signing import load_ed25519_private_key
+from sofia.platform.safe.execution_approval import OWNER_PRINCIPAL_ID
 from sofia.platform.safe.dev_approval import (
     DevApprovalVerifier,
     dev_approval_signature_payload,
@@ -45,7 +46,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--approved-by",
-        default="Sparks",
+        default=OWNER_PRINCIPAL_ID,
     )
     parser.add_argument("--private-key", required=True)
     parser.add_argument("--trusted-public-key", required=True)
@@ -66,7 +67,7 @@ def main(argv: list[str] | None = None) -> int:
             )
         if args.ttl_seconds < 30 or args.ttl_seconds > 86400:
             raise ValueError("ttl-seconds must be in 30..86400")
-        if args.approved_by != "Sparks":
+        if args.approved_by not in (OWNER_PRINCIPAL_ID, "Sparks"):
             raise PermissionError(
                 "current DEV operator approval must be explicitly recorded as Sparks"
             )
