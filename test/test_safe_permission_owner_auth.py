@@ -11,7 +11,8 @@ import sqlite3
 import pytest
 
 from sofia.platform.safe.execution_approval import (
-    ExecutionApproval, ExecutionApprovalVerifier, execution_fingerprint,
+    ExecutionApproval, ExecutionApprovalVerifier, OWNER_PRINCIPAL_ID,
+    execution_fingerprint,
 )
 from sofia.platform.safe.permissions import (
     PermissionStore, private_authority_parameters, standing_grant_parameters,
@@ -38,23 +39,141 @@ def _approval(store: PermissionStore, *, capability: str, parameters: dict):
     return approval.approval_id
 
 
-def test_actor_label_alone_cannot_create_revoke_or_expand_authority(tmp_path):
+@pytest.mark.parametrize("actor", ["Sparks", "person:sparks", "Renamed Owner", "sofia"])
+def test_actor_label_alone_cannot_create_revoke_or_expand_authority(tmp_path, actor):
     state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     store = PermissionStore(state)
     with pytest.raises(PermissionError, match="authenticated owner approval"):
         store.grant(
             "storage.mkdir", scope={"root_index": 0, "path": "private"},
-            grant_id="no-signed-proof", granted_by="Sparks", now=NOW,
+            grant_id="no-signed-proof", granted_by=actor, now=NOW,
         )
     with pytest.raises(PermissionError, match="authenticated owner approval"):
-        store.revoke("nonexistent", revoked_by="Sparks", now=NOW)
+        store.revoke("nonexistent", revoked_by=actor, now=NOW)
     with pytest.raises(PermissionError, match="authenticated owner approval"):
         store.set_private_adult_authority(
             private_chat=True, adult_chat=True, adult_avatar=True,
-            adult_external_delivery=True, updated_by="Sparks", now=NOW,
+            adult_external_delivery=True, updated_by=actor, now=NOW,
         )
     assert store.grants() == ()
     assert store.private_adult_authority().adult_external_delivery is False
+
+
+@pytest.mark.parametrize("actor", [None, "Sparks", "Renamed Owner", "core:forged"])
+def test_verified_permission_actor_comes_from_approval_not_caller_label(tmp_path, actor):
+    store = PermissionStore(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
+    grant = grant_with_signed_owner(
+        store, "storage.mkdir", scope={"root_index": 0, "path": "approved"},
+        grant_id="principal-grant", granted_by=actor, now=NOW,
+    )
+    assert grant.granted_by == OWNER_PRINCIPAL_ID
+    assert store.grants()[0].granted_by == OWNER_PRINCIPAL_ID
+    assert store.allows_standing("storage.mkdir", grant.scope, now=NOW)
+    revoke_with_signed_owner(
+        store, grant.grant_id, revoked_by=actor, now=NOW + timedelta(seconds=1),
+    )
+    authority = private_with_signed_owner(
+        store, private_chat=True, adult_chat=True, adult_avatar=False,
+        adult_external_delivery=False, updated_by=actor,
+        now=NOW + timedelta(seconds=2),
+    )
+    assert authority.updated_by == OWNER_PRINCIPAL_ID
+    with sqlite3.connect(store.path) as db:
+        actors = db.execute(
+            "SELECT actor_id FROM safe_audit_event WHERE event_type IN "
+            "('permission.standing_grant.created', 'permission.standing_grant.revoked', "
+            "'permission.private_adult.updated')"
+        ).fetchall()
+    assert actors == [(OWNER_PRINCIPAL_ID,)] * 3
+
+
+def test_canonical_owner_reference_keeps_cryptographic_approval_required(tmp_path):
+    store = PermissionStore(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
+    scope = {"root_index": 0, "path": "approved"}
+    exact = standing_grant_parameters(
+        "storage.mkdir", scope=scope, grant_id="canonical-owner", expires_at=None,
+    )
+    approval = ExecutionApproval(
+        approval_id="canonical-owner-proof", capability="safe.permission.standing.grant",
+        request_fingerprint=execution_fingerprint("safe.permission.standing.grant", exact),
+        approved_by=OWNER_PRINCIPAL_ID, approved_at=NOW,
+        expires_at=NOW + timedelta(minutes=3),
+    )
+    verifier = ExecutionApprovalVerifier(store.path)
+    with pytest.raises(PermissionError, match="freshly verified owner authentication"):
+        verifier.record(approval)
+    record_verified_owner_approval(verifier, approval)
+    assert verifier.matches_unconsumed(
+        approval_id=approval.approval_id, capability=approval.capability,
+        parameters=exact, now=NOW,
+    )
+    assert approval.capability in verifier.active_capabilities(now=NOW)
+    assert store.grant(
+        "storage.mkdir", scope=scope, grant_id="canonical-owner",
+        approval_id=approval.approval_id, now=NOW,
+    ).granted_by == OWNER_PRINCIPAL_ID
+
+
+def test_canonical_owner_reference_cannot_override_revoked_or_wrong_machine_proof(tmp_path):
+    state = bootstrap_canonical_sqlite(tmp_path / "owner.db")
+    store = PermissionStore(state)
+    scope = {"root_index": 0, "path": "approved"}
+    exact = standing_grant_parameters(
+        "storage.mkdir", scope=scope, grant_id="revoked-owner", expires_at=None,
+    )
+    approval = ExecutionApproval(
+        approval_id="revoked-owner-proof", capability="safe.permission.standing.grant",
+        request_fingerprint=execution_fingerprint("safe.permission.standing.grant", exact),
+        approved_by=OWNER_PRINCIPAL_ID, approved_at=NOW,
+        expires_at=NOW + timedelta(minutes=3),
+    )
+    verifier = ExecutionApprovalVerifier(state)
+    record_verified_owner_approval(verifier, approval)
+    foreign = PermissionStore(bootstrap_canonical_sqlite(tmp_path / "foreign.db"))
+    with pytest.raises(PermissionError, match="does not exist"):
+        foreign.grant(
+            "storage.mkdir", scope=scope, grant_id="revoked-owner",
+            granted_by=OWNER_PRINCIPAL_ID, approval_id=approval.approval_id, now=NOW,
+        )
+    with sqlite3.connect(state) as db:
+        db.execute("UPDATE safe_owner_credential SET revoked_at=?", (NOW.isoformat(),))
+    assert not verifier.matches_unconsumed(
+        approval_id=approval.approval_id, capability=approval.capability,
+        parameters=exact, now=NOW,
+    )
+    assert approval.capability not in verifier.active_capabilities(now=NOW)
+    with pytest.raises(PermissionError, match="lacks verified owner authentication"):
+        store.grant(
+            "storage.mkdir", scope=scope, grant_id="revoked-owner",
+            granted_by=OWNER_PRINCIPAL_ID, approval_id=approval.approval_id, now=NOW,
+        )
+    assert store.grants() == ()
+
+
+def test_arbitrary_stable_principal_is_not_an_owner_approval_reference():
+    with pytest.raises(PermissionError, match="independently authenticated owner"):
+        ExecutionApproval(
+            approval_id="forged-principal", capability="safe.permission.standing.grant",
+            request_fingerprint="a" * 64, approved_by="person:other",
+            approved_at=NOW, expires_at=NOW + timedelta(minutes=3),
+        )
+
+
+def test_legacy_owner_attribution_remains_readable_without_gaining_authority(tmp_path):
+    store = PermissionStore(bootstrap_canonical_sqlite(tmp_path / "sofia.db"))
+    grant = grant_with_signed_owner(
+        store, "storage.mkdir", scope={"root_index": 0, "path": "legacy"},
+        grant_id="legacy-owner", now=NOW,
+    )
+    # Historical rows keep their old attribution; no credentials or private
+    # state are rewritten merely to change new permission attribution.
+    with sqlite3.connect(store.path) as db:
+        db.execute("UPDATE safe_permission_grant SET granted_by='Sparks'")
+    assert store.grants()[0].granted_by == "Sparks"
+    assert store.allows_standing("storage.mkdir", grant.scope, now=NOW)
+    with sqlite3.connect(store.path) as db:
+        db.execute("UPDATE safe_owner_credential SET revoked_at=?", (NOW.isoformat(),))
+    assert not store.allows_standing("storage.mkdir", grant.scope, now=NOW)
 
 
 def test_signed_grant_is_single_use_and_fingerprint_binds_exact_scope(tmp_path):
