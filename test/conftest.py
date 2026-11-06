@@ -76,6 +76,7 @@ MODULE_PACKAGE_MARKERS: dict[str, tuple[str, ...]] = {
 }
 
 FILENAME_PACKAGE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("test_platform_release_", ("pkg_verify", "pkg_integrate", "pkg_safe")),
     # Creative/ComfyUI tests are DEV tooling with INTEGRATE lifecycle boundaries.
     ("test_comfyui_", ("pkg_dev", "pkg_integrate")),
     # Live2D recovery spans avatar state, creative tooling, and integration.

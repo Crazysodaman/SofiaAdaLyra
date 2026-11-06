@@ -4,10 +4,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from hashlib import sha256
 import json
-from pathlib import PurePosixPath, PureWindowsPath
 import re
 import unicodedata
 
+from sofia.sdk.artifact import ArtifactReference
 from sofia.sdk.contracts import ProtocolVersion
 from sofia.sdk.identity import AegisIdentity, IdentityKind
 
@@ -23,36 +23,12 @@ def _digest(value):
 
 
 @dataclass(frozen=True, slots=True)
-class CoreAssetReference:
-    """One package-relative immutable definition asset; grants no state access."""
-    path: str
-    sha256: str
-    size_bytes: int
-
+class CoreAssetReference(ArtifactReference):
+    """Existing personal asset contract retains its 16-MiB bound and wire shape."""
     def __post_init__(self):
-        if not isinstance(self.path, str) or not 1 <= len(self.path.encode('utf-8')) <= 1024:
-            raise ValueError('bounded asset path required')
-        parts = self.path.split('/')
-        if (PurePosixPath(self.path).is_absolute() or any(p in {'', '.', '..'} for p in parts) or
-            any(c in self.path for c in ('\\', ':')) or
-            any(unicodedata.category(c).startswith('C') for c in self.path)):
-            raise ValueError('asset path must be unambiguous and package-relative')
-        if any(p.endswith((' ', '.')) for p in parts):
-            raise ValueError('ambiguous Windows asset path')
-        if any(PureWindowsPath(p).is_reserved() for p in parts):
-            raise ValueError('reserved device asset path')
-        _digest(self.sha256)
-        if type(self.size_bytes) is not int or not 1 <= self.size_bytes <= MAX_CORE_ASSET_BYTES:
+        ArtifactReference.__post_init__(self)
+        if self.size_bytes > MAX_CORE_ASSET_BYTES:
             raise ValueError('personal asset must contain 1..16 MiB')
-
-    def to_payload(self):
-        return {'path':self.path, 'sha256':self.sha256, 'size_bytes':self.size_bytes}
-
-    @classmethod
-    def from_payload(cls, value):
-        if type(value) is not dict or set(value) != {'path','sha256','size_bytes'}:
-            raise ValueError('asset reference requires exactly path, sha256 and size_bytes')
-        return cls(**value)
 
 
 @dataclass(frozen=True, slots=True)

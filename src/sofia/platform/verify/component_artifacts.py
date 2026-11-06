@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+from io import BytesIO
 import json
 import os
 import shutil
@@ -51,6 +52,8 @@ COMPONENT_DISTRIBUTIONS: tuple[str, ...] = ("sdk", "platform", "core")
 INSTALLED_ISOLATED_MODULES: tuple[str, ...] = (
     "sofia.sdk.tool_binding",
     "sofia.sdk.core_definition",
+    "sofia.sdk.artifact",
+    "sofia.sdk.platform_release",
     "sofia.sdk.cognition_engine",
     "sofia.sdk.cognition_json",
     "sofia.platform.cognition_budget",
@@ -60,6 +63,8 @@ INSTALLED_ISOLATED_MODULES: tuple[str, ...] = (
     "sofia.platform.core_worker",
     "sofia.platform.core_worker.engines",
     "sofia.platform.ops.core_definition",
+    "sofia.platform.ops.platform_release",
+    "sofia.platform.state.artifact_file",
     "sofia.platform.state.installation_identity",
     "sofia.platform.ops.callsigns",
     "sofia.platform.ops.callsign_client",
@@ -254,11 +259,15 @@ def _parse_entry_points(archive: zipfile.ZipFile, names: Sequence[str]) -> tuple
     return tuple(sorted(entry_lines))
 
 
-def inspect_wheel(wheel: Path, distribution: str) -> ComponentArtifactReport:
+def inspect_wheel(wheel: Path, distribution: str, *, payload: bytes | None = None) -> ComponentArtifactReport:
     """Read wheel facts directly from the wheel archive."""
 
-    payload = wheel.read_bytes()
-    with zipfile.ZipFile(wheel) as archive:
+    # Hash and inspect the same immutable snapshot. Reopening the pathname
+    # here can pair one file's digest with another file's metadata/content.
+    payload = wheel.read_bytes() if payload is None else payload
+    if not isinstance(payload, bytes):
+        raise TypeError("wheel snapshot must be bytes")
+    with zipfile.ZipFile(BytesIO(payload)) as archive:
         names = archive.namelist()
         dist_infos = [name for name in names if name.endswith(".dist-info/METADATA")]
         if len(dist_infos) != 1:
