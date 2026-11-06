@@ -25,6 +25,7 @@ import tempfile
 
 from sofia.platform.config.roles import PlatformRole, PlatformRoleConfiguration
 from sofia.platform.state.canonical_sqlite import (
+    CanonicalStateUnavailable,
     _reject_redirected_components,
 )
 from sofia.platform.state.sqlite_uri import sqlite_file_uri
@@ -77,6 +78,13 @@ def _absolute(path: Path | str) -> Path:
     return Path(path).absolute()
 
 
+def _reject_redirected_local_path(path: Path) -> None:
+    try:
+        _reject_redirected_components(path)
+    except CanonicalStateUnavailable as exc:
+        raise LocalStateUnavailable("local state path is redirected") from exc
+
+
 class PlatformLocalStore:
     """Own one Platform-local SQLite file with an exact host binding.
 
@@ -116,6 +124,7 @@ class PlatformLocalStore:
         return int(db.execute("PRAGMA application_id").fetchone()[0])
 
     def _open_existing(self) -> tuple[int, int]:
+        _reject_redirected_local_path(self.path)
         details = self.path.stat()
         if not stat.S_ISREG(details.st_mode):
             raise LocalStateUnavailable(
@@ -135,7 +144,7 @@ class PlatformLocalStore:
 
     def _bootstrap(self) -> tuple[int, int]:
         target = self.path
-        _reject_redirected_components(target)
+        _reject_redirected_local_path(target)
         target.parent.mkdir(parents=True, exist_ok=True)
         descriptor, temporary_name = tempfile.mkstemp(
             prefix=f".{target.name}.", suffix=".bootstrap", dir=target.parent,
@@ -175,6 +184,7 @@ class PlatformLocalStore:
             with temporary.open("r+b") as persisted:
                 os.fsync(persisted.fileno())
             try:
+                _reject_redirected_local_path(target)
                 os.link(temporary, target)
             except FileExistsError:
                 raise LocalStateUnavailable(
@@ -192,8 +202,7 @@ class PlatformLocalStore:
     # ---- identity ----------------------------------------------------------
 
     def validate(self) -> Path:
-        if self.path.is_symlink():
-            raise LocalStateUnavailable("local state path is redirected")
+        _reject_redirected_local_path(self.path)
         try:
             details = self.path.stat()
         except FileNotFoundError as exc:
