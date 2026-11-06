@@ -94,6 +94,76 @@ Platform is independently useful without a Core; a Core is independently identif
 
 Possible split: Codex owns Platform/Rust/SDK boundaries, OpenCode develops Sofía-specific Core, cognition and avatar/voice integrations. Require separate worktrees/branches, explicit file ownership, stable SDK contracts, exact-SHA CI and intentional merges. Do not move Platform 1.0 scope or authorize shared-state modifications by adding this idea.
 
+## New ideas to flesh out (proposals only)
+
+All AG-D011–AG-D018 entries below are **CAPTURED PROPOSALS**, not owner-approved features, scheduled tasks, or new requirements for Platform 1.0. Candidate order reflects which design conversations could remove the most ambiguity, **not** implementation priority.
+
+### AG-D011 | First-run Setup and Enrollment Wizard
+
+**Status:** CAPTURED (PROPOSED). **Target release:** TBD.
+
+Design: guide first installation on Windows/Linux through validating the signed Platform release, generating a private installation identity, choosing local roles, configuring owner authentication, checking service health, and *optionally* beginning an explicitly approved Fleet pairing ceremony. Show clearly when a host is Core-free, offline or not enrolled. Never create production trust through a single convenience click.
+
+**Questions:** Should the wizard run on first launch only or remain reopenable? Is a CLI equivalent mandatory for Debian headless hosts?
+
+### AG-D012 | Fleet Manager and Topology View
+
+**Status:** CAPTURED (PROPOSED). **Target release:** TBD.
+
+Design: list authenticated Platforms with immutable IDs, callsigns, OS/service versions, online/offline/unknown status, trust state, installed modules, and bound Cores. Present enrollment, revocation, remote operation requests and host relationships with separate authorization controls. Cached data is never proof of live enrollment.
+
+**Questions:** Local Fleet authority or remotely managed central authority? Which operations may be requested across hosts without a live Core?
+
+### AG-D013 | Security and Approvals Center
+
+**Status:** CAPTURED (PROPOSED). **Target release:** TBD.
+
+Design: human-readable view of active grants, approval history, trusted identities, certificate expiry, revoked keys, SAFE/STOP state, and pending protected operations. Require exact target, scope, reason, expiration and verified owner authorization before effects. UI never displays the 256-bit secret or treats a remembered session as indefinite consent.
+
+**Questions:** Which operations require fresh owner authentication every time? Which grants may have narrow standing authority?
+
+### AG-D014 | Backup, Restore and Continuity Manager
+
+**Status:** CAPTURED (PROPOSED). **Target release:** TBD.
+
+Design: separately track Platform operational-state backups, Fleet authority/revocation checkpoints, and each Core's protected identity/memory lineage. Show backup integrity, encryption, recovery eligibility, restore preview and last verified restore test. Restore must prevent duplicate writers and stale-authorization resurrection. Routine Core uninstall never silently purges protected data.
+
+**Questions:** Where are encrypted backups stored? Which identity-recovery actions require independent approval?
+
+### AG-D015 | Update and Rollback Center
+
+**Status:** CAPTURED (PROPOSED). **Target release:** TBD.
+
+Design: show independently versioned Platform, SDK, Core, module and inference-provider updates; signed source, compatibility, planned downtime, previous known-good version and verified rollback state. Separate download, stage and activate steps. Do not silently downgrade trust or change an active Core during unrelated Platform updates.
+
+**Questions:** Manual updates first, scheduled maintenance later? Which components may update without restarting the whole Platform?
+
+### AG-D016 | Health, Diagnostics and Incident Timeline
+
+**Status:** CAPTURED (PROPOSED). **Target release:** TBD.
+
+Design: one source-backed view of service processes, Fleet reachability, Core and module state, model inference availability, event receipts, actionable failure causes and recovery history. Distinguish VERIFIED HEALTHY / DEGRADED / OFFLINE / UNKNOWN. A green process heartbeat must not imply that cognition, remote trust or an LLM is functioning.
+
+**Questions:** What is the minimum on-host diagnostic bundle we can safely export without secrets or private Core content?
+
+### AG-D017 | Hardware and Compute Manager
+
+**Status:** CAPTURED (PROPOSED). **Target release:** TBD.
+
+Design: per-host CPU, RAM, GPU/VRAM, storage, temperature, busy/gaming state, inference-provider availability and resource reservations. Show which models/modules/Core workers occupy resources, and preview placement constraints. Require actual fresh measurements; no invented free VRAM or automatic live Core writer migration.
+
+**Questions:** Should compute remain strictly pinned to a chosen host initially, with cross-host placement only after separate Fleet acceptance?
+
+### AG-D018 | Aegis Lab and Disposable Shakedown Console
+
+**Status:** CAPTURED (PROPOSED). **Target release:** TBD.
+
+Design: dedicated test environment dashboard for Platform-only clean installs, simulated/signed synthetic Cores, fake Fleet peers, fault injection, module install/rollback and read-only test evidence. Visibly separate LAB from PRODUCTION; never copy real protected identity or secrets into synthetic fixtures. Integrate with #201 as an evidence viewer, not a shortcut around its mandatory tests.
+
+**Questions:** Should this be a developer-only CLI first, with an optional GUI much later?
+
+---
+
 ## Questions to decide before promoting UX concepts
 
 - Should Core Manager, Model Manager and Module Manager be three windows, or tabs inside one Aegis Control Center?
@@ -107,6 +177,21 @@ Possible split: Codex owns Platform/Rust/SDK boundaries, OpenCode develops Sofí
 - The existing legacy Python model download settings path still has FIDO2-specific UI calls. Owner preference is that FIDO2 remains disabled/optional and protected actions use independently verified, scoped 256-bit-secret authorization. Reconcile with the authoritative auth policy **before** shipping new management UI. Never expose the secret in logs, URLs, model prompts or CLI arguments.
 - Existing Python/Ollama code is a foundation, not proof that a fully generic Core-free model-service implementation or Rust manager is complete.
 - Track Platform-only readiness in #201 and full-project readiness in #120. Keep G8 #129 deferred until separately authorized.
+
+## Standard Aegis status report (use in future conversations and checkpoints)
+
+Always distinguish **verified implementation/acceptance**, **active implementation**, **design ideas**, and **blocked/deferred** work. Suggested concise format:
+
+| Report field | Content |
+| --- | --- |
+| **Source snapshot** | Current observed `main` SHA, active PRs, last checked date; explicitly say if work-in-progress is invisible. |
+| **Platform 1.0** | Link #201; objective acceptance progress and specific blockers, never an invented percentage. |
+| **Full Project** | Keep the #120 full-project result separate from Platform-only readiness and deferred G8. |
+| **Design TODO** | Newly CAPTURED / OWNER-DESIRED / APPROVED / IN PROGRESS / VERIFIED IDs and what changed. |
+| **Approved next work** | Actions already authorized and in scope, distinct from suggestions. |
+| **Open decisions** | Specific choices for the owner; do not treat a proposal as consent to build it. |
+
+The words **implemented**, **tested**, **merged**, **verified**, **shakedown ready** and **production ready** describe different evidence levels. Report exact evidence. User exploration of new designs never silently redirects Codex, changes issue #201, or authorizes a deployment.
 
 ## How to use this file
 
