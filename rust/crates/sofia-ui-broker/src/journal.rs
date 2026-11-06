@@ -130,11 +130,22 @@ pub struct DurableBroker {
     revision: u64,
     state: BrokerState,
     healthy: bool,
-    _lock: File,
+    _lock: WriterLock,
+}
+
+struct WriterLock(File);
+
+impl Drop for WriterLock {
+    fn drop(&mut self) {
+        // Unlock the open-file description explicitly. A concurrently spawned
+        // child may briefly inherit an FD between fork and exec; closing only
+        // our descriptor would otherwise leave the lock held until its exec.
+        let _ = FileExt::unlock(&self.0);
+    }
 }
 
 impl DurableBroker {
-    fn acquire(directory: &Path) -> Result<File, JournalError> {
+    fn acquire(directory: &Path) -> Result<WriterLock, JournalError> {
         if !cfg!(unix) {
             return Err(JournalError::UnsupportedPlatform);
         }
@@ -164,7 +175,7 @@ impl DurableBroker {
         };
         private_regular_file(&lock)?;
         lock.try_lock_exclusive()?;
-        Ok(lock)
+        Ok(WriterLock(lock))
     }
 
     /// Explicit first-install operation. Never use as a fallback for failed
