@@ -1,0 +1,24 @@
+name: Platform-only source and installed artifacts
+description: Platform development evidence; not installed OS service acceptance
+runs:
+  using: composite
+  steps:
+    - name: Install development test harness
+      shell: bash
+      run: python -m pip install -e . pytest
+    - name: Native Rust checks
+      shell: bash
+      run: |
+        cargo fmt --all --check
+        cargo clippy --workspace --all-targets --locked -- -D warnings
+        cargo test --workspace --locked
+    - name: Platform regressions and independent minimal wheel installation
+      shell: bash
+      run: |
+        set -euo pipefail
+        python -m pytest -q test/test_platform_optional_dependencies.py test/test_platform_installation_identity.py test/test_platform_import_isolation.py test/test_component_artifact_separation.py test/test_signed_core_definitions.py test/test_core_definition_path_security.py test/test_distributed_inference_service.py test/test_fleet_callsigns.py test/test_fleet_stale_trust_regression.py test/test_ops_fleet_atomic_enrollment.py test/test_ops_fleet_removal_authority.py test/test_core_link_binding.py test/test_core_link_rust_authority.py test/test_safe_operator_stop_revision.py test/test_safe_operator_stop_state_loss.py test/test_safe_permission_state_loss.py test/test_module_lifecycle_v1.py 2>&1 | tee platform-only-tests.log
+    - uses: actions/upload-artifact@v7
+      if: always()
+      with:
+        name: platform-only-${{ runner.os }}
+        path: platform-only-tests.log

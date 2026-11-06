@@ -149,3 +149,57 @@ def test_cli_rejects_non_regular_definition_file(tmp_path, capsys):
         '--signer-key-id','operator','--signature','x','--expected-core-id',str(uuid4()),
         '--expected-runtime-sha256','a'*64,'--minimum-revision','1']) == 2
     assert json.loads(capsys.readouterr().out)['result'] == 'REJECTED'
+
+
+@pytest.mark.parametrize('defect', [
+    'signature', 'core', 'runtime', 'revision', 'asset', 'schema',
+    'missing_public_key', 'invalid_public_key',
+])
+def test_cli_verification_denials_are_structured_non_success(tmp_path, capsys, defect):
+    from sofia.platform.ops.core_definition import main
+    directory, definition, _, public, signature = fixture_definition(tmp_path)
+    path, key = tmp_path/'definition.json', tmp_path/'operator.pub'
+    path.write_bytes(definition.canonical_bytes)
+    key.write_bytes(public)
+    expected_core_id, runtime, revision = definition.identity.canonical_uuid, 'a'*64, '1'
+    if defect == 'signature': signature = b64encode(b'x'*64).decode()
+    elif defect == 'core': expected_core_id = str(uuid4())
+    elif defect == 'runtime': runtime = 'b'*64
+    elif defect == 'revision': revision = '2'
+    elif defect == 'asset': (directory/'constitution.txt').write_bytes(b'Tampered')
+    elif defect == 'schema': path.write_text('{"schema":"unknown"}', encoding='utf-8')
+    elif defect == 'missing_public_key': key.unlink()
+    elif defect == 'invalid_public_key': key.write_bytes(b'not an Ed25519 public key')
+    before = {item.relative_to(tmp_path):item.read_bytes() for item in tmp_path.rglob('*') if item.is_file()}
+    result = main(['--definition',str(path),'--assets-root',str(directory),'--trusted-public-key',str(key),
+        '--signer-key-id','operator','--signature',signature,'--expected-core-id',expected_core_id,
+        '--expected-runtime-sha256',runtime,'--minimum-revision',revision])
+    captured = capsys.readouterr()
+    assert result == 2
+    assert captured.err == ''
+    payload = json.loads(captured.out)
+    assert set(payload) == {'result', 'reason'}
+    assert payload['result'] == 'REJECTED'
+    assert isinstance(payload['reason'], str) and payload['reason']
+    assert before == {item.relative_to(tmp_path):item.read_bytes() for item in tmp_path.rglob('*') if item.is_file()}
+
+
+def test_cli_process_rejects_invalid_signature_without_traceback(tmp_path):
+    import os
+    import subprocess
+    import sys
+    directory, definition, _, public, _ = fixture_definition(tmp_path)
+    path, key = tmp_path/'definition.json', tmp_path/'operator.pub'
+    path.write_bytes(definition.canonical_bytes)
+    key.write_bytes(public)
+    environment = dict(os.environ, PYTHONPATH=str(Path(__file__).resolve().parents[1]/'src'))
+    result = subprocess.run([sys.executable,'-m','sofia.platform.ops.core_definition',
+        '--definition',str(path),'--assets-root',str(directory),'--trusted-public-key',str(key),
+        '--signer-key-id','operator','--signature',b64encode(b'x'*64).decode(),
+        '--expected-core-id',definition.identity.canonical_uuid,'--expected-runtime-sha256','a'*64,
+        '--minimum-revision','1'], cwd=tmp_path, env=environment,
+        capture_output=True, text=True, timeout=15)
+    assert result.returncode == 2
+    assert result.stderr == ''
+    assert json.loads(result.stdout)['result'] == 'REJECTED'
+    assert not list(tmp_path.rglob('*.db'))

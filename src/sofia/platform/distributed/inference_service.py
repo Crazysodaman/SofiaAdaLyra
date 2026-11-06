@@ -125,6 +125,12 @@ class LocalOllamaInferenceService:
                 "provider_factory must return an LLMProvider"
             )
         response = provider.respond(request.request)
+        if response.tool_calls and (
+            not self.policy.allow_tools or not request.request.allow_tools
+        ):
+            raise RemoteInferenceDenied(
+                "tool proposals are disabled for this inference request or worker"
+            )
         return RemoteInferenceResponse(
             request_id=request.request_id,
             node_id=request.node_id,
