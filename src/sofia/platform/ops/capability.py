@@ -7,8 +7,8 @@ from typing import Any, Callable
 from uuid import UUID
 
 from sofia.platform.capability.model import Capability,CapabilityRequest
-from sofia.core.cognition.model import CognitiveToolDefinition
-from sofia.core.cognition.tools import CognitiveToolBinding
+from sofia.sdk.cognition_model import CognitiveToolDefinition
+from sofia.sdk.tool_binding import CognitiveToolBinding
 from sofia.platform.distributed.endpoint_policy_durable import DurableEndpointPolicy
 from sofia.platform.distributed.identity_durable import DurableNodeIdentityRegistry
 from sofia.platform.distributed.model import (
@@ -63,7 +63,6 @@ from .workload_backend import (
 from sofia.platform.state.plane import StatePlane
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 import os
-from sofia.platform.distributed.agent_tools import create_default_agent_dispatcher
 from sofia.platform.distributed.capability import create_configured_remote_fleet_service
 
 class OpsToolService:
@@ -119,6 +118,7 @@ class OpsToolService:
         self._local_host_id=""
         catalog_file=os.environ.get("SOFIA_WORKLOAD_CATALOG_FILE","").strip()
         if catalog_file:
+            from sofia.platform.distributed.agent_tools import create_default_agent_dispatcher
             catalog=WorkloadExecutionCatalog.from_file(Path(catalog_file))
             local_host_id=os.environ.get("SOFIA_LOCAL_HOST_ID","").strip()
             self._workload_catalog=catalog

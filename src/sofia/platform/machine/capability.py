@@ -5,8 +5,8 @@ from pathlib import Path
 from typing import Any
 
 from sofia.platform.capability.model import Capability,CapabilityRequest
-from sofia.core.cognition.model import CognitiveToolDefinition
-from sofia.core.cognition.tools import CognitiveToolBinding
+from sofia.sdk.cognition_model import CognitiveToolDefinition
+from sofia.sdk.tool_binding import CognitiveToolBinding
 
 from .discovery import create_machine_discovery
 from .hardware import HardwareDiscovery,create_hardware_discovery

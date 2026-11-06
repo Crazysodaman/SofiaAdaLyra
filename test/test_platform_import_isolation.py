@@ -13,6 +13,17 @@ import sys
 from pathlib import Path
 
 ISOLATED_MODULES: tuple[str, ...] = (
+    "sofia.sdk.tool_binding",
+    "sofia.platform.capability.catalog",
+    "sofia.platform.filesystem.change_capability",
+    "sofia.platform.net.capability",
+    "sofia.platform.machine.capability",
+    "sofia.platform.distributed.capability",
+    "sofia.platform.ops.capability",
+    "sofia.platform.dev.capability",
+    "sofia.platform.safe.permission_capability",
+    "sofia.platform.distributed.inference",
+    "sofia.platform.distributed.inference_control",
     "sofia.sdk",
     "sofia.sdk.contracts",
     "sofia.sdk.state",
