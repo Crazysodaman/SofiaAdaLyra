@@ -37,14 +37,14 @@ jobs:
 
   debian12:
     runs-on: ubuntu-24.04
-    container: debian:12-slim
+    container: python:3.12-slim-bookworm
     timeout-minutes: 40
     steps:
       - name: Prepare disposable Debian 12 test container
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends ca-certificates curl git build-essential python3 python3-venv
-          python3 -m venv /tmp/aegis-gate
+          apt-get install -y --no-install-recommends ca-certificates curl git build-essential
+          python -m venv /tmp/aegis-gate
           echo /tmp/aegis-gate/bin >> "$GITHUB_PATH"
       - uses: actions/checkout@v7
         with:
