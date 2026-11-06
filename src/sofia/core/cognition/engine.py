@@ -1,26 +1,4 @@
-﻿from abc import ABC, abstractmethod
+"""Compatibility aliases for portable cognitive engine contracts."""
+from sofia.sdk.cognition_engine import CognitiveEngine, CognitiveEngineError
 
-from sofia.core.cognition.model import (
-    CognitiveRequest,
-    CognitiveResponse,
-)
-
-
-class CognitiveEngineError(Exception):
-    """Raised when a cognitive engine fails."""
-
-
-class CognitiveEngine(ABC):
-    """
-    Provider-neutral contract for Sofía's cognitive engine.
-    """
-
-    @abstractmethod
-    def respond(
-        self,
-        request: CognitiveRequest,
-    ) -> CognitiveResponse:
-        """
-        Process a cognitive request and return a response.
-        """
-        raise NotImplementedError
+__all__ = ['CognitiveEngine', 'CognitiveEngineError']

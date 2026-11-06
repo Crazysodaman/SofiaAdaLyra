@@ -18,12 +18,10 @@ from typing import Mapping
 from typing import Callable
 from uuid import uuid4
 
-from sofia.core.cognition.engine import CognitiveEngine, CognitiveEngineError
-from sofia.core.cognition.llm_engine import LLMCognitiveEngine
-from sofia.core.cognition.model import CognitiveRequest, CognitiveResponse
-from sofia.core.cognition.provider import LLMProvider, LLMProviderError
-from sofia.core.cognition.rules import RuleEngine
-from sofia.core.cognition.test_engine import TestCognitiveEngine
+from sofia.sdk.cognition_engine import CognitiveEngine, CognitiveEngineError
+from sofia.platform.core_worker.engines import LLMCognitiveEngine, TestCognitiveEngine
+from sofia.sdk.cognition_model import CognitiveRequest, CognitiveResponse
+from sofia.sdk.cognition_engine import LLMProvider, LLMProviderError
 from sofia.platform.config.model import ProviderConfiguration
 from sofia.platform.run.generation import ComponentGenerationStore, GenerationState
 from sofia.platform.run.lease import LocalRunLeaseStore, RunLease
@@ -356,6 +354,10 @@ def _engines(
     spec: CoreEngineProcessSpec, connection: Connection,
 ) -> dict[str, CognitiveEngine]:
     if spec.kind == "rule":
+        # Legacy personal rules are loaded only for that explicitly selected
+        # backend. Generic provider/test workers do not require a Core package.
+        from sofia.core.cognition.rules import RuleEngine
+
         return {"primary": RuleEngine()}
     if spec.kind == "test":
         return {
