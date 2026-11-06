@@ -154,9 +154,9 @@ def _publish_witness(installation, path, value):
     installation._private(staging, directory=False)
     if os.name == 'nt':
         import win32file
-        import win32con
-        win32file.MoveFileEx(str(staging), str(path),
-            win32con.MOVEFILE_REPLACE_EXISTING | win32con.MOVEFILE_WRITE_THROUGH)
+        # WinBase.h: REPLACE_EXISTING=0x1, WRITE_THROUGH=0x8. Some pywin32
+        # builds omit WRITE_THROUGH from win32con despite supporting the API.
+        win32file.MoveFileEx(str(staging), str(path), 0x00000001 | 0x00000008)
     else:
         os.replace(staging, path)
         descriptor = os.open(path.parent, os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))

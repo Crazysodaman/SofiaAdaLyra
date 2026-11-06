@@ -507,10 +507,9 @@ def test_witness_publication_reaches_platform_durability_boundary(naming, monkey
     events = []
     if os.name == 'nt':
         import win32file
-        import win32con
         move = win32file.MoveFileEx
         def observe(source, target, flags):
-            events.append(bool(flags & win32con.MOVEFILE_WRITE_THROUGH))
+            events.append(bool(flags & 0x00000008))  # documented Win32 WRITE_THROUGH bit
             return move(source, target, flags)
         monkeypatch.setattr(win32file, 'MoveFileEx', observe)
     else:
