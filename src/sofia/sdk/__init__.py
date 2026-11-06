@@ -6,6 +6,11 @@ from importlib import import_module
 
 _EXPORTS = {
     **{
+        name: ("identity", name) for name in (
+            "AegisIdentity", "IdentityKind", "IDENTITY_SCHEMA",
+        )
+    },
+    **{
         name: ("contracts", name) for name in (
             "AuthorityProjection", "ComponentEndpoint", "ComponentKind",
             "ComponentOutcome", "ComponentRequestEnvelope",
