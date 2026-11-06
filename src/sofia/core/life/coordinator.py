@@ -75,9 +75,13 @@ class SelfDirectedLifeCoordinator:
         nicknames: NicknameRegistry | None = None,
         share_callback: ShareCallback | None = None,
         max_workers: int = 1,
+        clock: Callable[[], datetime] | None = None,
     ) -> None:
         if not isinstance(goals, GoalService) or not isinstance(gateway, CapabilityGateway):
             raise TypeError("canonical GoalService and CapabilityGateway required")
+        if clock is not None and not callable(clock):
+            raise TypeError("clock must be callable or None")
+        self._clock = clock if clock is not None else (lambda: datetime.now(timezone.utc))
         self.path = Path(state_path)
         self.store = LifeStore(self.path)
         self.hobby_store = HobbyStore(self.path)
@@ -91,12 +95,16 @@ class SelfDirectedLifeCoordinator:
         self.evidence = GoalEvidenceLedger(self.path)
         self.evidence_index = GoalEvidenceIndex(self.path)
         self.work_store = DurableWorkStore(self.path)
-        self.work_store.recover(now=datetime.now(timezone.utc))
+        self.work_store.recover(now=self._now())
         self.manager = TaskExecutionManager(
             self.work_store, {"life-create-artifact": self._create_artifact},
-            max_workers=max_workers, max_queued=32,
+            max_workers=max_workers, max_queued=32, clock=self._now,
         )
         self._native_probe = NativeCreativeAdapter().probe()
+
+    def _now(self) -> datetime:
+        """Use the host clock for execution receipts, normalized to UTC."""
+        return aware(self._clock(), "clock timestamp").astimezone(timezone.utc)
 
     @staticmethod
     def _event(
@@ -2578,7 +2586,7 @@ class SelfDirectedLifeCoordinator:
             return WorkResult(WorkStatus.BLOCKED, {}, "operator_stop_blocks_optional_creative_execution")
         if cancel.is_set():
             return WorkResult(WorkStatus.FAILED, {}, "cancelled_before_creative_execution")
-        started = datetime.now(timezone.utc)
+        started = self._now()
         project = self._project(str(job.payload["project_id"]))
         # RUN's queued status is not perpetual permission. Before any
         # consequential capability execution, re-read the canonical LIFE
@@ -2633,7 +2641,7 @@ class SelfDirectedLifeCoordinator:
                 str(job.payload["parameters"]["request_id"]),
             )
             evidence = self.evidence.record(
-                kind="operation_receipt", observed_at=datetime.now(timezone.utc),
+                kind="operation_receipt", observed_at=self._now(),
                 source="life:creative-capability", successful=False,
                 goal_id=project.goal_id, action_id=job.job_id,
                 assertion="creative artifact generation failed or was unavailable",
@@ -2644,7 +2652,7 @@ class SelfDirectedLifeCoordinator:
             self._experience(
                 project=project, kind="experiment_unavailable",
                 summary=f"Artifact work for {project.name} did not complete: {result.kind.value}.",
-                evidence_refs=(evidence.evidence_ref,), now=datetime.now(timezone.utc),
+                evidence_refs=(evidence.evidence_ref,), now=self._now(),
                 metadata={"job_id": job.job_id},
             )
             status = WorkStatus.BLOCKED if result.kind in {
@@ -2679,7 +2687,7 @@ class SelfDirectedLifeCoordinator:
                 and candidate.byte_size == output["byte_size"]
             )
         if not receipt_ok:
-            finished = datetime.now(timezone.utc)
+            finished = self._now()
             evidence = self.evidence.record(
                 kind="operation_receipt", observed_at=finished,
                 source="life:creative-capability", successful=False,
@@ -2701,7 +2709,7 @@ class SelfDirectedLifeCoordinator:
                 "creative_receipt_missing_or_inconsistent_no_automatic_retry",
             )
         artifact_id, revision = output["artifact_id"], output["revision"]
-        finished = datetime.now(timezone.utc)
+        finished = self._now()
         self.store.link_artifact(project.project_id, artifact_id, revision, now=finished)
         evidence = self.evidence.record(
             kind="operation_receipt", observed_at=finished,

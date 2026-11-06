@@ -6,6 +6,9 @@ verification campaign. No simulated receipt may count as project success.
 from datetime import datetime, timedelta, timezone
 import json
 
+import pytest
+from zoneinfo import ZoneInfo
+
 from sofia.core.cognition.model import CognitiveResponse
 from sofia.core.life import (
     PersonalJudgment, ProjectIdea, ProjectScope, ProjectStatus,
@@ -15,6 +18,26 @@ from sofia.platform.run.work import WorkStatus
 from test.test_life_project_forge import (
     infrastructure, active_project, wait_for_job,
 )
+
+
+class LifeTestClock:
+    """One host clock for scheduling, actual capability effects and RUN receipts."""
+
+    def __init__(self, value=None):
+        self.value = value or datetime(2026, 9, 29, 12, tzinfo=timezone.utc)
+
+    def __call__(self):
+        return self.value
+
+    def at(self, value):
+        assert value.tzinfo is not None and value.utcoffset() is not None
+        self.value = value.astimezone(timezone.utc)
+        return self.value
+
+
+@pytest.fixture
+def life_clock():
+    return LifeTestClock()
 
 
 def typed_active_project(life, now, *, objectives, name="A Checkable Foxfire Note"):
@@ -88,8 +111,8 @@ def test_life_auto_reviews_and_completes_only_independently_verified_artifact(tm
         life.close()
 
 
-def test_life_revises_failed_original_text_after_daily_budget_reset(tmp_path):
-    life, _goals, now = infrastructure(tmp_path)
+def test_life_revises_failed_original_text_after_daily_budget_reset(tmp_path, life_clock):
+    life, _goals, now = infrastructure(tmp_path, clock=life_clock)
     project = typed_active_project(
         life, now, objectives=("text_contains:Foxfire",),
     )
@@ -109,19 +132,18 @@ def test_life_revises_failed_original_text_after_daily_budget_reset(tmp_path):
         )
 
     try:
-        life.tick(now=now + timedelta(seconds=3), generate=generator)
+        life.tick(now=life_clock.at(now + timedelta(seconds=3)), generate=generator)
         assert wait_for_job(life, life.store.jobs(project.project_id)[0]).status is WorkStatus.COMPLETED
 
-        # The RUN receipt carries a real wall-clock timestamp while the LIFE
-        # tick uses a synthetic schedule, so the settle budget must exceed any
-        # execution drift on a loaded runner (a seconds-wide margin flaked on CI).
-        inspected = life.tick(now=now + timedelta(minutes=5), generate=generator)
+        # Scheduling, capability execution and receipt recording share this
+        # controlled host clock. This intentionally remains within one UTC day.
+        inspected = life.tick(now=life_clock.at(now + timedelta(minutes=5)), generate=generator)
         assert inspected["follow_through"] == "deferred_daily_draft_limit"
         assert len(life.store.evaluations(project.project_id)) == 1
         assert life._project(project.project_id).status is ProjectStatus.ACTIVE
 
         next_day = now + timedelta(days=1)
-        revised = life.tick(now=next_day, generate=generator)
+        revised = life.tick(now=life_clock.at(next_day), generate=generator)
         assert revised["follow_through"] == "revision_scheduled"
         assert revised["scheduled"] == 1
         assert "text_contains:Foxfire" in attempts[-1]
@@ -129,7 +151,7 @@ def test_life_revises_failed_original_text_after_daily_budget_reset(tmp_path):
         assert len(jobs) == 2
         assert wait_for_job(life, jobs[-1]).status is WorkStatus.COMPLETED
 
-        completed = life.tick(now=next_day + timedelta(seconds=8), generate=generator)
+        completed = life.tick(now=life_clock.at(next_day + timedelta(seconds=8)), generate=generator)
         assert completed["follow_through"] == "independently_completed"
         assert life._project(project.project_id).status is ProjectStatus.COMPLETED
         assert len(life.store.evaluations(project.project_id)) == 2
@@ -206,14 +228,19 @@ def test_life_corrupt_artifact_does_not_revise_or_complete(tmp_path):
         life.close()
 
 
-def test_life_restart_recovers_completed_artifact_and_finishes_once(tmp_path):
-    life, _goals, now = infrastructure(tmp_path)
+@pytest.mark.parametrize("start", [
+    datetime(2026, 9, 29, 12, tzinfo=timezone.utc),
+    datetime(2026, 9, 29, 23, 59, 55, tzinfo=timezone.utc),
+])
+def test_life_restart_recovers_completed_artifact_and_finishes_once(tmp_path, life_clock, start):
+    life_clock.at(start)
+    life, _goals, now = infrastructure(tmp_path, clock=life_clock)
     project = typed_active_project(
         life, now, objectives=("text_contains:Foxfire",),
     )
     try:
         life.tick(
-            now=now + timedelta(seconds=3),
+            now=life_clock.at(now + timedelta(seconds=3)),
             generate=lambda request: _draft(
                 "Foxfire climbed the eastern hill, marking a tiny imaginary "
                 "border in an original story about learning new places."
@@ -223,9 +250,10 @@ def test_life_restart_recovers_completed_artifact_and_finishes_once(tmp_path):
     finally:
         life.close()
 
-    restarted, _goals, _ = infrastructure(tmp_path)
+    life_clock.at(now + timedelta(minutes=1))
+    restarted, _goals, _ = infrastructure(tmp_path, clock=life_clock)
     try:
-        completed = restarted.tick(now=now + timedelta(minutes=1))
+        completed = restarted.tick(now=life_clock.at(now + timedelta(minutes=1)))
         assert completed["follow_through"] == "independently_completed"
         assert restarted._project(project.project_id).status is ProjectStatus.COMPLETED
         assert len(restarted.store.jobs(project.project_id)) == 1
@@ -306,18 +334,18 @@ def test_background_draft_respects_operator_stop_during_model(tmp_path):
         life.close()
 
 
-def test_revision_abstains_if_goal_pauses_during_generator(tmp_path):
+def test_revision_abstains_if_goal_pauses_during_generator(tmp_path, life_clock):
     """The old completed artifact is retained; no new RUN effect is minted."""
     from sofia.core.goals import GoalStatus, SOFIA_GOAL_OWNER_ID
     from sofia.core.social.principals import local_sparks_principal
 
-    life, goals, now = infrastructure(tmp_path)
+    life, goals, now = infrastructure(tmp_path, clock=life_clock)
     project = typed_active_project(
         life, now, objectives=("text_contains:Foxfire",),
     )
     try:
         first = life.tick(
-            now=now + timedelta(seconds=3),
+            now=life_clock.at(now + timedelta(seconds=3)),
             generate=lambda _request: _draft(
                 "The ordinary moon illuminated a little imaginary valley "
                 "without the required named experimental phenomenon."
@@ -329,7 +357,7 @@ def test_revision_abstains_if_goal_pauses_during_generator(tmp_path):
         # A new model candidate is available but the same-day draft budget
         # already belongs to the first attempt, so no generator may run.
         initial_review = life.tick(
-            now=now + timedelta(seconds=7),
+            now=life_clock.at(now + timedelta(seconds=7)),
             generate=lambda _request: _draft("Unauthorized same-day second revision"),
         )
         assert initial_review["follow_through"] == "deferred_daily_draft_limit"
@@ -354,7 +382,7 @@ def test_revision_abstains_if_goal_pauses_during_generator(tmp_path):
                 "second creative story, but its grant was revoked."
             )
 
-        result = life.tick(now=next_day, generate=pause_during_revision)
+        result = life.tick(now=life_clock.at(next_day), generate=pause_during_revision)
         assert result["follow_through"] == "revision_authority_changed"
         assert result["scheduled"] == 0
         assert life.store.jobs(project.project_id) == (original_job,)
@@ -425,5 +453,101 @@ def test_life_completed_receipt_must_match_original_sha_and_size(tmp_path, monke
         reviewed = life.tick(now=now + timedelta(minutes=2))
         assert reviewed["follow_through"] == "independently_completed"
         assert life._project(project.project_id).status is ProjectStatus.COMPLETED
+    finally:
+        life.close()
+
+
+@pytest.mark.parametrize("before,after,new_day", [
+    (
+        datetime(2026, 9, 29, 23, 59, 59, tzinfo=timezone.utc),
+        datetime(2026, 9, 30, 0, 0, 0, tzinfo=timezone.utc),
+        True,
+    ),
+    # Same Chicago calendar date, but a new UTC quota day.
+    (
+        datetime(2026, 9, 29, 18, 59, 59, tzinfo=ZoneInfo("America/Chicago")),
+        datetime(2026, 9, 29, 19, 0, 0, tzinfo=ZoneInfo("America/Chicago")),
+        True,
+    ),
+    # A local midnight is not a reset when UTC is still on the same date.
+    (
+        datetime(2026, 9, 29, 23, 59, 59, tzinfo=ZoneInfo("America/Chicago")),
+        datetime(2026, 9, 30, 0, 0, 0, tzinfo=ZoneInfo("America/Chicago")),
+        False,
+    ),
+    # Spring-forward and repeated fall-back hours cannot mint another slot.
+    (
+        datetime(2026, 3, 8, 1, 59, 59, tzinfo=ZoneInfo("America/Chicago")),
+        datetime(2026, 3, 8, 3, 0, 0, tzinfo=ZoneInfo("America/Chicago")),
+        False,
+    ),
+    (
+        datetime(2026, 11, 1, 1, 59, 59, tzinfo=ZoneInfo("America/Chicago"), fold=0),
+        datetime(2026, 11, 1, 1, 0, 0, tzinfo=ZoneInfo("America/Chicago"), fold=1),
+        False,
+    ),
+])
+def test_daily_draft_admission_uses_utc_across_local_and_restart_boundaries(
+    canonical_state_path, before, after, new_day,
+):
+    from sofia.core.life.store import LifeStore
+
+    store = LifeStore(canonical_state_path)
+    assert store.claim_daily_draft_attempt("project:clock-boundary", now=before)
+    assert not store.claim_daily_draft_attempt("project:clock-boundary", now=before)
+    # Reopening the canonical store must preserve the spent UTC-day slot.
+    restarted = LifeStore(canonical_state_path)
+    assert restarted.has_daily_draft_attempt("project:clock-boundary", now=after) is not new_day
+    assert restarted.claim_daily_draft_attempt("project:clock-boundary", now=after) is new_day
+    assert not restarted.claim_daily_draft_attempt("project:clock-boundary", now=after)
+    # Re-expressing exactly the same instant in UTC must not change admission.
+    assert restarted.has_daily_draft_attempt(
+        "project:clock-boundary", now=after.astimezone(timezone.utc),
+    )
+
+
+def test_daily_draft_admission_rejects_host_local_naive_timestamps(canonical_state_path):
+    from sofia.core.life.store import LifeStore
+
+    store = LifeStore(canonical_state_path)
+    for operation in (store.claim_daily_draft_attempt, store.has_daily_draft_attempt):
+        with pytest.raises(ValueError, match="timezone-aware"):
+            operation("project:clock-boundary", now=datetime(2026, 9, 29, 23, 59, 59))
+
+
+def test_delayed_receipt_reconciliation_at_midnight_uses_next_utc_day(tmp_path, life_clock):
+    life_clock.at(datetime(2026, 9, 29, 23, 59, 56, tzinfo=timezone.utc))
+    life, _goals, now = infrastructure(tmp_path, clock=life_clock)
+    project = typed_active_project(life, now, objectives=("text_contains:Foxfire",))
+    attempts = []
+
+    def generator(request):
+        attempts.append(request)
+        return _draft(
+            "An original moonlit valley contains no required named phenomenon."
+            if len(attempts) == 1 else
+            "Foxfire outlines a second original map of the imaginary valley."
+        )
+
+    try:
+        started = life.tick(now=life_clock.at(now + timedelta(seconds=3)), generate=generator)
+        assert started["scheduled"] == 1
+        first = wait_for_job(life, life.store.jobs(project.project_id)[0])
+        assert first.status is WorkStatus.COMPLETED
+        receipt = life.evidence_index.lookup(first.result["evidence_ref"])
+        assert receipt is not None and receipt.successful is True
+        assert receipt.observed_at == datetime(2026, 9, 29, 23, 59, 59, tzinfo=timezone.utc)
+        # Real capability bytes already exist; delayed reconciliation happens
+        # at exactly midnight, so the new UTC-day revision is now eligible.
+        reviewed = life.tick(now=life_clock.at(now + timedelta(seconds=4)), generate=generator)
+        assert reviewed["follow_through"] == "revision_scheduled"
+        assert reviewed["scheduled"] == 1
+        assert len(life.store.jobs(project.project_id)) == 2
+        second = wait_for_job(life, life.store.jobs(project.project_id)[-1])
+        assert second.status is WorkStatus.COMPLETED
+        completed = life.tick(now=life_clock.at(now + timedelta(seconds=5)), generate=generator)
+        assert completed["follow_through"] == "independently_completed"
+        assert life._project(project.project_id).status is ProjectStatus.COMPLETED
+        assert len(attempts) == 2
     finally:
         life.close()
