@@ -76,6 +76,7 @@ ISOLATED_MODULES: tuple[str, ...] = (
     "sofia.platform.state.platform",
     "sofia.platform.core_link",
     "sofia.platform.core_link.binding",
+    "sofia.platform.core_link.rust_authority",
     "sofia.platform.core_link.access",
     "sofia.platform.core_link.transport",
     "sofia.platform.launcher",
