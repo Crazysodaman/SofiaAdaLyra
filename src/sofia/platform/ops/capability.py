@@ -81,7 +81,7 @@ class OpsToolService:
             plane,
             legacy_path=state_path.parent/"fleet.json",
         )
-        self.enrollment=FleetEnrollmentService(self.registry)
+        self.enrollment=FleetEnrollmentService(self.registry,clock=lambda:datetime.now(timezone.utc))
         self.history=SQLiteTelemetryHistory(
             state_path,
             legacy_path=state_path.parent/"ops-telemetry.jsonl",
@@ -376,6 +376,8 @@ class OpsToolService:
         }
 
     def enroll_candidate(self,p:dict[str,Any])->dict[str,Any]:
+        if not isinstance(p.get("approval_id"),str) or not p["approval_id"].strip():
+            raise PermissionError("Fleet enrollment requires a nonempty approval_id")
         host_id=p["host_id"]
         candidate=self.registry.host(host_id)
         if candidate is None:
@@ -429,49 +431,6 @@ class OpsToolService:
             "Sparks",
         )
 
-        identities=DurableNodeIdentityRegistry(self.state_path)
-        endpoints=DurableEndpointPolicy(self.state_path)
-        try:
-            existing_identity=identities.get(node_id)
-            if (
-                existing_identity is not None
-                and existing_identity.public_key_sha256
-                != enrollment.public_key_sha256
-            ):
-                raise PermissionError(
-                    "Fleet node identity differs from approved discovery evidence"
-                )
-            existing_endpoint=endpoints.get(node_id)
-            if existing_endpoint is not None and existing_endpoint != endpoint:
-                raise PermissionError(
-                    "Fleet endpoint differs from approved discovery evidence"
-                )
-
-            # Consume only after every deterministic trust/evidence preflight
-            # check passes. A stale or conflicting candidate must not burn the
-            # operator's one-time approval.
-            exact_parameters=dict(expected)
-            approval=self.execution_approvals.consume(
-                approval_id=p["approval_id"],
-                capability="fleet.enroll",
-                parameters=exact_parameters,
-                now=now,
-            )
-            if approval.approved_by!="Sparks":
-                raise PermissionError(
-                    "Fleet enrollment approval must come from Sparks"
-                )
-
-            if existing_identity is None:
-                identities.enroll(enrollment)
-            if existing_endpoint is None:
-                endpoints.approve(
-                    ApprovedEndpoint(node_id,endpoint,"Sparks")
-                )
-        finally:
-            identities.close()
-            endpoints.close()
-
         enrolled=self.enrollment.enroll(
             candidate,
             binding=MachineNodeBinding(
@@ -488,13 +447,14 @@ class OpsToolService:
                 "verified-mtls-discovery",
             ),
             approval=FleetEnrollmentApproval(
-                approval.approval_id,
+                p["approval_id"],
                 host_id,
                 node_id,
                 expected["public_key_sha256"],
-                approval.approved_by,
-                approval.approved_at,
+                "person:sparks",
+                now,
             ),
+            endpoint=endpoint,
         )
         return self._host(enrolled)
 

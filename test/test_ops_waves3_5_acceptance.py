@@ -68,7 +68,7 @@ def test_maintenance_is_typed_and_respects_no_reboot_pin():
     policy.require(service)
 
 
-def test_authenticated_enrollment_binds_machine_node_and_peer_key():
+def test_label_only_enrollment_cannot_promote_an_in_memory_candidate():
     node_id=uuid4()
     pin="a"*64
     enrollment=NodeEnrollment(DistributedNode(node_id,"venus-node"),pin,NOW,"Sparks")
@@ -84,16 +84,16 @@ def test_authenticated_enrollment_binds_machine_node_and_peer_key():
         "Sparks",
         NOW,
     )
-    enrolled=FleetEnrollmentService(registry).enroll(
-        candidate,
-        binding=binding,
-        enrollment=enrollment,
-        peer=peer,
-        approval=approval,
-    )
-    assert enrolled.trusted
-    assert enrolled.lifecycle is HostLifecycle.ENROLLED
-    assert enrolled.node_id == node_id
+    with pytest.raises(PermissionError,match="canonical transactional"):
+        FleetEnrollmentService(registry).enroll(
+            candidate,
+            binding=binding,
+            enrollment=enrollment,
+            peer=peer,
+            approval=approval,
+        )
+    assert not candidate.trusted
+    assert candidate.lifecycle is HostLifecycle.CANDIDATE
 
 def test_authenticated_enrollment_rejects_wrong_peer_key():
     node_id=uuid4()

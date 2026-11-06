@@ -20,6 +20,7 @@ class DurableEndpointPolicy:
         if str(state_path) == ":memory:":
             raise ValueError("in-memory storage is not durable")
         target = Path(state_path)
+        self._database_path = target.resolve()
         if not target.parent.exists():
             raise FileNotFoundError("endpoint policy database parent must exist")
         self._db = sqlite3.connect(target, timeout=3.0)
@@ -41,16 +42,38 @@ class DurableEndpointPolicy:
             raise TypeError("approval must be an ApprovedEndpoint")
         try:
             with self._db:
-                self._db.execute(
-                    """INSERT INTO approved_remote_endpoint
-                       (node_id, hostname, port, transport, approved_by)
-                       VALUES (?, ?, ?, ?, ?)""",
-                    (str(approval.node_id), approval.endpoint.hostname,
-                     approval.endpoint.port, approval.endpoint.transport.value,
-                     approval.approved_by),
-                )
+                self._db.execute("BEGIN IMMEDIATE")
+                self._approve_in_transaction(self._db, approval)
         except sqlite3.IntegrityError as exc:
             raise ValueError("node endpoint already recorded; revoke does not permit ID reuse") from exc
+
+    def _approve_in_transaction(self, db: sqlite3.Connection, approval: ApprovedEndpoint) -> None:
+        self._require_transaction(db)
+        if not isinstance(approval, ApprovedEndpoint):
+            raise TypeError("approval must be an ApprovedEndpoint")
+        db.execute(
+            """INSERT INTO approved_remote_endpoint
+               (node_id, hostname, port, transport, approved_by)
+               VALUES (?, ?, ?, ?, ?)""",
+            (str(approval.node_id), approval.endpoint.hostname,
+             approval.endpoint.port, approval.endpoint.transport.value,
+             approval.approved_by),
+        )
+
+    def _get_in_transaction(self, db: sqlite3.Connection, node_id: UUID) -> NodeEndpoint | None:
+        self._require_transaction(db)
+        row=db.execute("SELECT hostname, port, transport, revoked FROM approved_remote_endpoint WHERE node_id=?",(str(node_id),)).fetchone()
+        if row is None:
+            return None
+        if row[3]:
+            raise PermissionError("revoked node endpoint cannot be reused")
+        return NodeEndpoint(row[0],int(row[1]),NodeTransport(row[2]))
+
+    def _require_transaction(self, db: sqlite3.Connection) -> None:
+        databases = db.execute("PRAGMA database_list").fetchall()
+        main = next((row[2] for row in databases if row[1] == "main"), "")
+        if not db.in_transaction or not main or Path(main).resolve() != self._database_path:
+            raise RuntimeError("endpoint mutation requires its own database transaction")
 
     def revoke(self, node_id: UUID) -> None:
         if not isinstance(node_id, UUID):

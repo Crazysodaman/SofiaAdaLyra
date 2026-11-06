@@ -21,6 +21,7 @@ class DurableNodeIdentityRegistry:
         if str(database_path) == ":memory:":
             raise ValueError("in-memory enrollment is not durable")
         target = Path(database_path)
+        self._database_path = target.resolve()
         if not target.parent.exists():
             raise FileNotFoundError("identity database parent directory must exist")
         self._db = sqlite3.connect(target, timeout=3.0)
@@ -42,16 +43,38 @@ class DurableNodeIdentityRegistry:
             raise TypeError("enrollment must be a NodeEnrollment")
         try:
             with self._db:
-                self._db.execute(
-                    """INSERT INTO distributed_node_identity
-                       (node_id, name, public_key_sha256, provisioned_at, recorded_by)
-                       VALUES (?, ?, ?, ?, ?)""",
-                    (str(enrollment.node.node_id), enrollment.node.name,
-                     enrollment.public_key_sha256,
-                     enrollment.provisioned_at.isoformat(), enrollment.recorded_by),
-                )
+                self._db.execute("BEGIN IMMEDIATE")
+                self._enroll_in_transaction(self._db, enrollment)
         except sqlite3.IntegrityError as exc:
             raise ValueError("node ID or public-key pin is already recorded") from exc
+
+    def _enroll_in_transaction(self, db: sqlite3.Connection, enrollment: NodeEnrollment) -> None:
+        self._require_transaction(db)
+        if not isinstance(enrollment, NodeEnrollment):
+            raise TypeError("enrollment must be a NodeEnrollment")
+        db.execute(
+            """INSERT INTO distributed_node_identity
+               (node_id, name, public_key_sha256, provisioned_at, recorded_by)
+               VALUES (?, ?, ?, ?, ?)""",
+            (str(enrollment.node.node_id), enrollment.node.name,
+             enrollment.public_key_sha256,
+             enrollment.provisioned_at.isoformat(), enrollment.recorded_by),
+        )
+
+    def _get_in_transaction(self, db: sqlite3.Connection, node_id: UUID) -> NodeEnrollment | None:
+        self._require_transaction(db)
+        row=db.execute("SELECT name, public_key_sha256, provisioned_at, recorded_by, retired FROM distributed_node_identity WHERE node_id=?",(str(node_id),)).fetchone()
+        if row is None:
+            return None
+        if row[4]:
+            raise PermissionError("retired node identity cannot be reused")
+        return NodeEnrollment(DistributedNode(node_id,row[0]),row[1],datetime.fromisoformat(row[2]),row[3])
+
+    def _require_transaction(self, db: sqlite3.Connection) -> None:
+        databases = db.execute("PRAGMA database_list").fetchall()
+        main = next((row[2] for row in databases if row[1] == "main"), "")
+        if not db.in_transaction or not main or Path(main).resolve() != self._database_path:
+            raise RuntimeError("identity mutation requires its own database transaction")
 
     def get(self, node_id: UUID) -> NodeEnrollment | None:
         if not isinstance(node_id, UUID):
