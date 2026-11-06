@@ -58,13 +58,20 @@ def test_installed_adapter_bounds_parent_control_and_closes_on_eof(tmp_path, ser
         '--identity-home', str(identity.home), '--state', str(state),
         '--platform-id', current.identity.canonical_uuid, '--public-key-sha256', current.public_key_sha256,
         '--supervisor-pid', str(os.getpid())]
+    env = os.environ.copy()
+    if os.name == 'nt':
+        base = subprocess.run([str(python), '-I', '-c', 'import sys; print(sys._base_executable)'],
+            capture_output=True, text=True, check=True, timeout=15).stdout.strip()
+        args[0] = base
+        env['__PYVENV_LAUNCHER__'] = str(python)
     request = json.dumps(dict(schema='aegis.platform.service-control.v1', sequence=1,
         generation=2 if mode == 'wrong_generation' else 1, operation='status'))+'\n'
     result = subprocess.run(args, input='' if mode == 'eof' else request*2,
-        capture_output=True, text=True, timeout=15)
+        capture_output=True, text=True, timeout=15, env=env)
     assert result.returncode == (0 if mode == 'eof' else 2), result.stderr
     replies = [json.loads(value) for value in result.stdout.splitlines()]
     assert replies[0]['phase'] == 'ready'
+    assert replies[0]['supervisor_pid'] == os.getpid()
     assert len(replies) == (2 if mode == 'replay' else 1)
     assert 'Traceback' not in result.stderr
 

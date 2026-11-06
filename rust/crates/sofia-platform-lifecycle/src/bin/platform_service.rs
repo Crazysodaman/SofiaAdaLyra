@@ -4,7 +4,9 @@ use serde::Deserialize;
 use serde_json::json;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::PathBuf;
-use std::process::{Child, ChildStdin, Command, Stdio};
+#[cfg(not(windows))]
+use std::process::Command;
+use std::process::{Child, ChildStdin, Stdio};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     mpsc, Arc,
@@ -92,6 +94,9 @@ struct Worker {
 }
 impl Worker {
     fn start(config: &Configuration) -> Result<Self, Failure> {
+        #[cfg(windows)]
+        let mut command = interpreter::command(&config.python)?;
+        #[cfg(not(windows))]
         let mut command = Command::new(&config.python);
         command
             .args([
@@ -296,6 +301,10 @@ fn console(config: &Configuration) -> Result<(), Failure> {
     }
     result
 }
+
+#[cfg(windows)]
+#[path = "../service_interpreter.rs"]
+mod interpreter;
 
 #[cfg(windows)]
 #[path = "../service_windows.rs"]

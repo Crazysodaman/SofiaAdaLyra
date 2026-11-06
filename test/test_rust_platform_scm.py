@@ -45,12 +45,13 @@ receipt.write_text(json.dumps(identity.to_payload()))
 ''')
     task = 'Aegis-Test-'+uuid4().hex
     ps = tmp_path/'task.ps1'
-    ps.write_text('''param($TaskName, $Python, $Arguments)
+    ps.write_text('''param($Configuration)
 $ErrorActionPreference = 'Stop'
-$action = New-ScheduledTaskAction -Execute $Python -Argument $Arguments
+$settings = Get-Content -LiteralPath $Configuration -Raw | ConvertFrom-Json
+$action = New-ScheduledTaskAction -Execute $settings.python -Argument $settings.arguments
 $principal = New-ScheduledTaskPrincipal -UserId SYSTEM -LogonType ServiceAccount -RunLevel Highest
-Register-ScheduledTask -TaskName $TaskName -Action $action -Principal $principal | Out-Null
-Start-ScheduledTask -TaskName $TaskName
+Register-ScheduledTask -TaskName $settings.task -Action $action -Principal $principal | Out-Null
+Start-ScheduledTask -TaskName $settings.task
 ''')
     manager = win32service.OpenSCManager(None, None, win32service.SC_MANAGER_ALL_ACCESS)
     service = None
@@ -64,8 +65,10 @@ Start-ScheduledTask -TaskName $TaskName
             win32service.CloseServiceHandle(existing)
             pytest.fail('AegisPlatform already exists; refusing to modify it')
         arguments = subprocess.list2cmdline(['-I', str(bootstrap), str(state_root), str(receipt)])
+        config = tmp_path/'task.json'
+        config.write_text(json.dumps(dict(task=task, python=str(python), arguments=arguments)))
         registration = subprocess.run(['powershell', '-NoProfile', '-NonInteractive', '-File', str(ps),
-            task, str(python), arguments], capture_output=True, text=True, timeout=30)
+            str(config)], capture_output=True, text=True, timeout=30)
         assert registration.returncode == 0, registration.stderr[:4096]
         deadline = time.monotonic()+30
         while not receipt.exists():

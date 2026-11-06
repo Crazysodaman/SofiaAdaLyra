@@ -96,14 +96,17 @@ def main(argv=None):
     parser.add_argument('--public-key-sha256', required=True)
     parser.add_argument('--supervisor-pid', type=int, required=True)
     args = parser.parse_args(argv)
+    stage = 'parent'
     try:
         if args.supervisor_pid <= 0 or os.getppid() != args.supervisor_pid:
             raise PermissionError('service parent differs')
+        stage = 'state'
         with PlatformServiceSession(args.identity_home, args.state, args.platform_id,
                                     args.public_key_sha256) as session:
             print(json.dumps(dict(schema=SCHEMA, phase='ready', pid=os.getpid(),
                 supervisor_pid=os.getppid(), **session.status())), flush=True)
             sequence = 0
+            stage = 'control'
             while True:
                 raw = sys.stdin.buffer.readline(4097)
                 if not raw:
@@ -123,8 +126,8 @@ def main(argv=None):
                     phase='stopped' if request['operation'] == 'shutdown' else 'healthy', **result)), flush=True)
                 if request['operation'] == 'shutdown':
                     return 0
-    except (OSError, RuntimeError, ValueError, TypeError, sqlite3.Error):
-        print('Platform service authority unavailable', file=sys.stderr)
+    except (OSError, RuntimeError, ValueError, TypeError, sqlite3.Error) as error:
+        print(f'Platform service authority unavailable ({stage}: {type(error).__name__})', file=sys.stderr)
         return 2
 
 

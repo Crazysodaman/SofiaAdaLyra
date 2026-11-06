@@ -60,3 +60,16 @@ tested with fresh private files; no rendering policy or entry point is removed.
 The RUN epoch is retained in existing LOCL state. Whole-state rollback across
 restarts still needs the independently retained release/recovery checkpoint
 composition; this batch does not certify rollback-resistant service recovery.
+
+Windows CPython venv executables are redirectors: CPython 3.12 PC/launcher.c
+creates another process and passes __PYVENV_LAUNCHER__. The service reads the
+bounded, nonredirected local pyvenv.cfg home, launches that base python.exe
+itself and sets the same venv selector. This preserves both the selected
+installed environment and exact OS parent/child PID proof. It does not relax
+the parent check or accept a claimed launcher identity. UNC/device, relative,
+redirected and ambiguous interpreter configurations fail closed.
+
+A binary compiled on a newer Linux distribution is not a Debian12 artifact:
+the local Debian13-built binary was observed failing on Debian12 with
+GLIBC_2.39 missing. Release artifact construction must use the Debian12 ABI
+baseline (and execute the produced bytes there), not relabel newer-host output.
