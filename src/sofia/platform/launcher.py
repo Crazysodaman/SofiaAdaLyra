@@ -64,8 +64,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             store = InstallationIdentityStore(args.home)
             identity = store.initialize() if args.command == "identity-init" else store.load()
             payload = identity.to_payload()
-            if args.command == "identity-init":
-                payload["bootstrap"] = {"callsign": "UNASSIGNED", "selected_core": None}
             print(json.dumps(payload, sort_keys=True))
             return 0
 

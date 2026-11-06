@@ -20,8 +20,9 @@ Setting `AEGIS_PLATFORM_IDENTITY_HOME` explicitly selects this identity for
 Platform status and the Core-worker Platform instance ID. An independently set
 `SOFIA_PLATFORM_INSTANCE_ID` must match its canonical UUID. Without the new
 setting, existing profiles retain their existing behavior. Status does not
-create state. The bootstrap presentation starts with UNASSIGNED and no selected
-Core; it does not represent a persistent callsign registry or Core Link state.
+create state. Initialization allocates identity only: it neither selects a Core
+nor reserves a callsign. Output makes no claim about separate naming or Core
+Link state, including when an existing identity is reopened.
 
 The local self-signature binds the manifest to its private key within the
 owner-private filesystem boundary. It is not external enrollment evidence.

@@ -114,7 +114,9 @@ def test_cli_public_bootstrap_and_show(tmp_path, capsys):
     home = tmp_path / 'identity'
     assert main(['identity-init', '--home', str(home)]) == 0
     created = json.loads(capsys.readouterr().out)
-    assert created.pop('bootstrap') == {'callsign': 'UNASSIGNED', 'selected_core': None}
+    assert 'bootstrap' not in created
+    assert 'selected_core' not in created
+    assert 'callsign' not in created
     assert main(['identity-show', '--home', str(home)]) == 0
     assert json.loads(capsys.readouterr().out) == created
 
