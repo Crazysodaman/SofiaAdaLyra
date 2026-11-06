@@ -269,7 +269,7 @@
     },
     {
       "id": "CA-1207",
-      "source": "src/sofia/core/cognition/llm_engine.py",
+      "source": "src/sofia/platform/core_worker/engines.py",
       "source_anchor": "class LLMCognitiveEngine",
       "related_test": "test/test_default_runtime_provider_boundary.py",
       "observed_source": "Typed provider error boundary exists",
