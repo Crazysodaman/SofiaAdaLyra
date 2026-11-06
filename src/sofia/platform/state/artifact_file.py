@@ -45,4 +45,3 @@ def read_artifact_file(path, size, *, include_data=False):
         (after.st_dev,after.st_ino,after.st_size,after.st_mtime_ns)):
         raise ArtifactFileRejected('asset changed during verification')
     return digest.hexdigest(), None if pieces is None else b"".join(pieces)
-
