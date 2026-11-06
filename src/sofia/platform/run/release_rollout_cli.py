@@ -19,7 +19,7 @@ from sofia.platform.run.release_rollout import (
     RemoteFleetReleaseOperator,
     RolloutRing,
 )
-from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
+from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier, OWNER_PRINCIPAL_ID
 from sofia.platform.state.factory import create_state_plane
 
 
@@ -47,8 +47,11 @@ def _temporary_release_grants(
     node_ids: tuple[str, ...],
     *,
     now: datetime,
+    approved_by: str,
 ):
-    """Materialize exact node/operation grants derived from one Sparks approval."""
+    """Materialize exact grants attributed to the consumed owner principal."""
+    if approved_by != OWNER_PRINCIPAL_ID:
+        raise PermissionError("release grants require the consumed owner principal")
     store = DurableRemoteAuthorization(state_path)
     grants = []
     try:
@@ -65,7 +68,7 @@ def _temporary_release_grants(
                     node_id,
                     capability,
                     operation,
-                    "Sparks",
+                    approved_by,
                     now + timedelta(minutes=15),
                 )
                 store.add_approved_grant(grant)
@@ -131,8 +134,8 @@ def main(argv: list[str] | None = None) -> int:
             parameters=exact,
             now=now,
         )
-        if approval.approved_by != "Sparks":
-            raise PermissionError("release rollout approval must come from Sparks")
+        if approval.principal_id != OWNER_PRINCIPAL_ID:
+            raise PermissionError("release rollout approval must come from the verified owner")
 
         remote = create_configured_remote_fleet_service(state_path)
         if remote is None:
@@ -152,6 +155,7 @@ def main(argv: list[str] | None = None) -> int:
             state_path,
             tuple(node_ids),
             now=now,
+            approved_by=approval.principal_id,
         ):
             result = ReleaseRolloutCoordinator(
                 state_plane=plane,

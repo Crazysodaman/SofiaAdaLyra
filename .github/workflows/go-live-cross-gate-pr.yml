@@ -123,3 +123,5 @@ jobs:
 
 # Focused cross-gate contracts only. NOT an installed-wheel release certificate,
 # host migration rehearsal or full G7-A cognition-to-learning acceptance trace.
+      - name: Verify canonical owner proofs at migration and rollout boundaries
+        run: python -m pytest -q test/test_ops_verified_owner_principal.py test/test_ops_workload_migration_grants.py test/test_ops_workload_migration_execution.py test/test_run_release_rollout.py test/test_release_rollout_permissions.py

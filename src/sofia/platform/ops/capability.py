@@ -18,7 +18,7 @@ from sofia.platform.distributed.model import (
     NodeEnrollment,
     NodeTransport,
 )
-from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
+from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier, OWNER_PRINCIPAL_ID
 from sofia.platform.resources import (
     CapabilityFact,
     EvidenceClass,
@@ -811,12 +811,12 @@ class OpsToolService:
             parameters=exact,
             now=now,
         )
-        if approval.approved_by!="Sparks":
-            raise PermissionError("migration execution approval must come from Sparks")
+        if approval.principal_id != OWNER_PRINCIPAL_ID:
+            raise PermissionError("migration execution approval must come from the verified owner")
         with temporary_migration_remote_grants(
             state_path=self.state_path,
             specs=grant_specs,
-            approved_by=approval.approved_by,
+            approved_by=approval.principal_id,
             now=now,
         ):
             result=self.migration_executor.execute(plan)
