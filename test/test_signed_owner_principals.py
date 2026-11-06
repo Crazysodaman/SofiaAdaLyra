@@ -120,3 +120,24 @@ def test_dev_operator_cli_uses_stable_default_and_retains_legacy(tmp_path, capsy
     consumed = verifier.consume(approval_id=result['approval_id'], operation=approval().operation,
         proposal_id='code-1', parameters={'proposal_id': 'code-1'}, now=datetime.now(timezone.utc))
     assert consumed.approved_by == result['approved_by']
+
+
+def test_dev_consumption_refuses_unsupported_actor_in_validly_signed_row(tmp_path):
+    from hashlib import sha256
+    private, public = key_material()
+    path = bootstrap_canonical_sqlite(tmp_path / 'state.db')
+    verifier = DevApprovalVerifier(path, trusted_keys={'owner': public})
+    item = replace(approval(), approved_by='person:sparks')
+    verifier.record(item, signer_key_id='owner', signature=private.sign(dev_approval_signature_payload(item)))
+    changed = replace(item, approved_by='person:other')
+    signature = private.sign(dev_approval_signature_payload(changed))
+    with sqlite3.connect(path) as db:
+        db.execute('UPDATE safe_dev_approval SET approved_by=?, signature=?, signature_sha256=?',
+            (changed.approved_by, signature, sha256(signature).hexdigest()))
+    assert verifier.active_capabilities(now=NOW) == ()
+    with pytest.raises(PermissionError):
+        verifier.consume(approval_id=item.approval_id, operation=item.operation,
+            proposal_id=item.proposal_id, parameters={'proposal_id': item.proposal_id}, now=NOW)
+    with sqlite3.connect(path) as db:
+        assert db.execute('SELECT consumed_at FROM safe_dev_approval').fetchone()[0] is None
+        assert db.execute('SELECT count(*) FROM safe_audit_event').fetchone()[0] == 1
