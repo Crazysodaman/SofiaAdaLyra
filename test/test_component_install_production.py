@@ -66,7 +66,7 @@ def production_venv(tmp_path_factory, component_wheels) -> dict[str, object]:
          str(component_wheels["sdk"])])
     run(["-m", "pip", "install", "--disable-pip-version-check", "--no-deps",
          str(component_wheels["platform"])])
-    runtime_dependencies = ["cryptography", "tzdata"]
+    runtime_dependencies = ["cryptography", "tzdata", "ollama"]
     if sys.platform == "win32":
         runtime_dependencies.append("pywin32")
     run(["-m", "pip", "install", "--disable-pip-version-check",
@@ -274,3 +274,15 @@ def test_installed_generic_worker_runs_without_core(production_venv, tmp_path, k
     )
     assert completed.returncode == 0, completed.stdout + completed.stderr
     assert 'installed-worker-ok' in completed.stdout
+
+
+
+def test_installed_neutral_providers_without_core(production_venv):
+    from test.test_generic_cognition_providers import NEUTRAL_PROVIDER_PROBE
+
+    completed = subprocess.run(
+        [str(production_venv['python']), '-I', '-c', NEUTRAL_PROVIDER_PROBE],
+        cwd=str(production_venv['venv_root']), capture_output=True, text=True, timeout=60,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    assert 'generic-providers-ok' in completed.stdout

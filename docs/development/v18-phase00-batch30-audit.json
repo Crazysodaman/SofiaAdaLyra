@@ -189,7 +189,7 @@
     },
     {
       "id": "CA-1203",
-      "source": "src/sofia/core/cognition/budgets.py",
+      "source": "src/sofia/platform/cognition_budget.py",
       "source_anchor": "class ModelTokenBudget",
       "related_test": "test/test_cognitive_context_assembler.py",
       "observed_source": "Per-model route budgets are typed",
