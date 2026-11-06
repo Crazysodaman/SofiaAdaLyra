@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from hashlib import sha256
+from dataclasses import replace
 import json
 from pathlib import Path
 import zlib
@@ -200,6 +201,31 @@ def test_revoke_durable_private_authority_mid_session_clears_loaded_art(tmp_path
     )
     assert after.status == "public_fallback"
     after.bundle.close()
+
+
+@pytest.mark.parametrize("foreign_gateway", [False, True])
+def test_private_selection_cannot_transfer_between_gateways_or_be_reconstructed(
+    tmp_path, foreign_gateway,
+):
+    loader, bundle, state, _, private_root = gateway(tmp_path / "first")
+    write_bundle(private_root / "nude", audience="private", attire="nude", outfit_id=None)
+    enter_private_nude(bundle, state)
+    selected = loader.private(
+        principal=local_sparks_principal(), explicit_current_opt_in=True,
+    )
+    assert selected.status == "private"
+    if foreign_gateway:
+        checking_loader, other, other_state, _, _ = gateway(tmp_path / "second")
+        enter_private_nude(other, other_state)
+        assert other.authority.current.revision == bundle.authority.current.revision
+    else:
+        checking_loader = loader
+        selected = replace(selected)
+    assert not checking_loader.private_still_authorized(
+        selected, principal=local_sparks_principal(), explicit_current_opt_in=True,
+    )
+    assert selected.bundle is not None and selected.bundle.images == {}
+    assert (private_root / "nude" / "base" / "torso.png").read_bytes() == rgba_png()
 
 
 @pytest.mark.parametrize("relative", [

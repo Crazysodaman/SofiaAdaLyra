@@ -83,7 +83,7 @@ class SelfDirectedLifeCoordinator:
             raise TypeError("clock must be callable or None")
         self._clock = clock if clock is not None else (lambda: datetime.now(timezone.utc))
         self.path = Path(state_path)
-        self.store = LifeStore(self.path)
+        self.store = LifeStore(self.path, clock=self._now)
         self.hobby_store = HobbyStore(self.path)
         self.procedures = LifeProcedureCatalog(self.path)
         self.operator_stop = OperatorStopStore(self.path)

@@ -537,6 +537,16 @@ def test_delayed_receipt_reconciliation_at_midnight_uses_next_utc_day(tmp_path, 
         receipt = life.evidence_index.lookup(first.result["evidence_ref"])
         assert receipt is not None and receipt.successful is True
         assert receipt.observed_at == datetime(2026, 9, 29, 23, 59, 59, tzinfo=timezone.utc)
+        # The durable one-use authorization and independent effect receipt
+        # must share the same host execution clock, not mix in wall time.
+        from contextlib import closing
+        import sqlite3
+        with closing(sqlite3.connect(life.path)) as db:
+            finished = db.execute(
+                "SELECT finished_at FROM life_artifact_authorization WHERE status='completed'"
+            ).fetchone()
+        assert finished is not None
+        assert datetime.fromisoformat(finished[0]) == receipt.observed_at
         # Real capability bytes already exist; delayed reconciliation happens
         # at exactly midnight, so the new UTC-day revision is now eligible.
         reviewed = life.tick(now=life_clock.at(now + timedelta(seconds=4)), generate=generator)

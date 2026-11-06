@@ -17,9 +17,10 @@ from pathlib import Path, PurePosixPath
 import re
 import stat
 from typing import Mapping
+from weakref import WeakValueDictionary
 import zlib
 
-from sofia.core.social.model import PrincipalContext
+from sofia.sdk.principals import PrincipalContext
 
 from .presentation import (
     AttireMode, AudienceScope, PresentationAuthority, PresentationProjection,
@@ -202,7 +203,7 @@ class Verified2DArtBundle:
         self.close()
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, weakref_slot=True)
 class Avatar2DArtSelection:
     status: str  # public | private | public_fallback | unavailable
     projection: PresentationProjection
@@ -344,6 +345,12 @@ class Avatar2DAssetGateway:
         self._resolver = grant_resolver
         self._public_root = public_root
         self._private_root = private_root
+        # Frame revalidation belongs to the gateway that loaded the bytes.
+        # Equal presentation revisions in another Core/host are not provenance.
+        # Weak values avoid retaining discarded selections or private artwork.
+        self._private_selections: WeakValueDictionary[int, Avatar2DArtSelection] = (
+            WeakValueDictionary()
+        )
 
     def public(self, *, fallback: bool = False) -> Avatar2DArtSelection:
         projection = self._authority.projection(AudienceScope.PUBLIC)
@@ -445,9 +452,11 @@ class Avatar2DAssetGateway:
         ):
             bundle.close()
             return self.public(fallback=True)
-        return Avatar2DArtSelection(
+        selection = Avatar2DArtSelection(
             "private", projection, bundle, "authorized private presentation"
         )
+        self._private_selections[id(selection)] = selection
+        return selection
 
     def private_still_authorized(
         self,
@@ -456,11 +465,17 @@ class Avatar2DAssetGateway:
         principal: PrincipalContext | None,
         explicit_current_opt_in: bool,
     ) -> bool:
-        """Run immediately before each protected frame; clear on revocation."""
+        """Revalidate this gateway's exact selection before each private frame.
+
+        Reconstructed or other-gateway selections cannot borrow the current
+        host's grant. Failure clears loaded bytes without modifying artwork.
+        This is a host lifecycle check, not an in-process code sandbox.
+        """
         if selection.status != "private" or selection.bundle is None:
             return False
         valid = (
-            not selection.bundle._closed
+            self._private_selections.get(id(selection)) is selection
+            and not selection.bundle._closed
             and self._authority.current.private_only
             and self._authority.current.revision == selection.projection.source_revision
             and self._verified_grant(
@@ -469,5 +484,6 @@ class Avatar2DAssetGateway:
             ) is not None
         )
         if not valid:
+            self._private_selections.pop(id(selection), None)
             selection.bundle.close()
         return valid
