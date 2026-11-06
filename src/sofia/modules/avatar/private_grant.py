@@ -5,7 +5,7 @@ from pathlib import Path
 
 from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.platform.safe.permissions import PermissionStore
-from sofia.core.social.model import AudienceKind, PrincipalContext
+from sofia.sdk.principals import AudienceKind, PrincipalContext
 from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
 
 from .presentation import PrivatePresentationGrant
