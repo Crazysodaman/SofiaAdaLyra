@@ -1,4 +1,5 @@
 """Final Fleet removal requires exact authenticated owner authority."""
+from test.fleet_state_fixture import register_fixture_candidate
 from contextlib import closing
 from datetime import datetime, timedelta, timezone
 import sqlite3
@@ -25,7 +26,7 @@ from test.owner_auth_fixture import record_verified_owner_approval
 
 def _draining_registry(path, node_id=None):
     registry = StatePlaneFleetRegistry(SQLiteStatePlane(path))
-    registry.register_candidate(FleetHost(
+    register_fixture_candidate(registry, FleetHost(
         "worker", "linux", "x86_64", HostLifecycle.CANDIDATE, True,
         node_id=node_id,
     ))

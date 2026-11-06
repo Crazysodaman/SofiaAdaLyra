@@ -1,3 +1,4 @@
+from test.fleet_state_fixture import register_fixture_candidate, authenticate_fixture_candidate
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -26,7 +27,7 @@ NOW = datetime(2026, 10, 3, 15, 0, tzinfo=timezone.utc)
 
 def registry() -> FleetRegistry:
     result = FleetRegistry()
-    result.register_candidate(
+    register_fixture_candidate(result,
         FleetHost(
             host_id="artemis",
             platform="windows",
@@ -35,7 +36,7 @@ def registry() -> FleetRegistry:
             trusted=False,
         )
     )
-    result.authenticate_candidate("artemis", __import__("uuid").uuid4())
+    authenticate_fixture_candidate(result, "artemis", __import__("uuid").uuid4())
     result.transition("artemis", HostLifecycle.ENROLLED)
     result.transition("artemis", HostLifecycle.HEALTHY)
     return result

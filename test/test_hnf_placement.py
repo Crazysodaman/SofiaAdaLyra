@@ -1,4 +1,5 @@
 """HNF-07 hardware-neutral typed placement regressions."""
+from test.fleet_state_fixture import register_fixture_candidate, authenticate_fixture_candidate
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -145,13 +146,13 @@ def test_production_ops_uses_typed_inventory_and_not_host_names(
     observed_at = datetime.now(timezone.utc)
     service = OpsToolService(canonical_state_path)
     node_id = uuid4()
-    service.registry.register_candidate(FleetHost(
+    register_fixture_candidate(service.registry, FleetHost(
         "node:portable", "unknown", "unknown", HostLifecycle.CANDIDATE, False,
     ))
     service.registry.refine_candidate_identity(
         "node:portable", platform="linux", architecture="x86_64",
     )
-    service.registry.authenticate_candidate("node:portable", node_id)
+    authenticate_fixture_candidate(service.registry, "node:portable", node_id)
     service.registry.transition("node:portable", HostLifecycle.ENROLLED)
     service.registry.transition("node:portable", HostLifecycle.HEALTHY)
     service.hardware_inventory.record(

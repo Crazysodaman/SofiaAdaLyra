@@ -1,4 +1,5 @@
 from __future__ import annotations
+from test.fleet_state_fixture import register_fixture_candidate, authenticate_fixture_candidate
 
 from datetime import datetime,timedelta,timezone
 from ipaddress import ip_address
@@ -238,10 +239,10 @@ def test_production_fleet_service_verifies_only_exact_host_observed_dispatch(tmp
     registry=StatePlaneFleetRegistry(
         SQLiteStatePlane(state_path),legacy_path=state_path.parent/"fleet.json",
     )
-    registry.register_candidate(FleetHost(
+    register_fixture_candidate(registry, FleetHost(
         "venus","unknown","unknown",HostLifecycle.CANDIDATE,False,
     ))
-    registry.authenticate_candidate("venus",node_id)
+    authenticate_fixture_candidate(registry, "venus",node_id)
     registry.transition("venus",HostLifecycle.ENROLLED)
 
     dispatcher=RemoteAgentDispatcher()
@@ -324,10 +325,10 @@ def test_goals_safe_reconciles_real_mtls_host_observation_after_lost_response(tm
     registry=StatePlaneFleetRegistry(
         SQLiteStatePlane(state_path),legacy_path=state_path.parent/"fleet.json",
     )
-    registry.register_candidate(FleetHost(
+    register_fixture_candidate(registry, FleetHost(
         "venus","unknown","unknown",HostLifecycle.CANDIDATE,False,
     ))
-    registry.authenticate_candidate("venus",node_id)
+    authenticate_fixture_candidate(registry, "venus",node_id)
     registry.transition("venus",HostLifecycle.ENROLLED)
     dispatcher=RemoteAgentDispatcher()
     dispatcher.register(
@@ -491,10 +492,10 @@ def test_operator_provisions_exact_node_endpoint_grant_and_retirement(tmp_path:P
         SQLiteStatePlane(state_path),
         legacy_path=state_path.parent/"fleet.json",
     )
-    registry.register_candidate(FleetHost(
+    register_fixture_candidate(registry, FleetHost(
         "venus","unknown","unknown",HostLifecycle.CANDIDATE,False
     ))
-    registry.authenticate_candidate("venus",node_id)
+    authenticate_fixture_candidate(registry, "venus",node_id)
     registry.transition("venus",HostLifecycle.ENROLLED)
 
     service=RemoteFleetToolService(

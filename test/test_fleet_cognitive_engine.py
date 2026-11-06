@@ -1,3 +1,4 @@
+from test.fleet_state_fixture import register_fixture_candidate
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
@@ -44,7 +45,7 @@ def _ops(tmp_path,hosts):
             host,
             lifecycle=HostLifecycle.CANDIDATE,
         )
-        ops.registry.register_candidate(candidate)
+        register_fixture_candidate(ops.registry, candidate)
         if host.lifecycle is not HostLifecycle.CANDIDATE:
             ops.registry.transition(
                 host.host_id,

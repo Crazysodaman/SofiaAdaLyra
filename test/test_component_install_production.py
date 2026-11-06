@@ -175,3 +175,28 @@ def test_production_venv_kept_platform_without_core(
     )
     assert completed.returncode == 0, completed.stderr
     assert "platform-ok" in completed.stdout
+
+
+def test_platform_uninstall_reinstall_preserves_callsign_authority(production_venv, component_wheels, tmp_path):
+    from test.test_fleet_callsigns import NamingFixture
+    naming = NamingFixture(tmp_path)
+    naming.rename(naming.first, 'Persistent Dawn')
+    run = production_venv['run']
+    from test.test_platform_import_isolation import _BLOCK_CORE
+    probe = _BLOCK_CORE + (
+        'from pathlib import Path\n'
+        'from sofia.platform.ops.callsigns import CallsignAuthority\n'
+        'from sofia.platform.state.installation_identity import InstallationIdentityStore\n'
+        f'authority = CallsignAuthority(Path({str(naming.path)!r}), InstallationIdentityStore(Path({str(naming.installation.home)!r})))\n'
+        f"assert authority.snapshot({naming.first!r})['name'] == 'Persistent Dawn'\n"
+        f'assert authority.authority_id == {naming.authority.authority_id!r}\n'
+        'print("callsign-install-ok")\n'
+    )
+    assert 'callsign-install-ok' in run(['-I','-c',probe])
+    witness = naming.authority.witness_path.read_bytes()
+    run(['-m','pip','uninstall','-y','sofia-platform'])
+    assert naming.path.exists() and naming.authority.witness_path.read_bytes() == witness
+    run(['-m','pip','install','--no-index','--no-deps',str(component_wheels['platform'])])
+    run(['-m','pip','check'])
+    assert 'callsign-install-ok' in run(['-I','-c',probe])
+    assert naming.authority.witness_path.read_bytes() == witness

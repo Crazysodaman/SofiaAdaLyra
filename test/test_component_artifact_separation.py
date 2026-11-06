@@ -223,3 +223,25 @@ def test_installed_platform_bootstraps_identity_without_core(component_wheels, t
         f"assert main(['identity-show', '--home', {str(home)!r}]) == 0\n"
         "assert not any(n == 'sofia.core' or n.startswith('sofia.core.') for n in sys.modules)\n"
     ))
+
+
+def test_installed_callsign_authority_operates_without_core(component_wheels, tmp_path):
+    from test.test_fleet_callsigns import NamingFixture
+    from test.test_platform_import_isolation import _BLOCK_CORE
+    from sofia.platform.verify.component_artifacts import _extract_wheel, _run_core_blocked_probe
+    naming = NamingFixture(tmp_path)
+    naming.rename(naming.first, 'Silent Cartographer')
+    site_dir = tmp_path / 'callsign-site'
+    for distribution in ('sdk', 'platform'):
+        _extract_wheel(component_wheels[distribution], site_dir)
+    _run_core_blocked_probe([site_dir], _BLOCK_CORE + (
+        'from pathlib import Path\n'
+        'import sys\n'
+        'from sofia.platform.ops.callsigns import CallsignAuthority\n'
+        'from sofia.platform.state.installation_identity import InstallationIdentityStore\n'
+        f'authority = CallsignAuthority(Path({str(naming.path)!r}), InstallationIdentityStore(Path({str(naming.installation.home)!r})))\n'
+        f"assert authority.snapshot({naming.first!r})['name'] == 'Silent Cartographer'\n"
+        f'assert Path(sys.modules[CallsignAuthority.__module__].__file__).is_relative_to(Path({str(site_dir)!r}))\n'
+        'from sofia.platform.ops.callsign_cli import main\n'
+        f"assert main(['--database', {str(naming.path)!r}, '--installation-home', {str(naming.installation.home)!r}, 'show', '--platform-id', {naming.first!r}]) == 0\n"
+    ))

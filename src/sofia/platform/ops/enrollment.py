@@ -194,6 +194,7 @@ class FleetEnrollmentService:
                 )
             # Publish cache and notify only after every owner has committed.
             self.registry._hosts[candidate.host_id]=enrolled
+            self.registry._revisions[candidate.host_id]=current.revision+1
         if self.enrolled_notifier is not None:
             self.enrolled_notifier(enrolled,binding,accepted_enrollment,peer)
         return enrolled

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from test.fleet_state_fixture import register_fixture_candidate
 
 from pathlib import Path
 import json
@@ -368,7 +369,7 @@ def test_tool_catalog_reports_registered_and_standing_authorized(tmp_path):
 def test_ops_placement_tool_uses_durable_fleet_evidence(tmp_path):
     service=OpsToolService(tmp_path/"sofia.db")
     now=__import__("datetime").datetime.now(__import__("datetime").timezone.utc)
-    service.registry.register_candidate(FleetHost(
+    register_fixture_candidate(service.registry, FleetHost(
         "venus","windows","x86_64",HostLifecycle.CANDIDATE,True,
         HostTelemetry(now,cpu_percent=25,ram_used_bytes=4,ram_total_bytes=16,storage_free_bytes=100),
     ))
