@@ -108,11 +108,56 @@ Design: guide first installation on Windows/Linux through validating the signed 
 
 ### AG-D012 | Fleet Manager and Topology View
 
-**Status:** CAPTURED (PROPOSED). **Target release:** TBD.
+**Status:** OWNER-DESIRED DESIGN DISCUSSION; not yet scheduled as a new implementation assignment. **Target release:** Platform foundation in #201; complete management GUI in a separately approved UI milestone unless explicitly reprioritized.
 
-Design: list authenticated Platforms with immutable IDs, callsigns, OS/service versions, online/offline/unknown status, trust state, installed modules, and bound Cores. Present enrollment, revocation, remote operation requests and host relationships with separate authorization controls. Cached data is never proof of live enrollment.
+**Owner direction (2026-11-06):** Flesh out Fleet Manager now and explore having Sofía's Core help create/iterate the manager UI and design test scenarios. This is permission to **design/document the workflow**, not blanket approval for live Core-written code, Fleet enrollment, or privileged execution. Sofía must eventually be able to propose generated views and submit bounded synthetic test plans through a reviewed developer capability. A separate development tool/agent may implement accepted UI code using the ordinary PR/test process. The Core is **not** the authoritative Fleet owner.
 
-**Questions:** Local Fleet authority or remotely managed central authority? Which operations may be requested across hosts without a live Core?
+**Architecture and separation:**
+- **Aegis Platform:** Owns installed Platform identity and state, Fleet membership, trusted endpoints, owner authorization, grant/revocation, callsigns, transport, service operations and audit. Rust should own the long-lived security/service boundary.
+- **Fleet Manager UI:** Unprivileged observer and requester over a versioned, authenticated Platform API. The same API must serve a headless Windows/Linux CLI. UI closure or Core absence cannot stop the Platform.
+- **Sofía Core (optional):** Can interpret available verified Fleet projections, suggest topology or placement, create test-case proposals, explain failures and request approved operations through the SDK. It cannot self-approve trust, mint owner credentials, choose a different trusted endpoint, suppress STOP, fake receipts or modify the Fleet database directly.
+- **Aegis Lab:** Uses synthetic identities, disposable state and fake/disposable mTLS peers. Core-generated test ideas stay proposals until a supervised tool executes them. No production hostname, state lineage or keys are copied into fixtures.
+
+**Existing foundations confirmed by repository inspection (not a production-ready UI):**
+- Platform OPS discovery, Fleet candidate registry, enrollment/evidence checks, durable authority, telemetry, removal and revocation.
+- Local designated callsign authority with signed/scoped grants; **remote multi-host naming transport is still missing**.
+- Python Settings **Fleet candidates** tree and discovery settings; tray Fleet health counters; Core Link Control Center has authenticated remote Core status, but **not** full Fleet management.
+- Fleet-aware workload/inference routing and network/service adapters exist; real cross-host native Rust manager + end-to-end installed-host acceptance are **not certified**.
+- Platform 1.0 acceptance matrix: `docs/development/PLATFORM_1_0_ACCEPTANCE.md` and issue #201, including host-level enrollment/revocation evidence not yet accepted. Current Rust service work is independently tracked by PR #202.
+
+**Proposed top-level Fleet Manager screens:**
+1. **Overview:** Total known/verified/enrolled/online/offline/degraded/unknown Platforms, last verified observation timestamp, selected naming authority and its status. Separate `UNVERIFIED DISCOVERY` from enrolled membership. Never compute "healthy" from stale cache.
+2. **Hosts:** Search/filter by authorized callsign, immutable Platform UUID, host class/OS, enrolled trust, observed health. Each row shows last trusted observation, Platform/service version, remote endpoint status and action availability. Optional list/topology views share the same evidence source.
+3. **Host details:** Identity and pinned-key fingerprint, roles (CORE_HOST/CORE_LINK/MODULE_HOST/STANDBY), lifecycle, installed Cores (status only), modules/models/inference resources as permitted, current health and authorized diagnostics. A host may be healthy with **no Core**.
+4. **Discovery & pairing:** Bounded search with `DISCOVERED / UNVERIFIED` candidates. Review exact UUID, host identity, endpoint/certificate fingerprint and requested scope; submit owner-approved enrollment request. Confirm actual enrolled receipt before showing `TRUSTED`. Same-name lookalikes are not substitutes.
+5. **Trust & permissions:** Active/expired/revoked grants, certificate/key rotation state, SAFE/STOP and permission checks. All protected operations display exact host/operation/scope/expiry and require fresh matching authority.
+6. **Operations & timeline:** Read-only history of verified requests, lifecycle status, failures, delayed/unknown outcomes, revocations, online/offline transitions and explicit pending owner actions. Actions such as inspect, probe, restart service, module command or removal are separately capability-gated and idempotent with correlated receipts.
+7. **Naming:** Show authoritative callsigns and revision; rename only through designated naming authority with exact owner/Core-scoped authorization, without linking display names to trust. Offline local aliases are explicitly `CACHED / UNCONFIRMED`.
+8. **Lab mode:** Synthetic hosts, enroll/revoke, forced link loss, duplicate names/UUIDs, stale certificate, stop/restart/replay, and generated test plans. The banner must say `LAB / DISPOSABLE`; no connection to production Fleet authority.
+
+**Suggested status semantics:** `UNVERIFIED_DISCOVERED`, `PENDING_APPROVAL`, `ENROLLED`, `HEALTHY`, `DEGRADED`, `OFFLINE`, `REVOKED`, `QUARANTINED`, `UNKNOWN`. Keep **trust state** and **health state** on different fields; never treat an online response as enrollment approval. Revocation overrides cached connection health.
+
+**Representative user journeys:**
+- Open Fleet Manager on a Core-free Platform; see its actual local identity and empty/known Fleet entries, with no fabricated members.
+- Discover a disposable candidate; inspect fingerprint and exact UUID; submit separate owner approval; verify the canonical admission receipt; show enrolled status only after the verifier confirms it.
+- Rename an enrolled target through the designated authority; conflicting, offline, revoked or stale-revision requests fail closed and show useful reasons.
+- Select one host to inspect Core, module and model capacity without presuming a live Core or permission for its private content.
+- Submit a scoped, approved remote operation; distinguish `REQUESTED`, `SUCCEEDED_VERIFIED`, `DENIED`, `UNREACHABLE` and `OUTCOME_UNKNOWN`; never replay uncertain effects automatically.
+- Revoke a test host during an in-flight request; ensure the operation/response is fenced, the GUI updates without stale trust promotion and no other same-name host is selected.
+
+**Minimal backend interface to specify (names are proposals, not available CLI today):**
+- `fleet status`, `fleet hosts list/show`, `fleet discover`, `fleet approvals pending`
+- `fleet enroll plan/request/status`, `fleet revoke plan/request/status`
+- `fleet callsigns list/rename`, `fleet host health`, `fleet operations list/status`
+- APIs must return typed identity, source, timestamp/freshness, trust revision, authority and operation receipts. Command names and exact privileges require a separate SDK/CLI review.
+
+**Staged testing and acceptance:**
+- **A. Unit/UI:** Empty state, 1/2/50+ hosts, duplicate names, missing properties, stale telemetry, unreachable Fleet authority, revocation, inaccessible private fields, keyboard/screen-reader use and safe cancel paths.
+- **B. Disposable installed-host:** Windows and Debian Platform-only installs, independent IDs and keys, distinct test host processes, authenticated test mTLS, actual enrollment and revocation, restart, certificate rotation and callsign conflict. Exact SHA/CI plus real installed-artifact evidence. No Core required.
+- **C. Optional Core participation:** Sofía (or synthetic Core) produces test suggestions or UI concepts via its approved developer tool; proposals are reviewed, tests executed by Platform/Lab, and execution receipts verified independently. Core cannot create its own approval.
+- **D. G8/production:** Real Fleet hosts, live owner credentials, cutover and continuity tests remain **DEFERRED until separate owner authorization**.
+
+**Open decisions:** List-only first versus topology graph; which read-only Fleet surfaces should be visible without owner authentication; which protected remote actions should ship first; whether Sofía may generate actual UI patch proposals after its developer capability is certified; whether minimal Fleet Manager is a native separate window or a tab in Aegis Control Center.
 
 ### AG-D013 | Security and Approvals Center
 
