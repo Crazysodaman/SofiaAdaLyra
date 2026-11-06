@@ -14,10 +14,11 @@ from base64 import b64decode, b64encode
 from contextlib import closing
 from dataclasses import dataclass
 import errno
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import hmac
 import json
+from math import isfinite
 import ntpath
 import os
 from pathlib import Path, PurePosixPath, PureWindowsPath
@@ -26,6 +27,7 @@ import sqlite3
 import stat
 import sys
 import tempfile
+from time import monotonic
 from typing import Callable
 from uuid import uuid4
 
@@ -684,6 +686,25 @@ class BackupEngine:
         erasure_journal: Path | None = None,
         replacement_authority: ProtectedRestoreLedger | None = None,
     ) -> RestoreVerification:
+        started = monotonic()
+        requested_at = datetime.now(timezone.utc) if now is None else now
+        if not isinstance(requested_at, datetime):
+            raise TypeError("now must be a datetime")
+        if requested_at.tzinfo is None or requested_at.utcoffset() is None:
+            raise ValueError("now must be timezone-aware")
+        moment = requested_at.astimezone(timezone.utc)
+
+        def authorization_now() -> datetime:
+            # Host-supplied UTC advances during archive verification/decryption;
+            # a long restore cannot freeze its independent owner proof deadline.
+            elapsed = monotonic() - started
+            if not isfinite(elapsed) or elapsed < 0:
+                raise BackupError("trusted restore clock is invalid")
+            try:
+                return moment + timedelta(seconds=elapsed)
+            except OverflowError as exc:
+                raise BackupError("trusted restore clock exceeds supported range") from exc
+
         # A backup can predate a live deletion by years. No restore may
         # publish state without the operator-held current deletion journal,
         # which is intentionally not embedded in older encrypted snapshots.
@@ -725,7 +746,6 @@ class BackupEngine:
         # Authority is an owner-minted single-use receipt bound to the exact
         # destination and manifest. A boolean callback is not proof of owner
         # intent and is no longer an accepted authorization format.
-        moment = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
         if replace_existing:
             if replacement_authority is None:
                 raise BackupError(
@@ -768,7 +788,7 @@ class BackupEngine:
                 # Non-consuming preflight: catch unbound or missing receipts
                 # before any staging work burns a single-use receipt.
                 replacement_authority.require_replacement(
-                    target_state_path, manifest, now=moment,
+                    target_state_path, manifest, now=authorization_now(),
                 )
             except (RestoreAuthorityUnavailable, PermissionError) as exc:
                 raise BackupError(
@@ -925,7 +945,7 @@ class BackupEngine:
                     _refuse_replacement_when_stopped(target_state_path)
                     try:
                         replacement_authority.consume_replacement(
-                            target_state_path, manifest, now=moment,
+                            target_state_path, manifest, now=authorization_now(),
                         )
                     except (RestoreAuthorityUnavailable, PermissionError) as exc:
                         raise BackupError(

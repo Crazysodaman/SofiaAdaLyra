@@ -6,7 +6,7 @@ owner intent: it can be supplied, guessed or derived by any code path that
 already holds the process.  Replacement authorization must instead be an
 exact, single-use receipt that
 
-- is minted by an independently authenticated owner command (``Sparks``),
+- binds independently authenticated exact SAFE owner proof in this ledger,
 - binds the exact destination pathname, backup id and manifest digest,
 - expires on a bounded owner-declared window,
 - can be revoked before publication,
@@ -22,7 +22,7 @@ engine itself.
 from __future__ import annotations
 
 from contextlib import closing
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 import os
 from pathlib import Path
@@ -32,7 +32,10 @@ import stat
 import tempfile
 
 from sofia.platform.safe.audit import AuditChain
-from sofia.platform.safe.execution_approval import execution_fingerprint
+from sofia.platform.safe.execution_approval import (
+    ExecutionApprovalVerifier, OWNER_PRINCIPAL_ID, execution_fingerprint,
+)
+from sofia.platform.state.sqlite_uri import sqlite_file_uri
 
 
 RESTORE_REPLACEMENT_CAPABILITY = "ops.restore.replace_protected"
@@ -41,7 +44,13 @@ RESTORE_REPLACEMENT_CAPABILITY = "ops.restore.replace_protected"
 RESTORE_AUTHORITY_APPLICATION_ID = 0x5253544C
 """'RSTL' marker, distinct from canonical 0x534F4649 and local 0x4C4F434C."""
 
-RESTORE_AUTHORITY_SCHEMA = "sofia.platform.ops.restore-authority-v1"
+RESTORE_REVOCATION_CAPABILITY = "ops.restore.receipt.revoke"
+RESTORE_AUTHORITY_SCHEMA = "sofia.platform.ops.restore-authority-v2"
+_LEGACY_SCHEMA = "sofia.platform.ops.restore-authority-v1"
+_OWNER_BINDING_SQL = """CREATE TABLE IF NOT EXISTS ops_restore_owner_binding (
+    restore_approval_id TEXT PRIMARY KEY,
+    execution_approval_id TEXT NOT NULL UNIQUE
+)"""
 
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$")
 _HEX64 = re.compile(r"[0-9a-f]{64}")
@@ -49,6 +58,14 @@ _HEX64 = re.compile(r"[0-9a-f]{64}")
 
 class RestoreAuthorityUnavailable(RuntimeError):
     """The protected restore authority ledger is absent or refused ownership."""
+
+
+def restore_revocation_parameters(approval_id: str, reason: str) -> dict:
+    if not isinstance(approval_id, str) or _IDENTIFIER.fullmatch(approval_id) is None:
+        raise ValueError("approval_id must be a bounded identifier")
+    if not isinstance(reason, str) or not reason.strip() or len(reason) > 4096:
+        raise ValueError("revocation reason must be nonempty and bounded")
+    return {"restore_receipt_id": approval_id, "reason": reason.strip()}
 
 
 def replacement_parameters(
@@ -112,14 +129,10 @@ class ProtectedRestoreReplacementApproval:
             self.manifest_digest
         ) is None:
             raise ValueError("manifest_digest must be lowercase SHA-256")
-        # Only the independently authenticated owner can mint a receipt that
-        # replaces protected state. An LLM, a handler or any host process
-        # must never be able to spell its own approval identity.
-        if self.approved_by != "Sparks":
-            raise PermissionError(
-                "only the independently authenticated owner can approve "
-                "protected restore replacement"
-            )
+        # These are compatible metadata encodings, never authentication.
+        # The ledger independently verifies and binds exact SAFE owner proof.
+        if self.approved_by not in (OWNER_PRINCIPAL_ID, "Sparks"):
+            raise PermissionError("unsupported restore owner reference encoding")
         for name in ("approved_at", "expires_at"):
             value = getattr(self, name)
             if not isinstance(value, datetime):
@@ -150,6 +163,37 @@ class ProtectedRestoreLedger:
         self.path = Path(path).absolute()
         self._identity = self._open_existing()
         self.audit = AuditChain(self.path)
+        self._approvals = ExecutionApprovalVerifier(self.path)
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            schema = db.execute(
+                "SELECT value FROM ops_restore_authority_meta WHERE key='schema'"
+            ).fetchone()[0]
+            if schema == _LEGACY_SCHEMA:
+                db.execute(_OWNER_BINDING_SQL)
+                migration_time = datetime.now(timezone.utc)
+                blocked = db.execute(
+                    "UPDATE ops_restore_replacement_approval SET revoked_at=?,revocation_reason=? "
+                    "WHERE consumed_at IS NULL AND revoked_at IS NULL",
+                    (migration_time.isoformat(), "legacy name-only receipt requires fresh authenticated owner approval"),
+                ).rowcount
+                db.execute(
+                    "UPDATE ops_restore_authority_meta SET value=? WHERE key='schema'",
+                    (RESTORE_AUTHORITY_SCHEMA,),
+                )
+                self.audit.append_in_transaction(
+                    db, actor_id="system:restore-authority",
+                    event_type="ops.restore.authority.owner-proof-required",
+                    payload={"schema": RESTORE_AUTHORITY_SCHEMA,
+                             "legacy_receipts_promoted": False,
+                             "blocked_legacy_receipts": blocked},
+                    occurred_at=migration_time,
+                    event_id="restore-authority-owner-proof-v2",
+                )
+            elif db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='ops_restore_owner_binding'"
+            ).fetchone() is None:
+                raise RestoreAuthorityUnavailable("restore owner-proof bindings are missing")
 
     # ---- provisioning and validation ---------------------------------------
 
@@ -208,6 +252,7 @@ class ProtectedRestoreLedger:
                     )
                     """
                 )
+                database.execute(_OWNER_BINDING_SQL)
                 database.commit()
             try:
                 with temporary.open("r+b") as persisted:
@@ -237,7 +282,7 @@ class ProtectedRestoreLedger:
             )
         identity = (int(details.st_dev), int(details.st_ino))
         with closing(sqlite3.connect(
-            f"file:{self.path.as_posix()}?mode=ro", uri=True, timeout=10,
+            sqlite_file_uri(self.path, read_only=True), uri=True, timeout=10,
         )) as db:
             try:
                 application = int(db.execute("PRAGMA application_id").fetchone()[0])
@@ -248,11 +293,16 @@ class ProtectedRestoreLedger:
                 raise RestoreAuthorityUnavailable(
                     "restore authority ledger is not a valid protected ledger"
                 ) from exc
-            if application != RESTORE_AUTHORITY_APPLICATION_ID or row is None:
+            if (application != RESTORE_AUTHORITY_APPLICATION_ID or row is None
+                    or row[0] not in (RESTORE_AUTHORITY_SCHEMA, _LEGACY_SCHEMA)):
                 raise RestoreAuthorityUnavailable(
                     "restore authority ledger does not carry the protected "
                     "restore authority identity"
                 )
+            if row[0] == RESTORE_AUTHORITY_SCHEMA and db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='ops_restore_owner_binding'"
+            ).fetchone() is None:
+                raise RestoreAuthorityUnavailable("restore owner-proof bindings are missing")
         return identity
 
     def _validate_identity(self) -> None:
@@ -281,19 +331,40 @@ class ProtectedRestoreLedger:
     def _connect(self) -> sqlite3.Connection:
         self._validate_identity()
         db = sqlite3.connect(
-            f"file:{self.path.as_posix()}?mode=rwc", uri=True, timeout=10,
+            sqlite_file_uri(self.path), uri=True, timeout=10,
         )
-        db.execute("PRAGMA busy_timeout=10000")
+        try:
+            self._validate_identity()
+            db.execute("PRAGMA busy_timeout=10000")
+        except BaseException:
+            db.close()
+            raise
         return db
 
     # ---- receipts ------------------------------------------------------------
 
     def record(
         self, approval: ProtectedRestoreReplacementApproval,
+        *, owner_approval_id: str | None = None, now: datetime | None = None,
     ) -> str:
-        """Durably mint one replacement receipt; duplicate receipts refuse."""
+        """Bind a pending receipt to exact, currently unconsumed owner proof.
+
+        The proof is rechecked and consumed with the receipt at publication.
+        Caller metadata cannot widen its principal, scope or validity window.
+        """
         if not isinstance(approval, ProtectedRestoreReplacementApproval):
             raise TypeError("approval must be a ProtectedRestoreReplacementApproval")
+        if not isinstance(owner_approval_id, str) or not owner_approval_id.strip():
+            raise PermissionError("exact authenticated owner approval is required")
+        moment = datetime.now(timezone.utc) if now is None else now
+        if not isinstance(moment, datetime) or moment.tzinfo is None or moment.utcoffset() is None:
+            raise ValueError("now must be timezone-aware")
+        moment = moment.astimezone(timezone.utc)
+        parameters = {
+            "backup_id": approval.backup_id,
+            "backup_manifest_digest": approval.manifest_digest,
+            "target_state_path": approval.target_state_path,
+        }
         fingerprint = execution_fingerprint(
             RESTORE_REPLACEMENT_CAPABILITY,
             {
@@ -304,6 +375,12 @@ class ProtectedRestoreLedger:
         )
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
+            if not self._approvals.matches_unconsumed(
+                approval_id=owner_approval_id,
+                capability=RESTORE_REPLACEMENT_CAPABILITY,
+                parameters=parameters, now=moment,
+            ):
+                raise PermissionError("no current exact authenticated owner approval")
             row = db.execute(
                 """
                 SELECT approval_id
@@ -317,6 +394,20 @@ class ProtectedRestoreLedger:
                     "restore approval receipt is immutable: "
                     f"{approval.approval_id} already exists"
                 )
+            if db.execute(
+                "SELECT 1 FROM ops_restore_owner_binding WHERE execution_approval_id=?",
+                (owner_approval_id,),
+            ).fetchone() is not None:
+                raise PermissionError("owner approval is already bound to a restore receipt")
+            proof = db.execute(
+                "SELECT approved_at,expires_at FROM safe_execution_approval WHERE approval_id=?",
+                (owner_approval_id,),
+            ).fetchone()
+            approval = replace(
+                approval, approved_by=OWNER_PRINCIPAL_ID,
+                approved_at=max(approval.approved_at, datetime.fromisoformat(proof[0])),
+                expires_at=min(approval.expires_at, datetime.fromisoformat(proof[1])),
+            )
             db.execute(
                 """
                 INSERT INTO ops_restore_replacement_approval (
@@ -351,6 +442,7 @@ class ProtectedRestoreLedger:
                     "target_state_path": approval.target_state_path,
                     "backup_id": approval.backup_id,
                     "manifest_digest": approval.manifest_digest,
+                    "owner_approval_id": owner_approval_id,
                     "expires_at": approval.expires_at
                         .astimezone(timezone.utc)
                         .isoformat(),
@@ -358,6 +450,8 @@ class ProtectedRestoreLedger:
                 occurred_at=approval.approved_at,
                 event_id=f"restore-replacement-recorded:{approval.approval_id}",
             )
+            db.execute("INSERT INTO ops_restore_owner_binding VALUES(?,?)",
+                       (approval.approval_id, owner_approval_id))
         return approval.approval_id
 
     def revoke(
@@ -366,7 +460,8 @@ class ProtectedRestoreLedger:
         *,
         reason: str,
         at: datetime,
-        revoked_by: str = "Sparks",
+        revoked_by: str | None = None,
+        owner_approval_id: str | None = None,
     ) -> None:
         """Revoke an unconsumed receipt; receipt identity is reused exactly."""
         if not isinstance(approval_id, str) or not approval_id.strip():
@@ -375,15 +470,19 @@ class ProtectedRestoreLedger:
             raise ValueError("revocation reason must be nonempty")
         if not isinstance(at, datetime) or at.tzinfo is None or at.utcoffset() is None:
             raise ValueError("at must be timezone-aware")
-        if revoked_by != "Sparks":
-            raise PermissionError(
-                "only the independently authenticated owner can revoke a "
-                "protected restore replacement receipt"
-            )
+        if not isinstance(owner_approval_id, str) or not owner_approval_id.strip():
+            raise PermissionError("exact authenticated owner revocation approval is required")
+        if revoked_by is not None and (not isinstance(revoked_by, str) or len(revoked_by) > 160):
+            raise ValueError("revoked_by compatibility metadata must be bounded text")
+        parameters = restore_revocation_parameters(approval_id, reason)
         moment = at.astimezone(timezone.utc)
         with closing(self._connect()) as db, db:
             db.row_factory = sqlite3.Row
             db.execute("BEGIN IMMEDIATE")
+            verified = self._approvals.consume(
+                approval_id=owner_approval_id, capability=RESTORE_REVOCATION_CAPABILITY,
+                parameters=parameters, now=moment, _transaction_db=db,
+            )
             row = db.execute(
                 """
                 SELECT consumed_at, revoked_at
@@ -412,7 +511,7 @@ class ProtectedRestoreLedger:
             )
             self.audit.append_in_transaction(
                 db,
-                actor_id=revoked_by,
+                actor_id=verified.principal_id,
                 event_type=self.AUDIT_REVOKED,
                 payload={
                     "approval_id": approval_id,
@@ -453,11 +552,11 @@ class ProtectedRestoreLedger:
             db.row_factory = sqlite3.Row
             rows = db.execute(
                 """
-                SELECT approval_id, target_state_path, backup_id, manifest_digest,
-                       request_fingerprint, approved_by, approved_at, expires_at
-                FROM ops_restore_replacement_approval
-                WHERE consumed_at IS NULL AND revoked_at IS NULL
-                ORDER BY approved_at ASC
+                SELECT a.*, b.execution_approval_id AS owner_approval_id
+                FROM ops_restore_replacement_approval a
+                LEFT JOIN ops_restore_owner_binding b ON b.restore_approval_id=a.approval_id
+                WHERE a.consumed_at IS NULL AND a.revoked_at IS NULL
+                ORDER BY a.approved_at ASC
                 """
             ).fetchall()
         receipts = []
@@ -477,6 +576,15 @@ class ProtectedRestoreLedger:
             if not (
                 receipt.approved_at.astimezone(tz=timezone.utc) <= moment
                 < receipt.expires_at.astimezone(tz=timezone.utc)
+            ):
+                continue
+            if row["owner_approval_id"] is None or not self._approvals.matches_unconsumed(
+                approval_id=row["owner_approval_id"],
+                capability=RESTORE_REPLACEMENT_CAPABILITY,
+                parameters={"backup_id": receipt.backup_id,
+                            "backup_manifest_digest": receipt.manifest_digest,
+                            "target_state_path": receipt.target_state_path},
+                now=moment,
             ):
                 continue
             receipts.append(receipt)
@@ -513,13 +621,13 @@ class ProtectedRestoreLedger:
             db.execute("BEGIN IMMEDIATE")
             rows = db.execute(
                 """
-                SELECT approval_id, request_fingerprint, approved_by,
-                       approved_at, expires_at, consumed_at, revoked_at
-                FROM ops_restore_replacement_approval
-                WHERE target_state_path = ?
-                  AND backup_id = ?
-                  AND manifest_digest = ?
-                ORDER BY approved_at DESC
+                SELECT a.*, b.execution_approval_id AS owner_approval_id
+                FROM ops_restore_replacement_approval a
+                LEFT JOIN ops_restore_owner_binding b ON b.restore_approval_id=a.approval_id
+                WHERE a.target_state_path = ?
+                  AND a.backup_id = ?
+                  AND a.manifest_digest = ?
+                ORDER BY a.approved_at DESC, a.rowid DESC
                 """,
                 (
                     parameters["target_state_path"],
@@ -543,9 +651,11 @@ class ProtectedRestoreLedger:
                 # The newest exact-binding receipt is the decisive candidate.
                 # Older receipts must not replace its verdict, so attribution
                 # of a refusal stays deterministic.
-                if row["approved_by"] != "Sparks":
-                    denial_reason = "receipt was not approved by the owner"
-                    break
+                if row["owner_approval_id"] is None:
+                    # Historical name-only documents remain audit data. They
+                    # cannot confer authority or supersede a verified receipt.
+                    denial_reason = "receipt has no authenticated owner proof"
+                    continue
                 try:
                     approval = ProtectedRestoreReplacementApproval(
                         approval_id=row["approval_id"],
@@ -571,7 +681,19 @@ class ProtectedRestoreLedger:
                 if row["consumed_at"] is not None:
                     denial_reason = "receipt was already consumed"
                     break
+                if not self._approvals.matches_unconsumed(
+                    approval_id=row["owner_approval_id"],
+                    capability=RESTORE_REPLACEMENT_CAPABILITY,
+                    parameters=parameters, now=moment,
+                ):
+                    denial_reason = "owner approval expired, revoked, consumed, or mismatched"
+                    break
                 if consume:
+                    verified = self._approvals.consume(
+                        approval_id=row["owner_approval_id"],
+                        capability=RESTORE_REPLACEMENT_CAPABILITY,
+                        parameters=parameters, now=moment, _transaction_db=db,
+                    )
                     update = db.execute(
                         """
                         UPDATE ops_restore_replacement_approval
@@ -583,13 +705,10 @@ class ProtectedRestoreLedger:
                         (moment.isoformat(), approval.approval_id),
                     )
                     if update.rowcount != 1:
-                        denial_reason = (
-                            "receipt was revoked or consumed concurrently"
-                        )
-                        break
+                        raise PermissionError("receipt was revoked or consumed concurrently")
                     self.audit.append_in_transaction(
                         db,
-                        actor_id=approval.approved_by,
+                        actor_id=verified.principal_id,
                         event_type=self.AUDIT_CONSUMED,
                         payload={
                             "approval_id": approval.approval_id,

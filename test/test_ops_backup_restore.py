@@ -1,3 +1,4 @@
+from test.owner_auth_fixture import record_verified_restore_receipt, revoke_verified_restore_receipt
 from datetime import datetime, timedelta, timezone
 from contextlib import closing
 from pathlib import Path
@@ -99,7 +100,7 @@ def mint_replacement(
     expires_at: datetime | None = None,
 ) -> ProtectedRestoreReplacementApproval:
     parameters = replacement_parameters(target, manifest)
-    ledger.record(
+    record_verified_restore_receipt(ledger,
         ProtectedRestoreReplacementApproval(
             approval_id=approval_id,
             target_state_path=parameters["target_state_path"],
@@ -235,7 +236,7 @@ def test_restore_rechecks_replacement_authority_before_publication(
     def revoke_while_staging(instance, *_args, **_kwargs):
         original_preflight(instance, *_args, **_kwargs)
         single = instance.active_receipts(now=NOW)[0]
-        instance.revoke(
+        revoke_verified_restore_receipt(instance,
             single.approval_id, reason="owner retracted before publish",
             at=NOW,
         )

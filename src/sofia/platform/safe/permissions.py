@@ -359,6 +359,7 @@ _NEVER_SELF_AUTHORIZED = frozenset({
     "privacy.authority.change",
     "fleet.trust-policy.change",
     "fleet.decommission",
+    "ops.restore.receipt.revoke",
 })
 
 

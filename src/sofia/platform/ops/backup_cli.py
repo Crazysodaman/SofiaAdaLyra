@@ -116,10 +116,8 @@ def _restore(args) -> int:
 
 
 def _approve_restore(args) -> int:
-    # Minting a receipt is an owner act. This command expects to be run by
-    # the authenticated owner; the ledger additionally refuses any non-owner
-    # approved_by identity. The receipt binds the absolute destination
-    # pathname, the backup id and the manifest digest of one archive.
+    # Exact SAFE proof must exist in this external operator ledger. A local
+    # command or an owner display label is not authentication.
     engine = _engine(Path(args.key))
     manifest = engine.verify(Path(args.backup_dir))
     approval = ProtectedRestoreReplacementApproval(
@@ -134,12 +132,16 @@ def _approve_restore(args) -> int:
         ),
     )
     ledger = ProtectedRestoreLedger(Path(args.ledger))
-    ledger.record(approval)
+    ledger.record(approval, owner_approval_id=args.owner_approval_id)
+    recorded = next((item for item in ledger.active_receipts(now=datetime.now(timezone.utc))
+                     if item.approval_id == approval.approval_id), None)
+    if recorded is None:
+        raise PermissionError("owner approval is no longer active; receipt is not usable")
     print(
         f"restore replacement receipt recorded: approval_id={approval.approval_id} "
         f"target={approval.target_state_path} "
         f"backup_id={approval.backup_id} "
-        f"expires_at={approval.expires_at.isoformat()}"
+        f"expires_at={recorded.expires_at.isoformat()}"
     )
     return 0
 
@@ -150,6 +152,7 @@ def _revoke_restore(args) -> int:
         args.approval_id,
         reason=args.reason,
         at=datetime.now(timezone.utc),
+        owner_approval_id=args.owner_approval_id,
     )
     print(f"restore replacement receipt revoked: approval_id={args.approval_id}")
     return 0
@@ -286,6 +289,7 @@ def main(argv: list[str] | None = None) -> int:
     authorize.add_argument("--ledger", required=True)
     authorize.add_argument("--backup-dir", required=True)
     authorize.add_argument("--target-state", required=True)
+    authorize.add_argument("--owner-approval-id", help="exact authenticated SAFE approval in this external ledger")
     authorize.add_argument(
         "--expires-minutes", type=int, default=60,
         help="receipt validity window from now, minutes (default: 60)",
@@ -299,6 +303,7 @@ def main(argv: list[str] | None = None) -> int:
     unauthorize.add_argument("--ledger", required=True)
     unauthorize.add_argument("--approval-id", required=True)
     unauthorize.add_argument("--reason", required=True)
+    unauthorize.add_argument("--owner-approval-id", help="exact authenticated SAFE revocation approval in this external ledger")
     unauthorize.set_defaults(handler=_revoke_restore)
 
     receipts = sub.add_parser(
