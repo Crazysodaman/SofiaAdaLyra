@@ -9,8 +9,8 @@ from typing import Any
 from threading import BoundedSemaphore
 
 from sofia.platform.capability.model import Capability, CapabilityRequest
-from sofia.core.cognition.model import CognitiveToolDefinition
-from sofia.core.cognition.tools import CognitiveToolBinding
+from sofia.sdk.cognition_model import CognitiveToolDefinition
+from sofia.sdk.tool_binding import CognitiveToolBinding
 from sofia.platform.dev.approval import DevOperation
 from sofia.platform.safe.dev_approval import DevApprovalVerifier
 from sofia.platform.safe.operator_stop import OperatorStopStore

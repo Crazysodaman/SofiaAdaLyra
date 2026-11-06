@@ -1,13 +1,18 @@
-"""Replaceable inference-provider adapters.
+"""Replaceable inference adapters, loaded only when explicitly requested."""
+from importlib import import_module
 
-These adapters translate the provider-neutral Core request/response contract.
-They do not authenticate principals, grant capabilities, or execute tool
-calls returned by a model.
-"""
+_EXPORTS = {
+    "OllamaBenchmarkAdapter": "benchmark",
+    "OllamaBenchmarkObservation": "benchmark",
+    "OllamaProvider": "ollama_provider",
+}
+__all__ = list(_EXPORTS)
 
-from .ollama_provider import OllamaProvider
-from .benchmark import OllamaBenchmarkAdapter, OllamaBenchmarkObservation
 
-__all__ = [
-    "OllamaBenchmarkAdapter", "OllamaBenchmarkObservation", "OllamaProvider",
-]
+def __getattr__(name):
+    module = _EXPORTS.get(name)
+    if module is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    value = getattr(import_module(f"{__name__}.{module}"), name)
+    globals()[name] = value
+    return value

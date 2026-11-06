@@ -49,6 +49,17 @@ COMPONENT_DISTRIBUTIONS: tuple[str, ...] = ("sdk", "platform", "core")
 #: Installed-artifact counterpart of the source-tree canonical isolation
 #: surface; the source test asserts this list covers its canonical list.
 INSTALLED_ISOLATED_MODULES: tuple[str, ...] = (
+    "sofia.sdk.tool_binding",
+    "sofia.platform.capability.catalog",
+    "sofia.platform.filesystem.change_capability",
+    "sofia.platform.net.capability",
+    "sofia.platform.machine.capability",
+    "sofia.platform.distributed.capability",
+    "sofia.platform.ops.capability",
+    "sofia.platform.dev.capability",
+    "sofia.platform.safe.permission_capability",
+    "sofia.platform.distributed.inference",
+    "sofia.platform.distributed.inference_control",
     "sofia.platform.launcher",
     "sofia.platform.config",
     "sofia.platform.config.defaults",

@@ -5,6 +5,7 @@ from importlib import import_module
 
 
 _EXPORTS = {
+    "CognitiveToolBinding": ("tool_binding", "CognitiveToolBinding"),
     **{
         name: ("identity", name) for name in (
             "AegisIdentity", "IdentityKind", "IDENTITY_SCHEMA",
