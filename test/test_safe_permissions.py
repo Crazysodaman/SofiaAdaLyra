@@ -110,15 +110,15 @@ def test_protected_capability_rejects_standing_grant(tmp_path):
         store.grant("local.host.reboot")
 
 
-def test_only_sparks_can_change_permission_authority(tmp_path):
+def test_caller_actor_label_cannot_change_permission_authority(tmp_path):
     store = PermissionStore(tmp_path / "sofia.db")
-    with pytest.raises(PermissionError, match="belongs to Sparks"):
+    with pytest.raises(PermissionError, match="authenticated owner approval"):
         store.grant(
             "local.service.restart",
             scope={"name": "SofiaAdaLyra"},
             granted_by="sofia",
         )
-    with pytest.raises(PermissionError, match="belongs to Sparks"):
+    with pytest.raises(PermissionError, match="authenticated owner approval"):
         store.set_private_adult_authority(
             private_chat=True,
             adult_chat=True,
