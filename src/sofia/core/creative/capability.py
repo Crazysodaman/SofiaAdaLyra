@@ -32,11 +32,15 @@ class CreativeArtifactCapability:
         self, service: CreativeService, *,
         claim_authorization: Callable[[str, str, str, str], bool],
         finish_authorization: Callable[[str, bool], None],
+        clock: Callable[[], datetime] | None = None,
     ) -> None:
         if not isinstance(service, CreativeService):
             raise TypeError("CreativeService required")
         if not callable(claim_authorization) or not callable(finish_authorization):
             raise TypeError("durable Project Forge authorization callbacks required")
+        if clock is not None and not callable(clock):
+            raise TypeError("clock must be callable or None")
+        self._clock = clock if clock is not None else (lambda: datetime.now(timezone.utc))
         self.service = service
         self.claim_authorization = claim_authorization
         self.finish_authorization = finish_authorization
@@ -80,7 +84,7 @@ class CreativeArtifactCapability:
         )
         try:
             revision = self.service.create(
-                creative_request, NativeCreativeAdapter(), now=datetime.now(timezone.utc),
+                creative_request, NativeCreativeAdapter(), now=self._clock(),
             )
         except Exception:
             self.finish_authorization(request_id, False)

@@ -16,7 +16,7 @@ from .model import (
     ArtifactEvaluation, ExperienceRecord, InterestRecord, InterestStatus,
     LifeProject, LifeSelection, MilestoneStatus, PersonalJudgment,
     ProjectBrief, ProjectEvent, ProjectMilestone, ProjectScope, ProjectStatus,
-    ResourceBudget, SelectionKind, TechnicalOutcome,
+    ResourceBudget, SelectionKind, TechnicalOutcome, aware,
 )
 
 
@@ -1012,7 +1012,7 @@ class LifeStore:
         """
         if not isinstance(project_id, str) or not project_id.strip():
             raise ValueError("project ID required")
-        stamp = now.astimezone(timezone.utc).date().isoformat()
+        stamp = aware(now).astimezone(timezone.utc).date().isoformat()
         with closing(self._connect()) as db:
             return db.execute(
                 "SELECT 1 FROM life_draft_attempt "
@@ -1024,7 +1024,7 @@ class LifeStore:
         """Prevent repeated LLM drafting every background wake after failure."""
         if not isinstance(project_id, str) or not project_id.strip():
             raise ValueError("project ID required")
-        stamp = now.astimezone(timezone.utc)
+        stamp = aware(now).astimezone(timezone.utc)
         with closing(self._connect()) as db, db:
             change = db.execute(
                 "INSERT OR IGNORE INTO life_draft_attempt VALUES(?,?,?)",

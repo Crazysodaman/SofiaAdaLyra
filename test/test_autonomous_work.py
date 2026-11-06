@@ -384,3 +384,26 @@ def test_opencode_configuration_and_worker_secret_isolation_are_explicit(tmp_pat
     monkeypatch.setattr("sofia.platform.dev.opencode.shutil.which", lambda value: None)
     with pytest.raises(OpenCodeMissingExecutableError):
         adapter.command(request)
+
+
+
+def test_invalid_execution_clock_marks_outcome_uncertain_and_releases_worker(tmp_path):
+    store = DurableWorkStore(state(tmp_path))
+    effects = []
+
+    def handler(job, cancel):
+        effects.append(job.job_id)
+        return WorkResult(WorkStatus.COMPLETED, {"ok": True}, "effect_complete")
+
+    manager = TaskExecutionManager(
+        store, {"read": handler}, max_workers=1,
+        clock=lambda: datetime(2026, 9, 29),
+    )
+    job = enqueue(manager, "invalid-clock")
+    assert manager.tick(now=NOW) == 1
+    manager.close(wait=True)
+    observed = store.get(job.job_id)
+    assert effects == [job.job_id]
+    assert observed.status is WorkStatus.UNCERTAIN
+    assert observed.reason == "execution_clock_unavailable_outcome_requires_review"
+    assert observed.updated_at.tzinfo is not None

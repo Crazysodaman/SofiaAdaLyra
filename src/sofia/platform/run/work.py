@@ -452,11 +452,15 @@ class TaskExecutionManager:
     def __init__(
         self, store: DurableWorkStore, handlers: dict[str, WorkHandler], *,
         max_workers: int = 2, max_queued: int = 32,
+        clock: Callable[[], datetime] | None = None,
     ) -> None:
         if type(max_workers) is not int or not 1 <= max_workers <= 8:
             raise ValueError("max_workers must be in 1..8")
         if type(max_queued) is not int or not max_workers <= max_queued <= 256:
             raise ValueError("max_queued must be bounded")
+        if clock is not None and not callable(clock):
+            raise TypeError("clock must be callable or None")
+        self._clock = clock if clock is not None else (lambda: datetime.now(timezone.utc))
         self.store, self.handlers = store, dict(handlers)
         self.max_workers, self.max_queued = max_workers, max_queued
         self._pool = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="sofia-work")
@@ -496,13 +500,24 @@ class TaskExecutionManager:
         return self.handlers[job.kind](job, cancel)
 
     def _finish(self, job_id: str, future: Future) -> None:
-        finished_at = datetime.now(timezone.utc)
         try:
-            result = future.result()
-            if not isinstance(result, WorkResult):
-                raise TypeError("work handler must return WorkResult")
+            finished_at = _utc(self._clock())
         except Exception as exc:
-            result = WorkResult(WorkStatus.FAILED, {"error_type": type(exc).__name__}, type(exc).__name__)
+            # The handler may already have performed its effect. A broken host
+            # clock cannot justify success, failure, retry, or an orphaned RUN
+            # callback. Record uncertainty with the independent system clock.
+            finished_at = datetime.now(timezone.utc)
+            result = WorkResult(
+                WorkStatus.UNCERTAIN, {"error_type": type(exc).__name__},
+                "execution_clock_unavailable_outcome_requires_review",
+            )
+        else:
+            try:
+                result = future.result()
+                if not isinstance(result, WorkResult):
+                    raise TypeError("work handler must return WorkResult")
+            except Exception as exc:
+                result = WorkResult(WorkStatus.FAILED, {"error_type": type(exc).__name__}, type(exc).__name__)
         try:
             job = self.store.get(job_id)
             measured = dict(result.result)

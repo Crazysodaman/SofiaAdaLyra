@@ -2,6 +2,7 @@
 import re
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -12,7 +13,7 @@ from sofia.core.cognition.model import (
     CognitiveResponse,
     CognitiveRole,
 )
-from sofia.core.cognition.provider import LLMProvider
+from sofia.core.cognition.provider import LLMProvider, LLMProviderError
 from sofia.core.cognition.providers.ollama_provider import OllamaProvider
 from sofia.platform.composition.root import compose
 from sofia.platform.config.model import (
@@ -420,6 +421,63 @@ def measurement_tuple(
         measurements.get(name)
         for name in CANONICAL_MEASUREMENTS
     )
+
+
+@pytest.mark.parametrize("remove_self_model", [False, True])
+@pytest.mark.parametrize("remove_semantic_contract", [False, True])
+def test_assembled_embodiment_context_reaches_injected_ollama_client(
+    tmp_path, remove_self_model, remove_semantic_contract,
+):
+    """Adapter coverage with synthetic output; does not prove live inference."""
+    request = build_variant_request(
+        capture_current_request(tmp_path),
+        remove_self_model=remove_self_model,
+        remove_semantic_contract=remove_semantic_contract,
+    )
+    calls = []
+
+    class Client:
+        def chat(self, **kwargs):
+            calls.append(kwargs)
+            return SimpleNamespace(message=SimpleNamespace(
+                content="Synthetic adapter response.", tool_calls=(),
+            ))
+
+    provider = OllamaProvider(
+        ProviderConfiguration(provider="ollama", model="fixture:pinned"),
+        client=Client(),
+    )
+    response = provider.respond(request)
+    assert response.content == "Synthetic adapter response."
+    assert len(calls) == 1
+    assert calls[0]["model"] == "fixture:pinned"
+    messages = calls[0]["messages"]
+    projected = next(item["content"] for item in messages if item["role"] == "system")
+    assert ("AUTHORITATIVE SELF-STATE PROJECTION" in projected) is not remove_self_model
+    assert ("SELF-DESCRIPTION RESPONSE GROUNDING" in projected) is not remove_semantic_contract
+    assert "IDENTITY RECORD METADATA" in projected
+    assert messages[-1] == {"role": "user", "content": "What are your measurements?"}
+
+
+def test_assembled_request_provider_outage_is_an_error_not_a_generated_reply(tmp_path):
+    request = capture_current_request(tmp_path)
+    calls = []
+    outage = ConnectionError("synthetic private endpoint unavailable")
+
+    class OfflineClient:
+        def chat(self, **kwargs):
+            calls.append(kwargs)
+            raise outage
+
+    provider = OllamaProvider(
+        ProviderConfiguration(provider="ollama", model="fixture:pinned"),
+        client=OfflineClient(),
+    )
+    with pytest.raises(LLMProviderError) as failed:
+        provider.respond(request)
+    assert failed.value.__cause__ is outage
+    assert "synthetic private endpoint" not in str(failed.value)
+    assert len(calls) == 1
 
 
 @pytest.mark.integration

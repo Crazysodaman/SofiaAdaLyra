@@ -91,6 +91,12 @@ def test_an_unmapped_test_does_not_gain_explicit_ownership(tmp_path: Path) -> No
     # The compatibility fallback must not masquerade as an explicit owner.
     assert _package_markers(probe) == frozenset({"pkg_core"})
 
+
+def test_manual_verification_concurrency_has_release_verification_owner() -> None:
+    assert _explicit_package_markers(
+        Path(__file__).parent / "test_manual_verify_concurrency.py"
+    ) == frozenset({"pkg_verify"})
+
 def test_hybrid_sdk_contract_and_task_audit_have_reviewed_package_owners() -> None:
     root = Path(__file__).parent
     assert {"pkg_verify", "pkg_integrate", "pkg_safe"}.issubset(

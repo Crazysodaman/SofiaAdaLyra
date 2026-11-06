@@ -20,6 +20,8 @@ from sofia.platform.distributed.version import FleetProtocolVersion
 
 class HttpsTransportError(RuntimeError): pass
 
+MAX_RESPONSE_BYTES = 1_400_000
+
 class PinnedHttpsRemoteTransport(RemoteTransport):
     """Authenticated transport using CA validation + mutual TLS + SPKI pinning."""
 
@@ -71,7 +73,11 @@ class PinnedHttpsRemoteTransport(RemoteTransport):
                 raise HttpsTransportError("peer TLS public key does not match enrolled node pin")
             connection.request(method,path,body=body,headers=headers)
             response=connection.getresponse()
-            raw=response.read()
+            # Bound actual bytes, including chunked bodies and HTTP errors;
+            # Content-Length is supplied by the peer and cannot enforce this.
+            raw=response.read(MAX_RESPONSE_BYTES + 1)
+            if len(raw)>MAX_RESPONSE_BYTES:
+                raise HttpsTransportError("agent response exceeds maximum size")
             if response.status<200 or response.status>=300:
                 text=raw.decode("utf-8",errors="replace")[:500]
                 raise HttpsTransportError(f"agent HTTP {response.status}: {text}")
@@ -154,6 +160,8 @@ class PinnedHttpsRemoteTransport(RemoteTransport):
         return result
 
     def execute(self,enrollment:NodeEnrollment,request:RemoteOperationRequest)->RemoteOperationResult:
+        if request.node_id!=enrollment.node.node_id:
+            raise HttpsTransportError("operation request node does not match enrollment")
         payload={
             "request_id":str(request.request_id),
             "node_id":str(request.node_id),
@@ -172,7 +180,7 @@ class PinnedHttpsRemoteTransport(RemoteTransport):
         data=self._request(enrollment,"POST","/v1/operations",payload)
         if not isinstance(data,dict): raise HttpsTransportError("invalid remote operation response")
         try:
-            return RemoteOperationResult(
+            result=RemoteOperationResult(
                 request_id=UUID(data["request_id"]),
                 node_id=UUID(data["node_id"]),
                 outcome=RemoteOutcome(data["outcome"]),
@@ -180,6 +188,9 @@ class PinnedHttpsRemoteTransport(RemoteTransport):
             )
         except (KeyError,TypeError,ValueError) as exc:
             raise HttpsTransportError("invalid remote operation result payload") from exc
+        if result.request_id!=request.request_id or result.node_id!=request.node_id:
+            raise HttpsTransportError("remote operation response identity mismatch")
+        return result
 
     def host_effect(self,enrollment:NodeEnrollment,dispatch_id:str)->dict[str,Any]:
         """Read an integrity-checked effect row from the pinned mTLS host."""
