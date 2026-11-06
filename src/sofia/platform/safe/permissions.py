@@ -565,9 +565,16 @@ class PermissionStore:
         return db
 
     @staticmethod
-    def _require_sparks(actor: str) -> None:
-        if actor != "Sparks":
-            raise PermissionError("permission authority belongs to Sparks")
+    def _validate_actor_metadata(actor: str | None) -> None:
+        """Retain old caller labels as metadata, never as authentication.
+
+        Actual attribution comes from the exact durable approval consumed in
+        the same transaction as the permission mutation.
+        """
+        if actor is not None and (
+            not isinstance(actor, str) or not actor.strip() or len(actor) > 160
+        ):
+            raise ValueError("actor metadata must be a bounded nonempty string")
 
     @staticmethod
     def _scope_json(scope: dict[str, Any]) -> str:
@@ -594,13 +601,13 @@ class PermissionStore:
         capability: str,
         *,
         scope: dict[str, Any] | None = None,
-        granted_by: str = "Sparks",
+        granted_by: str | None = None,
         expires_at: datetime | None = None,
         grant_id: str | None = None,
         now: datetime | None = None,
         approval_id: str | None = None,
     ) -> StandingPermissionGrant:
-        self._require_sparks(granted_by)
+        self._validate_actor_metadata(granted_by)
         policy = capability_permission_policy(capability)
         if not policy.standing_grant_allowed:
             raise PermissionError(
@@ -631,7 +638,7 @@ class PermissionStore:
         verifier = ExecutionApprovalVerifier(self.path)
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
-            verifier.consume(
+            approval = verifier.consume(
                 approval_id=approval_id,
                 capability="safe.permission.standing.grant",
                 parameters=standing_grant_parameters(
@@ -641,6 +648,7 @@ class PermissionStore:
                 now=moment,
                 _transaction_db=db,
             )
+            granted_by = approval.principal_id
             db.execute(
                 """
                 INSERT INTO safe_permission_grant (
@@ -692,11 +700,11 @@ class PermissionStore:
         self,
         grant_id: str,
         *,
-        revoked_by: str = "Sparks",
+        revoked_by: str | None = None,
         now: datetime | None = None,
         approval_id: str | None = None,
     ) -> StandingPermissionGrant:
-        self._require_sparks(revoked_by)
+        self._validate_actor_metadata(revoked_by)
         moment = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
         if not approval_id:
             raise PermissionError(
@@ -706,13 +714,14 @@ class PermissionStore:
         verifier = ExecutionApprovalVerifier(self.path)
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
-            verifier.consume(
+            approval = verifier.consume(
                 approval_id=approval_id,
                 capability="safe.permission.standing.revoke",
                 parameters={"grant_id": grant_id},
                 now=moment,
                 _transaction_db=db,
             )
+            revoked_by = approval.principal_id
             row = db.execute(
                 """
                 SELECT grant_id,capability,scope_json,granted_by,granted_at,
@@ -932,11 +941,11 @@ class PermissionStore:
         adult_chat: bool,
         adult_avatar: bool,
         adult_external_delivery: bool,
-        updated_by: str = "Sparks",
+        updated_by: str | None = None,
         now: datetime | None = None,
         approval_id: str | None = None,
     ) -> AdultPrivateAuthority:
-        self._require_sparks(updated_by)
+        self._validate_actor_metadata(updated_by)
         for name, value in (
             ("private_chat", private_chat),
             ("adult_chat", adult_chat),
@@ -958,7 +967,7 @@ class PermissionStore:
         verifier = ExecutionApprovalVerifier(self.path)
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
-            verifier.consume(
+            approval = verifier.consume(
                 approval_id=approval_id,
                 capability="safe.permission.private_authority.change",
                 parameters=private_authority_parameters(
@@ -969,6 +978,7 @@ class PermissionStore:
                 now=moment,
                 _transaction_db=db,
             )
+            updated_by = approval.principal_id
             db.execute(
                 """
                 UPDATE safe_private_adult_authority

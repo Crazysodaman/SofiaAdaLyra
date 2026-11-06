@@ -16,6 +16,12 @@ from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$")
 
+# Existing canonical owner identity, shared with the social principal contract.
+# "Sparks" is retained only as the historical approval-record encoding. Neither
+# reference is a credential: protected consumers still require durable proof.
+OWNER_PRINCIPAL_ID = "person:sparks"
+_OWNER_APPROVAL_REFERENCES = frozenset({OWNER_PRINCIPAL_ID, "Sparks"})
+
 
 def execution_fingerprint(
     capability: str,
@@ -62,9 +68,9 @@ class ExecutionApproval:
                 raise ValueError(f"{name} must be a bounded identifier")
         if not isinstance(self.capability, str) or not self.capability.strip():
             raise ValueError("capability must be nonempty")
-        # Approval records are operator statements, not a string that can
-        # be impersonated by a downstream handler or recovered model output.
-        if self.approved_by != "Sparks":
+        # This constrains the owner-reference encoding only. The verifier,
+        # not this constructible DTO, authenticates protected approval records.
+        if self.approved_by not in _OWNER_APPROVAL_REFERENCES:
             raise PermissionError(
                 "only the independently authenticated owner can approve execution"
             )
@@ -78,6 +84,15 @@ class ExecutionApproval:
                 raise ValueError(f"{name} must be timezone-aware")
         if self.expires_at <= self.approved_at:
             raise ValueError("approval expiry must follow approval time")
+
+    @property
+    def principal_id(self) -> str:
+        """Canonical attribution, not proof that this DTO is authenticated.
+
+        Only a successful verifier consumption authenticates an approval. The
+        compatibility alias must never replace its action-bound credential.
+        """
+        return OWNER_PRINCIPAL_ID
 
 
 class ExecutionApprovalVerifier:
@@ -146,7 +161,7 @@ class ExecutionApprovalVerifier:
     ) -> None:
         if not isinstance(approval, ExecutionApproval):
             raise TypeError("approval must be an ExecutionApproval")
-        if approval.approved_by != "Sparks":
+        if approval.approved_by not in _OWNER_APPROVAL_REFERENCES:
             raise PermissionError("non-owner execution approval denied")
         level = capability_permission_policy(approval.capability).level
         owner_proof_required = level >= PermissionLevel.REVERSIBLE_SCOPED
@@ -262,7 +277,7 @@ class ExecutionApprovalVerifier:
         *,
         now: datetime,
     ) -> tuple[str, ...]:
-        """Return active unconsumed Sparks-approved capability names."""
+        """Return active unconsumed owner-approved capability names."""
         if not isinstance(now, datetime):
             raise TypeError("now must be a datetime")
         if now.tzinfo is None or now.utcoffset() is None:
@@ -300,7 +315,7 @@ class ExecutionApprovalVerifier:
             ).fetchall()
         capabilities = []
         for row in rows:
-            if row["approved_by"] != "Sparks":
+            if row["approved_by"] not in _OWNER_APPROVAL_REFERENCES:
                 continue
             if (
                 capability_permission_policy(row["capability"]).level >= PermissionLevel.REVERSIBLE_SCOPED
@@ -491,7 +506,7 @@ class ExecutionApprovalVerifier:
                 raise PermissionError("execution approval is not active yet")
             if moment >= approval.expires_at.astimezone(timezone.utc):
                 raise PermissionError("execution approval expired")
-            if approval.approved_by != "Sparks":
+            if approval.approved_by not in _OWNER_APPROVAL_REFERENCES:
                 raise PermissionError("execution approval was not granted by the owner")
             if approval.capability != capability:
                 raise PermissionError("execution approval is for another capability")
