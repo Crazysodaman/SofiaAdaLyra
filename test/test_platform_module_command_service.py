@@ -77,7 +77,7 @@ def test_exact_owner_approval_is_consumed_once_for_lifecycle_transition(
     assert receipt.operation_ref == approval_id
     assert receipt.from_lifecycle is ModuleLifecycle.VALIDATED
     assert receipt.to_lifecycle is ModuleLifecycle.APPROVED
-    assert receipt.actor == "Sparks"
+    assert receipt.actor == "person:sparks"
     restarted = service(canonical_state_path, tmp_path)
     assert restarted.transition_receipt(
         found.module_id, approved.revision,

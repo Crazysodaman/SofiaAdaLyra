@@ -23,6 +23,7 @@ import sqlite3
 from sofia.platform.safe.audit import AuditChain
 from sofia.platform.safe.execution_approval import (
     ExecutionApproval,
+    OWNER_PRINCIPAL_ID,
     execution_fingerprint,
 )
 from sofia.platform.safe.operator_stop import OperatorStopState
@@ -341,7 +342,7 @@ class LocalModuleAuthority:
                 raise PermissionError("module host approval is not active yet")
             if _utc(moment) >= _utc(approval.expires_at):
                 raise PermissionError("module host approval expired")
-            if approval.approved_by != "Sparks":
+            if approval.principal_id != OWNER_PRINCIPAL_ID:
                 raise PermissionError(
                     "module host approval was not granted by the owner"
                 )
@@ -364,7 +365,7 @@ class LocalModuleAuthority:
                 )
             self.audit.append_in_transaction(
                 db,
-                actor_id=approval.approved_by,
+                actor_id=approval.principal_id,
                 event_type="modulehost.approval.consumed",
                 payload={
                     "approval_id": approval.approval_id,
