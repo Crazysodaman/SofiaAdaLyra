@@ -39,7 +39,7 @@ from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 pytestmark = [pytest.mark.pkg_core, pytest.mark.pkg_run, pytest.mark.pkg_interact]
 
 
-def infrastructure(tmp_path, *, authorized=True, share_callback=None):
+def infrastructure(tmp_path, *, authorized=True, share_callback=None, clock=None):
     path = tmp_path / "sofia.db"
     from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
     bootstrap_canonical_sqlite(path)
@@ -59,7 +59,7 @@ def infrastructure(tmp_path, *, authorized=True, share_callback=None):
     )
     capabilities = CapabilitySystem(authorization_checker=lambda _request: authorized)
     world = VirtualWorldStore(path)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc) if clock is None else clock()
     world.ensure_foundation(owner_principal_id="sofia", audience_id="local:text", now=now)
     life = SelfDirectedLifeCoordinator(
         state_path=path, goals=goals, gateway=CapabilityGateway(capabilities),
@@ -67,12 +67,12 @@ def infrastructure(tmp_path, *, authorized=True, share_callback=None):
         creative_explorer=CreativeExplorer(creative_store), world=world,
         creative_world=CreativeWorldBridge(creative_store, world),
         preferences=PreferenceRegistry(path), nicknames=NicknameRegistry(path),
-        share_callback=share_callback,
+        share_callback=share_callback, clock=clock,
     )
     capability = CreativeArtifactCapability(
         creative_service,
         claim_authorization=life.store.claim_artifact_authorization,
-        finish_authorization=life.store.finish_artifact_authorization,
+        finish_authorization=life.store.finish_artifact_authorization, clock=clock,
     )
     capabilities.register(capability.capability, capability.execute)
     return life, goals, now
