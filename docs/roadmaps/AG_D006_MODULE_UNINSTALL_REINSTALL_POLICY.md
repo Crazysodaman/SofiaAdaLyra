@@ -123,7 +123,7 @@ The UI must display **installation eligibility**, **installed lifecycle** and **
 2. A Core request, CLI installer, GUI, desired-state job, catalog auto-fix, dependency resolver and older queued install all **deny** the exact blocked identity with an auditable reason; no UI-only filter or bypass.
 3. A block commit followed by failed/uncertain removal shows `INSTALLED/BLOCKED` or `OUTCOME_UNKNOWN` accurately; STOP and dependency constraints remain authoritative. Module is not marked removed or healthy without receipts.
 4. Fresh owner-authorized unblock **alone** never reinstalls, activates, reassigns grants or starts dependencies. New signed install and separate activation work when eligible and compatible.
-5. Blockall-versions policy handles different digest, approved update/downgrade, re-signed publisher, alias spoof, renamed package, and exact digest exception using reviewed identity/lineage rules.
+5. Block-all-versions policy handles different digest, approved update/downgrade, re-signed publisher, alias spoof, renamed package, and exact digest exception using reviewed identity/lineage rules.
 6. Reinstall retained compatible module settings versus fresh config; incompatible schema prompts approved migration; protected private data/audit never erased by ordinary uninstall/block.
 7. GUI + TUI open throughout transitions update `Installed`, `Available`, `Blocked`, `History`, pending status, signed identity and editability without UI/Platform restart, with revoked/stale/offline host handling.
 8. Signed digest, exact host/owner approval/SAFE/STOP, current revocation, monotonic revision, interruption/power loss, backup restore, privacy redaction and denied unauthorized remote changes proven on disposable Windows/Linux hosts.
