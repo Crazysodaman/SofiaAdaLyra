@@ -60,10 +60,10 @@ def test_unrecognized_container_id_is_not_adopted_or_deleted():
 
 
 def receipt(boot='first', generations=(1, 2, 3)):
-    return dict(schema='aegis.disposable.debian12-vm.v1', result='PASS', source_sha='a'*40,
+    return dict(schema='aegis.disposable.debian12-vm.v2', result='PASS', source_sha='a'*40,
         boot_id=str(uuid5(NAMESPACE_URL,boot)), platform_id='11111111-1111-4111-8111-111111111111', public_key_sha256='b'*64,
         generations=list(generations), python='3.12.16', kernel='6.1-test', pid1='systemd',
-        os_version='12', core_installed=False, ollama_installed=False, graceful_stops=2,
+        os_version='12', bundled_runtime=True, core_installed=False, ollama_installed=False, graceful_stops=2,
         crash_recovered=True, duplicate_denied=True, production_authorized=False, release_accepted=False)
 
 

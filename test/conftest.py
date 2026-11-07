@@ -76,6 +76,7 @@ MODULE_PACKAGE_MARKERS: dict[str, tuple[str, ...]] = {
 }
 
 FILENAME_PACKAGE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("test_python_runtime_artifacts.py", ("pkg_verify", "pkg_integrate", "pkg_safe")),
     ("test_aegis_debian_vm_runner.py", ("pkg_verify", "pkg_run", "pkg_safe")),
     ("test_platform_release_", ("pkg_verify", "pkg_integrate", "pkg_safe")),
     ("test_core_worker_socket_paths.py", ("pkg_run", "pkg_integrate", "pkg_safe")),

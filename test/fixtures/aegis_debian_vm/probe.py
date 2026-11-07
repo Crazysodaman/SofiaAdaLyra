@@ -40,9 +40,11 @@ try:
     assert importlib.util.find_spec('sofia.core') is None
     assert importlib.util.find_spec('ollama') is None
     public=json.loads(Path('/opt/aegis/identity-reference.json').read_text())
+    assert Path(sys.base_prefix)==Path('/opt/aegis/runtime/python')
     first=ready()
+    assert Path('/proc',str(first['worker_pid']),'exe').resolve()==Path('/opt/aegis/runtime/python/bin/python3.12')
     duplicate=subprocess.run(['runuser','-u','aegis','--','/opt/aegis/bin/aegis-platform-service',
-        '--python','/usr/local/bin/python3.12','--identity-home','/var/lib/aegis/identity',
+        '--python','/opt/aegis/venv/bin/python','--identity-home','/var/lib/aegis/identity',
         '--state','/var/lib/aegis/platform.db','--platform-id',public['identity']['uuid'],
         '--public-key-sha256',public['public_key_sha256']],capture_output=True,text=True,timeout=15)
     assert duplicate.returncode==2 and not duplicate.stdout
@@ -55,18 +57,18 @@ try:
     stop(third)
     assert first['generation']<second['generation']<third['generation']
     assert all(row['platform_id']==public['identity']['uuid'] for row in (first,second,third))
-    restored=json.loads(command('runuser','-u','aegis','--','/usr/local/bin/python3.12','-I','-c',
+    restored=json.loads(command('runuser','-u','aegis','--','/usr/bin/env','LD_LIBRARY_PATH=/opt/aegis/runtime/python/lib','/opt/aegis/venv/bin/python','-I','-c',
         'import json; from pathlib import Path; from sofia.platform.state.installation_identity import InstallationIdentityStore; print(json.dumps(InstallationIdentityStore(Path("/var/lib/aegis/identity")).load().to_payload()))'))
     assert restored==public
     assert not list(Path('/var/lib/aegis').rglob('sofia.db'))
-    receipt=dict(schema='aegis.disposable.debian12-vm.v1',result='PASS',source_sha=SOURCE,
+    receipt=dict(schema='aegis.disposable.debian12-vm.v2',result='PASS',source_sha=SOURCE,
         boot_id=Path('/proc/sys/kernel/random/boot_id').read_text().strip(),
         platform_id=public['identity']['uuid'],public_key_sha256=public['public_key_sha256'],
         generations=[row['generation'] for row in (first,second,third)],
         python=sys.version.split()[0],kernel=command('uname','-r').strip(),pid1='systemd',os_version='12',core_installed=False,ollama_installed=False,
-        graceful_stops=2,crash_recovered=True,duplicate_denied=True,production_authorized=False,release_accepted=False)
+        bundled_runtime=True,graceful_stops=2,crash_recovered=True,duplicate_denied=True,production_authorized=False,release_accepted=False)
 except Exception as error:
-    receipt=dict(schema='aegis.disposable.debian12-vm.v1',result='FAIL',error_type=type(error).__name__,
+    receipt=dict(schema='aegis.disposable.debian12-vm.v2',result='FAIL',error_type=type(error).__name__,
         source_sha=SOURCE,production_authorized=False,release_accepted=False)
 print('AEGIS_VM_RESULT '+json.dumps(receipt,sort_keys=True),flush=True)
 subprocess.run(['systemctl','poweroff'],check=True,timeout=30)

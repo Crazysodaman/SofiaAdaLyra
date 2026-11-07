@@ -30,7 +30,25 @@ chroot /vm/rootfs apt-get clean
 rm -rf /vm/rootfs/var/lib/apt/lists/*
 mkdir /vm/rootfs/tmp/aegis-test-wheels
 cp /vm/dependencies/*.whl /vm/rootfs/tmp/aegis-test-wheels/
-chroot /vm/rootfs /usr/local/bin/python3.12 -m pip install --no-index --find-links=/tmp/aegis-test-wheels sofia-sdk sofia-platform
+# Use production runtime preparation/verification, then create the installed
+# environment inside the guest root so pyvenv.cfg records guest paths.
+python -m pip install --no-index --find-links=/vm/dependencies sofia-sdk sofia-platform
+mkdir -p /vm/rootfs/opt/aegis
+python - <<'PYRUNTIME'
+from pathlib import Path
+import json, sys
+from sofia.platform.verify.python_runtime import build_python_runtime, materialize_python_runtime
+from sofia.sdk.platform_release import PlatformReleaseTarget
+prepared=build_python_runtime(Path(sys.base_prefix), Path('/vm/python-runtime.zip'),
+    target=PlatformReleaseTarget.DEBIAN12_X86_64, python_version='.'.join(map(str,sys.version_info[:3])))
+materialize_python_runtime('/vm/python-runtime.zip','/vm/rootfs/opt/aegis/runtime',
+    expected=prepared.reference,target=prepared.manifest.target,python_version=prepared.manifest.python_version)
+Path('/vm/runtime-reference.json').write_text(json.dumps(prepared.reference.to_payload(),sort_keys=True)+'\n')
+PYRUNTIME
+# Only verified public runtime code is made readable; state remains private.
+chmod -R a+rX /vm/rootfs/opt/aegis/runtime
+chroot /vm/rootfs /usr/bin/env LD_LIBRARY_PATH=/opt/aegis/runtime/python/lib /opt/aegis/runtime/python/bin/python3.12 -m venv /opt/aegis/venv
+chroot /vm/rootfs /usr/bin/env LD_LIBRARY_PATH=/opt/aegis/runtime/python/lib /opt/aegis/venv/bin/python -m pip install --no-index --find-links=/tmp/aegis-test-wheels sofia-sdk sofia-platform
 rm -rf /vm/rootfs/tmp/aegis-test-wheels
 chroot /vm/rootfs useradd --system --user-group --no-create-home --home-dir /var/lib/aegis --shell /usr/sbin/nologin aegis
 install -d -m 755 /vm/rootfs/opt/aegis/bin
@@ -40,7 +58,7 @@ install -m 755 /vm/target/release/aegis-platform-service /vm/rootfs/opt/aegis/bi
 install -m 644 /input/inputs.json /vm/rootfs/opt/aegis/test-inputs.json
 install -m 644 /input/probe.py /vm/rootfs/opt/aegis/vm_probe.py
 install -m 644 /input/aegis-platform.service /vm/rootfs/etc/systemd/system/aegis-platform.service
-chroot /vm/rootfs runuser -u aegis -- /usr/local/bin/python3.12 -I -c '
+chroot /vm/rootfs runuser -u aegis -- /usr/bin/env LD_LIBRARY_PATH=/opt/aegis/runtime/python/lib /opt/aegis/venv/bin/python -I -c '
 import json
 from pathlib import Path
 from sofia.platform.state.installation_identity import InstallationIdentityStore
@@ -56,7 +74,7 @@ from pathlib import Path
 root=Path('/vm/rootfs')
 public=json.loads((root/'opt/aegis/identity-reference.json').read_text())
 (root/'etc/aegis/platform-service.env').write_text('\n'.join((
-'AEGIS_PYTHON=/usr/local/bin/python3.12','AEGIS_IDENTITY_HOME=/var/lib/aegis/identity',
+'AEGIS_PYTHON=/opt/aegis/venv/bin/python','LD_LIBRARY_PATH=/opt/aegis/runtime/python/lib','AEGIS_IDENTITY_HOME=/var/lib/aegis/identity',
 'AEGIS_LOCAL_STATE=/var/lib/aegis/platform.db','AEGIS_PLATFORM_ID='+public['identity']['uuid'],
 'AEGIS_PUBLIC_KEY_SHA256='+public['public_key_sha256'],'')))
 (root/'etc/aegis/platform-service.env').chmod(0o600)
@@ -70,7 +88,8 @@ After=aegis-platform.service
 Wants=aegis-platform.service
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/python3.12 -I /opt/aegis/vm_probe.py
+Environment=LD_LIBRARY_PATH=/opt/aegis/runtime/python/lib
+ExecStart=/opt/aegis/venv/bin/python -I /opt/aegis/vm_probe.py
 StandardOutput=journal+console
 StandardError=journal+console
 TimeoutStartSec=150
@@ -91,10 +110,10 @@ python - <<'PYARTIFACT'
 from pathlib import Path
 from hashlib import sha256
 import json
-files=[Path('/vm/target/release/aegis-platform-service'),*Path('/vm/dependencies').glob('*.whl')]
+files=[Path('/vm/python-runtime.zip'),Path('/vm/target/release/aegis-platform-service'),*Path('/vm/dependencies').glob('*.whl')]
 Path('/vm/built-artifacts.json').write_text(json.dumps({p.name:sha256(p.read_bytes()).hexdigest() for p in files},sort_keys=True)+'\n')
 PYARTIFACT
-chown "$AEGIS_OUTPUT_UID:$AEGIS_OUTPUT_GID" /vm/built-artifacts.json /vm/target/release/aegis-platform-service /vm/dependencies/*.whl
+chown "$AEGIS_OUTPUT_UID:$AEGIS_OUTPUT_GID" /vm/built-artifacts.json /vm/runtime-reference.json /vm/python-runtime.zip /vm/target/release/aegis-platform-service /vm/dependencies/*.whl
 printf 'AEGIS_VM_IMAGE_BUILT\n'
 
 for boot in 1 2; do
