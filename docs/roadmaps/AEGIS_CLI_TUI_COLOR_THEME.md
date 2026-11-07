@@ -117,7 +117,7 @@ In a color-capable terminal:
 
 **One theme source for every Aegis-owned terminal renderer:** AG-D011 bootstrap scripts and installer, AG-D022 terminal Control Center, AG-D023 Core settings views, and CLI commands for all managers. Future code should centralize the semantic palette in a shared presentation-only theme module/data contract rather than repeating literal hex in every screen. It must not influence SAFE permission policy, service identity, secrets, logs, audit or API responses.
 
-This does **not** replace the separate AG-D007 graphical desktop theme; GUI may have its own appearance settings unless the owner explicitly requests a common GUI theme. Aegis TUI, line-mode and installer inherit this terminal palette by default, with monochrome fallback always supported.
+**Owner has now explicitly requested a common GUI theme.** AG-D007 GUI and all Aegis TUI/CLI use the same default [shared GUI/TUI colors](AEGIS_SHARED_GUI_TUI_THEME.md). Independent presentation/accessibility overrides can exist, but not a divergent default color specification. Aegis TUI, line-mode and installer inherit this terminal palette by default, with monochrome fallback always supported.
 
 ## 6. Validation criteria before declaring theme implemented
 
