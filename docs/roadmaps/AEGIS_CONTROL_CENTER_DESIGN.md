@@ -36,6 +36,12 @@ Proposed implementation: Rust-owned Platform service, management/authorization A
 
 Core-dependent pages must show **Not installed / Not available** with explanation, never render an imaginary Core. Optional panes may be hidden in simplified navigation, but remain discoverable. The Home screen must work before any Core is installed.
 
+## Unified color and cross-interface parity decision (2026-11-07)
+
+**Owner decision:** The neutral Aegis GUI uses the exact same default dark palette as **all Aegis CLI/TUI interfaces**, installer and headless controls. [Shared GUI/TUI Visual Theme](AEGIS_SHARED_GUI_TUI_THEME.md) is authoritative for purple `#9400D3`, cyan `#00C2FF`, lime `#39FF14`, black `#000000`, cards `#0B1020`, light `#E5E7EB` text, muted `#94A3B8`, amber HUD `#FFB000`, red danger `#9F0202`, hover/focus and all highlight tokens. Include readable text labels for warning/error, keyboard focus and accessible contrast instead of assuming the owner colors work as small-text foregrounds everywhere. The previous general near-black/teal/violet suggestions are superseded for neutral Aegis GUI *defaults*; separate Sofía Workbench styling is not changed.
+
+**Missing shared operator behavior:** See [AG-D024 GUI/TUI parity and gaps](AG_D024_GUI_TUI_PARITY_GAP_REVIEW.md) for existing backend/code overlap and specific work still required: unified authorization, first-run/disconnected service, cross-host/Core selector, typed setting editor and apply receipts, notification/job continuity, owner auth from headless clients, safety, access and parity testing. This is a design refinement, not a new Platform 1.0 release gate or an order to reimplement existing managers.
+
 ## 3. Desktop layout and navigation behavior
 
 Desktop: compact title/status bar; persistent sidebar with collapsible groups; main content view; optional contextual details/inspector pane; bottom job/notification indicator; global command/search field for local *authorized* resources. Selecting an item opens details in-place; an **Open in new window** option detaches a manager using the same backend session and permissions. Detaching does not create new Core runtimes, owner authority or extra canonical writers.
