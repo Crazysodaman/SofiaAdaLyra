@@ -14,6 +14,9 @@ import tempfile
 from uuid import UUID
 
 from sofia.platform.state.private_file import assert_no_redirected_components
+from sofia.platform.state.artifact_file import read_artifact_file
+from sofia.sdk.artifact import validate_artifact_path
+from sofia.sdk.cognition_json import loads_strict_model_json
 from sofia.platform.verify.component_artifacts import build_component
 from sofia.platform.verify.stage_release_source import stage_reviewed_git_tree
 
@@ -119,6 +122,37 @@ def validate_receipts(first, second, source_sha):
         crash_recoveries=2, duplicate_denials=2, production_authorized=False, release_accepted=False)
 
 
+def verify_public_artifacts(output):
+    """Verify accessible build bytes; private VM images/state are never selected."""
+    output = Path(output)
+    index = output / 'built-artifacts.json'
+    assert_no_redirected_components(index, include_leaf=True)
+    size = index.stat().st_size
+    if not 1 <= size <= 131072:
+        raise ValueError('public artifact index exceeds its bound')
+    _, raw = read_artifact_file(index, size, include_data=True)
+    record = loads_strict_model_json(raw.decode('utf-8'))
+    if type(record) is not dict or not 1 <= len(record) <= 96:
+        raise ValueError('bounded public artifact index required')
+    paths = []
+    for name, expected in record.items():
+        validate_artifact_path(name)
+        if '/' in name or not isinstance(expected, str) or re.fullmatch('[0-9a-f]{64}', expected) is None:
+            raise ValueError('public artifact index path/digest differs')
+        if name == 'aegis-platform-service':
+            path = output / 'target/release' / name
+        elif name.endswith('.whl'):
+            path = output / 'dependencies' / name
+        else:
+            raise ValueError('artifact index cannot select VM state or identity keys')
+        assert_no_redirected_components(path, include_leaf=True)
+        digest, _ = read_artifact_file(path, path.stat().st_size)
+        if digest != expected:
+            raise ValueError('public artifact bytes differ from the observed build')
+        paths.append(path)
+    return tuple(paths)
+
+
 def observed_source(checkout):
     def git(*args):
         return subprocess.run(['git', '-C', str(checkout), *args], check=True,
@@ -175,6 +209,7 @@ def build_and_boot(checkout: Path, output: Path, toolchain: Path, certificate: P
                     stdout=log, stderr=subprocess.STDOUT, text=True, timeout=1500)
             if result.returncode:
                 raise RuntimeError('disposable VM failed; retain build-and-boot.log, never accept partial receipts')
+        verify_public_artifacts(output)
         if observed_source(checkout) != source:
             raise ValueError('source changed during disposable VM execution')
         first, second = [json.loads((output / f'receipt-{n}.json').read_text()) for n in (1, 2)]

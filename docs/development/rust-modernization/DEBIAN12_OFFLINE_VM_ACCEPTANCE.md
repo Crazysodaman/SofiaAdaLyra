@@ -28,6 +28,9 @@ restart, automatic recovery after an intentional service crash, another graceful
 stop, unchanged identity and no Core/Ollama/personal database. Across boots the
 boot IDs must differ while UUID/key fingerprint persist and generations advance.
 Partial, stale, replayed or inconsistent receipts do not produce a success summary.
+Completion also requires accessible public build files matching their observed
+hashes. Only selected public outputs are transferred to the invoking account;
+private guest identity/image permissions remain unchanged.
 
 The Docker endpoint is explicitly local; inherited context/TLS/endpoint selectors
 are removed while proxy, CA and registry configuration remain. Only returned

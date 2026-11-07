@@ -134,3 +134,41 @@ def test_exported_base_can_be_released_early_without_adopting_foreign_container(
         docker.create('base', 'helper')
     assert [args[-1] for args in calls if args[2] == 'rm'] == ['a' * 64, 'b' * 64]
     assert [args[2] for args in calls] == ['create', 'rm', 'create', 'rm']
+
+
+def test_public_artifacts_must_be_present_readable_and_match_observed_build(tmp_path):
+    from hashlib import sha256
+    import json
+    from tools.aegis_debian_vm import verify_public_artifacts
+    binary = tmp_path / 'target/release/aegis-platform-service'
+    binary.parent.mkdir(parents=True)
+    binary.write_bytes(b'compiled service fixture')
+    wheel = tmp_path / 'dependencies/sofia_sdk-0.1.0-py3-none-any.whl'
+    wheel.parent.mkdir()
+    wheel.write_bytes(b'wheel fixture')
+    record = {p.name: sha256(p.read_bytes()).hexdigest() for p in (binary, wheel)}
+    (tmp_path / 'built-artifacts.json').write_text(json.dumps(record))
+    assert len(verify_public_artifacts(tmp_path)) == 2
+    wheel.write_bytes(b'tampered')
+    with pytest.raises(ValueError):
+        verify_public_artifacts(tmp_path)
+    import os
+    if os.name == 'posix' and os.getuid() != 0:
+        wheel.write_bytes(b'wheel fixture')
+        wheel.chmod(0)
+        try:
+            with pytest.raises(PermissionError):
+                verify_public_artifacts(tmp_path)
+        finally:
+            wheel.chmod(0o600)
+    wheel.unlink()
+    with pytest.raises(OSError):
+        verify_public_artifacts(tmp_path)
+
+
+def test_artifact_index_cannot_select_private_vm_state(tmp_path):
+    import json
+    from tools.aegis_debian_vm import verify_public_artifacts
+    (tmp_path / 'built-artifacts.json').write_text(json.dumps({'platform.ext4': 'a' * 64}))
+    with pytest.raises(ValueError):
+        verify_public_artifacts(tmp_path)

@@ -94,6 +94,7 @@ import json
 files=[Path('/vm/target/release/aegis-platform-service'),*Path('/vm/dependencies').glob('*.whl')]
 Path('/vm/built-artifacts.json').write_text(json.dumps({p.name:sha256(p.read_bytes()).hexdigest() for p in files},sort_keys=True)+'\n')
 PYARTIFACT
+chown "$AEGIS_OUTPUT_UID:$AEGIS_OUTPUT_GID" /vm/built-artifacts.json /vm/target/release/aegis-platform-service /vm/dependencies/*.whl
 printf 'AEGIS_VM_IMAGE_BUILT\n'
 
 for boot in 1 2; do
