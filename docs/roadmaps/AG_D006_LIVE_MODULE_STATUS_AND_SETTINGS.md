@@ -29,7 +29,7 @@ The GUI Settings > Modules and dedicated Module Manager automatically adds/reord
 - The same updates appear in `aegis tui > Modules`, `aegis settings > Modules`, and status indicators without restarting or reconnecting SSH.
 - A TUI running in plain numbered-line mode should refresh at menu navigation boundaries and via bounded periodic observation; full-screen TUI may redraw the affected row live, without stealing keyboard focus or scrambling a typed value.
 - `aegis modules list`, `aegis modules status <module-id>`, `aegis modules settings <module-id>` and `aegis modules watch` are **PROPOSED CLI**; snapshot-only commands are fresh on each invocation, while `watch` would stream authorized changes and show timestamps until Ctrl-C.
-- Changes during a field edit must trigger review/revalidate before submit. No UI or TUI direct database writes. Existing SIG/STOP/permission checks remain authoritative.
+- Changes during a field edit must trigger review/revalidate before submit. No UI or TUI direct database writes. Existing SAFE/STOP/permission checks remain authoritative.
 
 ### Proposed ASCII rendering (illustrative, not live health)
 
