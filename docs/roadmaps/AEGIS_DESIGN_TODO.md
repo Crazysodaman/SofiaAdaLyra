@@ -287,6 +287,8 @@ Design: dedicated test environment dashboard for Platform-only clean installs, s
 
 ## Standard Aegis status report (use in future conversations and checkpoints)
 
+**Executor handoff (2026-11-07):** [OpenCode Platform 1.0 takeover](../development/OPENCODE_PLATFORM_1_0_TAKEOVER_2026-11-07.md). Codex PRs #209 and #210 were open at the audit snapshot; verify ownership/HEAD before OpenCode edits. Transfer is a work order, not proof of local OpenCode execution or release acceptance.
+
 **Latest evidence snapshot:** [Codex Platform 1.0 audit, 2026-11-07](../development/AEGIS_CODEX_AUDIT_2026-11-07.md), pinned to main `4d854a1a8851`; the source snapshot identified three failed full-release workflows and distinguished installed-host evidence from incomplete signed release acceptance. Newer commits must be rechecked before updating status.
 
 Always distinguish **verified implementation/acceptance**, **active implementation**, **design ideas**, and **blocked/deferred** work. Suggested concise format:
