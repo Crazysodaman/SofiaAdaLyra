@@ -76,7 +76,8 @@ def test_native_systemd_core_free_stop_restart_and_crash_recovery(tmp_path, serv
     unit_path = Path('/etc/systemd/system') / unit
     # All names are generated here. Never adopt an existing account, service or path.
     assert root_command('getent', 'passwd', account, check=False).returncode == 2
-    for target in (runtime, state, config, unit_path):
+    assert root_command('systemctl', 'show', unit, '--property=LoadState', '--value').stdout.strip() == 'not-found'
+    for target in (runtime, state, config, unit_path, Path('/run') / name):
         assert root_command('test', '-e', target, check=False).returncode == 1
         assert root_command('test', '-L', target, check=False).returncode == 1
     account_created = unit_created = False
