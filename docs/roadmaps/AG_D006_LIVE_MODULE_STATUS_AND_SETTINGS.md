@@ -68,6 +68,10 @@ The GUI Settings > Modules and dedicated Module Manager automatically adds/reord
 - `src/sofia/platform/core_link/conversation.py`: authenticated settings/modules control boundary; avoid unreviewed direct Core database access.
 - No repository inspection here establishes a deployed/native GUI/TUI event feed, exact automatic refresh latency, or installed-host tests on Windows/Debian. The owner-requested end-to-end behavior is a **missing acceptance requirement**, not a currently guaranteed function.
 
+## Installation block and reinstallation status synchronization
+
+The owner further requests a two-way uninstall choice: **allow later independently approved reinstall** versus **block future Aegis-governed installs**. See [AG-D006 Module Uninstall/Block/Reinstall Policy](AG_D006_MODULE_UNINSTALL_REINSTALL_POLICY.md) for identity, persistent owner-only deny rule, safe compatible-settings restore, data retention, unblock authorization and interrupted removal semantics. Live Module Manager/Settings must update `Installed`, `Available`, `Blocked` and `History` when the canonical policy/lifecycle/installation state changes, without restarting GUI, TUI or Platform. Don't treat a block as successful uninstall or let Core, dependency repair, auto-update or older queued install bypass it.
+
 ## 6. Test/acceptance requirements
 
 - Launch GUI and SSH/PowerShell TUI once, then **install, stage, activate, pause, resume, crash/quarantine, update, disable and uninstall a disposable signed module** via approved backend. Every transition appears in both interfaces without restarting either UI, Platform or unrelated modules. Verify exact target ID, lifecycle/health/recency, no fake health.
