@@ -43,6 +43,10 @@ These pieces are **partial implementations or design coverage**, not proof that 
 
 The owner additionally requires that **GUI and TUI Module Manager/Settings automatically show connected/disconnected, lifecycle and runtime-health transitions without restarting either UI or Platform**. This is a refinement of existing AG-D006 and the shared-settings/offline/empty-state gaps, **not** a new module manager. See [AG-D006 live module status design](AG_D006_LIVE_MODULE_STATUS_AND_SETTINGS.md). Existing module lifecycle event table, read-only observer and authenticated settings catalog are reusable, but the legacy Tk module-settings catalog presently exposes a manual Refresh button, so production auto-subscription is not verified. Use one canonical host-scoped event/snapshot contract with revision/cursor resynchronization and bounded polling fallback. Test installed/active/paused/removed and ACTIVE-but-health-unknown transitions across both clients without service restart, plus a concurrent settings edit to confirm safe invalidation.
 
+### Persistent Module uninstall and reinstallation policy
+
+The owner also requires distinct **uninstall/allow reinstall** and **uninstall/block reinstall** choices, a separate retained-data/purge decision and an owner-only unblock. This expands the existing AG-D006 Module Manager lifecycle UX, **not** a duplicate installer or a new manager. [AG-D006 uninstall/reinstall policy](AG_D006_MODULE_UNINSTALL_REINSTALL_POLICY.md) specifies parity in GUI/TUI, block priority over Core requests/auto-update/dependencies, accurate interrupted removal, and exact signed-package/data migration before any approved reinstall. Current module lifecycle already has `REMOVED`; a persistent install-deny policy and a verified reinstall workflow have not been established. Both client frontends must observe the same policy/receipts without a restart.
+
 ## 3. Concrete shared interaction pattern
 
 ### Status / navigation
