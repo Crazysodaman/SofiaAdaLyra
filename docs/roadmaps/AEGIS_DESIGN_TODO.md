@@ -104,15 +104,22 @@ Possible split: Codex owns Platform/Rust/SDK boundaries, OpenCode develops Sofí
 
 ## New ideas to flesh out (proposals only)
 
-All AG-D011–AG-D018 entries below are **CAPTURED PROPOSALS**, not owner-approved features, scheduled tasks, or new requirements for Platform 1.0. Candidate order reflects which design conversations could remove the most ambiguity, **not** implementation priority.
+AG-D011 now has an explicit **OWNER-DESIRED CLI-first installation UX**; AG-D012–AG-D018 remain captured design explorations with the individual statuses stated below. None of these entries automatically schedules a new implementation task or changes Platform 1.0 acceptance #201. Candidate order is for design discussion, **not** implementation priority.
 
-### AG-D011 | First-run Setup and Enrollment Wizard
+### AG-D011 | One-script ASCII Platform Installer and First-run Setup
 
-**Status:** CAPTURED (PROPOSED). **Target release:** TBD.
+**Status:** OWNER-DESIRED (2026-11-07), CLI-first cross-platform UX direction confirmed. **Implementation:** NOT SCHEDULED BY THIS DESIGN FILE. **Target release:** align with existing Platform 1.0 signed installer/CLI work (#201), only after backend authority and Windows/Debian installed-host acceptance.
 
-Design: guide first installation on Windows/Linux through validating the signed Platform release, generating a private installation identity, choosing local roles, configuring owner authentication, checking service health, and *optionally* beginning an explicitly approved Fleet pairing ceremony. Show clearly when a host is Core-free, offline or not enrolled. Never create production trust through a single convenience click.
+**Detailed design:** [AG-D011: One-script ASCII Platform Installer](AG_D011_ASCII_PLATFORM_INSTALLER.md), including interactive terminal layout, Windows PowerShell and Debian Bash bootstrap entrypoints, signed release validation, Core-free defaults, secure approval, update/repair/uninstall, rollback and OS acceptance. These scripts are **proposed release entrypoints and do not yet exist as certified installers**.
 
-**Questions:** Should the wizard run on first launch only or remain reopenable? Is a CLI equivalent mandatory for Debian headless hosts?
+**Confirmed owner experience:**
+- Download one reviewed, signed Platform release package and run `./Install-Aegis.ps1` (Windows) or `bash ./install-aegis.sh` (Debian). Follow a keyboard-only, plain ASCII setup menu that works over SSH or in ordinary terminals without a GUI.
+- A first-run flow inspects OS/prerequisites, authenticates the signed artifact and exact platform target, previews paths/service/state changes, prompts for scoped owner approval through existing SAFE/STOP authority, performs a governed install and shows source-backed service health. No manual Git, Rust, Python, wheels, Ollama or Core dependency is required from the user.
+- Default installation is **Core-free, local, and not Fleet-enrolled**. Core installation, inference configuration, Fleet enrollment, updates and service-impacting operations remain explicitly separate approved steps.
+- Reopen installer for update, repair, uninstall, status and diagnostics without silently creating a second identity, deleting personal Core data, overriding revoked grants or restarting an unrelated service. Protected-state purge requires a separate destructive authorization ceremony.
+- Reuse existing Rust service, signed release verifier/stager, OS service registration and native management API. Do **not** create a second installer authority or duplicate current OpenCode Platform implementation.
+
+**Remaining decisions before shipping:** Exact OS support/install locations, offline/online verified distribution and root-of-trust delivery, review/approval ceremony for uninitialized hosts, system service defaults and installation cancellation/recovery acceptance. CLI and OS package must pass existing #201 requirements before any production-use claim.
 
 ### AG-D012 | Fleet Manager and Topology View
 
