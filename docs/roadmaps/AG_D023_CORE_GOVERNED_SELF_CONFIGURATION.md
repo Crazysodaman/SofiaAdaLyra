@@ -110,6 +110,10 @@ Both the graphical and ASCII Core self-configuration menus, approval/change-hist
 - Optional `auto_revert_on_failure` may apply only when the original prechange value and preconditions are verified and doing so is authorized. If the result is uncertain, preserve evidence and ask instead of pretending to roll back.
 - Never allow dynamic prompts, source docs, plugin outputs, dev agents or the Core's own proposals to modify authorization policies.
 
+## Module uninstall initiated by the Core
+
+Self-management of Core-owned **settings** is distinct from uninstalling a **Platform-owned module**. See [AG-D006 Core-Initiated Module Removal](AG_D006_CORE_INITIATED_MODULE_REMOVAL.md). The Core may make an inert, reasoned module removal proposal, identify signed module/host and independently verified dependencies, and request owner review. Current `module.remove` is **PROTECTED** in SAFE, so neither Adaptive nor Delegated self-settings grant authorizes the uninstall; an actual effect requires independent exact owner approval. The Core cannot choose the owner's permanent no-reinstall policy, purge retained module/private data, remove security/management dependencies, or self-authorize broader powers. A future, separately reviewed LAB-only disposable cleanup capability is not shipped or authorized. GUI and TUI display proposal, approval and actual lifecycle receipts consistently without restart.
+
 ## 7. Reuse and implementation implications
 
 Existing code foundations to reuse:
