@@ -86,19 +86,24 @@ def _uuid(value):
 def validate_receipts(first, second, source_sha):
     fields = {'schema', 'result', 'source_sha', 'boot_id', 'platform_id', 'public_key_sha256',
         'generations', 'python', 'kernel', 'pid1', 'os_version', 'core_installed', 'ollama_installed',
-        'bundled_runtime', 'graceful_stops', 'crash_recovered', 'duplicate_denied', 'production_authorized', 'release_accepted'}
+        'bundled_runtime', 'verified_release_staged', 'release_manifest_sha256', 'installed_component_files', 'graceful_stops', 'crash_recovered', 'duplicate_denied', 'production_authorized', 'release_accepted'}
     if not isinstance(source_sha, str) or re.fullmatch('[0-9a-f]{40}', source_sha) is None:
         raise ValueError('exact observed source SHA required')
     for row in (first, second):
         if type(row) is not dict or set(row) != fields:
             raise ValueError('VM receipt fields differ')
-        if (row['schema'] != 'aegis.disposable.debian12-vm.v2' or row['result'] != 'PASS'
+        if (row['schema'] != 'aegis.disposable.debian12-vm.v3' or row['result'] != 'PASS'
                 or row['source_sha'] != source_sha or row['pid1'] != 'systemd' or row['os_version'] != '12'
-                or row['bundled_runtime'] is not True or row['core_installed'] is not False or row['ollama_installed'] is not False
+                or row['verified_release_staged'] is not True or row['bundled_runtime'] is not True or row['core_installed'] is not False or row['ollama_installed'] is not False
                 or row['crash_recovered'] is not True or row['duplicate_denied'] is not True or row['production_authorized'] is not False
                 or row['release_accepted'] is not False or type(row['graceful_stops']) is not int
                 or row['graceful_stops'] != 2):
             raise ValueError('VM receipt does not establish the disposable service contract')
+        if (not isinstance(row['release_manifest_sha256'],str)
+                or re.fullmatch('[0-9a-f]{64}',row['release_manifest_sha256']) is None
+                or type(row['installed_component_files']) is not int
+                or not 0<row['installed_component_files']<=16384):
+            raise ValueError('signed installed-code evidence differs')
         _uuid(row['boot_id'])
         _uuid(row['platform_id'])
         if (not isinstance(row['public_key_sha256'], str)
@@ -113,11 +118,14 @@ def validate_receipts(first, second, source_sha):
             raise ValueError('VM generation did not advance')
     if (first['boot_id'] == second['boot_id'] or first['platform_id'] != second['platform_id']
             or first['public_key_sha256'] != second['public_key_sha256']
+            or first['release_manifest_sha256'] != second['release_manifest_sha256']
+            or first['installed_component_files'] != second['installed_component_files']
             or second['generations'][0] <= first['generations'][-1]):
         raise ValueError('VM reboot identity/generation continuity failed')
-    return dict(schema='aegis.disposable.debian12-summary.v1',
+    return dict(schema='aegis.disposable.debian12-summary.v2',
         result='VERIFIED_DISPOSABLE_VM_CONTRACT', source_sha=source_sha,
-        platform_id=first['platform_id'], boot_ids=[r['boot_id'] for r in (first, second)],
+        platform_id=first['platform_id'], release_manifest_sha256=first['release_manifest_sha256'],
+        verified_release_staged=True, installed_component_files=first['installed_component_files'], boot_ids=[r['boot_id'] for r in (first, second)],
         generations=first['generations'] + second['generations'], graceful_stops=4,
         crash_recoveries=2, duplicate_denials=2, production_authorized=False, release_accepted=False)
 
@@ -165,6 +173,23 @@ def observed_source(checkout):
     return source
 
 
+def failure_diagnostics(output):
+    """Bounded tails from this operation's disposable public test logs only."""
+    for name in ('build-and-boot.log','boot-1.log','boot-2.log'):
+        path=Path(output)/name
+        try:
+            assert_no_redirected_components(path,include_leaf=True)
+            if not path.exists(): continue
+            size=path.stat(follow_symlinks=False).st_size
+            if not 0<=size<=16*1024**2:
+                raise ValueError('test log exceeds diagnostic bound')
+            _,data=read_artifact_file(path,size,include_data=True)
+            print(f'DISPOSABLE VM DIAGNOSTIC {name}',file=sys.stderr)
+            print(data[-16384:].decode('utf-8',errors='replace'),file=sys.stderr)
+        except (OSError,ValueError):
+            print(f'DISPOSABLE VM DIAGNOSTIC {name}: unavailable',file=sys.stderr)
+
+
 def build_and_boot(checkout: Path, output: Path, toolchain: Path, certificate: Path):
     if sys.platform != 'linux':
         raise RuntimeError('disposable Debian VM runner requires a Linux Docker host')
@@ -185,7 +210,7 @@ def build_and_boot(checkout: Path, output: Path, toolchain: Path, certificate: P
         for name in ('Cargo.toml', 'Cargo.lock'):
             shutil.copy2(reviewed / name, context / name)
         shutil.copytree(reviewed / 'rust', context / 'rust')
-        for name in ('build.sh', 'probe.py'):
+        for name in ('build.sh', 'probe.py', 'prepare_release.py'):
             shutil.copy2(reviewed / 'test/fixtures/aegis_debian_vm' / name, context / name)
         shutil.copy2(reviewed / 'packaging/services/aegis-platform.service', context / 'aegis-platform.service')
         manifest = dict(source_sha=source, base_image=BASE_IMAGE, production_authorized=False,
@@ -210,6 +235,7 @@ def build_and_boot(checkout: Path, output: Path, toolchain: Path, certificate: P
                 result = subprocess.run(docker.prefix + ['start', '--attach', helper], env=docker.environment,
                     stdout=log, stderr=subprocess.STDOUT, text=True, timeout=1500)
             if result.returncode:
+                failure_diagnostics(output)
                 raise RuntimeError('disposable VM failed; retain build-and-boot.log, never accept partial receipts')
         verify_public_artifacts(output)
         if observed_source(checkout) != source:
