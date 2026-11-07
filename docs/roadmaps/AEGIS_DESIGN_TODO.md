@@ -276,6 +276,30 @@ Design: dedicated test environment dashboard for Platform-only clean installs, s
 
 **Open decisions:** Should Aegis initially use only local/offline reviewed component packages before a future remote registry? Should the catalog be a separate manager or an Install screen inside each existing manager?
 
+### AG-D022 | Aegis Terminal Control Center (headless ASCII UI)
+
+**Status:** OWNER-DESIRED (2026-11-07), detailed design CAPTURED. **Implementation:** NOT SCHEDULED BY THIS DOCUMENT; **target release:** separately approve once #201 authenticated CLI/IPC and OS installation authority are ready.
+
+**Detailed design:** [AG-D022: Headless Terminal Control Center](AG_D022_AEGIS_TERMINAL_CONTROL_CENTER.md).
+
+**User experience:** One cross-platform `aegis` interactive ASCII terminal dashboard (candidate `aegis tui`) usable in Windows PowerShell, Linux terminals, serial/VM consoles and SSH. Numeric-key navigation and narrow line-mode fallback; no GUI, browser, local model or Sofía Core required. Same manager taxonomy as AG-D007: Platform Settings, Core Manager, Models, Modules, Fleet, Security/Approvals, Jobs, Backups, Updates, Diagnostics, optional Lab. Command-mode status and settings operations share the same authoritative backend. Show saved vs effective settings, current apply class, host identity, genuine health/freshness and real job receipts. Owner-authenticated protected mutations must use the existing service authority; never direct SQLite, a second settings database, shell-command execution or a TUI-only security bypass.
+
+**Existing source to REUSE, not rebuild:** `platform/config/settings_authority.py`, `platform/core_link/conversation.py` authenticated settings operations, `platform/modules/settings.py`, `modules/ui/core_link_settings.py` projection, existing SAFE/OPS CLI scripts and Rust Platform service. Current individual CLIs and Python Tk settings are real foundations, **not a completed Core-free ASCII dashboard**. Need the authenticated Platform management IPC from #201 before enabling privileged cross-host actions.
+
+**Open decisions:** default `aegis` versus explicit `aegis tui` invocation, optional terminal library/ASCII fallback, first read-only milestone, terminal owner-auth trust ceremony, minimum supported Windows/Linux versions. **No current source/service/release work is reprioritized merely by saving this design.**
+
+### AG-D023 | Governed Core Self-Configuration
+
+**Status:** OWNER-DESIRED (2026-11-07), detailed design CAPTURED. **Implementation:** NOT SCHEDULED OR AUTHORIZED AS LIVE SELF-WRITES.
+
+**Detailed design:** [AG-D023: Core Self-Configuration and Owner Controls](AG_D023_CORE_GOVERNED_SELF_CONFIGURATION.md).
+
+**User experience:** Let each authenticated Core propose and, under an independently owner-approved bounded and revocable per-Core/per-field policy, autonomously adjust only selected reversible Core-owned settings. In ASCII TUI and GUI show allowed ranges, reason, old/new value, actor, scope/expiry, revision, current apply state, audit history, pending approvals, Pause/Lock and reviewed revert. Profiles: Observe, Suggest, Adaptive (low-risk bounded), Delegated (specific expiring grants), Locked. **Default before grant: no persistent autonomous writes.** Existing `SettingsOwner.CORE` means field ownership, **not** permission for the AI to rewrite it; all autonomous changes require a separate classified capability and Platform/Core Host enforcement. No Core self-authorizes grants or changes SAFE/STOP, secrets, constitutional identity, writer location, Fleet trust, protected memory or production releases. Host settings, model installs and restart effects retain their independent authorization.
+
+**Existing source to REUSE, not rebuild:** canonical revisioned `CanonicalSettingsService` with CAS/idempotency/events and LIVE/NEXT_OPERATION/COMPONENT_RESTART/PLATFORM_RESTART states; Core Link settings contracts, signed module settings and SAFE classified permission store. Remote headless 256-bit-secret handling is **not** already proven: current attended owner ceremony is Venus-Windows-bound, so do not invent SSH approval shortcuts. Tests must prove no bypass, stale grants, contradictory revisions, duplicate writers or false APPLIED reports.
+
+**Open decisions:** first exact allowlisted fields and ranges, frequency/expiry defaults, when to notify the owner, signed policy scope and whether initial manual approvals or a reviewed low-risk Adaptive grant is preferred.
+
 ---
 
 ## Questions to decide before promoting UX concepts
