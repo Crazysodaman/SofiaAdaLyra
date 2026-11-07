@@ -76,6 +76,8 @@ Design: browse signed installed/available modules, versions and compatibility; i
 
 **Detailed design:** [AG-D007: Aegis Control Center](AEGIS_CONTROL_CENTER_DESIGN.md), including layout, manager taxonomy, detachable windows, safe action flows, Rust service/API boundaries, Core-free behavior, Windows/Linux support, signed-package UX, test scenarios and staged acceptance.
 
+**Layout and location specification:** [AG-D007: Desktop geometry, page placement and candidate Windows/Linux paths](AG_D007_CONTROL_CENTER_LAYOUT_AND_PATHS.md). This refines UI design only; candidate filesystem paths are not implementation-approved or authoritative.
+
 **Recommended UX direction:** One neutral **Aegis Control Center** app with Overview, Fleet, Cores, Models, Modules, Catalog, Jobs, Compute, Updates, Security, Backups, Diagnostics, Lab and Settings, with **Open in new window** for individual managers and optional tray shortcuts. The GUI is optional for headless hosts, and Sofía Workbench remains a separate optional personal Core client.
 
 **Hard separation:** Platform's authenticated Rust service owns identity, SAFE/STOP, approvals, installed-component effects, remote trust and receipts. GUI, optional Core and external developer agents cannot bypass or become that authority. Never make Platform startup depend on Sofía, an LLM, GPU, Tauri or a desktop session.
