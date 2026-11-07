@@ -85,7 +85,7 @@ The Core's *reason* may be its own interpretation; this is not independent verif
 
 ## Terminal presentation palette
 
-The Core self-configuration ASCII menu and every console approval/change-history screen use the canonical [Aegis CLI/TUI color theme](AEGIS_CLI_TUI_COLOR_THEME.md). Status remains textual and evidence-backed in monochrome. Purple headers, cyan current-selection indicators, lime verified success, amber pending/review and dark red danger accents must never override the actual grant/STOP or authoritative change receipt. Use readable light main text for all critical content; do not use low-contrast colored text alone for errors or approval boundaries.
+Both the graphical and ASCII Core self-configuration menus, approval/change-history screens and policy controls use the same default [shared Aegis GUI/TUI visual theme](AEGIS_SHARED_GUI_TUI_THEME.md), with additional [terminal-specific rendering and monochrome rules](AEGIS_CLI_TUI_COLOR_THEME.md). Status remains textual and evidence-backed in monochrome. Purple headers, cyan current-selection indicators, lime verified success, amber pending/review and dark red danger accents must never override the actual grant/STOP or authoritative change receipt. Use readable light main text for all critical content; do not use low-contrast colored text alone for errors or approval boundaries.
 
 ## 5. Proposed Core -> service workflow
 
