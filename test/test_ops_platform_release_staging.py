@@ -170,3 +170,18 @@ def test_redirected_candidate_parent_is_rejected_without_writes(tmp_path,platfor
     with pytest.raises((OSError,ValueError)):
         stage_platform_release(**args)
     assert not list(real.iterdir())
+
+
+def test_unsafe_candidate_parent_is_not_silently_repaired(tmp_path,platform_wheels):
+    import os
+    if os.name!='posix':
+        pytest.skip('POSIX permission case; native Windows uses the existing DACL guard')
+    args=arguments(tmp_path,platform_wheels)
+    parent=tmp_path/'unsafe-parent'
+    parent.mkdir(mode=0o755)
+    parent.chmod(0o755)
+    args['destination']=parent/'candidate'
+    with pytest.raises(PermissionError):
+        stage_platform_release(**args)
+    assert parent.stat().st_mode & 0o777==0o755
+    assert not list(parent.iterdir())
