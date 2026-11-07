@@ -70,6 +70,8 @@ Existing partial foundations to reuse: Python Settings Models tab, Ollama invent
 
 Design: browse signed installed/available modules, versions and compatibility; install/enable/pause/update/remove with exact scoped approvals, health and recovery receipts. Reuse existing Platform module contracts and service authority. Keep a GUI optional when a headless CLI suffices for Platform 1.0.
 
+**Owner requirement (2026-11-07):** [AG-D006 Live Module Presence and Settings](AG_D006_LIVE_MODULE_STATUS_AND_SETTINGS.md). GUI **and** TUI must automatically reflect module installed/uninstalled, connected/disconnected, ACTIVE/PAUSED/QUARANTINED and verified health/freshness changes in both Module Manager and Settings, **without restarting either UI or the Platform**. Existing source has lifecycle events, health observation and a module settings catalog; current Tk module catalog refresh is manual and complete GUI/TUI live synchronization is **not verified**. Reuse a service-owned authenticated snapshot/event stream with bounded polling/resync fallback; do not make a second module registry. Lifecycle ACTIVE does not prove runtime connected. If a module is unavailable, keep appropriate settings read-only, and do not automatically restart modules for settings needing a restart. Design only, not production implementation or a new #201 gate.
+
 ### AG-D007 | Aegis Control Center navigation
 
 **Status:** OWNER-DESIRED, DETAILED DESIGN CAPTURED. **Target release:** UI milestone TBD; **not scheduled** for Platform-only #201 by this document.
