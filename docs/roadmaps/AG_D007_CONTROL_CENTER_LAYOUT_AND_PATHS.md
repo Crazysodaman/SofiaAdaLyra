@@ -67,7 +67,7 @@ One neutral Aegis Control Center app with detachable manager windows. Closing th
 
 ## 5. Visual style
 
-- Functional, uncluttered dark interface by default: near-black and charcoal surfaces; restrained teal interactive accent and violet optional secondary accent.
+- **Owner's unified theme supersedes prior neutral GUI palette suggestions.** Default Aegis GUI uses the exact [shared Aegis GUI/TUI theme](AEGIS_SHARED_GUI_TUI_THEME.md): black `#000000`, cards `#0B1020`, primary purple `#9400D3`, cyan `#00C2FF`, green success `#39FF14`, light body text `#E5E7EB`, muted `#94A3B8`, hover `#AA1DFF`, warning/HUD amber `#FFB000`, error accent `#9F0202`, and all secondary HUD/VISR/glow tokens. Keep semantic status labels and accessible contrast for critical content.
 - Light mode and system theme supported. Use green for verified healthy, amber for pending/degraded, red for STOP/revoked/danger, gray for unknown/unobserved, always accompanied by labels.
 - Spacing based on an 8 px rhythm; typical pane padding 12–16 px. Typography accessible at user-controlled zoom.
 - Avoid automatic list reordering while an approval dialog or row selection is open.
