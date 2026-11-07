@@ -1,6 +1,8 @@
 # Aegis CLI / TUI | Canonical Terminal Color Theme
 
 **Status:** OWNER-DESIRED / CANONICAL DESIGN TOKENS (2026-11-07). This file records the owner's exact hexadecimal color choices; it is not evidence that the theme is implemented or tested in every command.
+**Shared GUI + terminal palette (owner decision 2026-11-07):** The exact RGB values are also the default Aegis GUI colors. [AEGIS_SHARED_GUI_TUI_THEME.md](AEGIS_SHARED_GUI_TUI_THEME.md) is now the **cross-surface canonical token source**; this file retains terminal-specific ANSI/monochrome fallback and the same exact historical palette table. Where the two documents overlap, keep values identical and treat the shared token specification as authoritative. The separate Sofía personal Workbench/adaptive theme remains independent.
+
 **Scope:** **ALL Aegis CLI UI surfaces**, not only AG-D022: the AG-D011 PowerShell/Bash ASCII installer, interactive TUI, line-mode fallback, Platform/Core/Fleet/Module/Model/Security/Jobs/Backups/Updates/Diagnostics settings menus, wizard prompts, approval screens, terminal status and future terminal tools. Applies on Windows consoles, Linux shells and SSH sessions when color capability supports it.
 **Not automatically changing:** AG-D007 graphical desktop theme, unrelated third-party application output, JSON/API formats, personal Core avatar styling, underlying trust/permission decisions or the current #201 acceptance gates.
 **Implementation ownership:** Future installers, Rust/native TUI clients and CLI frontends reuse one shared theme token specification. Do not create independent inconsistent screen palettes.
