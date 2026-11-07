@@ -68,6 +68,10 @@ This is an illustrative design, not an actual host observation. Never invent ide
 
 The terminal Module Manager and Settings > Modules update when installed modules appear/disappear or change lifecycle/runtime health **without restarting Aegis, the TUI, or the SSH session**. The [AG-D006 live module sync contract](AG_D006_LIVE_MODULE_STATUS_AND_SETTINGS.md) requires authenticated service events plus bounded snapshot/poll fallback, separate ACTIVE lifecycle vs verified health, safe stale-editor handling and no hidden component restart. The plain ASCII numbered menu refreshes at navigation boundaries and periodically while idle; available manual `R` refresh remains a fallback. No auto-installation, auto-activation or unauthorized settings effects are implied.
 
+### Uninstall, block and reinstall controls
+
+The Module Manager/Settings menu follows [AG-D006 Module Uninstall, Block and Reinstall](AG_D006_MODULE_UNINSTALL_REINSTALL_POLICY.md). Show **uninstall and allow future approved reinstall** versus **uninstall and block all future Aegis-governed installs**, plus **retain settings/data** (default); data purge is a separate destructive ceremony. Display blocked modules and owner-only unblocking, signed identity/publisher, dependency impact, reinstallation and settings-restore plans. `BLOCKED BUT INSTALLED` and `OUTCOME_UNKNOWN` must remain visible if removal fails. Both TUI and GUI update without restart; a Core cannot bypass the owner block.
+
 ### Fleet page
 
 - Show **local identity**, trusted enrolled peers, merely discovered candidates and stale/unreachable peers as distinct categories.
