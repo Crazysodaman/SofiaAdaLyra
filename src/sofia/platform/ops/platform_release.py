@@ -92,9 +92,13 @@ def _component_wheel(path,kind,version,data):
         if kind=='sdk' and requirements:
             raise PlatformReleaseRejected('SDK must remain independently dependency-free')
         for requirement in requirements:
+            if not isinstance(requirement, str) or not requirement.isascii():
+                raise PlatformReleaseRejected('component dependency header must be ASCII text')
             name,_,marker=requirement.partition(';')
             match=re.match('[A-Za-z0-9][A-Za-z0-9._-]*',name.strip())
-            normalized='' if match is None else re.sub('[-_.]+','-',match.group()).lower()
+            if match is None:
+                raise PlatformReleaseRejected('component dependency name is missing')
+            normalized=re.sub('[-_.]+','-',match.group()).lower()
             if normalized=='sofia-core':
                 raise PlatformReleaseRejected('Platform baseline cannot require Core')
             if normalized=='ollama' and marker.strip() not in {'extra == "ollama"',"extra == 'ollama'"}:

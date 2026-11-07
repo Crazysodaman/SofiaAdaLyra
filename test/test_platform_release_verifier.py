@@ -174,12 +174,12 @@ def replace_signed_asset(tmp_path, manifest, key, kind, data):
     return manifest, b64encode(key.sign(manifest.digest.encode())).decode()
 
 
-@pytest.mark.parametrize('defect', ['invalid_zip', 'sdk_dependency', 'core_dependency', 'duplicate_entry', 'core_case', 'data_relocation', 'lowercase_dependency', 'nul_header'])
+@pytest.mark.parametrize('defect', ['invalid_zip', 'sdk_dependency', 'core_dependency', 'duplicate_entry', 'core_case', 'data_relocation', 'lowercase_dependency', 'nul_header', 'nonascii_dependency'])
 def test_signed_component_content_still_obeys_platform_boundary(tmp_path, platform_wheels, defect):
     import io
     import zipfile
     manifest, key, public, _ = fixture_release(tmp_path, platform_wheels)
-    kind = 'platform' if defect == 'core_dependency' else 'sdk'
+    kind = 'platform' if defect in {'core_dependency', 'nonascii_dependency'} else 'sdk'
     source = platform_wheels[kind].read_bytes()
     output = io.BytesIO()
     if defect != 'invalid_zip':
@@ -187,6 +187,7 @@ def test_signed_component_content_still_obeys_platform_boundary(tmp_path, platfo
             for entry in original.infolist():
                 data = original.read(entry)
                 if entry.filename.endswith('.dist-info/METADATA'):
+                    if defect == 'nonascii_dependency': data += b'Requires-Dist: caf\xc3\xa9\n'
                     if defect == 'sdk_dependency': data += b'Requires-Dist: unexpected-runtime\n'
                     if defect == 'lowercase_dependency': data += b'requires-dist: unexpected-runtime\n'
                     if defect == 'core_dependency': data += b'Requires-Dist: sofia-core; extra == "core"\n'
