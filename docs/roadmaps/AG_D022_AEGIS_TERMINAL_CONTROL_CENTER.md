@@ -72,6 +72,10 @@ The terminal Module Manager and Settings > Modules update when installed modules
 
 The Module Manager/Settings menu follows [AG-D006 Module Uninstall, Block and Reinstall](AG_D006_MODULE_UNINSTALL_REINSTALL_POLICY.md). Show **uninstall and allow future approved reinstall** versus **uninstall and block all future Aegis-governed installs**, plus **retain settings/data** (default); data purge is a separate destructive ceremony. Display blocked modules and owner-only unblocking, signed identity/publisher, dependency impact, reinstallation and settings-restore plans. `BLOCKED BUT INSTALLED` and `OUTCOME_UNKNOWN` must remain visible if removal fails. Both TUI and GUI update without restart; a Core cannot bypass the owner block.
 
+### Owner review for Core-suggested removal
+
+Use [AG-D006 Core-Initiated Module Removal](AG_D006_CORE_INITIATED_MODULE_REMOVAL.md) in the ASCII Owner Inbox: exact Core and host ID, proposed module, signed package, current lifecycle/health, dependency/capability impact and a separately labelled Core explanation. Options are owner-authorized **remove and allow future separately approved reinstall**, **remove and durably block**, **defer**, or **deny**. Never interpret a numeric key as owner proof. Current SAFE policy classifies `module.remove` PROTECTED, and neither the TUI nor Core may bypass this with a self-issued approval. Ordinary remove retains auditable package bytes; no implicit data purge or background auto-install. Update live module status after real receipts.
+
 ### Fleet page
 
 - Show **local identity**, trusted enrolled peers, merely discovered candidates and stale/unreachable peers as distinct categories.
