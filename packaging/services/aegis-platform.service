@@ -1,0 +1,35 @@
+[Unit]
+Description=Aegis Core-free Platform
+After=network.target
+StartLimitIntervalSec=300
+StartLimitBurst=3
+ConditionPathExists=/etc/aegis/platform-service.env
+ConditionPathExists=/var/lib/aegis/platform.db
+ConditionPathIsDirectory=/var/lib/aegis/identity
+
+[Service]
+Type=notify
+NotifyAccess=main
+User=aegis
+Group=aegis
+EnvironmentFile=/etc/aegis/platform-service.env
+ExecStart=/opt/aegis/bin/aegis-platform-service --python ${AEGIS_PYTHON} --identity-home ${AEGIS_IDENTITY_HOME} --state ${AEGIS_LOCAL_STATE} --platform-id ${AEGIS_PLATFORM_ID} --public-key-sha256 ${AEGIS_PUBLIC_KEY_SHA256}
+WorkingDirectory=/var/lib/aegis
+StateDirectory=aegis
+StateDirectoryMode=0700
+RuntimeDirectory=aegis
+RuntimeDirectoryMode=0700
+UMask=0077
+Restart=on-failure
+RestartSec=20
+TimeoutStartSec=15
+TimeoutStopSec=20
+KillMode=mixed
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

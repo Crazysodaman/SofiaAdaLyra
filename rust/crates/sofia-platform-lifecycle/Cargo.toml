@@ -4,8 +4,20 @@ version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "Non-authoritative R6-R7 process observations and hybrid release decision contracts"
+description = "Fenced process observations and Core-free Platform OS service owner"
 publish = false
+
+[dependencies]
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.140"
+ctrlc = { version = "=3.4.5", features = ["termination"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-service = "=0.8.0"
+
+[[bin]]
+name = "aegis-platform-service"
+path = "src/bin/platform_service.rs"
 
 [lints]
 workspace = true

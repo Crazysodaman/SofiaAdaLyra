@@ -1,5 +1,6 @@
 //! R6 supervision and R7 release decision reference contracts.
-//! These types do NOT start processes, authorize writers, or approve release.
+//! These library types do NOT start processes, authorize writers, or approve release.
+//! The separate aegis-platform-service binary owns only its Core-free Platform adapter.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProcessPhase {

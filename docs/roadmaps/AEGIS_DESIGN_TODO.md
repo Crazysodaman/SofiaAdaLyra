@@ -72,9 +72,15 @@ Design: browse signed installed/available modules, versions and compatibility; i
 
 ### AG-D007 | Aegis Control Center navigation
 
-**Status:** CAPTURED. **Target release:** TBD.
+**Status:** OWNER-DESIRED, DETAILED DESIGN CAPTURED. **Target release:** UI milestone TBD; **not scheduled** for Platform-only #201 by this document.
 
-Design question: one Aegis app with **Platform / Cores / Models / Modules / Fleet / Security / Diagnostics** views, or separate launchable managers sharing the same service API? Support Windows and Linux; servers remain headless and manageable by CLI/API. Keep high-risk actions visibly distinct from read-only status.
+**Detailed design:** [AG-D007: Aegis Control Center](AEGIS_CONTROL_CENTER_DESIGN.md), including layout, manager taxonomy, detachable windows, safe action flows, Rust service/API boundaries, Core-free behavior, Windows/Linux support, signed-package UX, test scenarios and staged acceptance.
+
+**Recommended UX direction:** One neutral **Aegis Control Center** app with Overview, Fleet, Cores, Models, Modules, Catalog, Jobs, Compute, Updates, Security, Backups, Diagnostics, Lab and Settings, with **Open in new window** for individual managers and optional tray shortcuts. The GUI is optional for headless hosts, and Sofía Workbench remains a separate optional personal Core client.
+
+**Hard separation:** Platform's authenticated Rust service owns identity, SAFE/STOP, approvals, installed-component effects, remote trust and receipts. GUI, optional Core and external developer agents cannot bypass or become that authority. Never make Platform startup depend on Sofía, an LLM, GPU, Tauri or a desktop session.
+
+**Pending owner decisions:** confirm single shell + detachable managers, separate Sofía Workbench, read-only-first GUI, isolated Lab/Developer Workshop and CLI-first Debian servers. This captures design intent, **not** permission to start UI coding, deploy production, or change Codex's Platform-only shakedown acceptance scope.
 
 ### AG-D008 | Core identity and state retention policy
 
@@ -206,6 +212,60 @@ Design: per-host CPU, RAM, GPU/VRAM, storage, temperature, busy/gaming state, in
 Design: dedicated test environment dashboard for Platform-only clean installs, simulated/signed synthetic Cores, fake Fleet peers, fault injection, module install/rollback and read-only test evidence. Visibly separate LAB from PRODUCTION; never copy real protected identity or secrets into synthetic fixtures. Integrate with #201 as an evidence viewer, not a shortcut around its mandatory tests.
 
 **Questions:** Should this be a developer-only CLI first, with an optional GUI much later?
+
+
+### AG-D019 | Sofía Developer Workshop and Governed Code Proposals
+
+**Status:** CAPTURED (PROPOSED). **Target release:** TBD, after stable SDK/developer-tool acceptance; not mandatory for Platform 1.0 shakedown.
+
+**Purpose:** Give a separately authorized Core such as Sofía a meaningful route to propose new manager designs, source changes, tests and experiments, while keeping developer execution, reviewer approval and Platform security independent of model outputs.
+
+**Proposed experience:**
+- Core inspects only approved source/test evidence and records a proposal with the target repository, branch, intended changes, dependencies, predicted risks and acceptance criteria.
+- A developer tool (e.g., OpenCode or Codex) may receive the reviewed, scoped plan and create an isolated branch/worktree and PR, never silently editing active Platform services or protected data.
+- Aegis Lab can execute approved synthetic tests against disposable state. Return actual test logs, exit codes, revision-pinned evidence and reproduction steps, not generated claims of success.
+- The owner reviews diffs, test evidence, affected SDK contracts and expected permissions before merges or release promotion.
+- A Core cannot fabricate owner authorization, enroll hosts, change production secrets, approve its own privileges or execute destructive commands merely because it wrote the proposal.
+- Developer work does not bypass GitHub branch protection, separate Platform/Core ownership, test gates or signed releases.
+
+**Test proposal acceptance:** one safe UI change, one blocked protected-file change, one failed test requiring a correction, one untrusted prompt injection in a source document, one rejected permission escalation, and one complete PR with verified evidence.
+
+**Open decisions:** Should Sofía only propose source/test plans initially, or may she submit patches after owner approval? Which sandbox limits, budgets and PR permissions apply?
+
+### AG-D020 | Aegis Operations and Job Manager
+
+**Status:** CAPTURED (PROPOSED). **Target release:** TBD; small back-end job/receipt requirements may already be mandatory via Platform 1.0 lifecycle, but a dedicated GUI is not approved.
+
+**Purpose:** Manage long-running approved tasks without losing authority or reporting a requested change as a completed one.
+
+**Proposed experience:**
+- Track queued, approval-pending, running, draining, succeeded-verified, failed, denied, cancelled and outcome-unknown operations; each has an exact operation ID, host ID, effective grant, generation, and bounded receipt log.
+- Distinguish **requested / accepted / in progress / effect verified**. Display stale/unreachable hosts as unknown rather than success.
+- Handle service installs, updates, Core activate/deactivate, module staging, model downloads and Fleet operations through the same versioned job/receipt interface.
+- Support scoped cancellation, explicit retry with idempotency/reconciliation, crash recovery and restart-safe journals. Never automatically replay an operation of unknown outcome or reuse expired authorization.
+- Show progress and error reasons from the authorized executor, not fabricated percentages or Core-generated confirmations.
+
+**Acceptance to define:** interruption mid-install, service restart, duplicate request, revoked authorization mid-flight, offline remote host, rollback failure and user cancellation, all with no repeated external effects.
+
+**Open decisions:** Should the owner inbox, approvals and operations be separate views or a combined activity center? Which jobs can survive a service restart?
+
+### AG-D021 | Signed Component Catalog and Compatibility Planner
+
+**Status:** CAPTURED (PROPOSED). **Target release:** TBD; catalog UI is not a Platform 1.0 shakedown blocker.
+
+**Purpose:** Distinguish what can be **discovered**, what has been **cryptographically verified**, what is **compatible**, and what is **approved to install**.
+
+**Proposed experience:**
+- Show local/reviewed signed packages for Platform, SDK, Core definitions, generic modules and optional inference providers, with precise version, digest, signer, supported OS/architecture, SDK/ABI/schema and dependency constraints.
+- For a selected target Platform, preview compatibility, disk/RAM requirements when grounded, conflicts and required permissions before asking for owner authorization.
+- Support local/offline packages and a future trusted remote index, with untrusted suggestions isolated from actual installed artifacts.
+- Keep model *weights* under Model Manager while allowing catalog discovery of provider packages. Do not conflate a model download with installation of a person/Core.
+- Installation uses the existing governed staged installer; catalog data cannot grant authority. Reject modified bytes, revoked signers, incompatible SDKs and unsigned executable packages.
+- Do not silently pull dependencies, automatically activate a Core, replace a trusted binding or delete protected user data.
+
+**Acceptance to define:** incompatible Core, bad signature, modified package, missing dependency, untrusted remote listing, update/downgrade policy and Core-free Platform compatibility.
+
+**Open decisions:** Should Aegis initially use only local/offline reviewed component packages before a future remote registry? Should the catalog be a separate manager or an Install screen inside each existing manager?
 
 ---
 

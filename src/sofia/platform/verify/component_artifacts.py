@@ -66,6 +66,7 @@ INSTALLED_ISOLATED_MODULES: tuple[str, ...] = (
     "sofia.platform.ops.platform_release",
     "sofia.platform.state.artifact_file",
     "sofia.platform.state.installation_identity",
+    "sofia.platform.run.platform_service",
     "sofia.platform.ops.callsigns",
     "sofia.platform.ops.callsign_client",
     "sofia.platform.capability.catalog",
