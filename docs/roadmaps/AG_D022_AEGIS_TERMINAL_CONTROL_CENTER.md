@@ -147,6 +147,8 @@ Every settings row must carry where applicable:
 - Existing SAFE/STOP, revocation, duplicate-writer fencing and protected config precedence remain unchanged.
 - A TUI user closing the interface must not shut down Platform/other approved jobs unless separately authorized.
 
+**Cross-interface gap audit:** [AG-D024 UI parity review](AG_D024_GUI_TUI_PARITY_GAP_REVIEW.md) details which concepts already exist and which joint native GUI/TUI behaviors still need implementation. The TUI must not fork canonical settings, owner auth, job tracking, search permission rules or target selection.
+
 ## 8. Acceptance milestones (DESIGN, not implementation tickets)
 
 1. **TUI-0:** Confirm navigation, per-Core autonomy page and read-only source contracts.
