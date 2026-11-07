@@ -10,6 +10,7 @@ on:
       - 'test/test_platform_service*.py'
       - 'test/test_rust_platform_service.py'
       - 'test/test_rust_platform_scm.py'
+      - 'test/test_rust_platform_systemd.py'
       - 'packaging/services/**'
       - '.github/workflows/aegis-platform-service.yml'
   workflow_dispatch:
@@ -44,3 +45,31 @@ jobs:
       - run: cargo test --workspace --locked
       - name: Real installed process, lifetime lock and native SCM acceptance
         run: python -m pytest -q test/test_platform_service_session.py test/test_platform_service_lock_security.py test/test_rust_platform_service.py test/test_rust_platform_scm.py test/test_ui_process_lock.py test/test_discord_process_lock.py
+
+  native-systemd:
+    name: Disposable native systemd contract (Ubuntu CI, not Debian release acceptance)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      AEGIS_REQUIRE_SYSTEMD_ACCEPTANCE: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.88.0
+      - uses: Swatinem/rust-cache@v2
+      - run: python -m pip install -e . pytest
+      - name: Exercise production unit with isolated account, state and service
+        run: |
+          python -m pytest -q -rs test/test_rust_platform_systemd.py --junitxml=native-systemd.xml
+          python -c "import xml.etree.ElementTree as E; r=E.parse('native-systemd.xml').getroot(); assert len(r.findall('.//testcase')) == 1; assert not r.findall('.//skipped')"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: native-systemd-contract
+          path: native-systemd.xml
