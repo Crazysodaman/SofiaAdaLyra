@@ -21,6 +21,10 @@ An **installation deny policy** is separate, durable authorization state that te
 
 Neither `ALLOW` nor unblocking grants a Core an installer permission. A Core may propose a reinstall only under its separate capabilities; owner authorizations remain required for actual package installation/activation.
 
+### When a Core requests the uninstall
+
+The owner additionally wants to consider Core-initiated removal. Follow [AG-D006 Core-Initiated Module Removal](AG_D006_CORE_INITIATED_MODULE_REMOVAL.md): an authenticated Core may propose a precise uninstall, but cannot authorize or perform production `module.remove` itself. The current SAFE classification is **PROTECTED** (not standing-grant reversible), and module RUN requires owner authority. GUI/TUI show Core identity, reason, independently observed dependencies and capability impact; owner chooses **remove/allow later approved reinstall**, **remove/block future Aegis installs**, **defer** or **deny** through exact approval. The Core cannot purge data, block/unblock, reinstall, change grant scope or bypass STOP. Any future autonomous disposable LAB cleanup must be separately designed and authorized. Even an owner-approved `remove()` records `REMOVED` while retaining package bytes; physical purge is not part of it.
+
 ## 2. Proposed GUI/TUI uninstall review
 
 ```text
