@@ -287,6 +287,8 @@ Design: dedicated test environment dashboard for Platform-only clean installs, s
 
 ## Standard Aegis status report (use in future conversations and checkpoints)
 
+**Latest evidence snapshot:** [Codex Platform 1.0 audit, 2026-11-07](../development/AEGIS_CODEX_AUDIT_2026-11-07.md), pinned to main `4d854a1a8851`; the source snapshot identified three failed full-release workflows and distinguished installed-host evidence from incomplete signed release acceptance. Newer commits must be rechecked before updating status.
+
 Always distinguish **verified implementation/acceptance**, **active implementation**, **design ideas**, and **blocked/deferred** work. Suggested concise format:
 
 | Report field | Content |
