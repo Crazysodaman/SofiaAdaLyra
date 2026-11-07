@@ -28,6 +28,7 @@ ISOLATED_MODULES: tuple[str, ...] = (
     "sofia.platform.core_worker.engines",
     "sofia.platform.ops.core_definition",
     "sofia.platform.ops.platform_release",
+    "sofia.platform.ops.platform_release_staging",
     "sofia.platform.verify.python_runtime",
     "sofia.platform.verify.native_artifact",
     "sofia.platform.state.artifact_file",
