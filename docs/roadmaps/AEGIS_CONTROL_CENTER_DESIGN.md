@@ -95,6 +95,8 @@ User-visible action states must distinguish **PROPOSED**, **AWAITING_APPROVAL**,
 - No silent offline promotion, automatic Fleet enrollment, model download, Core selection, Core activation, credential rotation or live-state transfer.
 - Cross-platform desktop UI connects remotely only via explicit, authenticated authorized pairing, never raw discovery/hostname as a trust shortcut.
 
+**Live Module Manager/Settings refresh requirement:** [AG-D006 live module status](AG_D006_LIVE_MODULE_STATUS_AND_SETTINGS.md). Opening the GUI once is enough: when a signed module is installed, activated, paused, fails, disconnects, reconnects, updates or is removed, the existing Module Manager/Settings UI should update from authoritative lifecycle, settings and fresh runtime-health sources, without restarting the UI or Platform. Do not conflate ACTIVE lifecycle with verified runtime connectivity. Coalesce events, reconcile missed events with bounded polling, and invalidate stale editing drafts on package/lifecycle/revision change. Applying a particular setting may still require a separately approved component restart; merely displaying a status update never does.
+
 ## 6. Core-free, multiple-Core and remote-host rules
 
 - **Zero Cores:** Control Center and all Platform-local management remain usable. Show an empty Cores page and optional signed package installation plan; no Sofía state, LLM or GPU needed.
