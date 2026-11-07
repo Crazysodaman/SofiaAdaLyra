@@ -7,6 +7,12 @@
 
 **Verdicts: Platform-only shakedown NOT READY; full-project shakedown NOT READY; production GO not granted.** No production changes are authorized by this audit.
 
+## Live update during this audit: PR #208 merged
+
+At **2026-11-07 09:50:37 UTC**, [PR #208](https://github.com/Crazysodaman/SofiaAdaLyra/pull/208) merged to main as `cc0a1912538c`. The initial snapshot below intentionally remains pinned to `4d854a1a8851` because the confirmed failed CI workflows were executed at that exact SHA. No open PRs were observed in the next GitHub check. New full-release workflows on later documentation commits were pending/queued and must **not** be claimed green or red from older runs.
+
+At head `30cf9e203c04`, PR #208 reports **8,958 passed, 25 skipped, 23 subtests** locally, plus five separately tracked live Ollama connection failures; all nine exact-head PR workflows passed. Staging remains **NON-ACTIVATING**, creates no owner grant/service/state and cannot promote any whole signed OS installer acceptance row. The new PR contained no fix for the two confirmed full-release CI causes in section 2; their post-merge status requires fresh full-release jobs.
+
 ## 1. Codex implementation status
 
 | PR | Subject | Observed |
@@ -17,7 +23,7 @@
 | [#205](https://github.com/Crazysodaman/SofiaAdaLyra/pull/205) | Exact-source two-boot offline Debian12 VM acceptance | MERGED; actual QEMU/VM CI passed with no Core/Ollama; not final signed installed OS release |
 | [#206](https://github.com/Crazysodaman/SofiaAdaLyra/pull/206) | Neutral CPython runtime artifacts, Windows/Debian relocation | MERGED; actual relocation probes and Debian12 VM ran |
 | [#207](https://github.com/Crazysodaman/SofiaAdaLyra/pull/207) | Redirected/corrupt artifact cache refusal | MERGED; three baseline defects reproduced, regressions fixed |
-| [#208](https://github.com/Crazysodaman/SofiaAdaLyra/pull/208) | Signed Platform candidate code/runtime staging | OPEN; staging without service registration, activation or ownership grant |
+| [#208](https://github.com/Crazysodaman/SofiaAdaLyra/pull/208) | Signed Platform candidate code/runtime staging | MERGED at cc0a1912538c; no service registration, activation or ownership grant |
 
 At sampled PR #208 head `30cf9e203c04b284995fc75e01df9f592da19ec4`, targeted Platform-only, offline VM, G0-G1, G4, G5, G6 and component/cross-gate PR workflows were green. Do not infer full release or final candidate readiness from these targeted jobs. The code-stage receipt explicitly says activated=false, os_service_registered=false, service_health_verified=false.
 
