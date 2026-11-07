@@ -26,8 +26,6 @@ jobs:
   offline-vm:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
-    env:
-      SOFIA_STATE_ROOT: ${{ runner.temp }}/aegis-vm-harness-state
     steps:
       - uses: actions/checkout@v7
         with:
@@ -41,8 +39,12 @@ jobs:
           toolchain: 1.88.0
       - run: python -m pip install -e . pytest
       - name: Verify VM orchestration and evidence boundaries
+        env:
+          SOFIA_STATE_ROOT: ${{ runner.temp }}/aegis-vm-harness-state
         run: python -m pytest -q test/test_aegis_debian_vm_runner.py test/test_package_grouping.py
       - name: Compile on Debian12 and verify two actual offline systemd boots
+        env:
+          SOFIA_STATE_ROOT: ${{ runner.temp }}/aegis-vm-harness-state
         shell: bash
         run: |
           set -euo pipefail
