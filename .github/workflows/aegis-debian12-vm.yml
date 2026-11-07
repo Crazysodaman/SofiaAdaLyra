@@ -41,7 +41,7 @@ jobs:
       - name: Verify VM orchestration and evidence boundaries
         env:
           SOFIA_STATE_ROOT: ${{ runner.temp }}/aegis-vm-harness-state
-        run: python -m pytest -q test/test_aegis_debian_vm_runner.py test/test_package_grouping.py
+        run: python -m pytest -q test/test_aegis_debian_vm_runner.py test/test_ops_signed_vm_release.py test/test_package_grouping.py
       - name: Compile on Debian12 and verify two actual offline systemd boots
         env:
           SOFIA_STATE_ROOT: ${{ runner.temp }}/aegis-vm-harness-state
