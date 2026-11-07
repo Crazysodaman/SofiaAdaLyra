@@ -15,6 +15,8 @@ from pathlib import Path
 ISOLATED_MODULES: tuple[str, ...] = (
     "sofia.sdk.tool_binding",
     "sofia.sdk.core_definition",
+    "sofia.sdk.artifact",
+    "sofia.sdk.platform_release",
     "sofia.sdk.cognition_engine",
     "sofia.sdk.cognition_json",
     "sofia.platform.cognition_budget",
@@ -24,6 +26,8 @@ ISOLATED_MODULES: tuple[str, ...] = (
     "sofia.platform.core_worker",
     "sofia.platform.core_worker.engines",
     "sofia.platform.ops.core_definition",
+    "sofia.platform.ops.platform_release",
+    "sofia.platform.state.artifact_file",
     "sofia.platform.state.installation_identity",
     "sofia.platform.run.platform_service",
     "sofia.platform.ops.callsigns",
