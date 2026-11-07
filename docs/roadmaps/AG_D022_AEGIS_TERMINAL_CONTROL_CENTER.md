@@ -70,7 +70,7 @@ This is an illustrative design, not an actual host observation. Never invent ide
 - Display signed host IDs, callsign, verified scope, last observed time, connection/freshness and accepted authorization. Never grant permission through host discovery or a name.
 - Select a verified target and preview operations. Remote management is unavailable until authenticated transport and host-scoped permission exist; never invoke a remote shell merely to simulate it.
 
-### Jobs / Security / Diagnostcs pages
+### Jobs / Security / Diagnostics pages
 
 - Read-only operational receipts and current owner approval inbox.
 - Security page shows active/expired/revoked scope with redacted secret metadata and SAFE/STOP truth. Emergency operator STOP reachable from every page but only by an authenticated, authorized principal.
