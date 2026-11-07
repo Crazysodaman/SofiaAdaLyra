@@ -55,17 +55,22 @@ class DockerSession:
         self.owned.append(identity)
         return identity
 
+    def release(self, identity):
+        if identity not in self.owned:
+            raise PermissionError('cannot adopt or remove an unowned container')
+        self.command('rm', '--force', identity, timeout=120)
+        self.owned.remove(identity)
+
     def __enter__(self):
         return self
 
     def __exit__(self, *error):
         failures = []
-        for identity in reversed(self.owned):
+        for identity in reversed(self.owned.copy()):
             try:
-                self.command('rm', '--force', identity, timeout=120)
+                self.release(identity)
             except Exception as failure:
                 failures.append(failure)
-        self.owned.clear()
         if failures:
             raise RuntimeError('owned disposable container cleanup failed') from failures[0]
 
@@ -158,6 +163,7 @@ def build_and_boot(checkout: Path, output: Path, toolchain: Path, certificate: P
             docker.command('pull', BASE_IMAGE, timeout=180)
             base = docker.create(BASE_IMAGE, 'true')
             docker.command('export', '--output', str(output / 'debian-python-rootfs.tar'), base, timeout=180)
+            docker.release(base)
             helper = docker.create('--mount', f'type=bind,src={output},dst=/vm',
                 '--mount', f'type=bind,src={context},dst=/input,readonly',
                 '--mount', f'type=bind,src={toolchain},dst=/toolchain,readonly',

@@ -4,6 +4,7 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y --no-install-recommends qemu-system-x86 e2fsprogs gcc libc6-dev
 apt-get clean
+rm -rf /var/lib/apt/lists/*
 mkdir -p /vm/rootfs /vm/dependencies
 export PATH="/toolchain/bin:$PATH"
 export CARGO_HOME=/vm/cargo
@@ -12,6 +13,7 @@ export CARGO_HTTP_CAINFO=/run/proxy-ca.crt
 rustc --version | grep -F 'rustc 1.88.0 '
 cargo build --locked --release --manifest-path /input/Cargo.toml -p sofia-platform-lifecycle --bin aegis-platform-service
 python -m pip download --disable-pip-version-check --only-binary=:all: --dest /vm/dependencies /input/wheels/*.whl --cert /run/proxy-ca.crt
+rm -rf /root/.cache/pip
 tar -xpf /vm/debian-python-rootfs.tar -C /vm/rootfs
 cp /etc/resolv.conf /vm/rootfs/etc/resolv.conf
 rm -f /vm/rootfs/.dockerenv
@@ -25,6 +27,7 @@ chmod 755 /vm/rootfs/usr/sbin/policy-rc.d
 chroot /vm/rootfs apt-get update
 chroot /vm/rootfs apt-get install -y --no-install-recommends systemd-sysv linux-image-amd64 initramfs-tools passwd util-linux e2fsprogs
 chroot /vm/rootfs apt-get clean
+rm -rf /vm/rootfs/var/lib/apt/lists/*
 mkdir /vm/rootfs/tmp/aegis-test-wheels
 cp /vm/dependencies/*.whl /vm/rootfs/tmp/aegis-test-wheels/
 chroot /vm/rootfs /usr/local/bin/python3.12 -m pip install --no-index --find-links=/tmp/aegis-test-wheels sofia-sdk sofia-platform

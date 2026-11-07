@@ -117,3 +117,20 @@ def test_one_cleanup_failure_does_not_strand_other_owned_container_or_report_suc
             docker.create('base', 'true')
             docker.create('base', 'helper')
     assert removed == ['b' * 64, 'a' * 64]
+
+
+def test_exported_base_can_be_released_early_without_adopting_foreign_container():
+    calls = []
+    identities = iter(('a' * 64, 'b' * 64))
+    def run(args, **kwargs):
+        calls.append(args)
+        return SimpleNamespace(returncode=0,
+            stdout=next(identities) if args[2] == 'create' else '', stderr='')
+    with DockerSession(run=run, environment={}) as docker:
+        base = docker.create('base', 'true')
+        docker.release(base)
+        with pytest.raises(PermissionError):
+            docker.release('f' * 64)
+        docker.create('base', 'helper')
+    assert [args[-1] for args in calls if args[2] == 'rm'] == ['a' * 64, 'b' * 64]
+    assert [args[2] for args in calls] == ['create', 'rm', 'create', 'rm']
