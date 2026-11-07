@@ -151,7 +151,7 @@ print(json.dumps(identity.to_payload()))
         assert third['generation'] > second['generation']
         assert_stopped(unit, third)
         reloaded = root_command('runuser', '-u', account, '--', installed_python, '-I', '-c',
-            'import json,sys; from sofia.platform.state.installation_identity import InstallationIdentityStore; print(json.dumps(InstallationIdentityStore(sys.argv[1]).load().to_payload()))',
+            'import json,sys; from pathlib import Path; from sofia.platform.state.installation_identity import InstallationIdentityStore; print(json.dumps(InstallationIdentityStore(Path(sys.argv[1])).load().to_payload()))',
             state / 'identity')
         assert json.loads(reloaded.stdout) == public
         assert not root_command('find', state, '-name', 'sofia.db', '-print').stdout.strip()
