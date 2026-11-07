@@ -4,7 +4,7 @@ Authored for the final user-run test campaign. No synthetic tool result is
 allowed to promote a procedure or create new SAFE/RUN authority.
 """
 from contextlib import closing
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import sqlite3
 
@@ -542,18 +542,29 @@ def test_procedure_source_rot_is_not_reused_for_subsequent_life_draft(
 
 
 @pytest.mark.parametrize("alter_original", ["revoke_receipt", "downgrade_run"])
+@pytest.mark.parametrize("receipt_delay_seconds", [0, 12])
 def test_procedure_promotion_rechecks_original_source_under_writer_lock(
-    tmp_path, monkeypatch, alter_original,
+    tmp_path, monkeypatch, alter_original, receipt_delay_seconds,
 ):
     """An original RUN proof changed after bytes-check cannot promote skill."""
-    life, _goals, now = infrastructure(tmp_path)
+    observed_now = datetime.now(timezone.utc)
+    clock = [observed_now - timedelta(seconds=receipt_delay_seconds)]
+    life, _goals, now = infrastructure(tmp_path, clock=lambda: clock[0])
     try:
         project, evidence = active_project(
             life, now, objectives=("text_contains:Foxfire",),
         )
+        # Model a busy worker without sleeping or fabricating a RUN result.
+        # The real operation receipt may arrive after the scheduler's +8s tick.
+        clock[0] = observed_now
         job, receipt = _original_authorized_completion(
             life, project, evidence, now,
         )
+        confirmed = life.evidence_index.lookup(receipt)
+        assert confirmed is not None and confirmed.kind == "operation_receipt"
+        assert confirmed.observed_at >= now + timedelta(seconds=receipt_delay_seconds)
+        promotion_time = max(now + timedelta(seconds=8),
+                             confirmed.observed_at + timedelta(microseconds=1))
         original_connect = life.procedures._connect
         altered = []
 
@@ -587,7 +598,7 @@ def test_procedure_promotion_rechecks_original_source_under_writer_lock(
             life.procedures.record_verified_attempt(
                 project=life._project(project.project_id),
                 job_id=job.job_id, original_run_evidence_ref=receipt,
-                now=now + timedelta(seconds=8),
+                now=promotion_time,
             )
         monkeypatch.setattr(life.procedures, "_connect", original_connect)
         assert altered == [True]

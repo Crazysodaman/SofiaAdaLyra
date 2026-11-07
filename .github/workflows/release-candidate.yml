@@ -1,6 +1,13 @@
 name: Release Candidate Build
 
 on:
+  pull_request:
+    paths:
+      - 'test/test_platform_optional_dependencies.py'
+      - 'test/test_life_procedure_catalog.py'
+      - '.github/workflows/release-candidate.yml'
+      - '.github/workflows/debian-release-candidate.yml'
+      - '.github/workflows/package-tests.yml'
   push:
     branches:
       - main
@@ -48,6 +55,8 @@ jobs:
       - name: Checkout exact revision
         uses: actions/checkout@v7
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
           fetch-depth: 1
 
       - name: Set up Python 3.12
@@ -151,7 +160,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: windows-verification-diagnostics-${{ github.sha }}
+          name: windows-verification-diagnostics-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             ${{ runner.temp }}/sofia-windows-verification.log
             ${{ runner.temp }}/verification-evidence.json
@@ -177,7 +186,7 @@ jobs:
           $Core = (Get-ChildItem "$env:RUNNER_TEMP\sofia-components\sofia_core-*.whl" | Select-Object -First 1).FullName
           $Args = @(
             "-m","sofia.platform.dev.release_cli","construct",
-            "--git-revision","${{ github.sha }}",
+            "--git-revision","${{ github.event.pull_request.head.sha || github.sha }}",
             "--lock","requirements.lock.windows-py312.txt",
             "--component-wheel","sdk=$Sdk",
             "--component-wheel","platform=$Platform",
@@ -200,7 +209,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: release-candidate-components-${{ github.sha }}
+          name: release-candidate-components-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             release-evidence-components
             ${{ runner.temp }}/sofia-components.log
@@ -215,7 +224,7 @@ jobs:
         run: |
           $Args = @(
             "-m","sofia.platform.dev.release_cli","construct",
-            "--git-revision","${{ github.sha }}",
+            "--git-revision","${{ github.event.pull_request.head.sha || github.sha }}",
             "--lock","requirements.lock.windows-py312.txt",
             "--wheel",$env:RELEASE_WHEEL,
             "--source",$env:SOFIA_RELEASE_SOURCE,
@@ -242,7 +251,7 @@ jobs:
         id: upload_integrated
         uses: actions/upload-artifact@v7
         with:
-          name: release-candidate-${{ github.sha }}
+          name: release-candidate-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             release-evidence
             ${{ runner.temp }}/source-provenance.json
