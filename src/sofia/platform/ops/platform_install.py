@@ -9,16 +9,20 @@ from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
-from hashlib import sha256
 from pathlib import Path
 import os
 import re
-import shutil
+import tempfile
 import sqlite3
 from typing import Protocol
-from uuid import uuid4
 
 from .bootstrap import InstallAuthority
+from sofia.platform.state.artifact_file import read_artifact_file
+from sofia.platform.state.private_file import (
+    assert_no_redirected_components, assert_owner_private_path,
+    ensure_owner_private_directory, restrict_new_owner_private_path,
+)
+from sofia.platform.run.process_lock import StateProcessLock
 
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -132,47 +136,83 @@ class OfflineArtifactCache:
     """Managed content-addressed cache; importing always rechecks the digest."""
 
     def __init__(self, root: Path | str, *, max_bytes: int = 4 * 1024**3) -> None:
-        self.root = Path(root)
+        self.root = Path(root).absolute()
         self.max_bytes = max_bytes
         if type(max_bytes) is not int or max_bytes <= 0:
             raise ValueError("max_bytes must be positive")
-        self.root.mkdir(parents=True, exist_ok=True)
+        ensure_owner_private_directory(self.root)
+
+    def _check_root(self):
+        assert_no_redirected_components(self.root, include_leaf=True)
+        assert_owner_private_path(self.root, directory=True)
+
+    @staticmethod
+    def _snapshot(path, *, include_data=False):
+        path = Path(path).absolute()
+        assert_no_redirected_components(path, include_leaf=True)
+        return read_artifact_file(path, path.stat(follow_symlinks=False).st_size,
+            include_data=include_data)
 
     @staticmethod
     def digest(path: Path) -> str:
-        value = sha256()
-        with path.open("rb") as handle:
-            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-                value.update(chunk)
-        return value.hexdigest()
+        return OfflineArtifactCache._snapshot(path)[0]
 
     def import_artifact(self, artifact: PlatformArtifact, source: Path | str) -> Path:
-        source_path = Path(source)
-        if not source_path.is_file() or source_path.is_symlink():
-            raise FileNotFoundError(source_path)
-        if self.digest(source_path) != artifact.sha256:
+        if not isinstance(artifact, PlatformArtifact):
+            raise TypeError("typed Platform artifact required")
+        self._check_root()
+        observed, data = self._snapshot(source, include_data=True)
+        if observed != artifact.sha256:
             raise ValueError("artifact bytes do not match approved SHA-256")
-        destination = self.root / artifact.sha256
-        current_size = sum(
-            item.stat().st_size for item in self.root.iterdir() if item.is_file()
-        )
-        added = 0 if destination.exists() else source_path.stat().st_size
-        if current_size + added > self.max_bytes:
-            raise RuntimeError("offline artifact cache resource limit exceeded")
-        if destination.is_symlink():
-            raise RuntimeError("offline artifact cache contains an unsafe symlink")
-        if not destination.exists():
-            temporary = self.root / f".{artifact.sha256}.{uuid4().hex}.tmp"
-            shutil.copyfile(source_path, temporary)
-            if self.digest(temporary) != artifact.sha256:
+        lock = StateProcessLock(self.root / 'cache', resource='platform-cache',
+            lock_directory=self.root)
+        lock.acquire()
+        try:
+            self._check_root()
+            destination = self.root / artifact.sha256
+            if destination.exists() or destination.is_symlink():
+                return self.resolve(artifact)  # Never silently repair existing corruption.
+            current_size = 0
+            for item in self.root.iterdir():
+                if item == lock.path:
+                    continue
+                assert_no_redirected_components(item, include_leaf=True)
+                if not item.is_file():
+                    raise RuntimeError("offline artifact cache contains an unexpected entry")
+                current_size += item.stat().st_size
+            if current_size + len(data) > self.max_bytes:
+                raise RuntimeError("offline artifact cache resource limit exceeded")
+            descriptor, name = tempfile.mkstemp(prefix='.artifact-', dir=self.root)
+            temporary = Path(name)
+            try:
+                with os.fdopen(descriptor, 'wb') as handle:
+                    restrict_new_owner_private_path(temporary, directory=False)
+                    handle.write(data)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+                if self.digest(temporary) != artifact.sha256:
+                    raise RuntimeError("cached artifact failed post-copy verification")
+                self._check_root()
+                # Atomic no-replace publication preserves concurrent or corrupt data.
+                os.link(temporary, destination)
+                if os.name != 'nt':
+                    directory = os.open(self.root, os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))
+                    try:
+                        os.fsync(directory)
+                    finally:
+                        os.close(directory)
+                return self.resolve(artifact)
+            finally:
                 temporary.unlink(missing_ok=True)
-                raise RuntimeError("cached artifact failed post-copy verification")
-            os.replace(temporary, destination)
-        return destination
+        finally:
+            lock.release()
 
     def resolve(self, artifact: PlatformArtifact) -> Path:
+        if not isinstance(artifact, PlatformArtifact):
+            raise TypeError("typed Platform artifact required")
+        self._check_root()
         path = self.root / artifact.sha256
-        if path.is_symlink() or not path.is_file() or self.digest(path) != artifact.sha256:
+        if self.digest(path) != artifact.sha256:
             raise FileNotFoundError("approved artifact is absent or corrupt in offline cache")
         return path
 
