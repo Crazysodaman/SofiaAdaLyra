@@ -60,14 +60,15 @@ def test_unrecognized_container_id_is_not_adopted_or_deleted():
 
 
 def receipt(boot='first', generations=(1, 2, 3)):
-    return dict(schema='aegis.disposable.debian12-vm.v2', result='PASS', source_sha='a'*40,
+    return dict(schema='aegis.disposable.debian12-vm.v3', result='PASS', source_sha='a'*40,
         boot_id=str(uuid5(NAMESPACE_URL,boot)), platform_id='11111111-1111-4111-8111-111111111111', public_key_sha256='b'*64,
         generations=list(generations), python='3.12.16', kernel='6.1-test', pid1='systemd',
-        os_version='12', bundled_runtime=True, core_installed=False, ollama_installed=False, graceful_stops=2,
+        os_version='12', verified_release_staged=True,release_manifest_sha256='c'*64,installed_component_files=500,bundled_runtime=True, core_installed=False, ollama_installed=False, graceful_stops=2,
         crash_recovered=True, duplicate_denied=True, production_authorized=False, release_accepted=False)
 
 
-@pytest.mark.parametrize('defect', ['replay', 'identity', 'generation', 'core', 'source', 'release'])
+@pytest.mark.parametrize('defect', ['replay', 'identity', 'generation', 'core', 'source', 'release',
+    'unstaged', 'different_manifest', 'different_installed_files', 'invalid_manifest'])
 def test_unverified_or_replayed_vm_evidence_cannot_pass(defect):
     first, second = receipt(), receipt('second', (4, 5, 6))
     if defect == 'replay': second['boot_id'] = first['boot_id']
@@ -76,6 +77,10 @@ def test_unverified_or_replayed_vm_evidence_cannot_pass(defect):
     elif defect == 'core': second['core_installed'] = True
     elif defect == 'source': second['source_sha'] = 'c'*40
     elif defect == 'release': second['release_accepted'] = True
+    elif defect == 'unstaged': second['verified_release_staged'] = False
+    elif defect == 'different_manifest': second['release_manifest_sha256'] = 'd'*64
+    elif defect == 'different_installed_files': second['installed_component_files'] += 1
+    elif defect == 'invalid_manifest': second['release_manifest_sha256'] = 'invalid'
     with pytest.raises(ValueError):
         validate_receipts(first, second, 'a'*40)
 
@@ -172,3 +177,19 @@ def test_artifact_index_cannot_select_private_vm_state(tmp_path):
     (tmp_path / 'built-artifacts.json').write_text(json.dumps({'platform.ext4': 'a' * 64}))
     with pytest.raises(ValueError):
         verify_public_artifacts(tmp_path)
+
+
+def test_failed_vm_diagnostics_are_bounded_and_do_not_follow_redirects(tmp_path,capsys):
+    import os
+    from tools.aegis_debian_vm import failure_diagnostics
+    (tmp_path/'build-and-boot.log').write_text('prefix-must-be-truncated'+('x'*20000)+'retained-end')
+    failure_diagnostics(tmp_path)
+    observed=capsys.readouterr().err
+    assert 'retained-end' in observed and 'prefix-must-be-truncated' not in observed
+    assert len(observed)<17000
+    if os.name=='posix':
+        hidden=tmp_path/'synthetic-unselected-file'
+        hidden.write_text('synthetic-unselected-content')
+        (tmp_path/'boot-1.log').symlink_to(hidden)
+        failure_diagnostics(tmp_path)
+        assert 'synthetic-unselected-content' not in capsys.readouterr().err
