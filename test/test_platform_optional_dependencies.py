@@ -11,7 +11,7 @@ from test.test_component_install_production import component_wheels
 
 
 def test_platform_declares_optional_ollama_without_requiring_it():
-    component = load_component_manifest()['platform']
+    component = load_component_manifest(Path(__file__).resolve().parents[1])['platform']
     generated = tomllib.loads(_generate_pyproject(component, '1.0.0'))['project']
     assert generated['optional-dependencies']['ollama'] == ['ollama']
     assert not any('ollama' in value for value in generated['dependencies'])
