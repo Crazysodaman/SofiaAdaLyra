@@ -316,6 +316,16 @@ Design: dedicated test environment dashboard for Platform-only clean installs, s
 - Existing Python/Ollama code is a foundation, not proof that a fully generic Core-free model-service implementation or Rust manager is complete.
 - Track Platform-only readiness in #201 and full-project readiness in #120. Keep G8 #129 deferred until separately authorized.
 
+## Owner-approved universal terminal color palette (2026-11-07)
+
+**Status:** OWNER-DESIRED CANONICAL DESIGN, NOT IMPLEMENTED/VERIFIED OR AN AUTOMATIC NEW CODING ASSIGNMENT.
+
+**One source of truth:** [Aegis CLI/TUI Color Theme](AEGIS_CLI_TUI_COLOR_THEME.md) sets the owner's exact hex values and semantic UI rules for **ALL** Aegis-owned terminal surfaces, including AG-D003 Core CLI, AG-D011 one-script ASCII installer, AG-D022 headless TUI, AG-D023 Core settings/autonomy views and every future Platform/Fleet/Modules/Models/Security/Diagnostics/Jobs CLI. Use shared tokens instead of copying divergent literal colors into each view; do not change the unrelated AG-D007 graphical theme by implication.
+
+**Core tokens:** Primary purple `#9400D3`; secondary cyan `#00C2FF`; tertiary/success lime `#39FF14`; black background `#000000`; panel `#0B1020`; selected-item purple `#9400D3` with black text `#000000`; focus `#AA1DFF`; main text `#E5E7EB`; muted `#94A3B8`; warning/HUD `#FFB000`; orange HUD `#FF8C00`; dark green `#4CAF50`; VISR `#FFB000`; bright highlight `#FFC83D`; glow `#FFD54F`; danger/error `#9F0202`. Purple text on black denotes branding/headers while ordinary text stays `#E5E7EB`; dark red is an error **accent** with a readable text label because small red-on-black text fails contrast guidance. Truecolor where available, approximate 256/16-color and first-class monochrome ASCII fallback, with no ANSI in piped logs or JSON. Color never proves authority or health.
+
+**Implementation dependency:** shared CLI/TUI presentation module and installer/manager adoption only after review and normal source/CI acceptance; #201 production release gates and Core autonomy boundaries unchanged.
+
 ## Standard Aegis status report (use in future conversations and checkpoints)
 
 **Executor handoff (2026-11-07):** [OpenCode Platform 1.0 takeover](../development/OPENCODE_PLATFORM_1_0_TAKEOVER_2026-11-07.md). Codex PRs #209 and #210 were open at the audit snapshot; verify ownership/HEAD before OpenCode edits. Transfer is a work order, not proof of local OpenCode execution or release acceptance.
