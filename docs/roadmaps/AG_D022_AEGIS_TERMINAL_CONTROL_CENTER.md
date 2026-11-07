@@ -77,6 +77,10 @@ This is an illustrative design, not an actual host observation. Never invent ide
 - Jobs show REQUESTED, AWAITING_APPROVAL, RUNNING, SUCCEEDED_VERIFIED, FAILED, DENIED, CANCELLED and OUTCOME_UNKNOWN from actual executor receipt; no fabricated percent completion.
 - Diagnostics show version, exact service ID, process observations, safe log excerpts, missing prerequisites, verified release digest and whether the data is live or stale. Never confuse running process with working Core or model.
 
+## Canonical Aegis terminal visual theme
+
+**Owner palette applies to every page in this TUI, CLI and its line-mode fallback.** Use [Aegis CLI/TUI Color Theme](AEGIS_CLI_TUI_COLOR_THEME.md) as the single source of truth for exact hex tokens, semantics, keyboard-selection versus mouse hover, truecolor/256/16-color fallbacks, contrast rules, `NO_COLOR`, no-ANSI logs/JSON and all managers' status displays. Purple `#9400D3` for headings and focused options, cyan `#00C2FF` indicators, lime `#39FF14` verified success, cards `#0B1020` on black, light `#E5E7EB` body text, amber `#FFB000` warning, and dark red `#9F0202` error accent combined with readable text. The full canonical palette, including HUD, bright highlights and glow, is specified in that file; never fork it inside this renderer.
+
 ## 3. Keyboard and accessibility
 
 - Controls: arrows and Tab/Shift+Tab where supported, Enter selects, Esc/Backspace goes back, `/` searches, `?` help, `R` refresh, `Q` quits after warning about still-active approved jobs.
