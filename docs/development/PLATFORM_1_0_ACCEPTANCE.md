@@ -45,8 +45,8 @@ claims complete signed-release installed-host acceptance.
 | 04 | Permanent UUID | NOT TESTED | NOT TESTED | NOT TESTED | Existing identity tests; reinstall/reboot OS receipt pending |
 | 05 | Core-free health/startup | NOT TESTED | NOT TESTED | NOT TESTED | Actual installed-wheel Rust process passes; signed OS release receipt pending |
 | 06 | Windows service start/stop | NOT TESTED | NOT TESTED | NOT TESTED | Actual disposable native SCM start/stop/restart passes; final signed installer receipt pending |
-| 07 | Debian service start/stop | NOT TESTED | NOT TESTED | NOT TESTED | Native Debian12 process and notify/drain pass; booted systemd release receipt pending |
-| 08 | Abrupt exit recovery | FAIL | NOT TESTED | NOT TESTED | Parent-exit/lease release/restart passes; installed OS crash/restart policy remains |
+| 07 | Debian service start/stop | NOT TESTED | NOT TESTED | NOT TESTED | Actual two-boot disposable Debian12 systemd start/stop passes (PR205/206); final signed OS release receipt pending |
+| 08 | Abrupt exit recovery | FAIL | NOT TESTED | NOT TESTED | Disposable Debian12 systemd crash/restart and generations pass (PR205/206); complete signed-release recovery policy remains |
 | 09 | No duplicate supervisor | NOT TESTED | NOT TESTED | NOT TESTED | Actual installed process rejects duplicates; final OS release receipt pending |
 | 10 | Authenticated CLI/IPC | FAIL | NOT TESTED | NOT TESTED | Canonical SAFE-backed management boundary |
 | 11 | SAFE/STOP | NOT TESTED | NOT TESTED | NOT TESTED | Existing SAFE tests; running service integration |
@@ -65,7 +65,7 @@ claims complete signed-release installed-host acceptance.
 | 24 | Removal leaves Platform healthy | FAIL | NOT TESTED | NOT TESTED | Core-free service runs; governed installed-Core removal still missing |
 | 25 | Cross-platform compatibility | NOT TESTED | NOT TESTED | NOT TESTED | Existing contract CI; complete release candidate |
 | 26 | Recovery without second writer | NOT TESTED | NOT TESTED | NOT TESTED | Existing writer fencing; new service composition |
-| 27 | Native Rust regressions | NOT TESTED | NOT TESTED | NOT TESTED | Existing R1/R2 CI; release service integration tests pending |
+| 27 | Native Rust regressions | NOT TESTED | NOT TESTED | NOT TESTED | Native Rust and disposable SCM/systemd regressions pass; final signed-release integration receipt pending |
 | 28 | Installed-wheel isolation | NOT TESTED | NOT TESTED | NOT TESTED | Component CI + minimal dependency test; final exact release receipt pending |
 | 29 | Exact-SHA release CI | NOT TESTED | NOT TESTED | NOT TESTED | Distinct Platform-only gate plus signed release artifacts |
 | 30 | Complete operator runbook | FAIL | NOT TESTED | NOT TESTED | Installed service, recovery and diagnostic commands |
@@ -131,3 +131,30 @@ install or activate code or establish a durable downgrade-prevention checkpoint.
 Signed OS release production, dependency/runtime construction, external SAFE-backed
 management, remote Fleet naming, isolated modules, synthetic Core lifecycle and
 recovery acceptance still block Platform-only readiness.
+
+## Reconciled narrow evidence through PR208
+
+Current integrated code: `cc0a1912538c8f21444556d608b9e80927ee4432`.
+Subsequent audit/documentation commits through `6285b1672a41b1e0daadf4ac31a68e30a743f04c`
+add no production source. No whole release-matrix row is promoted to PASS.
+
+| Batch | Exact tested source / CI | Narrow observed evidence | Remaining release boundary |
+| --- | --- | --- | --- |
+| PR205/206 | `9c8a31cde185a8a424f19bf41cbf997d515a1534`; [offline VM](https://github.com/Crazysodaman/SofiaAdaLyra/actions/runs/42340702204) | Two actual offline Debian12 kernel/systemd boots, bundled CPython3.12.16, same UUID/key, generations 1–6, four clean stops, two crash recoveries and duplicate denials | Disposable assembly, no production signed OS installer or full Windows reboot/upgrade acceptance |
+| PR207 | `d0c1396634f13f1e2ce68a86cadc33e893a68ce9`; [native gate](https://github.com/Crazysodaman/SofiaAdaLyra/actions/runs/42342014180) | Cache corruption/redirection fail closed; Windows359/8, Debian357/10; full8,948/25 with23 subtests and five known Ollama failures | Cache metadata grants no installation authority; unsafe legacy permissions need reviewed transition |
+| PR208 | `30cf9e203c04b284995fc75e01df9f592da19ec4`; [native gate](https://github.com/Crazysodaman/SofiaAdaLyra/actions/runs/42343177305) | Signed code/runtime candidate staging; Windows368/9, Debian367/10; full8,958/25 with23 subtests and five known Ollama failures | Non-activating; no service registration, environment installation, owner grant or durable release selection |
+
+The [revision-pinned audit](AEGIS_CODEX_AUDIT_2026-11-07.md) separately records
+actual Package Tests and Windows/Debian full-release RC failures at `4d854a1a`.
+Those were not among the targeted PR workflows above. Do not describe full
+release CI as green from targeted PR gates. The installed-manifest lookup
+failure has been reproduced in a fresh SDK/Platform venv; the writer-lock fixture
+failure has been reproduced with a controlled delayed genuine RUN receipt.
+Fixes and fresh exact-head Package/RC results are pending integration. The
+production freshness/permission checks and independent wheel METADATA test are
+retained. No test is removed or disabled to resolve either failure.
+
+Signed-staged artifact VM integration is separately in draft PR209; do not
+infer its success from PR208's inert byte-staging fixtures or earlier VM jobs.
+Authenticated management, final installers and recovery, remote Fleet, isolated
+modules, governed synthetic Core lifecycle and operator runbook remain open.

@@ -1,6 +1,13 @@
 name: Debian Release Candidate Build
 
 on:
+  pull_request:
+    paths:
+      - 'test/test_platform_optional_dependencies.py'
+      - 'test/test_life_procedure_catalog.py'
+      - '.github/workflows/release-candidate.yml'
+      - '.github/workflows/debian-release-candidate.yml'
+      - '.github/workflows/package-tests.yml'
   push:
     branches: [main, chatgpt/go-live-release-env-version, codex/aegis-shakedown]
   workflow_dispatch:
@@ -42,6 +49,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
 
       - name: Set up Python 3.13
@@ -136,7 +144,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: debian-verification-diagnostics-${{ github.sha }}
+          name: debian-verification-diagnostics-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             ${{ runner.temp }}/sofia-debian-verification.log
             ${{ runner.temp }}/sofia-debian-verification.json
@@ -160,7 +168,7 @@ jobs:
           CORE_WHEEL="$(ls "$RUNNER_TEMP/sofia-components/sofia_core-"*.whl | head -n1)"
           args=(
             -m sofia.platform.dev.release_cli construct
-            --git-revision "${{ github.sha }}"
+            --git-revision "${{ github.event.pull_request.head.sha || github.sha }}"
             --lock requirements.lock.linux-py313.txt
             --component-wheel "sdk=$SDK_WHEEL"
             --component-wheel "platform=$PLATFORM_WHEEL"
@@ -179,7 +187,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: release-candidate-components-debian-${{ github.sha }}
+          name: release-candidate-components-debian-${{ github.event.pull_request.head.sha || github.sha }}
           path: release-evidence-components
           if-no-files-found: error
 
@@ -194,7 +202,7 @@ jobs:
           PY="$SOFIA_RELEASE_VENV/bin/python"
           args=(
             -m sofia.platform.dev.release_cli construct
-            --git-revision "${{ github.sha }}"
+            --git-revision "${{ github.event.pull_request.head.sha || github.sha }}"
             --lock requirements.lock.linux-py313.txt
             --wheel "$SOFIA_RELEASE_WHEEL"
             --source "$SOFIA_RELEASE_SOURCE"
@@ -214,7 +222,7 @@ jobs:
         id: upload_integrated
         uses: actions/upload-artifact@v7
         with:
-          name: release-candidate-debian-${{ github.sha }}
+          name: release-candidate-debian-${{ github.event.pull_request.head.sha || github.sha }}
           path: release-evidence
           if-no-files-found: error
 
