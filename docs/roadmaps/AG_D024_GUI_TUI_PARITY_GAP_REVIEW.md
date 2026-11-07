@@ -39,6 +39,10 @@ These pieces are **partial implementations or design coverage**, not proof that 
 
 **Evidence scope:** The words "still needed" mean required for the owner-desired finished cross-surface product, not that every underlying helper/function is absent from the repository. Existing components must be inspected/reused during implementation. No row is declared shipped merely because a source module or existing test exists.
 
+### Module live-status synchronization refinement (2026-11-07)
+
+The owner additionally requires that **GUI and TUI Module Manager/Settings automatically show connected/disconnected, lifecycle and runtime-health transitions without restarting either UI or Platform**. This is a refinement of existing AG-D006 and the shared-settings/offline/empty-state gaps, **not** a new module manager. See [AG-D006 live module status design](AG_D006_LIVE_MODULE_STATUS_AND_SETTINGS.md). Existing module lifecycle event table, read-only observer and authenticated settings catalog are reusable, but the legacy Tk module-settings catalog presently exposes a manual Refresh button, so production auto-subscription is not verified. Use one canonical host-scoped event/snapshot contract with revision/cursor resynchronization and bounded polling fallback. Test installed/active/paused/removed and ACTIVE-but-health-unknown transitions across both clients without service restart, plus a concurrent settings edit to confirm safe invalidation.
+
 ## 3. Concrete shared interaction pattern
 
 ### Status / navigation
