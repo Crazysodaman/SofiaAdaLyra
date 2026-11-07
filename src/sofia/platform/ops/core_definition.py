@@ -2,9 +2,7 @@
 from __future__ import annotations
 
 import argparse
-from hashlib import sha256
 import json
-import os
 from pathlib import Path
 import stat
 
@@ -13,41 +11,11 @@ from sofia.sdk.core_definition import CoreDefinition
 from sofia.sdk.identity import AegisIdentity, IdentityKind
 from sofia.platform.ops.component_install import Ed25519ComponentSignatureVerifier, CoreComponentInstallError
 from sofia.platform.state.private_file import assert_no_redirected_components
+from sofia.platform.state.artifact_file import read_artifact_file as _read_file
 
 
 class CoreDefinitionRejected(PermissionError):
     pass
-
-
-def _read_file(path, size, *, include_data=False):
-    assert_no_redirected_components(path, include_leaf=True)
-    before = path.stat(follow_symlinks=False)
-    if not stat.S_ISREG(before.st_mode) or before.st_size != size:
-        raise CoreDefinitionRejected('personal asset size/type differs')
-    descriptor = os.open(path, os.O_RDONLY | getattr(os,'O_CLOEXEC',0) | getattr(os,'O_NOFOLLOW',0) | getattr(os,'O_NONBLOCK',0))
-    digest = sha256()
-    pieces = [] if include_data else None
-    with os.fdopen(descriptor,'rb') as stream:
-        opened = os.fstat(stream.fileno())
-        if not stat.S_ISREG(opened.st_mode) or (opened.st_dev,opened.st_ino) != (before.st_dev,before.st_ino):
-            raise CoreDefinitionRejected('asset changed while opening')
-        remaining = size
-        while remaining:
-            block = stream.read(min(remaining,65_536))
-            if not block: raise CoreDefinitionRejected('asset was truncated')
-            digest.update(block)
-            if pieces is not None: pieces.append(block)
-            remaining -= len(block)
-        if stream.read(1): raise CoreDefinitionRejected('asset exceeded its signed bound')
-        after = os.fstat(stream.fileno())
-    assert_no_redirected_components(path, include_leaf=True)
-    final = path.stat(follow_symlinks=False)
-    if ((before.st_dev,before.st_ino,before.st_size,before.st_mtime_ns) !=
-        (after.st_dev,after.st_ino,after.st_size,after.st_mtime_ns) or
-        (final.st_dev,final.st_ino,final.st_size,final.st_mtime_ns) !=
-        (after.st_dev,after.st_ino,after.st_size,after.st_mtime_ns)):
-        raise CoreDefinitionRejected('asset changed during verification')
-    return digest.hexdigest(), None if pieces is None else b"".join(pieces)
 
 
 def _bounded_file(path, size):
