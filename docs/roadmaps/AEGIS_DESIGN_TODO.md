@@ -300,6 +300,18 @@ Design: dedicated test environment dashboard for Platform-only clean installs, s
 
 **Open decisions:** first exact allowlisted fields and ranges, frequency/expiry defaults, when to notify the owner, signed policy scope and whether initial manual approvals or a reviewed low-risk Adaptive grant is preferred.
 
+### AG-D024 | Shared GUI/TUI parity and operator-experience gap closure
+
+**Status:** OWNER-REQUESTED UI AUDIT (2026-11-07), source-backed design review CAPTURED. **Implementation:** NOT SCHEDULED BY THIS DOCUMENT; **not** a duplicate manager or a new Platform #201 shakedown gate.
+
+**Detailed review:** [AG-D024: GUI/TUI parity, existing foundations and missing behavior](AG_D024_GUI_TUI_PARITY_GAP_REVIEW.md), mapped to AG-D007, AG-D011, AG-D013, AG-D014, AG-D016, AG-D020, AG-D022 and AG-D023.
+
+**Finding:** Existing designs already cover navigation, manager categories, stable Platform/Core identity, Core-free operation, basic keyboard support, job/approval concepts, and immutable trust/SAFE rules. The remaining gaps are the **integrated experience**: one shared theme, actual authenticated management API across both clients, first-install/service-unavailable recovery, explicit local/remote target selector, settings diff/validation/effective application parity, secure remote/headless owner approval, unified jobs/notifications, offline/unknown/revoked empty states, accessibility/testing, and signed native delivery. Reuse existing canonical settings, Core Link, SAFE, module settings, Fleet callsigns, backup and diagnostic code. Do not invent a second writer or management authority.
+
+**Owner color decision:** The GUI and TUI must have the **exact same Aegis dark default palette**, governed by [Shared GUI/TUI Theme](AEGIS_SHARED_GUI_TUI_THEME.md). The existing CLI/TUI document continues to describe terminal-specific ANSI/monochrome behavior, not a competing color scheme. Sofía's personal adaptive Workbench styling remains separate unless explicitly selected.
+
+**First priority:** Backend authenticated Platform IPC/owner authorization under #201 is a prerequisite for privileged GUI/TUI actions. Then build the read-only GUI/TUI shell and host selector, then shared settings/receipts, then approved effects and signed packaging. Do not redirect OpenCode or expand release scope just by capturing this design.
+
 ---
 
 ## Questions to decide before promoting UX concepts
@@ -316,13 +328,13 @@ Design: dedicated test environment dashboard for Platform-only clean installs, s
 - Existing Python/Ollama code is a foundation, not proof that a fully generic Core-free model-service implementation or Rust manager is complete.
 - Track Platform-only readiness in #201 and full-project readiness in #120. Keep G8 #129 deferred until separately authorized.
 
-## Owner-approved universal terminal color palette (2026-11-07)
+## Owner-approved shared GUI + terminal color palette (2026-11-07)
 
 **Status:** OWNER-DESIRED CANONICAL DESIGN, NOT IMPLEMENTED/VERIFIED OR AN AUTOMATIC NEW CODING ASSIGNMENT.
 
-**One source of truth:** [Aegis CLI/TUI Color Theme](AEGIS_CLI_TUI_COLOR_THEME.md) sets the owner's exact hex values and semantic UI rules for **ALL** Aegis-owned terminal surfaces, including AG-D003 Core CLI, AG-D011 one-script ASCII installer, AG-D022 headless TUI, AG-D023 Core settings/autonomy views and every future Platform/Fleet/Modules/Models/Security/Diagnostics/Jobs CLI. Use shared tokens instead of copying divergent literal colors into each view; do not change the unrelated AG-D007 graphical theme by implication.
+**One source of truth for ALL interfaces:** [Shared Aegis GUI + CLI/TUI Theme](AEGIS_SHARED_GUI_TUI_THEME.md) records the owner's exact hex values and semantic color roles for **both** the neutral AG-D007 graphical Control Center and every Aegis-owned terminal surface (AG-D003 Core CLI, AG-D011 ASCII installer, AG-D022 headless TUI, AG-D023 Core settings and all manager CLIs). The earlier [CLI/TUI Theme](AEGIS_CLI_TUI_COLOR_THEME.md) adds terminal-specific truecolor/ANSI/monochrome rules; it must not diverge from the shared tokens. Sofía's optional personal Workbench remains separately styled. This is an owner-requested GUI palette change, superseding earlier generic teal/charcoal GUI defaults.
 
-**Core tokens:** Primary purple `#9400D3`; secondary cyan `#00C2FF`; tertiary/success lime `#39FF14`; black background `#000000`; panel `#0B1020`; selected-item purple `#9400D3` with black text `#000000`; focus `#AA1DFF`; main text `#E5E7EB`; muted `#94A3B8`; warning/HUD `#FFB000`; orange HUD `#FF8C00`; dark green `#4CAF50`; VISR `#FFB000`; bright highlight `#FFC83D`; glow `#FFD54F`; danger/error `#9F0202`. Purple text on black denotes branding/headers while ordinary text stays `#E5E7EB`; dark red is an error **accent** with a readable text label because small red-on-black text fails contrast guidance. Truecolor where available, approximate 256/16-color and first-class monochrome ASCII fallback, with no ANSI in piped logs or JSON. Color never proves authority or health.
+**Core tokens:** Primary purple `#9400D3`; secondary cyan `#00C2FF`; tertiary/success lime `#39FF14`; black background `#000000`; panel `#0B1020`; selected-item purple `#9400D3` with black text `#000000` as a token (use contrast-safe main text for ordinary small button labels); focus `#AA1DFF`; main text `#E5E7EB`; muted `#94A3B8`; warning/HUD `#FFB000`; orange HUD `#FF8C00`; dark green `#4CAF50`; VISR `#FFB000`; bright highlight `#FFC83D`; glow `#FFD54F`; danger/error `#9F0202`. Purple text on black denotes branding/headers while ordinary text stays `#E5E7EB`; dark red is an error **accent** with a readable text label because small red-on-black text fails contrast guidance. Truecolor where available, approximate 256/16-color and first-class monochrome ASCII fallback, with no ANSI in piped logs or JSON. Color never proves authority or health.
 
 **Implementation dependency:** shared CLI/TUI presentation module and installer/manager adoption only after review and normal source/CI acceptance; #201 production release gates and Core autonomy boundaries unchanged.
 
