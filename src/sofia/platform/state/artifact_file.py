@@ -14,7 +14,7 @@ class ArtifactFileRejected(PermissionError):
     pass
 
 def read_artifact_file(path, size, *, include_data=False):
-    if type(size) is not int or not 1 <= size <= MAX_ARTIFACT_BYTES:
+    if type(size) is not int or not 0 <= size <= MAX_ARTIFACT_BYTES:
         raise ArtifactFileRejected('artifact size outside the bounded contract')
     path = Path(path).absolute()
     assert_no_redirected_components(path, include_leaf=True)

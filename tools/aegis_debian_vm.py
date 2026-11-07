@@ -86,15 +86,15 @@ def _uuid(value):
 def validate_receipts(first, second, source_sha):
     fields = {'schema', 'result', 'source_sha', 'boot_id', 'platform_id', 'public_key_sha256',
         'generations', 'python', 'kernel', 'pid1', 'os_version', 'core_installed', 'ollama_installed',
-        'graceful_stops', 'crash_recovered', 'duplicate_denied', 'production_authorized', 'release_accepted'}
+        'bundled_runtime', 'graceful_stops', 'crash_recovered', 'duplicate_denied', 'production_authorized', 'release_accepted'}
     if not isinstance(source_sha, str) or re.fullmatch('[0-9a-f]{40}', source_sha) is None:
         raise ValueError('exact observed source SHA required')
     for row in (first, second):
         if type(row) is not dict or set(row) != fields:
             raise ValueError('VM receipt fields differ')
-        if (row['schema'] != 'aegis.disposable.debian12-vm.v1' or row['result'] != 'PASS'
+        if (row['schema'] != 'aegis.disposable.debian12-vm.v2' or row['result'] != 'PASS'
                 or row['source_sha'] != source_sha or row['pid1'] != 'systemd' or row['os_version'] != '12'
-                or row['core_installed'] is not False or row['ollama_installed'] is not False
+                or row['bundled_runtime'] is not True or row['core_installed'] is not False or row['ollama_installed'] is not False
                 or row['crash_recovered'] is not True or row['duplicate_denied'] is not True or row['production_authorized'] is not False
                 or row['release_accepted'] is not False or type(row['graceful_stops']) is not int
                 or row['graceful_stops'] != 2):
@@ -141,6 +141,8 @@ def verify_public_artifacts(output):
             raise ValueError('public artifact index path/digest differs')
         if name == 'aegis-platform-service':
             path = output / 'target/release' / name
+        elif name == 'python-runtime.zip':
+            path = output / name
         elif name.endswith('.whl'):
             path = output / 'dependencies' / name
         else:

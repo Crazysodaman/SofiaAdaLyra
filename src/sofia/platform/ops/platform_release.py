@@ -6,13 +6,13 @@ import json
 from io import BytesIO
 from pathlib import Path
 import re
-import struct
 import zipfile
 import unicodedata
 import stat
 import zlib
 
 from sofia.sdk.artifact import validate_artifact_path
+from sofia.platform.verify.native_artifact import verify_native_target
 
 from sofia.platform.ops.component_install import Ed25519ComponentSignatureVerifier, CoreComponentInstallError
 from sofia.platform.state.artifact_file import read_artifact_file
@@ -28,23 +28,10 @@ class PlatformReleaseRejected(PermissionError):
 
 
 def _service_target(data, target):
-    """Check architecture/ABI declarations, never execution health or authority."""
-    if target is PlatformReleaseTarget.DEBIAN12_X86_64:
-        if (len(data)<64 or data[:6]!=b'\x7fELF\x02\x01'
-                or struct.unpack_from('<H',data,18)[0]!=62):
-            raise PlatformReleaseRejected('service header does not match Debian12 x86_64')
-        requirements=[tuple(int(v) for v in raw.split(b'.'))
-            for raw in re.findall(rb'GLIBC_([0-9]+(?:\.[0-9]+){1,2})\x00',data)]
-        if any(version>(2,36) for version in requirements):
-            raise PlatformReleaseRejected('service requires a newer glibc than Debian12')
-    else:
-        if len(data)<64 or data[:2]!=b'MZ':
-            raise PlatformReleaseRejected('service header does not match Windows')
-        offset=struct.unpack_from('<I',data,60)[0]
-        if (offset>len(data)-26 or data[offset:offset+4]!=b'PE\0\0'
-                or struct.unpack_from('<H',data,offset+4)[0]!=0x8664
-                or struct.unpack_from('<H',data,offset+24)[0]!=0x20b):
-            raise PlatformReleaseRejected('service must declare a Windows x86_64 executable')
+    try:
+        verify_native_target(data, target)
+    except (ValueError, TypeError) as error:
+        raise PlatformReleaseRejected(str(error)) from error
 
 
 def _component_wheel(path,kind,version,data):
