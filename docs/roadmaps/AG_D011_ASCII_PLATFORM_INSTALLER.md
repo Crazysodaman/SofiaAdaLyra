@@ -53,6 +53,10 @@ STEP 7/7  Install and verify  [actual executor receipts]
 
 Final screen must show distinct facts: artifact VERIFIED, service RUNNING/STOPPED/UNKNOWN, service HEALTHY/DEGRADED/UNKNOWN, Platform identity serial/fingerprint, Core NOT INSTALLED when absent, Fleet NOT ENROLLED when not enrolled, exact release revision/digest, service origin, and log/diagnostics location. Never equate process RUNNING with full health, trust, Core cognition or model inference.
 
+## Canonical CLI color scheme
+
+All ASCII installer menus, prompts, preflight displays, action review and status/diagnostic output use the owner-defined [Aegis CLI/TUI color theme](AEGIS_CLI_TUI_COLOR_THEME.md) by default where the terminal supports it: purple `#9400D3` branding, cyan `#00C2FF` accent, lime `#39FF14` success, black `#000000` background, `#0B1020` panels, light text `#E5E7EB`, amber `#FFB000` warnings and red `#9F0202` danger accents, plus the complete HUD/hover/focus palette specified there. Monochrome ASCII remains a first-class fallback for SSH, serial terminals, `NO_COLOR`, narrow displays and redirected output. Never rely on color alone to identify protected operations or imply an install succeeded. Implement the shared theme only through presentation, without overriding service/owner authority.
+
 ## 2. Cross-platform bootstrap architecture
 
 Use two minimal OS-native, auditable launchers, with **the same prompts and the same backend installation API**:
