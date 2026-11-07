@@ -28,37 +28,25 @@ chroot /vm/rootfs apt-get update
 chroot /vm/rootfs apt-get install -y --no-install-recommends systemd-sysv linux-image-amd64 initramfs-tools passwd util-linux e2fsprogs
 chroot /vm/rootfs apt-get clean
 rm -rf /vm/rootfs/var/lib/apt/lists/*
-mkdir /vm/rootfs/tmp/aegis-test-wheels
-cp /vm/dependencies/*.whl /vm/rootfs/tmp/aegis-test-wheels/
-# Use production runtime preparation/verification, then create the installed
-# environment inside the guest root so pyvenv.cfg records guest paths.
+# Exercise the production signed-release/staging APIs with a separately
+# generated in-memory disposable signer; no production trust or owner grant.
 python -m pip install --no-index --find-links=/vm/dependencies sofia-sdk sofia-platform
-mkdir -p /vm/rootfs/opt/aegis
-python - <<'PYRUNTIME'
-from pathlib import Path
-import json, sys
-from sofia.platform.verify.python_runtime import build_python_runtime, materialize_python_runtime
-from sofia.sdk.platform_release import PlatformReleaseTarget
-prepared=build_python_runtime(Path(sys.base_prefix), Path('/vm/python-runtime.zip'),
-    target=PlatformReleaseTarget.DEBIAN12_X86_64, python_version='.'.join(map(str,sys.version_info[:3])))
-materialize_python_runtime('/vm/python-runtime.zip','/vm/rootfs/opt/aegis/runtime',
-    expected=prepared.reference,target=prepared.manifest.target,python_version=prepared.manifest.python_version)
-Path('/vm/runtime-reference.json').write_text(json.dumps(prepared.reference.to_payload(),sort_keys=True)+'\n')
-PYRUNTIME
-# Only verified public runtime code is made readable; state remains private.
-chmod -R a+rX /vm/rootfs/opt/aegis/runtime
-chroot /vm/rootfs /usr/bin/env LD_LIBRARY_PATH=/opt/aegis/runtime/python/lib /opt/aegis/runtime/python/bin/python3.12 -m venv /opt/aegis/venv
-chroot /vm/rootfs /usr/bin/env LD_LIBRARY_PATH=/opt/aegis/runtime/python/lib /opt/aegis/venv/bin/python -m pip install --no-index --find-links=/tmp/aegis-test-wheels sofia-sdk sofia-platform
-rm -rf /vm/rootfs/tmp/aegis-test-wheels
+python /input/prepare_release.py --disposable-vm
+# Only verified public code is exposed to the guest service account.
+chmod 755 /vm/rootfs/opt/aegis
+chmod -R a+rX /vm/rootfs/opt/aegis/staged-release
+chroot /vm/rootfs /usr/bin/env LD_LIBRARY_PATH=/opt/aegis/staged-release/runtime/python/lib PYTHONDONTWRITEBYTECODE=1 /opt/aegis/staged-release/runtime/python/bin/python3.12 -B -m venv /opt/aegis/venv
+chroot /vm/rootfs /usr/bin/env LD_LIBRARY_PATH=/opt/aegis/staged-release/runtime/python/lib PYTHONDONTWRITEBYTECODE=1 /opt/aegis/venv/bin/python -B -m pip install --no-compile --no-index --find-links=/opt/aegis/staged-release/assets sofia-sdk sofia-platform
+chroot /vm/rootfs /usr/bin/env LD_LIBRARY_PATH=/opt/aegis/staged-release/runtime/python/lib /opt/aegis/venv/bin/python -B -m pip check
 chroot /vm/rootfs useradd --system --user-group --no-create-home --home-dir /var/lib/aegis --shell /usr/sbin/nologin aegis
 install -d -m 755 /vm/rootfs/opt/aegis/bin
 install -d -m 700 /vm/rootfs/var/lib/aegis /vm/rootfs/etc/aegis
 chroot /vm/rootfs chown aegis:aegis /var/lib/aegis
-install -m 755 /vm/target/release/aegis-platform-service /vm/rootfs/opt/aegis/bin/
+install -m 755 /vm/rootfs/opt/aegis/staged-release/assets/aegis-platform-service /vm/rootfs/opt/aegis/bin/
 install -m 644 /input/inputs.json /vm/rootfs/opt/aegis/test-inputs.json
 install -m 644 /input/probe.py /vm/rootfs/opt/aegis/vm_probe.py
 install -m 644 /input/aegis-platform.service /vm/rootfs/etc/systemd/system/aegis-platform.service
-chroot /vm/rootfs runuser -u aegis -- /usr/bin/env LD_LIBRARY_PATH=/opt/aegis/runtime/python/lib /opt/aegis/venv/bin/python -I -c '
+chroot /vm/rootfs runuser -u aegis -- /usr/bin/env LD_LIBRARY_PATH=/opt/aegis/staged-release/runtime/python/lib /opt/aegis/venv/bin/python -B -I -c '
 import json
 from pathlib import Path
 from sofia.platform.state.installation_identity import InstallationIdentityStore
@@ -74,7 +62,7 @@ from pathlib import Path
 root=Path('/vm/rootfs')
 public=json.loads((root/'opt/aegis/identity-reference.json').read_text())
 (root/'etc/aegis/platform-service.env').write_text('\n'.join((
-'AEGIS_PYTHON=/opt/aegis/venv/bin/python','LD_LIBRARY_PATH=/opt/aegis/runtime/python/lib','AEGIS_IDENTITY_HOME=/var/lib/aegis/identity',
+'AEGIS_PYTHON=/opt/aegis/venv/bin/python','LD_LIBRARY_PATH=/opt/aegis/staged-release/runtime/python/lib','AEGIS_IDENTITY_HOME=/var/lib/aegis/identity',
 'AEGIS_LOCAL_STATE=/var/lib/aegis/platform.db','AEGIS_PLATFORM_ID='+public['identity']['uuid'],
 'AEGIS_PUBLIC_KEY_SHA256='+public['public_key_sha256'],'')))
 (root/'etc/aegis/platform-service.env').chmod(0o600)
@@ -88,8 +76,8 @@ After=aegis-platform.service
 Wants=aegis-platform.service
 [Service]
 Type=oneshot
-Environment=LD_LIBRARY_PATH=/opt/aegis/runtime/python/lib
-ExecStart=/opt/aegis/venv/bin/python -I /opt/aegis/vm_probe.py
+Environment=LD_LIBRARY_PATH=/opt/aegis/staged-release/runtime/python/lib
+ExecStart=/opt/aegis/venv/bin/python -B -I /opt/aegis/vm_probe.py
 StandardOutput=journal+console
 StandardError=journal+console
 TimeoutStartSec=150
@@ -113,14 +101,14 @@ import json
 files=[Path('/vm/python-runtime.zip'),Path('/vm/target/release/aegis-platform-service'),*Path('/vm/dependencies').glob('*.whl')]
 Path('/vm/built-artifacts.json').write_text(json.dumps({p.name:sha256(p.read_bytes()).hexdigest() for p in files},sort_keys=True)+'\n')
 PYARTIFACT
-chown "$AEGIS_OUTPUT_UID:$AEGIS_OUTPUT_GID" /vm/built-artifacts.json /vm/runtime-reference.json /vm/python-runtime.zip /vm/target/release/aegis-platform-service /vm/dependencies/*.whl
+chown "$AEGIS_OUTPUT_UID:$AEGIS_OUTPUT_GID" /vm/built-artifacts.json /vm/runtime-reference.json /vm/test-release-envelope.json /vm/test-release-stage.json /vm/python-runtime.zip /vm/target/release/aegis-platform-service /vm/dependencies/*.whl
 printf 'AEGIS_VM_IMAGE_BUILT\n'
 
 for boot in 1 2; do
   timeout 240 qemu-system-x86_64 -accel tcg -m 768 -smp 2 -nographic -no-reboot -nic none \
     -drive file=/vm/platform.ext4,format=raw,if=virtio,cache=writeback \
     -kernel /vm/vmlinuz -initrd /vm/initrd.img \
-    -append 'root=/dev/vda rw console=ttyS0 systemd.show_status=no loglevel=3' \
+    -append 'root=/dev/vda rw console=ttyS0 systemd.show_status=no loglevel=3 aegis.disposable_vm=1' \
     > "/vm/boot-$boot.log" 2>&1
   python - "$boot" <<'PYVM'
 import json, sys
