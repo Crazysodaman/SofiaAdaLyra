@@ -68,7 +68,7 @@ fn paint(text: &str, role: &str, colors: bool) -> String {
     }
     match rgb(role) {
         Some((red, green, blue)) => {
-            format!("\\x1b[38;2;{red};{green};{blue}m{text}\\x1b[0m")
+            format!("\x1b[38;2;{red};{green};{blue}m{text}\x1b[0m")
         }
         None => text.to_owned(),
     }
@@ -179,14 +179,14 @@ mod tests {
     #[test]
     fn plain_mode_has_no_ansi_or_unsupported_authority_claims() {
         let menu = render_menu(false);
-        assert!(!menu.contains('\\x1b'));
+        assert!(!menu.contains('\x1b'));
         assert!(menu.contains("UNAVAILABLE"));
         assert!(menu.contains("Settings"));
         assert!(!menu.contains("VERIFIED HEALTHY"));
         let page = render_page(Page::Settings, false);
         assert!(page.contains("UNVERIFIED"));
         assert!(page.contains("No writes"));
-        assert!(!page.contains('\\x1b'));
+        assert!(!page.contains('\x1b'));
     }
 
     #[test]
