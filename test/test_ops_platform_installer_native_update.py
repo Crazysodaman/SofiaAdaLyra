@@ -27,7 +27,7 @@ from test.test_ops_platform_installation import SignedReleaseBuilder
 from test.test_platform_release_verifier import platform_wheels
 from test.test_platform_service_session import provision
 
-pytestmark = pytest.mark.pkg_ops
+pytestmark = [pytest.mark.pkg_ops, pytest.mark.skipif(os.name == "nt", reason="Debian signed-release fixture and systemd lifecycle contract")]
 
 
 @pytest.fixture
