@@ -4,7 +4,13 @@
 # the signed-release verification and owner-authorized executor in #201.
 set -euo pipefail
 
-ROOT="$(cd -- "$(dirname -- "$0")/../.." && pwd -P)"
+SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd -P)"
+# Support both repository development layout and a future reviewed bundle root.
+if [[ -f "$SCRIPT_DIR/contracts/ui/aegis-theme-v1.json" ]]; then
+  ROOT="$SCRIPT_DIR"
+else
+  ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd -P)"
+fi
 THEME="$ROOT/contracts/ui/aegis-theme-v1.json"
 MODE=menu
 PLAIN=0
