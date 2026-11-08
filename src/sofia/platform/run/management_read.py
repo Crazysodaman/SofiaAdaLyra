@@ -11,13 +11,14 @@ and replacement between request admission and response publication.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import re
 from typing import Any
 
 from sofia.platform.config.settings_authority import SettingsOwner, runtime_settings_contracts
 from sofia.sdk.platform_management import UntrustedManagementRead
+from sofia.sdk.platform_management_response import make_response
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$")
 _STATUS_FIELDS = frozenset({
@@ -44,10 +45,12 @@ class ManagementReadDispatcher:
         current_status: Callable[[], Mapping[str, object]],
         authorize: Callable[[str, str], frozenset[SettingsOwner] | None],
         read_settings: Callable[[frozenset[SettingsOwner]], Mapping[str, Any]],
+        clock: Callable[[], datetime] | None = None,
     ) -> None:
         self._status = current_status
         self._authorize = authorize
         self._settings = read_settings
+        self._clock = clock if clock is not None else lambda: datetime.now(timezone.utc)
 
     def _check(
         self, request: UntrustedManagementRead, authenticated_peer: str
@@ -79,9 +82,14 @@ class ManagementReadDispatcher:
         self, raw: bytes, *, authenticated_peer: str, now: datetime
     ) -> dict[str, object]:
         request = UntrustedManagementRead.parse(raw, now=now)
-        if request.operation not in {"platform.status", "settings.inspect"}:
-            raise ManagementReadDenied("management operation not implemented")
         scopes = self._check(request, authenticated_peer)
+        if request.operation not in {"platform.status", "settings.inspect"}:
+            if self._check(request, authenticated_peer) != scopes:
+                raise ManagementReadDenied("management scope changed during observation")
+            observed = self._clock()
+            if observed >= datetime.fromisoformat(request.deadline.replace("Z", "+00:00")):
+                raise ManagementReadDenied("request expired during dispatch")
+            return make_response(request, observed_at=observed, denial_code="NOT_PERMITTED")
         if request.operation == "settings.inspect":
             observation: dict[str, object] = dict(
                 self._settings(scopes)
@@ -122,22 +130,12 @@ class ManagementReadDispatcher:
         # reading settings. Never disclose a response after such a transition.
         if self._check(request, authenticated_peer) != scopes:
             raise ManagementReadDenied("management scope changed during observation")
-        response = {
-            "schema": "aegis.platform.management.read-response.v1",
-            "protocol": "1.0",
-            "request_id": request.request_id,
-            "platform_id": request.target_platform_id,
-            "platform_generation": request.expected_generation,
-            "operation": request.operation,
-            "source": "PLATFORM_SESSION",
-            "data": observation,
-        }
-        # Transport messages are bounded and JSON-only even if an injected
-        # observer returns an unexpected object. Never expose its repr/error.
+        observed = self._clock()
+        if (not isinstance(observed, datetime)
+                or observed.utcoffset() is None
+                or observed >= datetime.fromisoformat(request.deadline.replace("Z", "+00:00"))):
+            raise ManagementReadDenied("management request expired during observation")
         try:
-            encoded = json.dumps(response, allow_nan=False, ensure_ascii=False)
+            return make_response(request, observed_at=observed, data=observation)
         except (TypeError, ValueError, OverflowError) as error:
-            raise ManagementReadDenied("invalid management response") from error
-        if len(encoded.encode("utf-8")) > 65536:
-            raise ManagementReadDenied("management response exceeds limit")
-        return response
+            raise ManagementReadDenied("unsafe management response") from error
