@@ -14,7 +14,7 @@ from uuid import UUID
 
 from sofia.core.social.model import AudienceKind, PrincipalContext
 from sofia.core.social.principals import SPARKS_PRINCIPAL_ID
-from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
+from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard, require_existing_sqlite
 
 
 POLICY_VERSION = 1
@@ -47,7 +47,9 @@ def install_disposable_policy_v1(
     required before any protected-state use.
     """
     _require_private_owner(approved_by)
-    if expected_version not in (None, POLICY_VERSION):
+    if expected_version is not None and (
+        type(expected_version) is not int or expected_version != POLICY_VERSION
+    ):
         raise MemoryEligibilityVersionError("memory eligibility downgrade refused")
     guard = CanonicalSQLiteGuard(state_path)
     with closing(guard.connect()) as db, db:
@@ -102,6 +104,15 @@ class ReviewedMemoryEligibilityV1:
         self._guard = CanonicalSQLiteGuard(state_path)
         self.minimum_version = minimum_version
 
+    def assert_same_canonical_state(self, candidate_store_path: Path | str) -> None:
+        """Never combine policy approval from one Core with memory from another."""
+        pinned_path = self._guard.validate()
+        requested_path, _ = require_existing_sqlite(candidate_store_path)
+        if requested_path != pinned_path:
+            raise PermissionError(
+                "memory eligibility policy belongs to another canonical state"
+            )
+
     def require_current(self) -> None:
         with closing(self._guard.connect(read_only=True)) as db:
             try:
@@ -128,13 +139,18 @@ class ReviewedMemoryEligibilityV1:
             raise TypeError("memory candidate ID must be UUID")
         self.require_current()
         with closing(self._guard.connect(read_only=True)) as db:
-            row = db.execute(
-                "SELECT 1 FROM memory_candidate AS c "
+            try:
+                row = db.execute(
+                    "SELECT 1 FROM memory_candidate AS c "
                 "INNER JOIN memory_candidate_source_review AS r "
                 "ON r.candidate_id=c.candidate_id "
                 "WHERE c.candidate_id=? AND c.status='promoted' "
                 "AND c.principal_id=r.principal_id "
                 "AND c.audience_id=r.audience_id",
-                (str(candidate_id),),
-            ).fetchone()
+                    (str(candidate_id),),
+                ).fetchone()
+            except sqlite3.Error as exc:
+                raise MemoryEligibilityVersionError(
+                    "reviewed-memory attestation schema unavailable"
+                ) from exc
         return row is not None
