@@ -65,7 +65,8 @@ def _case_file(case: ElementTree.Element) -> str:
 
 def _git_sha() -> str:
     result = subprocess.run(
-        ["git", "rev-parse", "HEAD"], capture_output=True, text=True,
+        ["git", "-c", f"safe.directory={Path.cwd().resolve()}", "rev-parse", "HEAD"],
+        capture_output=True, text=True,
         timeout=10, check=True,
     )
     sha = result.stdout.strip()
@@ -103,7 +104,7 @@ def make_report(junit_path: Path | None, source_sha: str, platform: str) -> dict
             level = "COMPONENT_FAIL"
         elif "SKIP" in results:
             level = "PARTIAL_OR_OS_SKIPPED"
-        elif not all(any(observed.get(filename)) for filename in configured):
+        elif not all(bool(observed.get(filename)) for filename in configured):
             level = "PARTIAL_OR_OS_SKIPPED"
         else:
             level = "COMPONENT_PASS_ONLY"
