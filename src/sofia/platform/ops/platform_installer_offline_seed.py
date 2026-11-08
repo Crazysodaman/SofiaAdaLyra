@@ -78,7 +78,7 @@ def _inspect_dependency_wheel(path: Path, expected_sha: str, expected_size: int)
             if normalized in _FORBIDDEN_DEPENDENCIES:
                 raise PlatformReleaseRejected("personal Core/model package in neutral seed")
             return normalized
-    except (zipfile.BadZipFile, zipfile.LargeZipFile, UnicodeError, OSError) as exc:
+    except (zipfile.BadZipFile, zipfile.LargeZipFile, UnicodeError, OSError, ValueError) as exc:
         raise PlatformReleaseRejected("malformed offline dependency wheel") from exc
 
 
