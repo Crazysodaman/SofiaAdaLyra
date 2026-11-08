@@ -83,3 +83,38 @@ For each scenario row, E records:
 8. **Team E complete final release QA:** exact-source signed Windows/Debian12 installed-host matrix, valid signer trust, negative security, no skips of mandatory checks, approve each row only through coordinator/owner.
 
 **No-Go until a complete reviewed signed final Platform product exists.** This plan itself creates no signed release, permissions, merger or install authorization.
+
+
+## E-003: mandatory Artifact Library integration extension (AG-D028-001)
+
+**Owner scope change, 2026-11-08:** [draft AG-D028 PR #248](https://github.com/Crazysodaman/SofiaAdaLyra/pull/248) (design review pin `2e6d2ccafa7daff32a60f3030800f41a05a81046`) and [issue #250](https://github.com/Crazysodaman/SofiaAdaLyra/issues/250) make the Artifact Library a **Platform 1.0 release blocker**, not a later optional enhancement. Team E owns **D028-07** and reviews **D028-00** contract and security evidence. Review [Team E's 16-case LIB crosswalk](PLATFORM_1_0_TEAM_E_AG_D028_LIB_LEDGER_2026-11-08.md) and the exact-source [independent QA runbook](https://github.com/Crazysodaman/SofiaAdaLyra/blob/2e6d2ccafa7daff32a60f3030800f41a05a81046/docs/roadmaps/AG_D028_ARTIFACT_LIBRARY_QA_RUNBOOK.md). This extension **does not change the original 38 acceptance states, nor create a row 39**.
+
+### New integration gate before building an executable combined branch
+
+- **D028-00:** Team A signs off an **immutable**, versioned, strict Rust/Python management and library command response fixture with Team B/C/D/E, plus authenticated caller, host target, generation, revision, nonce/deadline, replay and SAFE/STOP, current revocation and contract-negotiation negatives. Source operation names in PR #248 remain **illustrative** until A freezes them. C does not invent IPC authority.
+- **D028-01:** Team B demonstrates the same governed installer semantics can install a **self-contained signed Core-free Platform+SDK native service** offline on *both* disposable OSes with **no existing Git/Python/Cargo/Ollama**. Signed trust root must be provisioned separately; no full-`sofia-ada-lyra` Core-containing RC substitutions.
+- **D028-02:** A/B/D freeze exact signed catalog/inventory/dependency manifest and distinguish `INDEXED/CACHED_UNVERIFIED/CACHED_VERIFIED/STAGED/INSTALLED_DISABLED/ACTIVE/ROLLBACK_PINNED`, plus current target eligibility, source freshness, data rights and owner scopes.
+- **D028-03:** A/B choose Hub service role through the **same authenticated A authority** and B-managed service, enabling only a separate signed index and immutable content bytes for enrolled peers. No Hub owner key, SAFE permission registry, new signing root or shared Core DB.
+- **D028-04:** A/B/D authenticated host-to-host transfer binds exact signer/digest, source+target, grant, catalog generation, bounded chunk/resume and recipient-side re-verification. **Neither transfer nor verify permits install or activation**; owner approvals remain separate.
+- **D028-05:** B/D quota, pin/GC, approved rollback and large signed/chunked *synthetic* data preserve bounded memory/disk, active/recovery bytes, software licenses, secure CAS paths and no hidden Internet fallback. Do not weaken the existing 512 MiB object limit by loading a giant unbounded object.
+- **D028-06:** C must ship *optional* signed Windows GUI and OS-relevant TUI/CLI using the **frozen A service** and existing shared palette, with actual cache/install/active and offline/stale/unknown status, revision fences and no UI approval minting.
+
+**Combine only after these scope, contract and package boundaries are mutually agreed.** The single future QA integration branch from E-002 remains **RESERVED / NOT CREATED**. Existing Teams A–D drafts and security gates keep their respective owners and existing blocking failures; this Artifact Library cannot launder a red forced-kill VM, missing package-ownership declaration or denied-dispatch assertion into green.
+
+### W7: required 16-case signed multi-host library conformance
+
+W7 **extends** W0–W6, not substitutes for them. Pin all contributing reviewed PR HEADs and exact installable source tree. The four disposable signed installed-host roles are `W-EMPTY` (fresh Windows), `D-HUB` (Core-free Debian12 Hub), `D-CLIENT` (second Debian12), `W-PEER` (independent Windows enrolled peer). WAN is intentionally blocked with evidence; separate enrolled LAN transfer is selectively allowed. Track real OS service origin/boot/UUID and actual network deny logs, not a simulator.
+
+1. **LIB-01/02**: signed **offline Platform-only** clean install, two boots/service recovery, no Core/model/optional module/OS developer toolchain; independent binary/manifest, trust anchor and non-adoption evidence.
+2. **LIB-03–06**: owner-enabled Hub role, per-host source/trust, catalog and exact selective single/two-Core and module dependency closure, distinct `downloaded/verified/staged/installed/active` receipts, **no auto-activation**.
+3. **LIB-07–09**: direct enrolled peer/HUB transfer and negative trust tests: unknown/revoked/misbound peer, poisoned signed index, counterfeit publisher, wrong OS/ABI/license/private data and malicious archives. End-to-end bytes, not a mock TLS green check.
+4. **LIB-10–13**: interrupt/resume/duplicate/STOP/revocation, quota/disk full, verified chunks of **synthetic >512 MiB logical artifact**, protected pin/GC and signed rollback, no duplicate canonical writer or blind replay; record actual source and recipient digests.
+5. **LIB-14–16**: GUI/TUI/CLI exact API parity, offline ecosystem and operator runbook from actual final signed install; ASCII/NO_COLOR and headless behavior, zero hidden network fetch and no invented health/progress.
+
+**Evidence:** one record **per LIB ID**, with SHA and signer chain, OS target/ABI, native installed service origin, 4 distinct UUIDs, source/recipient trusted identities, current SAFE/STOP/approval receipts, exact manifest/content hash, every relevant negative testcase and independent reviewer. Include the **existing #201 row IDs** that each LIB case refines, never total rows 54; original 38 acceptance status can change only by formal independent acceptance. **All 16 scenarios remain NOT TESTED at this plan checkpoint.** A partially passing SDK fixture, two-boot generic VM harness or full Core-containing RC ZIP is insufficient.
+
+### Reuse Team E's existing preflight runner, not a second authority
+
+`tools/aegis_platform_row_preflight.py` now has optional `--include-artifact-library` reporting 16 **NOT_CLAIMED** source-scoped checks mapped to original 38. Normal `make_report(...)` remains exactly the 38-row v1 output by default, keeping existing consumers stable. Unit tests assert no all-green JUnit can promote any LIB case; this is an **evidence inventory**, not a signer or true installed-host verifier. Real host-independent signed receipts and CI/JUnit remain mandatory for E's later per-case review.
+
+**Safety verdict:** All new requirements are GO blockers, no production deployment, live Core startup, real network listener, second installer, additional signing authority, Hub-owned SAFE, new shared writer, merge or release PASS.
