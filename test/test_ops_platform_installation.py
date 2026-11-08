@@ -22,7 +22,7 @@ from sofia.platform.ops.platform_installation import (
     ACTIVATION_CAPABILITY, INSTALL, ROLLBACK, PlatformInstallationDenied,
     PlatformInstallationStore, PythonPlatformServiceLauncher,
     activate_installed_release, install_staged_release,
-    platform_activation_request, verify_installed,
+    platform_activation_request, platform_rollback_request, verify_installed,
 )
 from sofia.platform.ops.platform_release import PlatformReleaseVerifier
 from sofia.platform.ops.platform_release_staging import stage_platform_release
@@ -209,7 +209,8 @@ def test_installed_release_verifies_after_staging_directory_removed(installed_re
     assert observed['destination'] == str(destination)
 
 
-def test_downgrade_after_reboot_refused_until_attested_rollback(tmp_path, builder):
+def test_downgrade_after_reboot_refused_until_attested_rollback(
+        tmp_path, builder, canonical_state_path):
     staging_one, _manifest, _sig = builder.stage(
         revision=1, release_id='release-one')
     store = PlatformInstallationStore(tmp_path / 'installation.db')
@@ -224,11 +225,32 @@ def test_downgrade_after_reboot_refused_until_attested_rollback(tmp_path, builde
     with pytest.raises(PlatformInstallationDenied, match='anti-rollback'):
         install_staged_release(staging_one, tmp_path / 'downgrade', store=rebooted,
                                verifier=builder.verifier)
-    # Rollback of exactly previously attested bytes is permitted and the
-    # durable floor never regresses; an already-attested install re-verifies.
-    rolled = install_staged_release(staging_one, tmp_path / 'rolled-back',
-        store=rebooted, verifier=builder.verifier, operation=ROLLBACK)
+    # Downgrade rollback is a protected operation, even when the signed bytes
+    # are in local history. Reboots do not waive the exact one-use owner proof.
+    target = tmp_path / 'rolled-back'
+    with pytest.raises(PlatformInstallationDenied, match='owner approval'):
+        install_staged_release(staging_one, target, store=rebooted,
+            verifier=builder.verifier, operation=ROLLBACK)
+    request = platform_rollback_request(
+        staging_one, target, canonical_state_path, store=rebooted,
+        verifier=builder.verifier)
+    approvals = ExecutionApprovalVerifier(canonical_state_path)
+    approval = ExecutionApproval(
+        approval_id='approval:test-attested-rollback',
+        capability=request['capability'],
+        request_fingerprint=request['fingerprint'],
+        approved_by='person:sparks',
+        approved_at=datetime.now(timezone.utc) - timedelta(seconds=1),
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10))
+    record_verified_owner_approval(approvals, approval)
+    rolled = install_staged_release(staging_one, target,
+        store=rebooted, verifier=builder.verifier, operation=ROLLBACK,
+        state_path=canonical_state_path, approval_id=approval.approval_id)
     assert rolled['operation'] == INSTALL
+    with pytest.raises(PermissionError, match='already consumed'):
+        install_staged_release(staging_one, target, store=rebooted,
+            verifier=builder.verifier, operation=ROLLBACK,
+            state_path=canonical_state_path, approval_id=approval.approval_id)
     assert rolled['destination'] == str(first)
     assert rebooted.checkpoint().minimum_accepted_revision == 2
     branch = builder.stage(revision=1, release_id='never-attested')
