@@ -205,18 +205,24 @@ class DebianSystemdNativeService:
             raise PlatformInstallationDenied(
                 "service account must be dedicated and noninteractive"
             )
-        targets = [
-            spec.executable, spec.python_executable, spec.identity_home,
-            spec.local_state,
-        ]
-        # Validate every private child of each reviewed B1 root. Parent
-        # /opt, /var etc may be root-owned but must be traversable to user.
+        # Exact B1 asset tree and bundled interpreter must be traversable
+        # under the SAME non-root service UID. Checking only the leaf python
+        # executable is insufficient: a parent runtime/python directory may
+        # still be root-owned 0700, yielding a real ExecStart EACCES.
         release_root = spec.executable.parent.parent
-        interpreter_root = spec.python_executable
-        for node in (release_root, spec.executable.parent,
-                     spec.python_executable.parent,
-                     interpreter_root, spec.executable,
-                     spec.identity_home, spec.local_state):
+        paths = {release_root, spec.identity_home, spec.local_state}
+        for executable in (spec.executable, spec.python_executable):
+            path = executable
+            while True:
+                paths.add(path)
+                if path == release_root:
+                    break
+                if release_root not in path.parents:
+                    raise PlatformInstallationDenied(
+                        "signed executable escaped the verified B1 release root"
+                    )
+                path = path.parent
+        for node in sorted(paths, key=lambda item: (len(item.parts), str(item))):
             assert_no_redirected_components(node, include_leaf=True)
             details = node.stat(follow_symlinks=False)
             if details.st_uid != user.pw_uid:
@@ -227,6 +233,11 @@ class DebianSystemdNativeService:
                 raise PlatformInstallationDenied(
                     "service code/private state must not grant group/world access"
                 )
+            if node in paths and node not in (spec.executable, spec.python_executable, spec.local_state):
+                if not stat.S_ISDIR(details.st_mode) or not (details.st_mode & stat.S_IXUSR):
+                    raise PlatformInstallationDenied(
+                        "signed release parent directory is not owner-traversable"
+                    )
         for node in (spec.executable, spec.python_executable):
             details = node.stat(follow_symlinks=False)
             if not stat.S_ISREG(details.st_mode) or not details.st_mode & stat.S_IXUSR:
