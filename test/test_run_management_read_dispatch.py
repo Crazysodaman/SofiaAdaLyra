@@ -159,3 +159,38 @@ def test_mutations_and_unimplemented_reads_not_dispatched(operation):
         dispatcher.dispatch(
             request(operation), authenticated_peer="peer:authorized", now=NOW
         )
+
+
+
+def test_core_free_platform_session_can_back_authenticated_status(tmp_path):
+    """Real RUN lease and persisted identity, but no external peer socket."""
+    from sofia.platform.run.platform_service import PlatformServiceSession
+    from test.test_platform_service_session import provision
+
+    identity, current, state = provision(tmp_path)
+    with PlatformServiceSession(
+        identity.home, state,
+        current.identity.canonical_uuid, current.public_key_sha256
+    ) as session:
+        payload = json.loads(request())
+        payload["target_platform_id"] = current.identity.canonical_uuid
+        payload["expected_generation"] = session.lease.epoch
+        dispatch = ManagementReadDispatcher(
+            current_status=session.status,
+            authorize=lambda peer, operation: (
+                frozenset({SettingsOwner.HOST})
+                if peer == "peer:verified" and operation == "platform.status"
+                else None
+            ),
+            read_settings=lambda _: (_ for _ in ()).throw(
+                AssertionError("status must not read canonical settings")
+            ),
+        )
+        result = dispatch.dispatch(
+            json.dumps(payload).encode("utf-8"),
+            authenticated_peer="peer:verified", now=NOW
+        )
+        assert result["data"]["core_started"] is False
+        assert result["data"]["generation"] == session.lease.epoch
+        assert result["platform_id"] == current.identity.canonical_uuid
+        assert not list(tmp_path.rglob("sofia.db"))
