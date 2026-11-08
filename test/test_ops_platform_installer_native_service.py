@@ -458,6 +458,13 @@ def test_signed_systemd_preflight_denies_foreign_outer_ancestor_and_primary_gid(
         grp, "getgrnam", lambda name: SimpleNamespace(gr_gid=40412),
     )
     release_root = native_spec.executable.parent.parent
+    # Make the outer state ancestor distinct from the release ancestor:
+    # otherwise both defects would silently cover the same temp directory.
+    relocated_state_dir = tmp_path / "state-outer" / "service-state"
+    relocated_state_dir.mkdir(parents=True)
+    relocated_state = relocated_state_dir / "platform.db"
+    relocated_state.write_bytes(native_spec.local_state.read_bytes())
+    native_spec = replace(native_spec, local_state=relocated_state)
     state_dir = native_spec.local_state.parent
     protected = {release_root, native_spec.identity_home,
                  native_spec.local_state, state_dir}
