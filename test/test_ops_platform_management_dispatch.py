@@ -27,7 +27,7 @@ def request(operation="platform.status", generation=3):
 
 def service(operation="platform.status"):
     state = {"principal": True, "generation": 3, "stop": False,
-             "revoked": False, "allow_core": False}
+             "revoked": False, "allow_core": False, "now": NOW}
     visited = []
 
     def verify(peer, incoming):
@@ -59,13 +59,14 @@ def service(operation="platform.status"):
         current_peer_grant=verify,
         live_status=live,
         providers={"settings.inspect": settings},
+        clock=lambda: state["now"],
     ), state, visited
 
 
 def test_authorized_read_gets_bounded_service_owned_response_without_key_leak():
     dispatcher, state, visited = service()
     document = json.loads(dispatcher.handle(
-        request(), transport_peer="OS:LOCAL", now=NOW,
+        request(), transport_peer="OS:LOCAL",
     ))
     assert document["status"] == "OBSERVED"
     assert document["generation"] == 3
@@ -81,7 +82,7 @@ def test_stop_state_is_reported_only_to_verified_read_peers():
     dispatcher, state, _ = service()
     state["stop"] = True
     result = json.loads(dispatcher.handle(
-        request(), transport_peer="OS:LOCAL", now=NOW,
+        request(), transport_peer="OS:LOCAL",
     ))
     assert result["data"]["operator_stop"] is True
 
@@ -90,7 +91,7 @@ def test_wrong_peer_cannot_observe_platform_or_provider():
     dispatcher, _state, visited = service()
     with pytest.raises(ManagementReadDenied, match="peer revoked"):
         dispatcher.handle(
-            request("settings.inspect"), transport_peer="unverified", now=NOW,
+            request("settings.inspect"), transport_peer="unverified",
         )
     assert visited == [("verify", "unverified")]
 
@@ -99,7 +100,7 @@ def test_request_mutation_cannot_call_provider():
     dispatcher, _state, visited = service()
     with pytest.raises(PermissionError):
         dispatcher.handle(
-            request("settings.write"), transport_peer="OS:LOCAL", now=NOW,
+            request("settings.write"), transport_peer="OS:LOCAL",
         )
     assert visited == []
 
@@ -114,7 +115,7 @@ def test_revocation_midflight_discards_observation():
     dispatcher._providers["settings.inspect"] = revoke_in_provider
     with pytest.raises(ManagementReadDenied, match="peer revoked"):
         dispatcher.handle(
-            request("settings.inspect"), transport_peer="OS:LOCAL", now=NOW,
+            request("settings.inspect"), transport_peer="OS:LOCAL",
         )
     assert ("settings", None) in visited
 
@@ -128,7 +129,7 @@ def test_generation_change_midflight_discards_observation():
     dispatcher._providers["settings.inspect"] = restart_in_provider
     with pytest.raises(ManagementReadDenied):
         dispatcher.handle(
-            request("settings.inspect"), transport_peer="OS:LOCAL", now=NOW,
+            request("settings.inspect"), transport_peer="OS:LOCAL",
         )
 
 
@@ -136,14 +137,14 @@ def test_old_generation_and_missing_provider_fail_closed():
     dispatcher, _state, visited = service()
     with pytest.raises(ManagementReadDenied, match="generation"):
         dispatcher.handle(
-            request(generation=2), transport_peer="OS:LOCAL", now=NOW,
+            request(generation=2), transport_peer="OS:LOCAL",
         )
     # Grant this read explicitly so the missing-provider refusal is tested
     # after authorization, not confused with an earlier scope denial.
     _state["allow_core"] = True
     with pytest.raises(ManagementReadDenied, match="provider not installed"):
         dispatcher.handle(
-            request("core.list"), transport_peer="OS:LOCAL", now=NOW,
+            request("core.list"), transport_peer="OS:LOCAL",
         )
     assert ("settings", None) not in visited
 
@@ -153,22 +154,50 @@ def test_malformed_status_unknown_response_and_large_provider_denied():
     dispatcher._providers["settings.inspect"] = lambda: {"blob": "X" * 70000}
     with pytest.raises(ManagementReadDenied, match="response limit"):
         dispatcher.handle(
-            request("settings.inspect"), transport_peer="OS:LOCAL", now=NOW,
+            request("settings.inspect"), transport_peer="OS:LOCAL",
         )
     dispatcher._providers["settings.inspect"] = lambda: {"not_json": object()}
     with pytest.raises(ManagementReadDenied, match="invalid read data"):
         dispatcher.handle(
-            request("settings.inspect"), transport_peer="OS:LOCAL", now=NOW,
+            request("settings.inspect"), transport_peer="OS:LOCAL",
         )
 
 
 def test_clock_and_peer_verifier_are_required():
+    dispatcher, state, _ = service()
+    state["now"] = NOW.replace(tzinfo=None)
     with pytest.raises(ValueError, match="service clock"):
-        service()[0].handle(
-            request(), transport_peer="OS:LOCAL",
-            now=NOW.replace(tzinfo=None),
-        )
+        dispatcher.handle(request(), transport_peer="OS:LOCAL")
     with pytest.raises(TypeError, match="peer verifier"):
         PlatformManagementReadDispatcher(
-            current_peer_grant=None, live_status=lambda: {}, providers={},
+            current_peer_grant=None, live_status=lambda: {},
+            providers={}, clock=lambda: NOW,
+        )
+
+
+def test_request_expiring_while_provider_runs_cannot_disclose_response():
+    dispatcher, state, _ = service()
+
+    def provider_that_expires_request():
+        state["now"] = NOW + timedelta(seconds=10)
+        return {"sensitive": "never-disclosed"}
+
+    dispatcher._providers["settings.inspect"] = provider_that_expires_request
+    with pytest.raises(PermissionError, match="observation window"):
+        dispatcher.handle(
+            request("settings.inspect"), transport_peer="OS:LOCAL",
+        )
+
+
+def test_backward_service_clock_discards_observation():
+    dispatcher, state, _ = service()
+
+    def provider_with_clock_rollback():
+        state["now"] = NOW - timedelta(seconds=1)
+        return {"value": "must-not-leak"}
+
+    dispatcher._providers["settings.inspect"] = provider_with_clock_rollback
+    with pytest.raises(ManagementReadDenied, match="clock moved backwards"):
+        dispatcher.handle(
+            request("settings.inspect"), transport_peer="OS:LOCAL",
         )
