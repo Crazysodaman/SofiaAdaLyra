@@ -247,3 +247,34 @@ def test_empty_ollama_completion_fails_closed_instead_of_becoming_canned_chat(
     with pytest.raises(LLMProviderError, match="empty cognitive response"):
         provider.respond(CognitiveRequest(messages=(), allow_tools=False))
 
+@pytest.mark.parametrize("provider_class", [
+    OllamaProvider,
+    GenericOllamaProvider,
+])
+@pytest.mark.parametrize("cause", [
+    TimeoutError("disposable Ollama read timeout"),
+    ConnectionError("disposable Ollama offline"),
+    RuntimeError("llama-server binary not found"),
+])
+def test_provider_outage_does_not_trigger_quality_repair_or_fake_chat(
+    provider_class, cause,
+):
+    class FailingClient:
+        calls = 0
+
+        def chat(self, **kwargs):
+            self.calls += 1
+            raise cause
+
+    client = FailingClient()
+    provider = provider_class(
+        create_default_configuration().provider,
+        client=client,
+    )
+    with pytest.raises(LLMProviderError) as failed:
+        provider.respond(CognitiveRequest(messages=(), allow_tools=False))
+    assert failed.value.__cause__ is cause
+    assert client.calls == 1
+    assert "llama-server" not in str(failed.value)
+    assert "disposable" not in str(failed.value)
+
