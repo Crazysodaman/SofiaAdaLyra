@@ -194,3 +194,54 @@ def test_core_free_platform_session_can_back_authenticated_status(tmp_path):
         assert result["data"]["generation"] == session.lease.epoch
         assert result["platform_id"] == current.identity.canonical_uuid
         assert not list(tmp_path.rglob("sofia.db"))
+
+
+
+def test_settings_observer_cannot_leak_unapproved_core_field():
+    dispatcher, _, _ = service()
+    dispatcher._settings = lambda _: {
+        "schema_version": 1, "revision": 1, "effective_revision": 1,
+        "values": {"cognitive_primary_model": "private"},
+        "contracts": {
+            "cognitive_primary_model": {
+                "owner": "core", "apply_class": "component_restart",
+            }
+        },
+    }
+    with pytest.raises(ManagementReadDenied, match="outside approved scope"):
+        dispatcher.dispatch(
+            request("settings.inspect"),
+            authenticated_peer="peer:authorized", now=NOW
+        )
+
+
+def test_management_read_response_size_is_bounded():
+    dispatcher, _, _ = service()
+    dispatcher._settings = lambda _: {
+        "schema_version": 1, "revision": 1, "effective_revision": 1,
+        "values": {"location_label": "x" * 100000},
+        "contracts": {
+            "location_label": {"owner": "host", "apply_class": "live"}
+        },
+    }
+    with pytest.raises(ManagementReadDenied, match="exceeds limit"):
+        dispatcher.dispatch(
+            request("settings.inspect"), authenticated_peer="peer:authorized",
+            now=NOW
+        )
+
+
+def test_invalid_non_json_settings_observation_is_rejected():
+    dispatcher, _, _ = service()
+    dispatcher._settings = lambda _: {
+        "schema_version": 1, "revision": 1, "effective_revision": 1,
+        "values": {"location_label": object()},
+        "contracts": {
+            "location_label": {"owner": "host", "apply_class": "live"}
+        },
+    }
+    with pytest.raises(ManagementReadDenied, match="invalid management response"):
+        dispatcher.dispatch(
+            request("settings.inspect"), authenticated_peer="peer:authorized",
+            now=NOW
+        )
