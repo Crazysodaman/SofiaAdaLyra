@@ -1,0 +1,49 @@
+name: Aegis Installer UX-1 Preflight
+
+on:
+  pull_request:
+    paths:
+      - "packaging/installers/**"
+      - "contracts/ui/aegis-theme-v1.json"
+      - "test/test_ui_aegis_installer_entrypoints.py"
+      - ".github/workflows/aegis-installer-ux.yml"
+  push:
+    branches: [main]
+    paths:
+      - "packaging/installers/**"
+      - "test/test_ui_aegis_installer_entrypoints.py"
+      - ".github/workflows/aegis-installer-ux.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shell-preflight:
+    name: Read-only shell UX / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-24.04]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install test harness
+        run: python -m pip install -e . pytest
+      - name: Test read-only installer and theme fallbacks
+        run: python -m pytest -q test/test_ui_aegis_installer_entrypoints.py
+      - name: Check Bash syntax
+        if: runner.os == 'Linux'
+        run: bash -n packaging/installers/install-aegis.sh
+      - name: Confirm noninteractive Windows PowerShell preflight
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          & ./packaging/installers/Install-Aegis.ps1 -Check -NoColor
+          if ($LASTEXITCODE -ne 0) { throw 'Installer preflight failed' }
