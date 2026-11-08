@@ -7,8 +7,7 @@ use std::collections::BTreeMap;
 
 pub const UI_THEME_SCHEMA: &str = "aegis.ui.theme.v1";
 pub const DEFAULT_THEME_NAME: &str = "aegis-dark";
-pub const BUNDLED_THEME: &str =
-    include_str!("../../../../contracts/ui/aegis-theme-v1.json");
+pub const BUNDLED_THEME: &str = include_str!("../../../../contracts/ui/aegis-theme-v1.json");
 
 /// The sole trusted palette definition consumed by native GUI/TUI code.
 /// Values are presentation tokens only and must never imply service health.
@@ -61,7 +60,9 @@ impl UiTheme {
             ));
         }
         if theme.tokens.len() != REQUIRED.len()
-            || REQUIRED.iter().any(|role| !theme.tokens.contains_key(*role))
+            || REQUIRED
+                .iter()
+                .any(|role| !theme.tokens.contains_key(*role))
         {
             return Err(ContractError::new(
                 "invalid_ui_theme",
@@ -140,7 +141,10 @@ mod tests {
         let duplicate = r#"{"schema":"aegis.ui.theme.v1","schema":"aegis.ui.theme.v1"}"#;
         assert!(UiTheme::parse(duplicate.as_bytes()).is_err());
         let mut value: Value = serde_json::from_str(BUNDLED_THEME).expect("valid fixture");
-        value["tokens"].as_object_mut().expect("fixture map").remove("primary");
+        value["tokens"]
+            .as_object_mut()
+            .expect("fixture map")
+            .remove("primary");
         assert!(UiTheme::parse(value.to_string().as_bytes()).is_err());
     }
 }
