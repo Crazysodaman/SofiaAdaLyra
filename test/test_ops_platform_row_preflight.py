@@ -267,11 +267,12 @@ def test_d028_runnable_harness_rejects_changed_bytes_wrong_sha_and_links(
     exact = "d" * 40
     (tmp_path / "signed-artifacts.json").write_text(json.dumps({
         "source_sha": exact, "artifacts": [
-            {"path": "payload.bin", "sha256": sha256(b"expected").hexdigest()},
+            {"path": "artifacts/payload.bin", "sha256": sha256(b"expected").hexdigest()},
             {"path": "../escape.bin", "sha256": "a" * 64},
         ],
     }), encoding="utf-8")
-    (tmp_path / "payload.bin").write_bytes(b"tampered")
+    (tmp_path / "artifacts").mkdir()
+    (tmp_path / "artifacts" / "payload.bin").write_bytes(b"tampered")
     (tmp_path / "LIB-02.json").write_text(json.dumps({
         "scenario_id": "LIB-02", "source_sha": "e" * 40, "status": "PASS",
     }), encoding="utf-8")
@@ -334,11 +335,12 @@ def test_d028_cli_can_plan_but_never_greenlight_supplied_host_receipts(
 
     for name in D028_EVIDENCE_FILES:
         (tmp_path / name).write_text(json.dumps({"source_sha": exact}), encoding="utf-8")
-    payload = tmp_path / "synthetic-reviewed-bytes.bin"
+    payload = tmp_path / "artifacts" / "synthetic-reviewed-bytes.bin"
+    payload.parent.mkdir()
     payload.write_bytes(b"synthetic source bytes, NOT a signed native installer")
     (tmp_path / "signed-artifacts.json").write_text(json.dumps({
         "source_sha": exact,
-        "artifacts": [{"path": "synthetic-reviewed-bytes.bin",
+        "artifacts": [{"path": "artifacts/synthetic-reviewed-bytes.bin",
                        "sha256": sha256(payload.read_bytes()).hexdigest()}],
         "signature_valid": True,  # Still just a self-reported string.
     }), encoding="utf-8")
