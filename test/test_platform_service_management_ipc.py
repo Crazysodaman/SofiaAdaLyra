@@ -170,3 +170,78 @@ def test_windows_operator_acl_requires_exact_current_attended_grant(tmp_path, mo
                 "AegisTest", dispatch=lambda *_a, **_k: {},
                 enrolled_operator_sid=denied,
             )
+
+
+def test_real_owner_signed_platform_grant_then_revocation_fails_closed(tmp_path):
+    from test.owner_auth_fixture import grant_with_signed_owner, revoke_with_signed_owner
+    identity, current, state = provision(tmp_path)
+    permissions = PermissionStore(state)
+    peer = "unix:uid:20100:gid:20101"
+    scope = {"platform_id": current.identity.canonical_uuid,
+             "peer": peer, "operation": "platform.status"}
+    authority = CurrentManagementPeerAuthority(
+        permissions, platform_id=current.identity.canonical_uuid,
+    )
+    assert authority(peer, "platform.status") is None
+    signed = grant_with_signed_owner(
+        permissions, "platform.management.read", scope=scope,
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+    )
+    assert authority(peer, "platform.status") == frozenset()
+    assert authority("unix:uid:20100:gid:999", "platform.status") is None
+    assert authority(peer, "module.remove") is None
+    revoke_with_signed_owner(permissions, signed.grant_id)
+    assert authority(peer, "platform.status") is None
+
+
+def test_actual_software_approval_rotation_revokes_live_platform_permission(tmp_path, monkeypatch):
+    """Real salt+scrypt proof and SAFE ledger; test-only OS SID injection."""
+    from sofia.platform.safe import owner_secret
+    from sofia.platform.safe.owner_secret import OwnerSecretStore
+    from sofia.platform.safe.execution_approval import (
+        ExecutionApproval, ExecutionApprovalVerifier, execution_fingerprint,
+    )
+    from sofia.platform.safe.permissions import standing_grant_parameters
+
+    monkeypatch.setattr(
+        owner_secret, "require_venus_interactive_windows",
+        lambda *, require_terminal=False: "S-1-5-21-FAKE-TEST-ONLY",
+    )
+    identity, current, state = provision(tmp_path)
+    permissions = PermissionStore(state)
+    software = OwnerSecretStore(state)
+    software.enroll("11" * 32)
+    peer = "windows:sid:S-1-5-21-555-666-777-1001"
+    scope = {"platform_id": current.identity.canonical_uuid,
+             "peer": peer, "operation": "platform.status"}
+    moment = datetime.now(timezone.utc)
+    grant_id = str(uuid4())
+    expiry = moment + timedelta(minutes=5)
+    fp = execution_fingerprint(
+        "safe.permission.standing.grant",
+        standing_grant_parameters(
+            "platform.management.read", scope=scope,
+            grant_id=grant_id, expires_at=expiry,
+        ),
+    )
+    proof = software.authenticate("11" * 32, action_fingerprint=fp)
+    approval = ExecutionApproval(
+        approval_id=str(uuid4()), capability="safe.permission.standing.grant",
+        request_fingerprint=fp, approved_by="Sparks", approved_at=moment,
+        expires_at=expiry,
+    )
+    ExecutionApprovalVerifier(state).record(
+        approval, authentication_event_id=proof,
+    )
+    permissions.grant(
+        "platform.management.read", scope=scope, grant_id=grant_id,
+        expires_at=expiry, now=moment, approval_id=approval.approval_id,
+    )
+    authority = CurrentManagementPeerAuthority(
+        permissions, platform_id=current.identity.canonical_uuid,
+    )
+    assert authority(peer, "platform.status") == frozenset()
+    software.rotate("11" * 32, "22" * 32)
+    assert authority(peer, "platform.status") is None
+    with pytest.raises(PermissionError):
+        software.authenticate("11" * 32, action_fingerprint=fp)
