@@ -22,7 +22,7 @@ ALLOWED_OPERATIONS = frozenset({
     "diagnostics.summary", "jobs.list",
 })
 
-ReadProvider = Callable[[], Mapping[str, object]]
+ReadProvider = Callable[[object], Mapping[str, object]]
 PeerAuthorizer = Callable[[object, str], bool]
 CurrentIdentity = Callable[[], tuple[str, int]]
 StopObserver = Callable[[], bool]
@@ -134,7 +134,9 @@ class PlatformManagementReadDispatcher:
             raise ManagementReadDenied("requested read provider unavailable")
 
         self._authorize(peer, request)
-        projected = provider()
+        # Field/tenant scope belongs to the service provider: give it only the
+        # opaque transport-verified peer reference, never a request-supplied grant.
+        projected = provider(peer)
         if not isinstance(projected, dict):
             raise ManagementReadDenied("provider returned unscoped projection")
         # Clone exactly once. A provider may own a mutable dict and change it
