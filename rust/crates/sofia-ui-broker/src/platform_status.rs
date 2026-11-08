@@ -225,7 +225,8 @@ impl ModuleStatusModel {
 
     /// Read-only editable metadata for a current selected module.
     pub fn row_mut(&mut self, host_id: &str, module_id: &str) -> Option<&mut ModuleRow> {
-        self.rows.get_mut(&(host_id.to_owned(), module_id.to_owned()))
+        self.rows
+            .get_mut(&(host_id.to_owned(), module_id.to_owned()))
     }
 
     #[must_use]
@@ -259,15 +260,22 @@ mod tests {
     #[test]
     fn connect_disconnect_and_reconnect_preserve_installed_state() {
         let mut model = ModuleStatusModel::default();
-        model.observe(event("module:one", 1), true).expect("authenticated observation");
+        model
+            .observe(event("module:one", 1), true)
+            .expect("authenticated observation");
         model.note_disconnect("host:local");
         let row = model.row("host:local", "module:one").expect("retained");
         assert_eq!(row.freshness, ObservationFreshness::Stale);
         assert_eq!(row.current_health(), ModuleHealth::Unknown);
         assert_eq!(row.observation.lifecycle, ModuleLifecycle::Active);
-        model.observe(event("module:one", 2), true).expect("new observation");
+        model
+            .observe(event("module:one", 2), true)
+            .expect("new observation");
         assert_eq!(
-            model.row("host:local", "module:one").expect("reconnected").current_health(),
+            model
+                .row("host:local", "module:one")
+                .expect("reconnected")
+                .current_health(),
             ModuleHealth::VerifiedHealthy,
         );
     }
@@ -280,8 +288,14 @@ mod tests {
             Err(ModelError::UnauthenticatedSource),
         );
         model.observe(event("module:one", 3), true).expect("first");
-        assert_eq!(model.observe(event("module:one", 2), true), Err(ModelError::StaleSequence));
-        assert_eq!(model.observe(event("module:one", 3), true), Err(ModelError::StaleSequence));
+        assert_eq!(
+            model.observe(event("module:one", 2), true),
+            Err(ModelError::StaleSequence)
+        );
+        assert_eq!(
+            model.observe(event("module:one", 3), true),
+            Err(ModelError::StaleSequence)
+        );
     }
 
     #[test]
@@ -291,7 +305,10 @@ mod tests {
         let mut removed = event("module:one", 2);
         removed.lifecycle = ModuleLifecycle::Removed;
         removed.health = ModuleHealth::Unknown;
-        assert_eq!(model.observe(removed.clone(), true), Err(ModelError::UnprovenRemoval));
+        assert_eq!(
+            model.observe(removed.clone(), true),
+            Err(ModelError::UnprovenRemoval)
+        );
         removed.removal_receipt_id = Some("receipt:remove:1".to_owned());
         model.observe(removed, true).expect("verified receipt");
         let prior = event("module:one", 3);
@@ -305,14 +322,26 @@ mod tests {
     fn settings_revision_changes_and_disconnect_invalidate_open_editor() {
         let mut model = ModuleStatusModel::default();
         model.observe(event("module:one", 1), true).expect("first");
-        model.row_mut("host:local", "module:one").expect("selected").begin_edit();
-        assert!(!model.row("host:local", "module:one").expect("row").needs_edit_review());
+        model
+            .row_mut("host:local", "module:one")
+            .expect("selected")
+            .begin_edit();
+        assert!(!model
+            .row("host:local", "module:one")
+            .expect("row")
+            .needs_edit_review());
         let mut edited = event("module:one", 2);
         edited.settings_revision = 2;
         model.observe(edited, true).expect("new revision");
-        assert!(model.row("host:local", "module:one").expect("row").needs_edit_review());
+        assert!(model
+            .row("host:local", "module:one")
+            .expect("row")
+            .needs_edit_review());
         model.note_disconnect("host:local");
-        assert!(model.row("host:local", "module:one").expect("row").needs_edit_review());
+        assert!(model
+            .row("host:local", "module:one")
+            .expect("row")
+            .needs_edit_review());
     }
 
     #[test]
@@ -324,10 +353,16 @@ mod tests {
         restart.platform_generation = 2;
         model.observe(restart, true).expect("new host generation");
         assert_eq!(
-            model.row("host:local", "module:two").expect("unchanged module").freshness,
+            model
+                .row("host:local", "module:two")
+                .expect("unchanged module")
+                .freshness,
             ObservationFreshness::Stale,
         );
-        assert_eq!(model.observe(event("module:two", 4), true), Err(ModelError::StaleGeneration));
+        assert_eq!(
+            model.observe(event("module:two", 4), true),
+            Err(ModelError::StaleGeneration)
+        );
     }
 
     #[test]
@@ -335,6 +370,9 @@ mod tests {
         let mut model = ModuleStatusModel::default();
         let mut event = event("module:one", 1);
         event.lifecycle = ModuleLifecycle::Disabled;
-        assert_eq!(model.observe(event, true), Err(ModelError::MalformedObservation));
+        assert_eq!(
+            model.observe(event, true),
+            Err(ModelError::MalformedObservation)
+        );
     }
 }
