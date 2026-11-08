@@ -318,14 +318,14 @@ RM-VOICE is a release candidate until measured voice quality and scope evidence 
 | MOD-IT-SYSTEMS | OS administration | Windows/Linux services, users, packages, logs; changes separately granted |
 | MOD-IT-CONTAINERS | Containers | Docker/Compose/Portainer inventory, logs, deployments with explicit grants |
 
-**MOD-IT-CONTAINERS provider placement (owner decision 2026-11-08):** Portainer is a **provider adapter inside this existing optional, independently signed Platform module**, not a new Core subsystem or mandatory Platform service. The [AG-D025 Portainer design](../roadmaps/AG_D025_PORTAINER_DOCKER_STACK_CONTROL.md) covers least-privilege HTTPS connection enrollment, read-only inventory, Compose drafting/diff/validation, separately owner-approved stack deployment and rollback, no raw Docker socket, GUI/TUI parity and module uninstall/reinstall. Existing code in `src/sofia/modules/integrations/portainer.py` is a *legacy Core-registered adapter foundation*, not yet the deployed signed module. Aegis remains Core-free and Portainer-free by default; no API or security boundary duplication.
-
 | MOD-IT-STORAGE | Storage | SMART, capacity, mounts, NAS; disk repartition/erase protected |
 | MOD-IT-DATABASE | Databases | Read-only queries, schemas, integrity; no direct canonical DB admin bypass |
 | MOD-IT-BACKUP-DR | Backup/DR | Backup status, verify restores in sandbox, protected live restore plans |
 | MOD-IT-SECURITY | Defensive security | Patching/vulnerability/ACL/cert/PKI audits; no implicit key changes |
 | MOD-IT-OBSERVABILITY | Monitoring/SRE | Metrics, logs, alerts, incidents, service objective reports |
 | MOD-IT-DEVOPS | CI/CD & infrastructure | Pipelines, IaC review, test artifacts; protected publish/apply |
+
+**MOD-IT-CONTAINERS provider placement (owner decision 2026-11-08):** Portainer is a **provider adapter inside this existing optional, independently signed Platform module**, not a new Core subsystem or mandatory Platform service. The [AG-D025 Portainer design](../roadmaps/AG_D025_PORTAINER_DOCKER_STACK_CONTROL.md) covers least-privilege HTTPS connection enrollment, read-only inventory, Compose drafting/diff/validation, separately owner-approved stack deployment and rollback, no raw Docker socket, GUI/TUI parity and module uninstall/reinstall. Existing code in `src/sofia/modules/integrations/portainer.py` is a *legacy Core-registered adapter foundation*, not yet the deployed signed module. Aegis remains Core-free and Portainer-free by default; no API or security boundary duplication.
 
 **Separation:** MOD-HOMELAB owns the *specific topology and trusted resource graph* of the owner's lab. MOD-IT-* provide reusable diagnostic/execution adapters. They may call each other only through registered, authorized capabilities. Do not duplicate Fleet host trust, STOP, secrets, RUN, or backups of canonical Core state.
 
