@@ -51,3 +51,42 @@ Reject unauthenticated/injected principal, remote Hub authority as owner approva
 ## 6. Review and hold points
 
 **BLOCKED:** Existing A/C `read-response.v1` joint signoff, then B's signed artifact index/verified cache/install receipts, D's typed Core/module dependency/license/ABI manifest, C's exact UI projections, E's independent evidence contract. This D028-00 document and fixtures can evolve only by reviewed SHA; no executable service actions until every authority boundary is accepted. No merge, no production Hub, no personal Core startup, no second signer/writer/grant.
+
+## 7. Strict SDK wire-syntax candidate and integration hold
+
+This draft now has **authority-free Python and Rust syntax-only parsers**:
+`src/sofia/sdk/platform_library.py` and
+`rust/crates/sofia-contracts/src/library.rs` (reexported in its existing SDK
+crate). They accept exact v1 envelope keys and correlation, bounded
+RFC3339 microsecond precision, positive portable generations, current
+revision, six typed denials, and strict signed-*metadata syntax* (NOT an
+independently verified publisher signature). The first reviewed successful
+result projections are `library.catalog.snapshot.v1` and
+`library.transfer.status.v1`; source, inventory, history and acquisition
+plans currently accept **syntax-only read intents**, but refuse any
+unreviewed success projection. Effectful Hub/peer acquire/install/GC
+operations remain rejected by the parser and unbound to any runtime service.
+
+Shared fixtures include
+`library-request-catalog-preview-v1.json`,
+`library-response-catalog-preview-v1.json`,
+`library-response-stop-preview-v1.json`,
+`library-request-transfer-preview-v1.json`,
+and `library-response-transfer-preview-v1.json`. One strict CI test
+`test/test_safe_platform_library_contract_preview.py` exercises Rust/Python
+parity via the existing R1 contract workflow and does not start a Hub.
+
+**Non-negotiable provenance separation:** `signature_receipt_ref` and
+`signer_key_id` in a decoded response are untrusted strings; "verified"
+requires recipient-side B1 trusted publisher root, current revocation,
+signed manifest hash, release floor, OS/ABI/SDK and license check.
+`received_bytes==total_bytes` while `verified_bytes==0` and state
+`VERIFYING` remains a valid incomplete download. **Nothing here can claim
+installed or activated** without B/D signed installed-host receipts. A
+Hub's mTLS certificate is only sender identity. No Internet fallback.
+
+**Review freeze remains BLOCKED** until Team C explicitly ACKs names and
+states, Team B ACKs target artifact/install provenance and B1/OS ACL
+contracts, Team D ACKs independently checked signed dependency/ABI/license,
+Team E ACKs negative W7 receipt schema, and exact-head Rust/Python CI is green.
+Do not treat this source addition as protocol promotion or permission.
