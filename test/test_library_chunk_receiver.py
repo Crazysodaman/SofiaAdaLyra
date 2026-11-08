@@ -168,3 +168,15 @@ def test_redirected_library_root_denied_before_creation(tmp_path):
     with pytest.raises((PermissionError, ChunkTransferRejected)):
         ChunkedArtifactReceiver(redir / "library", max_bytes=1024)
     assert not (external / "library").exists()
+
+
+@pytest.mark.parametrize("bad_id", ["peer\\nforged", "peer name", "/root", "..", "peer\\x00null"])
+def test_transfer_rejects_control_character_peer_ids(bad_id):
+    with pytest.raises(ValueError, match="platform identities"):
+        PinnedChunkTransfer(
+            source_platform_id=bad_id, target_platform_id="target-1",
+            content_sha256="a" * 64, size_bytes=5, generation=1,
+            manifest_sha256="b" * 64, catalog_revision=1,
+            artifact_kind="module", license_distribution="permitted",
+            data_class="public",
+        )
