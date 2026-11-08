@@ -1130,7 +1130,7 @@ class CoreWorkerController:
                 or current is None
                 or current.owner_id != self.lease.owner_id
                 or current.epoch != self.lease.epoch
-                or OperatorStopStore(self.generations.state_path).current().active
+                or OperatorStopStore(self.generations.lease_store.path).current().active
             ):
                 raise PermissionError(
                     "Core worker result completed after authority expired"
