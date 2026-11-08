@@ -33,7 +33,12 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.88.0
+          components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+      - name: Rust format check
+        run: cargo fmt --all --check
+      - name: Rust Clippy check
+        run: cargo clippy --locked -p sofia-ui-broker --all-targets -- -D warnings
       - name: Verify Core-free UI display state policies
         run: cargo test --locked -p sofia-ui-broker
       - name: Build Core-free native terminal binary

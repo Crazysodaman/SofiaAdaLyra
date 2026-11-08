@@ -34,6 +34,8 @@ def test_gui_shell_is_separately_installed_and_core_free():
     assert "Enabled = $false" in source
     assert "HighContrast" in source
     assert "Get-AegisTheme" in source
+    assert "Get-AegisBlockedReason" in source
+    assert "AEGIS_GUI_NATIVE_CONSTRUCTION=PASS" in source
 
 
 def test_gui_shell_does_not_install_or_grant_permissions():
@@ -63,3 +65,19 @@ def test_windows_gui_check_mode_is_headless_and_no_service_actions():
     assert "PRODUCTION_AUTHORIZED=FALSE" in done.stdout
     assert "ACTIONS=DISABLED" in done.stdout
     assert "OFFLINE_STALE_RESTART_DENIED=FAIL_CLOSED" in done.stdout
+    assert "BLOCK_STATES=STOP_ACTIVE,REVOKED,DENIED,STALE,UNKNOWN_GENERATION,RESTARTING,OFFLINE" in done.stdout
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows WinForms construction probe")
+def test_windows_native_controls_constructed_with_management_disabled():
+    result = subprocess.run(
+        [
+            "powershell.exe", "-STA", "-NoProfile", "-NonInteractive",
+            "-File", str(SHELL), "-UiProbe",
+        ],
+        capture_output=True, text=True, timeout=50,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "AEGIS_GUI_NATIVE_CONSTRUCTION=PASS" in result.stdout
+    assert "AUTHENTICATION=NOT_CONNECTED" in result.stdout
+    assert "ACTIONS=DISABLED" in result.stdout

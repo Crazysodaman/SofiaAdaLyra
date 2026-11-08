@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 GUI = ROOT / "packaging/gui/Start-AegisControlCenter.ps1"
 RUST = ROOT / "rust/crates/sofia-ui-broker/src/control_center.rs"
+SESSION = ROOT / "rust/crates/sofia-ui-broker/src/control_center_session.rs"
 TUI = ROOT / "rust/crates/sofia-ui-broker/src/bin/aegis_tui.rs"
 
 
@@ -35,3 +36,23 @@ def test_tui_and_rust_presentation_require_real_service_recheck():
     for forbidden in ("Start-Service ", "Stop-Service ", "Invoke-RestMethod ",
                       "sofia.db", "Get-Credential "):
         assert forbidden not in GUI.read_text(encoding="utf-8")
+
+
+def test_management_display_session_does_not_connect_or_authorize():
+    source = SESSION.read_text(encoding="utf-8")
+    for field in ("OfflineReader", "DisplayReadSource", "MAX_DISPLAY_AGE",
+                  "SettingsRegressed", "SequenceReplayed", "GenerationRegressed"):
+        assert field in source
+    for forbidden in ("UnixStream::connect", "TcpStream", "NamedPipe",
+                      "Invoke-RestMethod", "sofia.db"):
+        assert forbidden not in source
+
+
+def test_gui_blocks_all_inactive_management_states_and_supports_escape():
+    source = GUI.read_text(encoding="utf-8")
+    for code in ("STOP_ACTIVE", "REVOKED", "DENIED", "STALE",
+                 "UNKNOWN_GENERATION", "RESTARTING", "OFFLINE"):
+        assert code in source
+    assert "AccessibleDescription" in source
+    assert "Add_KeyDown" in source
+    assert "Enabled = $true" not in source
