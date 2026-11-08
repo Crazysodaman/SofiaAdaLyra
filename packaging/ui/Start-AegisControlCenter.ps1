@@ -75,16 +75,16 @@ $window.Background = $bg
 $window.Foreground = $mainText
 
 $layout = New-Object System.Windows.Controls.Grid
-$layout.Margin = New-Object System.Windows.Thickness(18)
+$layout.Margin = [System.Windows.Thickness]::new(18.0)
 $headerRow = New-Object System.Windows.Controls.RowDefinition
 $headerRow.Height = [System.Windows.GridLength]::Auto
 $bodyRow = New-Object System.Windows.Controls.RowDefinition
-$bodyRow.Height = New-Object System.Windows.GridLength(1,Star)
+$bodyRow.Height = [System.Windows.GridLength]::new(1.0,[System.Windows.GridUnitType]::Star)
 [void]$layout.RowDefinitions.Add($headerRow)
 [void]$layout.RowDefinitions.Add($bodyRow)
 
 $header = New-Object System.Windows.Controls.StackPanel
-$header.Margin = New-Object System.Windows.Thickness(0,0,0,16)
+$header.Margin = [System.Windows.Thickness]::new(0.0,0.0,0.0,16.0)
 $title = New-Object System.Windows.Controls.TextBlock
 $title.Text = 'AEGIS PLATFORM'
 $title.Foreground = $purple
@@ -101,7 +101,7 @@ $subtitle.FontSize = 12
 
 $body = New-Object System.Windows.Controls.Grid
 $navCol = New-Object System.Windows.Controls.ColumnDefinition
-$navCol.Width = New-Object System.Windows.GridLength(230)
+$navCol.Width = [System.Windows.GridLength]::new(230.0)
 $contentCol = New-Object System.Windows.Controls.ColumnDefinition
 $contentCol.Width = New-Object System.Windows.GridLength(1,Star)
 [void]$body.ColumnDefinitions.Add($navCol)
@@ -109,7 +109,7 @@ $contentCol.Width = New-Object System.Windows.GridLength(1,Star)
 
 $navigation = New-Object System.Windows.Controls.StackPanel
 $navigation.Background = $card
-$navigation.Margin = New-Object System.Windows.Thickness(0,0,15,0)
+$navigation.Margin = [System.Windows.Thickness]::new(0.0,0.0,15.0,0.0)
 
 $detail = New-Object System.Windows.Controls.StackPanel
 $detail.Margin = New-Object System.Windows.Thickness(18)
@@ -128,7 +128,7 @@ foreach ($line in @(
 )) {
     $message = New-Object System.Windows.Controls.TextBlock
     $message.Text = $line
-    $message.Margin = New-Object System.Windows.Thickness(0,10,0,0)
+    $message.Margin = [System.Windows.Thickness]::new(0.0,10.0,0.0,0.0)
     $message.TextWrapping = 'Wrap'
     $message.Foreground = $mutedText
     [void]$detail.Children.Add($message)
@@ -149,8 +149,8 @@ foreach ($page in @(
     $button = New-Object System.Windows.Controls.Button
     $button.Content = $page
     $button.Tag = $page
-    $button.Margin = New-Object System.Windows.Thickness(6)
-    $button.Padding = New-Object System.Windows.Thickness(12)
+    $button.Margin = [System.Windows.Thickness]::new(6.0)
+    $button.Padding = [System.Windows.Thickness]::new(12.0)
     $button.HorizontalContentAlignment = 'Left'
     $button.Foreground = $mainText
     $button.Background = $card
