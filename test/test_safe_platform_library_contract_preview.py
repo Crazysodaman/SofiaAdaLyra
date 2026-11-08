@@ -117,3 +117,152 @@ def test_inert_d028_preview_forbids_client_asserted_authority_fields(field, valu
             json.dumps(ask).encode("utf-8"),
             now=datetime(2026, 11, 8, 4, 0, 1, tzinfo=timezone.utc),
         )
+
+
+# D028-00 strict SDK parsing is authority-free. Fixtures are not receipts
+# from a publisher, live Hub, native service or installed host.
+from sofia.sdk.platform_library import UntrustedLibraryRequest, UntrustedLibraryResponse
+
+UTC_NOW = datetime(2026, 11, 8, 4, 0, 2, tzinfo=timezone.utc)
+
+
+def _wire(obj):
+    return json.dumps(obj, separators=(",", ":"), ensure_ascii=True).encode()
+
+
+def _request(name="request-catalog"):
+    return UntrustedLibraryRequest.parse(_wire(sample(name)), now=UTC_NOW)
+
+
+def test_library_sdk_parses_correlated_catalog_and_typed_stop_as_untrusted():
+    request = _request()
+    reply = UntrustedLibraryResponse.parse(
+        _wire(sample("response-catalog")), expected=request, now=UTC_NOW,
+    )
+    assert reply.outcome == "OK" and reply.revision == 12
+    assert reply.data["items"][0]["signer_key_id"] == "key:test-only"
+    assert "installed" not in reply.data["items"][0]
+    denied = UntrustedLibraryResponse.parse(
+        _wire(sample("response-stop")), expected=request, now=UTC_NOW,
+    )
+    assert denied.outcome == "DENIED" and denied.denial_code == "STOPPED"
+    assert denied.data is None
+
+
+def test_library_transfer_complete_bytes_are_not_installed_or_verified():
+    req = _request("request-transfer")
+    actual = UntrustedLibraryResponse.parse(
+        _wire(sample("response-transfer")), expected=req, now=UTC_NOW,
+    )
+    assert actual.data["received_bytes"] == actual.data["total_bytes"]
+    assert actual.data["verified_bytes"] == 0
+    assert actual.data["state"] == "VERIFYING"
+    assert "installed" not in actual.data and "active" not in actual.data
+
+
+@pytest.mark.parametrize("field,value", [
+    ("protocol", "1.1"),
+    ("protocol", "2.0"),
+    ("target_platform_id", "platform:other"),
+    ("expected_generation", 0),
+    ("expected_generation", 2**53),
+    ("expected_revision", -1),
+    ("idempotency_key", "self-approved"),
+    ("deadline", "2026-11-08T04:00:01Z"),
+    ("operation", "library.install.execute.v1"),
+])
+def test_library_request_version_scope_and_time_fail_closed(field, value):
+    original = sample("request-catalog")
+    original[field] = value
+    with pytest.raises((ValueError, PermissionError)):
+        UntrustedLibraryRequest.parse(_wire(original), now=UTC_NOW)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("protocol", "2.0"),
+    ("request_id", "req:forged"),
+    ("correlation_id", "corr:other"),
+    ("platform_id", "platform:other"),
+    ("platform_generation", 8),
+    ("state_revision", 13),
+    ("observed_at", "2026-11-08T04:00:09Z"),
+    ("outcome", "SELF_APPROVED"),
+])
+def test_library_response_correlation_and_freshness_fail_closed(field, value):
+    response = sample("response-catalog")
+    response[field] = value
+    with pytest.raises((ValueError, PermissionError)):
+        UntrustedLibraryResponse.parse(
+            _wire(response), expected=_request(), now=UTC_NOW,
+        )
+
+
+@pytest.mark.parametrize("missing", [
+    "data", "denial", "state_revision", "correlation_id",
+])
+def test_library_v1_requires_every_envelope_key(missing):
+    response = sample("response-catalog")
+    del response[missing]
+    with pytest.raises(ValueError, match="missing"):
+        UntrustedLibraryResponse.parse(
+            _wire(response), expected=_request(), now=UTC_NOW,
+        )
+
+
+def test_library_refuses_source_claims_as_install_or_publisher_authority():
+    response = sample("response-catalog")
+    bad = response["data"]["items"][0]
+    bad["installed"] = True
+    with pytest.raises(ValueError):
+        UntrustedLibraryResponse.parse(
+            _wire(response), expected=_request(), now=UTC_NOW,
+        )
+    del bad["installed"]
+    bad["license_distribution"] = "non_redistributable"
+    with pytest.raises(PermissionError, match="restricted"):
+        UntrustedLibraryResponse.parse(
+            _wire(response), expected=_request(), now=UTC_NOW,
+        )
+    bad["license_distribution"] = "permitted"
+    response["data"]["source"]["status"] = "CURRENT"
+    response["data"]["catalog_fresh_until"] = "2026-11-08T03:00:00Z"
+    with pytest.raises(PermissionError, match="fresh"):
+        UntrustedLibraryResponse.parse(
+            _wire(response), expected=_request(), now=UTC_NOW,
+        )
+
+
+def test_library_transfer_progress_is_bounded_and_never_installs():
+    req = _request("request-transfer")
+    response = sample("response-transfer")
+    response["data"]["state"] = "COMPLETE"
+    with pytest.raises(ValueError, match="completion"):
+        UntrustedLibraryResponse.parse(_wire(response), expected=req, now=UTC_NOW)
+    response["data"]["state"] = "VERIFYING"
+    response["data"]["verified_bytes"] = 4097
+    with pytest.raises(ValueError, match="progress"):
+        UntrustedLibraryResponse.parse(_wire(response), expected=req, now=UTC_NOW)
+    response["data"]["verified_bytes"] = 0
+    response["data"]["source_platform_id"] = "platform:attacker"
+    # An untrusted source-identity string remains syntax only: it cannot
+    # prove enrollment or current SAFE authority at a transport boundary.
+    observed = UntrustedLibraryResponse.parse(
+        _wire(response), expected=req, now=UTC_NOW,
+    )
+    assert observed.data["source_platform_id"] == "platform:attacker"
+
+
+def test_library_rejects_duplicate_json_and_surrogate_tricks():
+    request = _request()
+    response = sample("response-catalog")
+    raw = _wire(response)
+    with pytest.raises(ValueError, match="duplicate"):
+        UntrustedLibraryResponse.parse(
+            b'{"schema":"forged",' + raw[1:],
+            expected=request, now=UTC_NOW,
+        )
+    response["data"]["items"][0]["publisher"] = "\ud800"
+    with pytest.raises(ValueError, match="unsafe"):
+        UntrustedLibraryResponse.parse(
+            _wire(response), expected=request, now=UTC_NOW,
+        )
