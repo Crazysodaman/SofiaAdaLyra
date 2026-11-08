@@ -97,6 +97,135 @@ impl UntrustedManagementRead {
     }
 }
 
+pub const MANAGEMENT_REPLY_SCHEMA: &str = "aegis.platform.management.response.v1";
+const MAX_MANAGEMENT_REPLY_BYTES: usize = 32 * 1024;
+
+/// A reply is still untrusted even when syntax, request ID and generation match.
+/// An authenticated transport must separately prove its server identity.
+#[derive(Debug, Clone, PartialEq, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct UntrustedManagementReply {
+    pub schema: String,
+    pub request_id: String,
+    pub platform_id: String,
+    pub generation: u64,
+    pub observed_at: String,
+    pub operation: String,
+    pub payload: serde_json::Map<String, serde_json::Value>,
+}
+
+fn safe_management_payload(
+    value: &serde_json::Value,
+    depth: usize,
+) -> Result<(), ContractError> {
+    if depth > 8 {
+        return Err(ContractError::new(
+            "invalid_management_reply",
+            "management response nesting exceeds bound",
+        ));
+    }
+    match value {
+        serde_json::Value::Object(map) => {
+            for (name, member) in map {
+                let lowered = name.to_ascii_lowercase();
+                if matches!(lowered.as_str(), "__proto__" | "constructor" | "prototype")
+                    || [
+                        "secret",
+                        "password",
+                        "credential",
+                        "access_token",
+                        "refresh_token",
+                        "private_key",
+                        "api_key",
+                    ]
+                    .iter()
+                    .any(|name| lowered.contains(name))
+                {
+                    return Err(ContractError::new(
+                        "sensitive_management_reply",
+                        "unreviewed management response field",
+                    ));
+                }
+                safe_management_payload(member, depth + 1)?;
+            }
+        }
+        serde_json::Value::Array(values) => {
+            if values.len() > 1024 {
+                return Err(ContractError::new(
+                    "invalid_management_reply",
+                    "management response collection too large",
+                ));
+            }
+            for member in values {
+                safe_management_payload(member, depth + 1)?;
+            }
+        }
+        serde_json::Value::String(text) => {
+            if text.chars().any(char::is_control) {
+                return Err(ContractError::new(
+                    "invalid_management_reply",
+                    "terminal control characters in management response",
+                ));
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+impl UntrustedManagementReply {
+    /// Parse and bind a response to an exact request, not to a trusted peer.
+    ///
+    /// # Errors
+    /// Fails on duplicate or unknown fields, sensitive payloads, expired
+    /// observations, mismatched operation or generation, or oversized data.
+    pub fn parse(
+        raw: &[u8],
+        request: &UntrustedManagementRead,
+        now: DateTime<FixedOffset>,
+    ) -> Result<Self, ContractError> {
+        if raw.is_empty() || raw.len() > MAX_MANAGEMENT_REPLY_BYTES {
+            return Err(ContractError::new(
+                "invalid_management_reply",
+                "management reply exceeds 32 KiB or is empty",
+            ));
+        }
+        let value = parse_strict(raw)?;
+        let reply: Self = serde_json::from_value(value).map_err(|_| {
+            ContractError::new("invalid_management_reply", "invalid management response fields")
+        })?;
+        if reply.schema != MANAGEMENT_REPLY_SCHEMA
+            || reply.request_id != request.request_id
+            || reply.platform_id != request.target_platform_id
+            || reply.generation == 0
+            || reply.generation != request.expected_generation
+            || reply.operation != request.operation
+        {
+            return Err(ContractError::new(
+                "mismatched_management_reply",
+                "management reply does not match the selected request",
+            ));
+        }
+        let observed = DateTime::parse_from_rfc3339(&reply.observed_at).map_err(|_| {
+            ContractError::new("invalid_management_reply", "invalid response observation timestamp")
+        })?;
+        let created = DateTime::parse_from_rfc3339(&request.created_at).map_err(|_| {
+            ContractError::new("invalid_management_reply", "invalid requested creation timestamp")
+        })?;
+        let deadline = DateTime::parse_from_rfc3339(&request.deadline).map_err(|_| {
+            ContractError::new("invalid_management_reply", "invalid requested deadline")
+        })?;
+        if observed < created || observed >= deadline || observed > now {
+            return Err(ContractError::new(
+                "stale_management_reply",
+                "response observation outside request window",
+            ));
+        }
+        safe_management_payload(&serde_json::Value::Object(reply.payload.clone()), 0)?;
+        Ok(reply)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{UntrustedManagementRead, MANAGEMENT_READ_PROTOCOL, MANAGEMENT_READ_SCHEMA};
@@ -129,6 +258,63 @@ mod tests {
             .expect("shared fixture obeys strict read contract");
         assert_eq!(request.operation, "platform.status");
         assert_eq!(request.expected_generation, 3);
+    }
+
+    #[test]
+    fn shared_python_reply_fixture_matches_exact_request() {
+        let query = include_str!("../../../../contracts/platform/management-read-valid-v1.json");
+        let response = include_str!(
+            "../../../../contracts/platform/management-read-response-valid-v1.json"
+        );
+        let now = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:01Z")
+            .expect("known clock");
+        let request = UntrustedManagementRead::parse(query.as_bytes(), now)
+            .expect("fixture request");
+        let reply = super::UntrustedManagementReply::parse(
+            response.as_bytes(),
+            &request,
+            now,
+        ).expect("fixture response");
+        assert_eq!(reply.operation, "platform.status");
+        assert_eq!(reply.generation, 3);
+    }
+
+    #[test]
+    fn denies_forged_management_replies_and_secret_payloads() {
+        let query = include_str!("../../../../contracts/platform/management-read-valid-v1.json");
+        let now = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:01Z")
+            .expect("known clock");
+        let request = UntrustedManagementRead::parse(query.as_bytes(), now)
+            .expect("fixture request");
+        let raw = include_str!(
+            "../../../../contracts/platform/management-read-response-valid-v1.json"
+        );
+        let mut reply: Value = serde_json::from_str(raw).expect("valid fixture");
+        reply["generation"] = json!(4);
+        assert!(super::UntrustedManagementReply::parse(
+            reply.to_string().as_bytes(), &request, now
+        ).is_err());
+        reply["generation"] = json!(3);
+        reply["payload"]["owner_secret"] = json!("not-for-ui");
+        assert!(super::UntrustedManagementReply::parse(
+            reply.to_string().as_bytes(), &request, now
+        ).is_err());
+    }
+
+    #[test]
+    fn denies_terminal_controls_in_server_reply() {
+        let query = include_str!("../../../../contracts/platform/management-read-valid-v1.json");
+        let now = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:01Z")
+            .expect("known clock");
+        let request = UntrustedManagementRead::parse(query.as_bytes(), now)
+            .expect("fixture request");
+        let mut reply: Value = serde_json::from_str(include_str!(
+            "../../../../contracts/platform/management-read-response-valid-v1.json"
+        )).expect("fixture reply");
+        reply["payload"]["message"] = json!("danger\u{1b}[31m");
+        assert!(super::UntrustedManagementReply::parse(
+            reply.to_string().as_bytes(), &request, now
+        ).is_err());
     }
 
     #[test]
