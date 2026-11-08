@@ -21,8 +21,9 @@ from sofia.platform.capability.model import (
     CapabilityDispatchContext, CapabilityRequest, CapabilityResultKind,
 )
 from examples.sdk_reference_module.reference import CAPABILITY_ID, ReferenceModule
-from examples.sdk_reference_core.core import PING_TYPE, PING_RESULT_TYPE
-from examples.sdk_reference_system.wire import payload_digest
+from examples.sdk_reference_system.wire import (
+    PING_TYPE, PING_RESULT_TYPE, payload_digest,
+)
 
 
 @dataclass(eq=False, frozen=True, slots=True)
