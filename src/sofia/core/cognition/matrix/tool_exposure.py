@@ -252,6 +252,7 @@ class MatrixToolExposurePlanner:
                 "portainer.volumes",
                 "portainer.networks",
                 "portainer.stacks",
+                "portainer.stack",
                 "ops.fleet.list",
                 "ops.fleet.get",
                 "remote.nodes",
