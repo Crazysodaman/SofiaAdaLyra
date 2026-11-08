@@ -13,7 +13,7 @@ fn valid_identifier(raw: &str) -> bool {
     !bytes.is_empty()
         && bytes.len() <= MAX_IDENT_BYTES
         && bytes[0].is_ascii_alphanumeric()
-        && bytes.iter().all(|byte| {
+        && raw.bytes().all(|byte| {
             byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-' | b':' | b'@' | b'/')
         })
 }
