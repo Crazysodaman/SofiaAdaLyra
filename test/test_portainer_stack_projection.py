@@ -29,7 +29,7 @@ def test_portainer_stack_projection_never_leaks_secret_bearing_fields():
     assert "Env" not in result
     assert payload["effect"] == "none"
     assert payload["source_verified"] is False
-    assert payload["secret_fields_present"] is False
+    assert payload["secret_fields_exposed"] is False
     assert payload["stacks"] == [{
         "stack_id": 42,
         "name": "mealie",
