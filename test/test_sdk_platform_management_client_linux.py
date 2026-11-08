@@ -130,6 +130,14 @@ def test_native_unsupported_mutation_request_is_not_emitted(tmp_path):
         assert got.operation=='platform.status'
         assert len(observed)==1
 
+
+def test_external_group_requires_trusted_live_service_pid_pin(tmp_path):
+    with synthetic_service(tmp_path) as (path, observed):
+        with pytest.raises(PermissionError, match="verified live service PID"):
+            query(path, installed_socket_group_gid=os.getgid(),
+                  installed_service_pid=None)
+        assert observed == []
+
 def test_native_socket_absent_fails_closed(tmp_path):
     with pytest.raises((PermissionError,FileNotFoundError)):
         query(tmp_path/'does-not-exist'/'mgmt.sock')
