@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from datetime import datetime
+import json
 import re
 from typing import Any
 
@@ -90,6 +91,26 @@ class ManagementReadDispatcher:
                 "values", "contracts",
             }:
                 raise ManagementReadDenied("unexpected canonical settings snapshot")
+            values = observation["values"]
+            contracts = observation["contracts"]
+            if (not isinstance(values, Mapping)
+                    or not isinstance(contracts, Mapping)
+                    or set(values) != set(contracts)
+                    or len(values) > 256):
+                raise ManagementReadDenied("invalid scoped settings projection")
+            for field, contract in contracts.items():
+                if (not isinstance(field, str)
+                        or not isinstance(contract, Mapping)
+                        or set(contract) != {"owner", "apply_class"}):
+                    raise ManagementReadDenied("invalid settings ownership contract")
+                try:
+                    owner = SettingsOwner(contract["owner"])
+                except (ValueError, TypeError) as error:
+                    raise ManagementReadDenied(
+                        "unrecognized settings owner"
+                    ) from error
+                if owner not in scopes:
+                    raise ManagementReadDenied("settings disclosure outside approved scope")
         else:
             observation = {
                 "platform_id": request.target_platform_id,
@@ -101,7 +122,7 @@ class ManagementReadDispatcher:
         # reading settings. Never disclose a response after such a transition.
         if self._check(request, authenticated_peer) != scopes:
             raise ManagementReadDenied("management scope changed during observation")
-        return {
+        response = {
             "schema": "aegis.platform.management.read-response.v1",
             "protocol": "1.0",
             "request_id": request.request_id,
@@ -111,3 +132,12 @@ class ManagementReadDispatcher:
             "source": "PLATFORM_SESSION",
             "data": observation,
         }
+        # Transport messages are bounded and JSON-only even if an injected
+        # observer returns an unexpected object. Never expose its repr/error.
+        try:
+            encoded = json.dumps(response, allow_nan=False, ensure_ascii=False)
+        except (TypeError, ValueError, OverflowError) as error:
+            raise ManagementReadDenied("invalid management response") from error
+        if len(encoded.encode("utf-8")) > 65536:
+            raise ManagementReadDenied("management response exceeds limit")
+        return response
