@@ -122,14 +122,27 @@ D028_TOPOLOGY_PATH = (
 _SHA256_PATTERN = re.compile(r"[0-9a-f]{64}\\Z")
 
 
-def _read_bounded_json(root: Path, relative: str) -> dict | None:
-    """Never follow a symlink, absolute path or a caller-supplied traversal."""
-    if (not isinstance(relative, str) or relative.startswith(("/", "\\\\"))
-            or ".." in Path(relative).parts or "\\\\" in relative):
+def _safe_evidence_path(root: Path, relative: str) -> Path:
+    """Restrict intake to existing local regular files, never link chains."""
+    if (not isinstance(relative, str) or not relative
+            or relative.startswith(("/", "\\\\"))
+            or "\\\\" in relative or ":" in relative
+            or ".." in Path(relative).parts):
         raise ValueError("invalid evidence relative path")
-    path = root / relative
-    if path.is_symlink():
-        raise ValueError("evidence symlinks are forbidden")
+    parts = Path(relative).parts
+    p = root
+    for part in parts:
+        p = p / part
+        if p.is_symlink():
+            raise ValueError("evidence symlinks are forbidden")
+    if not p.resolve().is_relative_to(root.resolve()):
+        raise ValueError("evidence must remain inside bundle")
+    return p
+
+
+def _read_bounded_json(root: Path, relative: str) -> dict | None:
+    """Read strictly bounded, data-only metadata; never treat it as a grant."""
+    path = _safe_evidence_path(root, relative)
     if not path.is_file():
         return None
     if path.stat().st_size > 65536:
@@ -138,7 +151,6 @@ def _read_bounded_json(root: Path, relative: str) -> dict | None:
     if not isinstance(loaded, dict):
         raise ValueError("evidence object required")
     return loaded
-
 
 def make_d028_four_host_preflight(
     source_sha: str, *, topology: dict, evidence_dir: Path | None = None,
@@ -239,13 +251,9 @@ def make_d028_four_host_preflight(
                     invalid.append(f"artifact[{idx}]:INVALID_SHA256")
                     continue
                 try:
-                    if (not isinstance(name, str)
-                            or name.startswith(("/", "\\\\"))
-                            or ".." in Path(name).parts or "\\\\" in name):
-                        raise ValueError("artifact path denied")
-                    p = root / name
-                    if p.is_symlink() or not p.is_file():
-                        raise ValueError("artifact bytes absent or symlink")
+                    p = _safe_evidence_path(root, name)
+                    if not p.is_file():
+                        raise ValueError("artifact bytes absent")
                     digest = sha256()
                     with p.open("rb") as stream:
                         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
