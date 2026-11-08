@@ -148,3 +148,38 @@ Historical five real Ollama tests retain NOT-RUN-current status until separately
 - Added focused provider negatives: Ollama 404 missing-model exception followed by successful new response without falsely retrying the original failed request, plus synthetic socket reset rejection. Both are fixture-based, NOT real-host evidence.
 - Runnable scoped command on a fully checked out disposable Python 3.12 host: `python -m pytest -q -m "not integration" test/test_ollama_malformed_response_boundary.py test/test_ollama_endpoint_and_diagnostics.py test/test_ollama_provider.py test/test_ollama_generation_contract.py test/test_generic_cognition_providers.py test/test_conversation_service.py test/test_cognition_reply_origin_production.py test/test_personality_provider_path.py test/test_core002_live_ollama_conversation.py`. Capture exact SHA, environment, pass/fail/skip and tracebacks before claiming proof.
 - Development-first policy does not waive full exact-SHA GitHub CI at integrated IG-001 milestone acceptance. Do not force new commits merely to refresh pending CI.
+
+## C-006 | Genuine inference plus Team 3 disposable V1 memory option
+
+Team 3 PR #252 (reviewed source HEAD 5cba9335fff896256575d77122796db68bd5c8b6) now includes test/core_team3_policy_fixture.py with attach_disposable_memory_policy_v1(). Team 2 uses it ONLY when SOFIA_CORE002_MEMORY_V1=1. Production composition stays untouched. The fixture must be present in the isolated Team 5 IG-001 worktree and approved as a test-only source input before running V1 mode.
+
+With SOFIA_CORE002_LIVE=1, the regular existing four-turn probe uses one real preinstalled Ollama model and fresh canonical SQLite. With SOFIA_CORE002_MEMORY_V1=1 added, the same real test additionally:
+
+1. Seeds two synthetic historical owner-bound user originals in a separate temporary session. One candidate is promoted using the actual MemoryReviewService owner approval, the other deliberately through the legacy unreviewed compatibility path on disposable state only.
+2. Constructs one real SofiaApplication and attaches the Team 3 strict V1 eligibility policy before application.start(). It requires the reviewed synthetic calibration marker to be recall-eligible and the legacy-unattested marker to be ineligible.
+3. Sends four prompts via the authoritative ConversationService with a circuit-breaker topic switch. None of these prompts contains either synthetic marker value. It requires an actual Ollama inference call per turn, not a fake provider reply or deterministic v2-memory short-circuit.
+4. Captures the actual provider request context before the original Ollama call. Approved memory must appear in a lower-trust reviewed-memory message; the legacy marker must be absent from ALL model-visible messages. The accepted assistant reply must actually use the eligible value in the appropriate turns.
+5. Continues all existing model-digest, exact source SHA, provider settings, per-attempt/per-turn latency, saved-message SHA-256 (raw model output or explicitly verified normalizer only), scoped per-reply model origin, observed Core identity UUID and local process receipt checks.
+
+Fail-closed behavior: SOFIA_CORE002_MEMORY_V1=1 without Team 3 test fixture causes a missing-module test failure, NOT a skip or a fallback to unrestricted legacy retrieval. An explicit LIVE opt-in remains required and absent opt-in means an honest SKIP, not inference PASS.
+
+Owner/Team 5 authorized disposable Windows command, only when the target endpoint is already running and approved, and checkout is independently SHA-pinned:
+
+    $env:SOFIA_CORE002_LIVE = '1'
+    $env:SOFIA_CORE002_MEMORY_V1 = '1'
+    $env:SOFIA_CORE002_EXPECTED_SHA = '<independently-reviewed-integrated-SHA>'
+    $env:SOFIA_OLLAMA_MODEL = 'qwen3.5:9b'
+    $env:SOFIA_OLLAMA_URL = 'http://127.0.0.1:11434'
+    py -3.12 -m pytest -q -s -m integration test/test_core002_live_ollama_conversation.py
+
+This command must not be executed against an existing production Core writer, on protected user state, with an unapproved endpoint, or merely to launch/pull/restart Ollama. Read-only preflight: git rev-parse HEAD, ollama --version, ollama list, HTTP /api/version if permitted. /api/version and model-list metadata alone are NOT genuine inference proof.
+
+Team 5 owns IG-001 integration branch #257 and must review/copy the exact latest Team 2 test blob plus the latest Team 3 V1 policy/fixture blobs before running this composite test. Retain source SHA, host/OS/GPU, actual Ollama version, model digest, per-call latency, four generated answers/hashes, saved origin, writer generation/lease, error trace and test exit code.
+
+## C-006 | Result disclosure and deadline limitation
+
+2026-11-08 Team 2 execution environment: Python 3.13.5 and pytest 9.0.2 are available, but SofiaAdaLyra checkout and Ollama executable are absent. No authorized running model endpoint is exposed in this environment. Therefore no real inference requests were made, no model identity/digest or generation latency observed, and no actual pytest execution of this repository occurred. Status = NOT RUN; never treat prepared test assertions as PASS.
+
+Core worker source inspected at Team 1 HEAD 0daa69a30d5036f3abe0f4355bd46ffe2d7465cf still includes parent-side synchronous binding.provider.respond() under the IPC lock, delaying checks of the nominal 120-second worker deadline during a blocked provider call. 45-second Ollama per-I/O timeout is not strict wall-clock; 30-second Core Link timeout is earlier than the worker deadline. A united absolute monotonic deadline, safe cancellation/late-result quarantine, durable OUTCOME_UNKNOWN/idempotency reconciliation, worker generation/STOP admission and independent Team 5 proof remain blocked pending Team 1/4 integration. Do not infer cancellation merely from HTTP timeout or client disconnect.
+
+No production service changes, second Core writer, production memory migration, merge, release PASS or G8 acceptance was authorized by this task.
