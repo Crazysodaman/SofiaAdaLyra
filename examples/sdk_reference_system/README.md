@@ -1,6 +1,8 @@
 # Aegis SDK: Core + Platform + Module development test bench
 
-This is the **three-piece, disposable reference setup** for testing how a Core uses an Aegis Platform module through SDK contracts. It complements the separately [signature-verified reference module tests](../sdk_reference_module/README.md).
+This is the **three-piece, disposable reference setup** for testing how a Core uses an Aegis Platform module through SDK contracts.
+
+**Start here to learn step by step:** [Goal-first SDK learning workbook](LEARNING_WORKBOOK.md). It begins with the finished demo, then teaches each boundary through runnable exercises, failure tests and evidence checkpoints. Any authorized Core may read it through DEV/Workshop tooling, but cannot grant itself permissions or learn permanently merely by reading. It complements the separately [signature-verified reference module tests](../sdk_reference_module/README.md).
 
 | Part | Source | Uses | Never does |
 | --- | --- | --- | --- |
