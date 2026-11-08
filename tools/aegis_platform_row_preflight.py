@@ -119,7 +119,7 @@ D028_TOPOLOGY_PATH = (
     Path(__file__).resolve().parent.parent
     / "test" / "fixtures" / "aegis_d028" / "qa_four_host_topology.json"
 )
-_SHA256_PATTERN = re.compile(r"[0-9a-f]{64}\\Z")
+_SHA256_PATTERN = re.compile(r"[0-9a-f]{64}\Z")
 
 
 def _safe_evidence_path(root: Path, relative: str) -> Path:
