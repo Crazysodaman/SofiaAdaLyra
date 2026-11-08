@@ -64,7 +64,8 @@ def test_stock_cli_independently_checks_actual_ed25519_manifest_signature(review
 
 @pytest.mark.parametrize("defect", [
     "wrong-root", "wrong-signer", "no-fingerprint", "noncanonical-envelope",
-    "signature-tamper", "manifest-tamper", "key-inside-bundle",
+    "signature-tamper", "trailing-newline", "embedded-nul",
+    "manifest-tamper", "key-inside-bundle",
     "key-symlink", "missing-manifest", "unapproved-operation", "dry-run",
 ])
 def test_stock_cli_does_not_accept_hostile_publisher_or_grant_install(
@@ -87,6 +88,12 @@ def test_stock_cli_does_not_accept_hostile_publisher_or_grant_install(
         payload = json.loads(file.read_text())
         payload["signature_b64"] = "A" * 86 + "=="
         file.write_text(json.dumps(payload, sort_keys=True, separators=(",", ":")))
+    elif defect == "trailing-newline":
+        file = stage / "release-signature.json"
+        file.write_bytes(file.read_bytes() + b"\n")
+    elif defect == "embedded-nul":
+        file = stage / "release-signature.json"
+        file.write_bytes(file.read_bytes() + b"\x00")
     elif defect == "manifest-tamper":
         file = stage / "release-manifest.json"
         file.write_bytes(file.read_bytes() + b" ")
