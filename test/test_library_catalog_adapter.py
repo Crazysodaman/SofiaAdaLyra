@@ -252,3 +252,31 @@ def test_license_policy_denial_before_key_or_archive(tmp_path):
             publisher_key_lookup=lambda _: calls.append("key") or pub,
         )
     assert calls == ["license"]
+
+
+
+def test_revoked_publisher_never_reads_candidate_archive(tmp_path):
+    data, value, root, pub = fixture(tmp_path)
+    calls = []
+    with pytest.raises(ModuleRecipientRejected, match="revocation"):
+        review(
+            data, value, root / "missing", pub,
+            publisher_current=lambda _: calls.append("revocation") or False,
+            signed_content_admit=lambda *_: calls.append("archive") or True,
+            publisher_key_lookup=lambda _: calls.append("key") or pub,
+        )
+    assert calls == ["revocation"]
+
+
+def test_current_safe_rechecked_after_archive_review_for_midflight_revocation(tmp_path):
+    data, value, root, pub = fixture(tmp_path)
+    calls = []
+    with pytest.raises(ModuleRecipientRejected, match="catalog"):
+        review(
+            data, value, root, pub,
+            current_host_scope_admit=lambda *_: calls.append("initial-safe") or True,
+            signed_content_admit=lambda *_: calls.append("archive") or True,
+            catalog_admit=lambda _: calls.append("final-safe") or False,
+        )
+    assert calls == ["initial-safe", "archive", "final-safe"]
+    # Verified local bytes are not accepted for install after SAFE revocation.
