@@ -20,7 +20,7 @@
 | Batch | Scope | Output and acceptance | Status |
 | --- | --- | --- | --- |
 | **B00** | Inventory/scope freeze | 55-entry [AG-D026](AG_D026_MODULE_CATALOG_RATIONALIZATION_AUDIT.md), read-only source inventory; precise recommendation for every entry | **CAPTURED** |
-| **B01** | Safe Portainer/Containers observational foundation | Pure allowlisted, exact endpoint/stack ID metadata projection excluding Compose, URLs, credentials and environment. Tests for redaction, injection, wrong IDs. Later secure read-only connector binding to follow. | **IN PROGRESS**; 18 isolated focused tests passed on 2026-11-08 |
+| **B01** | Safe Portainer/Containers observational foundation | Pure allowlisted, exact endpoint/stack ID metadata projection excluding Compose, URLs, credentials and environment. Tests for redaction, injection, wrong IDs. Later secure read-only connector binding to follow. | **IN PROGRESS**; 19 isolated focused tests passed on 2026-11-08 |
 | **B02** | Shared SDK/module lifecycle and owner approval dependencies | Module identity/version/generation, canonical settings/receipts, signed packages, capability scopes, SAFE and STOP, live GUI/TUI updates, install block/reinstall, maintenance/rollback with tests | **PENDING**, depends on existing Platform work |
 | **B03** | Six requested packaging/ownership consolidation candidates | See below; each requires compatibility alias/migration plan and independent unit/contract regression. Preserve the original catalog IDs until explicit, tested cutover. | **PENDING** |
 | **B04** | First high-value IT provider modules | `MOD-IT-CONTAINERS` signed optional Platform module with Portainer TLS/secret binding, source-aware Compose validate/diff, approved deployment, jobs/health/rollback; `MOD-HOMELAB`, `MOD-IT-NETWORK`, `MOD-IT-SYSTEMS`, `MOD-IT-OBSERVABILITY`, `MOD-IT-HELPDESK`, `MOD-IT-SECURITY`, `MOD-IT-BACKUP-DR`, `MOD-IT-STORAGE`, `MOD-IT-DATABASE`, `MOD-IT-DEVOPS` source-backed providers and scopes | **PENDING** |
@@ -55,7 +55,7 @@
 | Date | Action | Evidence | Limitations |
 | --- | --- | --- | --- |
 | 2026-11-08 | Source/directory inventory + 55-entry recommendations | [AG-D026](AG_D026_MODULE_CATALOG_RATIONALIZATION_AUDIT.md) | Not a complete per-line security audit of all legacy source or deployed module test |
-| 2026-11-08 | `portainer_projection.py` + `test_portainer_projection.py` on `chatgpt/module-rationalization-batch01` | **18/18 isolated local pytest tests PASSED** for exact IDs, secret redaction, control characters, status and source hints | Unit tests run in an isolated temporary source tree; **full repository pytest/CI, actual API calls, signed installation, GUI/TUI integration NOT RUN**. No effects or permissions exposed. |
+| 2026-11-08 | `portainer_projection.py` + `test_portainer_projection.py` on `chatgpt/module-rationalization-batch01` | **19/19 isolated local pytest tests PASSED** for exact IDs, secret redaction, control characters, status and source hints | Unit tests run in an isolated temporary source tree; **full repository pytest/CI, actual API calls, signed installation, GUI/TUI integration NOT RUN**. No effects or permissions exposed. |
 
 ## Next required technical gates
 
