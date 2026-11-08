@@ -317,9 +317,9 @@
       "status": "BLOCKED_UNSIGNED_INSTALLER",
       "commands": [
         "python -m pytest -q -rs test/test_rust_platform_systemd.py",
-        "python -m tools.aegis_debian_vm --checkout . --output-dir <isolated_test_output>"
+        "python -m tools.aegis_debian_vm --checkout \"$PWD\" --output \"${IG001_VM_OUTPUT}\" --toolchain \"$(rustc --print sysroot)\" --disposable-vm"
       ],
-      "evidence": "actual signed offline stock Debian12 service installation and READY; commands must be confirmed against current CLI before execution"
+      "evidence": "When available, actual Debian12 systemd VM two boots under QEMU and service READY; NOT a production-signed native install. Requires separate signed stock OS installer receipts and approved A/B operator authority for IG-001 installed-host gate."
     },
     {
       "id": "G4_LIVE_STATUS_AND_DENIALS",
