@@ -52,6 +52,7 @@ def test_signed_native_spec_is_bound_to_actual_b1_identity_and_binary(native_spe
     assert spec.service_name == "aegis-platform.service"
 
 
+@pytest.mark.skipif(os.name == "nt", reason="POSIX native systemd path semantics")
 def test_systemd_register_stop_and_remove_only_exact_new_unit(native_spec, tmp_path, monkeypatch):
     import sofia.platform.ops.platform_installer_native_service as mod
     service = DebianSystemdNativeService(unit_path=tmp_path / "aegis-platform.service")
@@ -81,6 +82,7 @@ def test_systemd_register_stop_and_remove_only_exact_new_unit(native_spec, tmp_p
     assert ("disable", "aegis-platform.service") in calls
 
 
+@pytest.mark.skipif(os.name == "nt", reason="POSIX native systemd path semantics")
 def test_systemd_refuses_foreign_existing_unit_without_changing_it(native_spec, tmp_path, monkeypatch):
     import sofia.platform.ops.platform_installer_native_service as mod
     service = DebianSystemdNativeService(unit_path=tmp_path / "aegis-platform.service")
@@ -96,6 +98,7 @@ def test_systemd_refuses_foreign_existing_unit_without_changing_it(native_spec, 
     assert service.unit_path.read_bytes() == before
 
 
+@pytest.mark.skipif(os.name == "nt", reason="POSIX native systemd path semantics")
 def test_systemd_verified_replacement_retains_identity(native_spec, tmp_path, monkeypatch):
     import sofia.platform.ops.platform_installer_native_service as mod
     service = DebianSystemdNativeService(unit_path=tmp_path / "aegis-platform.service")
