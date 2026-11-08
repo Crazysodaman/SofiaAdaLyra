@@ -168,8 +168,15 @@ class RemoteCallsignReadClient:
                 authority_public_key_der=self.authority_public_key_der,
                 expected_key_sha256=self.expected_key_sha256, now=self._clock(),
             )
-            if self._cached is not None and result["revision"] < self._cached["revision"]:
-                raise RemoteCallsignRejected("remote naming revision rollback")
+            if self._cached is not None:
+                if result["revision"] < self._cached["revision"]:
+                    raise RemoteCallsignRejected("remote naming revision rollback")
+                # An authority revision is a durable state witness. Two distinct
+                # signed projections at one revision are equivocation, NOT a
+                # harmless refresh. Preserve the last confirmed display.
+                if (result["revision"] == self._cached["revision"]
+                        and result != self._cached):
+                    raise RemoteCallsignRejected("conflicting signed naming revision")
             self._cached = result
             return dict(result)
         except (RemoteCallsignRejected, OSError, ConnectionError, TimeoutError):
