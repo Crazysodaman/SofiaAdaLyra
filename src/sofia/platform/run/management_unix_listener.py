@@ -130,6 +130,16 @@ class ManagementUnixListener:
     def _require_owned_endpoint(self) -> None:
         if self._listener is None or self._owned_inode is None:
             raise RuntimeError("management listener not active")
+        assert_no_redirected_components(self.path, include_leaf=True)
+        if self._operator_group_gid is None:
+            assert_owner_private_path(self.path.parent, directory=True)
+        else:
+            parent = self.path.parent.stat(follow_symlinks=False)
+            if (not stat.S_ISDIR(parent.st_mode)
+                    or parent.st_uid != os.geteuid()
+                    or parent.st_gid != self._operator_group_gid
+                    or stat.S_IMODE(parent.st_mode) != 0o750):
+                raise PermissionError("management runtime ACL changed")
         info = os.lstat(self.path)
         if (
             not stat.S_ISSOCK(info.st_mode)
