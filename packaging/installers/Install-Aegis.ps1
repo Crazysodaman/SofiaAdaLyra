@@ -16,6 +16,10 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+if ($Check -and $Operation) {
+    [Console]::Error.WriteLine('-Check cannot be combined with -Operation.')
+    exit 2
+}
 
 $repoRoot = $PSScriptRoot
 if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'contracts\ui\aegis-theme-v1.json') -PathType Leaf)) {
