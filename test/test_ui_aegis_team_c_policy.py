@@ -5,6 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 GUI = ROOT / "packaging/gui/Start-AegisControlCenter.ps1"
 RUST = ROOT / "rust/crates/sofia-ui-broker/src/control_center.rs"
 SESSION = ROOT / "rust/crates/sofia-ui-broker/src/control_center_session.rs"
+LIBRARY = ROOT / "rust/crates/sofia-ui-broker/src/library_display.rs"
 TUI = ROOT / "rust/crates/sofia-ui-broker/src/bin/aegis_tui.rs"
 
 
@@ -98,3 +99,32 @@ def test_c003_headless_json_is_offline_display_not_ipc_contract():
     assert '"active": null' in tui
     assert '"actions_enabled": false' in tui
     assert "OfflineReader" in tui
+
+
+def test_c005_library_projection_does_not_conflate_transfer_and_receipts():
+    source = LIBRARY.read_text(encoding="utf-8")
+    for stage in ("downloaded", "verified", "staged", "installed",
+                  "active", "rollback_pinned"):
+        assert "pub " + stage + ": Option<DisplayReceipt>" in source
+    assert "received_bytes" in source
+    assert "verified_bytes" in source
+    assert "transfer.verified_bytes > transfer.received_bytes" in source
+    assert "transfer.received_bytes > transfer.total_bytes" in source
+    assert "InvalidStageReceipt" in source
+    assert "InvalidProvenance" in source
+    assert "GenerationRegressed" in source
+    assert "RevisionRegressed" in source
+    assert "SequenceReplayed" in source
+    assert "UnexpectedSafeState" in source
+
+
+def test_c005_library_projection_no_authentication_or_installer_backdoor():
+    source = LIBRARY.read_text(encoding="utf-8")
+    assert "OfflineLibraryReader" in source
+    assert "pub trait LibraryObservationSource" in source
+    assert "self.current()" in source
+    assert "self.last_snapshot.as_ref()" in source
+    for forbidden in ("UnixStream::connect", "TcpStream", "NamedPipe",
+                      "Invoke-RestMethod", "Start-Service", "sofia.db",
+                      "OwnerSecretStore", "curl", "reqwest"):
+        assert forbidden not in source

@@ -5,6 +5,7 @@ on:
     paths:
       - "rust/crates/sofia-ui-broker/src/bin/aegis_tui.rs"
       - "rust/crates/sofia-ui-broker/src/control_center_session.rs"
+      - "rust/crates/sofia-ui-broker/src/library_display.rs"
       - "contracts/ui/aegis-theme-v1.json"
       - "test/test_ui_aegis_tui_binary_smoke.py"
       - "test/capture_aegis_tui_evidence.py"
@@ -14,6 +15,7 @@ on:
     paths:
       - "rust/crates/sofia-ui-broker/src/bin/aegis_tui.rs"
       - "rust/crates/sofia-ui-broker/src/control_center_session.rs"
+      - "rust/crates/sofia-ui-broker/src/library_display.rs"
       - "test/test_ui_aegis_tui_binary_smoke.py"
       - "test/capture_aegis_tui_evidence.py"
       - ".github/workflows/aegis-native-tui-smoke.yml"
