@@ -3,6 +3,7 @@
 //! NEVER infer host health from a local launch, cached file or process ID.
 
 use serde_json::Value;
+use sofia_ui_broker::control_center::ControlCenterView;
 use std::env;
 use std::io::{self, IsTerminal, Write};
 use std::process::ExitCode;
@@ -18,6 +19,7 @@ enum Page {
     Security,
     Updates,
     Diagnostics,
+    Fleet,
 }
 
 impl Page {
@@ -30,6 +32,7 @@ impl Page {
             Self::Security => "Security and Approvals",
             Self::Updates => "Updates and Recovery",
             Self::Diagnostics => "Diagnostics",
+            Self::Fleet => "Fleet",
         }
     }
 }
@@ -43,6 +46,7 @@ fn select_page(choice: &str) -> Option<Page> {
         "5" => Some(Page::Security),
         "6" => Some(Page::Updates),
         "7" => Some(Page::Diagnostics),
+        "8" => Some(Page::Fleet),
         _ => None,
     }
 }
@@ -104,6 +108,7 @@ fn render_menu(colors: bool) -> String {
         ("5", "Security / Approvals"),
         ("6", "Updates / Recovery"),
         ("7", "Diagnostics"),
+        ("8", "Fleet"),
         ("0", "Exit"),
     ] {
         lines.push(format!(
@@ -115,11 +120,14 @@ fn render_menu(colors: bool) -> String {
 }
 
 fn render_page(page: Page, colors: bool) -> String {
+    let state = ControlCenterView::offline();
     format!(
-        "{}\n{}\n{}\n{}",
+        "{}\nSERVICE: {} / SOURCE: {}\n{}\n{}\n{}",
         paint(page.heading(), "primary", colors),
-        "SOURCE: UNVERIFIED / NO AUTHENTICATED PLATFORM IPC",
+        state.service_label(),
+        state.source_label(),
         "VALUES: UNAVAILABLE (not disconnected, removed, healthy or zero)",
+        "SETTINGS: UNKNOWN / PERMISSION: NOT_EVALUATED / SAFE-STOP: UNKNOWN",
         "No writes, approvals, downloads, installation, state files or service changes."
     )
 }
@@ -151,7 +159,7 @@ fn run() -> io::Result<ExitCode> {
     }
     loop {
         println!("{}", render_menu(colors));
-        print!("Select [0-7]: ");
+        print!("Select [0-8]: ");
         io::stdout().flush()?;
         let mut selection = String::new();
         if io::stdin().read_line(&mut selection)? == 0 {
@@ -207,6 +215,7 @@ mod tests {
         assert_eq!(select_page("4"), Some(Page::Settings));
         assert_eq!(select_page("1"), Some(Page::Platform));
         assert_eq!(select_page("4;rm -rf /"), None);
+        assert_eq!(select_page("8"), Some(Page::Fleet));
         assert_eq!(select_page("9"), None);
         assert!(paint("X", "accent", false) == "X");
     }

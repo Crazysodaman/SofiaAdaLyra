@@ -1,0 +1,38 @@
+name: Aegis Windows Control Center Shell
+
+on:
+  pull_request:
+    paths:
+      - "packaging/gui/**"
+      - "contracts/ui/aegis-theme-v1.json"
+      - "test/test_ui_aegis_windows_gui_shell.py"
+      - ".github/workflows/aegis-gui-shell.yml"
+  push:
+    branches: [main]
+    paths:
+      - "packaging/gui/**"
+      - "test/test_ui_aegis_windows_gui_shell.py"
+      - ".github/workflows/aegis-gui-shell.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  gui-contract:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-24.04]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install optional GUI test harness
+        run: python -m pip install -e . pytest
+      - name: Verify GUI shell and Windows headless probe
+        run: python -m pytest -q test/test_ui_aegis_windows_gui_shell.py
