@@ -6,6 +6,7 @@ or production-state access. An integration skip NEVER counts as a PASS.
 from hashlib import sha256
 import json
 import os
+import platform
 from pathlib import Path
 from time import monotonic
 
@@ -13,9 +14,11 @@ import pytest
 
 from sofia.core.cognition.providers.ollama_provider import OllamaProvider
 from sofia.core.cognition.reply_origin import ReplyModelOriginStore
+from sofia.core.identity.store import IdentityStore
 from sofia.core.conversation.model import ConversationRole
 from sofia.core.social.principals import local_sparks_principal
 from sofia.platform.application.bootstrap import SofiaApplication
+from sofia.platform.config.inference_endpoint import configured_ollama_endpoint
 from sofia.platform.config.model import (
     CognitiveRoutingConfiguration,
     ProviderConfiguration,
@@ -75,6 +78,21 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
             fallback_enabled=False,
         ),
         filesystem_root=tmp_path,
+        ollama_endpoint=configured_ollama_endpoint(),
+    )
+
+    # Read-only model inventory. A successful version ping is not inference.
+    from ollama import Client
+    listed = Client(host=configuration.ollama_endpoint, timeout=15.0).list()
+    selected = next(
+        (item for item in getattr(listed, "models", ())
+         if model in {getattr(item, "model", None), getattr(item, "name", None)}),
+        None,
+    )
+    assert selected is not None, "Configured model is not installed at endpoint"
+    model_digest = getattr(selected, "digest", None)
+    assert isinstance(model_digest, str) and model_digest.strip(), (
+        "Cannot verify installed model digest; do not invent model metadata"
     )
 
     # Instrument but never replace the actual Python Ollama client call.
@@ -127,6 +145,19 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
         app.start()
         started = True
         origin_reader = ReplyModelOriginStore(state_path)
+        core_identity = IdentityStore(identity_path).load()
+        writer_receipt = {
+            "process_id": os.getpid(),
+            "host": platform.node(),
+            "platform": platform.system(),
+            "canonical_sqlite": str(Path(state_path).resolve()),
+            "core_identity_uuid": str(core_identity.instance_id),
+            "core_worker_enabled": configuration.core_worker.enabled,
+            "verified_exclusive_lease": False,
+        }
+        assert not writer_receipt["core_worker_enabled"], (
+            "This probe must not start a second Core worker"
+        )
         for index, prompt in enumerate(prompts):
             before_calls = len(calls)
             before_ids = {
@@ -148,6 +179,14 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
             )
             assert result.content.strip(), "Blank response was falsely accepted"
             assert result.content != "Test cognitive response."
+            final_digest = sha256(result.content.encode("utf-8")).hexdigest()
+            assert final_digest in {
+                call.get("generated_sha256") for call in new_calls
+                if call["status"] == "generated"
+            }, (
+                "Saved reply is not a directly observed generated candidate; "
+                "post-generation canned repair is NOT an inference PASS"
+            )
 
             saved = app.conversation.messages()
             assert any(
@@ -182,9 +221,7 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
             turns.append({
                 "turn": index + 1,
                 "latency_ms": duration_ms,
-                "assistant_sha256": sha256(
-                    result.content.encode("utf-8")
-                ).hexdigest(),
+                "assistant_sha256": final_digest,
                 "model_origin": origin["kind"],
                 "provider_calls": len(new_calls),
             })
@@ -198,7 +235,19 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
     finally:
         print("CORE002_LIVE_RECEIPT=" + json.dumps({
             "model": model,
+            "model_digest": model_digest,
             "provider": "ollama",
+            "endpoint": configuration.ollama_endpoint,
+            "provider_config": {
+                "temperature": provider_cfg.temperature,
+                "context_size": provider_cfg.context_size,
+                "max_output_tokens": provider_cfg.max_output_tokens,
+                "routing_fallback_enabled": configuration.routing.fallback_enabled,
+            },
+            "observed_writer": locals().get("writer_receipt", {
+                "status": "startup_not_completed",
+                "verified_exclusive_lease": False,
+            }),
             "turns": turns,
             "calls": calls,
             "elapsed_ms": round((monotonic() - overall_start) * 1000, 1),
