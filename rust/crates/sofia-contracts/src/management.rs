@@ -161,7 +161,7 @@ impl UntrustedManagementStatus {
 
 #[cfg(test)]
 mod tests {
-    use super::{UntrustedManagementRead, MANAGEMENT_READ_PROTOCOL, MANAGEMENT_READ_SCHEMA};
+    use super::{UntrustedManagementRead, UntrustedManagementStatus, MANAGEMENT_READ_PROTOCOL, MANAGEMENT_READ_SCHEMA};
     use serde_json::{json, Value};
 
     fn valid() -> (Value, chrono::DateTime<chrono::FixedOffset>) {
@@ -191,6 +191,63 @@ mod tests {
             .expect("shared fixture obeys strict read contract");
         assert_eq!(request.operation, "platform.status");
         assert_eq!(request.expected_generation, 3);
+    }
+
+    #[test]
+    fn shared_python_sdk_status_fixture_is_correlated_but_not_authentication() {
+        let request_json = include_str!("../../../../contracts/platform/management-read-valid-v1.json");
+        let status_json = include_str!("../../../../contracts/platform/management-status-valid-v1.json");
+        let now = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:00Z")
+            .expect("known fixture clock");
+        let request = UntrustedManagementRead::parse(request_json.as_bytes(), now)
+            .expect("shared request fixture");
+        let status = UntrustedManagementStatus::parse(status_json.as_bytes(), &request)
+            .expect("shared status fixture");
+        assert_eq!(status.platform_generation, request.expected_generation);
+        assert_eq!(status.request_id, request.request_id);
+        assert!(!status.data.operator_stop);
+        assert!(!status.data.core_started);
+    }
+
+    #[test]
+    fn stale_status_forged_trust_and_duplicate_response_are_denied() {
+        let request_json = include_str!("../../../../contracts/platform/management-read-valid-v1.json");
+        let status_json = include_str!("../../../../contracts/platform/management-status-valid-v1.json");
+        let now = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:00Z")
+            .expect("known fixture clock");
+        let request = UntrustedManagementRead::parse(request_json.as_bytes(), now)
+            .expect("shared request fixture");
+        let valid: Value = serde_json::from_str(status_json).expect("fixture JSON");
+        for (key, replacement) in [
+            ("platform_generation", json!(4)),
+            ("request_id", json!("req:other")),
+            ("source", json!("I-am-authenticated")),
+            ("operation", json!("core.start")),
+        ] {
+            let mut forged = valid.clone();
+            forged[key] = replacement;
+            assert!(UntrustedManagementStatus::parse(
+                forged.to_string().as_bytes(),
+                &request,
+            )
+            .is_err());
+        }
+        let mut data_forged = valid.clone();
+        data_forged["data"]["operator_stop"] = json!(true);
+        assert!(UntrustedManagementStatus::parse(
+            data_forged.to_string().as_bytes(),
+            &request,
+        )
+        .is_err());
+        let mut extra = valid;
+        extra["owner_approved"] = json!(true);
+        assert!(UntrustedManagementStatus::parse(extra.to_string().as_bytes(), &request).is_err());
+        let dup = status_json.replacen(
+            "{",
+            "{\\\"source\\\":\\\"PLATFORM_SESSION\\\",",
+            1,
+        );
+        assert!(UntrustedManagementStatus::parse(dup.as_bytes(), &request).is_err());
     }
 
     #[test]
