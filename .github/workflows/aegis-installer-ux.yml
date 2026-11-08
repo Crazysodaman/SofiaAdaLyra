@@ -18,6 +18,7 @@ on:
       - "test/test_ui_aegis_installer_seed_hash.py"
       - "test/test_ui_aegis_installer_publisher.py"
       - "test/test_ui_aegis_installer_authenticode.py"
+      - "test/test_ops_platform_installer_capsule.py"
       - "test/test_ops_platform_library_admission.py"
       - "src/sofia/platform/ops/platform_library_admission.py"
       - "src/sofia/platform/ops/platform_installation.py"
@@ -55,9 +56,36 @@ jobs:
       - name: Install test harness
         run: python -m pip install -e . pytest
       - name: Test read-only installer and theme fallbacks
-        run: python -m pytest -q test/test_ui_aegis_installer_entrypoints.py test/test_ui_aegis_installer_lifecycle_contract.py test/test_ops_platform_installer_bundle.py test/test_ops_platform_installer_lifecycle.py test/test_ops_platform_installer_code_install.py test/test_ops_platform_installer_native_preflight.py test/test_ops_platform_installer_native_transaction.py test/test_ops_platform_installer_native_service.py test/test_ops_platform_installer_native_update.py test/test_ops_platform_installer_d028_seed.py test/test_ui_aegis_installer_seed_hash.py test/test_ui_aegis_installer_publisher.py test/test_ui_aegis_installer_authenticode.py test/test_ops_platform_library_admission.py
+        env:
+          AEGIS_B004_TEST_CAPSULE_OUT: ${{ runner.temp }}/aegis-b004-disposable-media
+        run: python -m pytest -q test/test_ui_aegis_installer_entrypoints.py test/test_ui_aegis_installer_lifecycle_contract.py test/test_ops_platform_installer_bundle.py test/test_ops_platform_installer_lifecycle.py test/test_ops_platform_installer_code_install.py test/test_ops_platform_installer_native_preflight.py test/test_ops_platform_installer_native_transaction.py test/test_ops_platform_installer_native_service.py test/test_ops_platform_installer_native_update.py test/test_ops_platform_installer_d028_seed.py test/test_ui_aegis_installer_seed_hash.py test/test_ui_aegis_installer_publisher.py test/test_ui_aegis_installer_authenticode.py test/test_ops_platform_library_admission.py test/test_ops_platform_installer_capsule.py
       - name: Compile canonical installer Python integration
-        run: python -m compileall -q src/sofia/platform/ops/platform_installer_bundle.py src/sofia/platform/ops/platform_installer_lifecycle.py src/sofia/platform/ops/platform_installer_preview.py src/sofia/platform/ops/platform_installer_code_install.py src/sofia/platform/ops/platform_installer_native_preflight.py src/sofia/platform/ops/platform_installer_native_service.py src/sofia/platform/ops/platform_installer_native_transaction.py src/sofia/platform/ops/platform_installer_offline_seed.py src/sofia/platform/ops/platform_library_admission.py src/sofia/platform/ops/platform_installation.py
+        run: python -m compileall -q src/sofia/platform/ops/platform_installer_bundle.py src/sofia/platform/ops/platform_installer_lifecycle.py src/sofia/platform/ops/platform_installer_preview.py src/sofia/platform/ops/platform_installer_code_install.py src/sofia/platform/ops/platform_installer_native_preflight.py src/sofia/platform/ops/platform_installer_native_service.py src/sofia/platform/ops/platform_installer_native_transaction.py src/sofia/platform/ops/platform_installer_offline_seed.py src/sofia/platform/ops/platform_library_admission.py src/sofia/platform/ops/platform_installer_offline_capsule.py src/sofia/platform/ops/platform_installation.py
+      - name: Rehash exact synthetic publisher-signed capsule for independent QA
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json,hashlib,os
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])/"aegis-b004-disposable-media"
+          media=root/"aegis-disposable-core-free-capsule.zip"
+          receipt=json.loads((root/"test-only-capsule-evidence.json").read_text())
+          observed=hashlib.sha256(media.read_bytes()).hexdigest()
+          if observed != receipt["capsule_sha256"] or receipt["production_publisher_root"]:
+              raise SystemExit("synthetic media evidence hash or trust claim differs")
+          print("DISPOSABLE B004 SIGNED-RELEASE MEDIA SHA256:", observed)
+          print("CANONICAL MANIFEST SHA256:", receipt["release_manifest_sha256"])
+          print("OWNER/PRODUCTION AUTHORIZED:", receipt["owner_authorized"], receipt["production_publisher_root"])
+          PY
+      - name: Upload B004 synthetic signed-release media, NOT an installer certification
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: aegis-b004-disposable-signed-core-free-capsule
+          path: ${{ runner.temp }}/aegis-b004-disposable-media/
+          if-no-files-found: error
+          retention-days: 7
       - name: Check Bash syntax
         if: runner.os == 'Linux'
         run: bash -n packaging/installers/install-aegis.sh
