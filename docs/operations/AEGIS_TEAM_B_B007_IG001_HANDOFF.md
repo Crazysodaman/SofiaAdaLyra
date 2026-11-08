@@ -158,3 +158,39 @@ or unapproved `chown`. **No native group mode was changed.**
 
 No merge, main modifications, secondary signer/installer, protected ACL
 broadening, live deployment or release PASS.
+
+
+## B-007 follow-on native interpreter traversal correction
+
+The existing B1 installed release materializes its signed Python 3.12
+runtime under `release/runtime/python/bin/python3.12`, while the signed
+Rust native service is under `release/assets/`. A genuine systemd
+`User=aegis` `ExecStart` can fail with `EACCES` even if both final
+executables are correctly owned if `release/runtime` or
+`release/runtime/python` remains root-owned and mode 0700.
+
+The current native Debian driver now enumerates every directory from
+the trusted B1 root down to **both** executables. It refuses wrong UID,
+group/world access or a non-directory/non-owner-traversable intermediate
+folder before creating any systemd unit. Two POSIX negative tests were
+added, respectively for an intervening runtime UID mismatch and a
+directory lacking owner-execute permission. **These two tests are
+committed but not executed on this isolated full checkout locally.**
+The verified B1 owner remains the sole installer/identity writer; this
+change never recursively chowns paths, creates the service account,
+changes sockets or grants an install capability.
+
+Required Team A/B installation ceremony remains separately scoped:
+* B1 signed byte installation and full runtime materialization;
+* exact installed `aegis` non-root UID/GID and owner-only state/code
+  ownership transition, attended through the canonical one-use SAFE
+  permission and current STOP/revocation checks;
+* optional `aegis-mgmt` supplementary GID, operator UID and precisely
+  0750/0660 endpoint mode **only** after independent owner
+  enrollment, signed profile and A/C/E contract signoff;
+* native systemd READY and authenticated Platform status after real
+  service registration, with independent Team E boot/journal/UUID
+  receipts.
+
+This is a development guard against premature service registration,
+not proof of native install/start.
