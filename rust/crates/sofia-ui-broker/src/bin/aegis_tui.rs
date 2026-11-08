@@ -3,7 +3,7 @@
 //! NEVER infer host health from a local launch, cached file or process ID.
 
 use serde_json::Value;
-use sofia_ui_broker::control_center::ControlCenterView;
+use sofia_ui_broker::control_center::{ControlCenterView, LinkState};
 use sofia_ui_broker::control_center_session::{DisplaySession, OfflineReader};
 use std::env;
 use std::io::{self, IsTerminal, Write};
@@ -179,6 +179,44 @@ fn render_page(page: Page, colors: bool, state: &ControlCenterView) -> String {
     )
 }
 
+// This is a presentation of an already authenticated state, not a
+// verification of native OS service origin, owner enrollment, or SAFE.
+// The sole wired producer remains OfflineReader until Team A/B sign off.
+fn status_line(view: &ControlCenterView) -> String {
+    format!(
+        "status={} source={} safe={} permission={} installation={}",
+        view.service_label(),
+        view.source_label(),
+        view.safe_label(),
+        view.permission_label(),
+        view.installation_label()
+    )
+}
+
+fn status_json(view: &ControlCenterView) -> Value {
+    let current = view.link == LinkState::Observed && view.platform_generation.is_some();
+    serde_json::json!({
+        "schema": "aegis.ui.platform.offline-status.v1",
+        "status": view.service_label(),
+        "source": view.source_label(),
+        "platform_generation": if current { view.platform_generation } else { None },
+        "safe": view.safe_label(),
+        "operator_stop": if current { Some(view.safe == sofia_ui_broker::control_center::SafeState::StopActive) } else { None },
+        "core_started": null,
+        "permission": view.permission_label(),
+        "installation": view.installation_label(),
+        "actions_enabled": false
+    })
+}
+
+fn status_exit(view: &ControlCenterView) -> ExitCode {
+    if view.link == LinkState::Observed && view.platform_generation.is_some() {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::from(3)
+    }
+}
+
 fn run() -> io::Result<ExitCode> {
     let args: Vec<String> = env::args().skip(1).collect();
     // Only the offline reader is wired until Team A's authenticated
@@ -186,7 +224,7 @@ fn run() -> io::Result<ExitCode> {
     let mut session = DisplaySession::default();
     let _ = session.refresh(&mut OfflineReader, std::time::Instant::now());
     if args.iter().any(|arg| arg == "--help" || arg == "-h") {
-        println!("aegis-tui [--plain | --help | --status | --library-status | --library-json]");
+        println!("aegis-tui [--plain | --help | --status | --status-json | --library-status | --library-json]");
         println!("This read-only shell does not perform management operations.");
         return Ok(ExitCode::SUCCESS);
     }
@@ -196,6 +234,7 @@ fn run() -> io::Result<ExitCode> {
             .is_some_and(|arg| {
                 arg != "--plain"
                     && arg != "--status"
+                    && arg != "--status-json"
                     && arg != "--library-status"
                     && arg != "--library-json"
             })
@@ -204,8 +243,12 @@ fn run() -> io::Result<ExitCode> {
         return Ok(ExitCode::from(2));
     }
     if args.first().is_some_and(|arg| arg == "--status") {
-        println!("status=UNAVAILABLE source=UNVERIFIED");
-        return Ok(ExitCode::from(3));
+        println!("{}", status_line(session.view()));
+        return Ok(status_exit(session.view()));
+    }
+    if args.first().is_some_and(|arg| arg == "--status-json") {
+        println!("{}", status_json(session.view()));
+        return Ok(status_exit(session.view()));
     }
     if args.first().is_some_and(|arg| arg == "--library-json") {
         // UI-only OFFLINE status, not Team A's management/library wire schema.
@@ -275,7 +318,10 @@ fn main() -> ExitCode {
 
 #[cfg(test)]
 mod tests {
-    use super::{paint, render_menu, render_page, rgb, select_page, Page};
+    use super::{
+        paint, render_menu, render_page, rgb, select_page, status_exit, status_json, status_line,
+        Page,
+    };
     use sofia_ui_broker::control_center::{
         ControlCenterView, LinkState, PermissionState, SafeState,
     };
@@ -348,6 +394,59 @@ mod tests {
             assert!(text.contains("SOURCE: UNVERIFIED"));
             assert!(!text.contains("\x1b"));
             assert!(!text.contains("100%"));
+        }
+    }
+
+    #[test]
+    fn status_projection_is_offline_and_does_not_claim_installed_or_healthy() {
+        let view = ControlCenterView::offline();
+        let text = status_line(&view);
+        assert!(text.starts_with("status=UNAVAILABLE source=UNVERIFIED"));
+        let data = status_json(&view);
+        assert_eq!(data["schema"], "aegis.ui.platform.offline-status.v1");
+        assert_eq!(data["platform_generation"], serde_json::Value::Null);
+        assert_eq!(data["operator_stop"], serde_json::Value::Null);
+        assert_eq!(data["core_started"], serde_json::Value::Null);
+        assert_eq!(data["actions_enabled"], false);
+        assert_eq!(data["installation"], "NOT_CURRENTLY_VERIFIED");
+        assert_eq!(status_exit(&view), std::process::ExitCode::from(3));
+    }
+
+    #[test]
+    fn only_service_observed_generation_can_make_status_cli_success() {
+        let mut view = ControlCenterView::offline();
+        view.link = LinkState::Observed;
+        assert_eq!(status_exit(&view), std::process::ExitCode::from(3));
+        view.platform_generation = Some(8);
+        view.safe = SafeState::Clear;
+        assert_eq!(status_exit(&view), std::process::ExitCode::SUCCESS);
+        let data = status_json(&view);
+        assert_eq!(data["status"], "OBSERVED");
+        assert_eq!(data["source"], "SERVICE_OBSERVED");
+        assert_eq!(data["platform_generation"], 8);
+        assert_eq!(data["operator_stop"], false);
+        assert_eq!(data["core_started"], serde_json::Value::Null);
+        assert_eq!(data["actions_enabled"], false);
+    }
+
+    #[test]
+    fn denied_stop_revoked_and_stale_status_never_expose_generation() {
+        for (link, expected) in [
+            (LinkState::Stopped, "STOP_ACTIVE"),
+            (LinkState::Revoked, "REVOKED"),
+            (LinkState::AccessDenied, "ACCESS_DENIED"),
+            (LinkState::Stale, "STALE"),
+            (LinkState::UnknownGeneration, "UNKNOWN_GENERATION"),
+        ] {
+            let mut view = ControlCenterView::offline();
+            view.platform_generation = Some(9); // cached, NOT CURRENT
+            view.link = link;
+            let data = status_json(&view);
+            assert_eq!(data["status"], expected);
+            assert_eq!(data["platform_generation"], serde_json::Value::Null);
+            assert_eq!(data["operator_stop"], serde_json::Value::Null);
+            assert_eq!(data["actions_enabled"], false);
+            assert_eq!(status_exit(&view), std::process::ExitCode::from(3));
         }
     }
 

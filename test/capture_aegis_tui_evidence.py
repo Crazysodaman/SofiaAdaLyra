@@ -39,6 +39,7 @@ def main() -> int:
         capture("--library-status", 3),
         capture("--library-json", 3),
         capture("--install", 2),
+        capture("--status-json", 3),
     ]
     data = json.loads(str(checks[3]["stdout"]))
     if data.get("source") != "UNVERIFIED" or data.get("actions_enabled") is not False:
@@ -47,6 +48,13 @@ def main() -> int:
                   "active", "received_bytes", "verified_bytes"):
         if data.get(field, "MISSING") is not None:
             raise AssertionError(f"{field} must be null/unknown")
+    platform = json.loads(str(checks[5]["stdout"]))
+    if (platform.get("source") != "UNVERIFIED"
+            or platform.get("platform_generation") is not None
+            or platform.get("operator_stop") is not None
+            or platform.get("core_started") is not None
+            or platform.get("actions_enabled") is not False):
+        raise AssertionError("status CLI claimed live authority without approved service")
     if "Library > History" not in str(checks[0]["stdout"]):
         raise AssertionError("expected native library menu")
     if "Unknown option" not in str(checks[4]["stderr"]):

@@ -85,3 +85,20 @@ def test_native_tui_library_json_is_unknown_not_empty_or_installed():
     assert data["internet_fallback"] == "DISABLED"
     assert data["actions_enabled"] is False
     assert "\x1b" not in result.stdout
+
+
+def test_native_tui_json_platform_status_is_not_false_live_success():
+    import json
+
+    result = _run("--status-json")
+    assert result.returncode == 3
+    data = json.loads(result.stdout)
+    assert data["schema"] == "aegis.ui.platform.offline-status.v1"
+    assert data["status"] == "UNAVAILABLE"
+    assert data["source"] == "UNVERIFIED"
+    assert data["platform_generation"] is None
+    assert data["operator_stop"] is None
+    assert data["core_started"] is None
+    assert data["installation"] == "NOT_CURRENTLY_VERIFIED"
+    assert data["actions_enabled"] is False
+    assert "\x1b" not in result.stdout

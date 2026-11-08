@@ -149,3 +149,16 @@ def test_c006_receipt_evidence_is_not_issuer_or_installer_authority():
         assert expected in source
     assert "OBSERVED_WITH_VERIFIED_SERVICE_RECEIPT" not in source
     assert "OfflineLibraryReader" in source
+
+
+def test_c007_status_cli_is_sourced_from_display_and_denials_fail_closed():
+    source = TUI.read_text(encoding="utf-8")
+    assert "--status-json" in source
+    assert "status_line(session.view())" in source
+    assert "status_json(session.view())" in source
+    assert "status_exit(session.view())" in source
+    assert '"platform_generation": if current { view.platform_generation } else { None }' in source
+    assert '"core_started": null' in source
+    assert '"actions_enabled": false' in source
+    assert "fn denied_stop_revoked_and_stale_status_never_expose_generation()" in source
+    assert "session.refresh(&mut OfflineReader" in source
