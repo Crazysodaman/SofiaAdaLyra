@@ -129,3 +129,58 @@ def test_bootstrap_contract_does_not_embed_an_alternative_authority():
     for disallowed in ("sudo systemctl ", "Start-Service ", "New-Service ",
                        "Invoke-Expression ", "curl | bash", "SOFIA_OWNER_SECRET"):
         assert disallowed not in bash and disallowed not in windows
+
+
+@pytest.mark.skipif(os.name == "nt" or not shutil.which("tput"),
+                    reason="Linux PTY with terminfo required")
+@pytest.mark.parametrize("columns,force_plain", [(40, False), (80, True)])
+def test_bash_interactive_pty_stays_ascii_in_narrow_or_no_color(columns, force_plain):
+    """Exercise a real TTY, not a text-source assertion."""
+    import fcntl
+    import pty
+    import select
+    import struct
+    import termios
+    import time
+
+    master, slave = pty.openpty()
+    proc = None
+    try:
+        fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, columns, 0, 0))
+        environment = {**os.environ, "TERM": "xterm-256color", "COLORTERM": "truecolor"}
+        if force_plain:
+            environment["NO_COLOR"] = "1"
+        else:
+            environment.pop("NO_COLOR", None)
+        proc = subprocess.Popen(
+            ["bash", str(BASH)], stdin=slave, stdout=slave, stderr=slave,
+            env=environment, start_new_session=True,
+        )
+        os.close(slave)
+        slave = -1
+        os.write(master, b"0\n")
+        chunks = []
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            ready, _, _ = select.select([master], [], [], 0.1)
+            if ready:
+                try:
+                    fragment = os.read(master, 4096)
+                except OSError:
+                    break
+                if fragment:
+                    chunks.append(fragment)
+            if proc.poll() is not None:
+                break
+        assert proc.wait(timeout=2) == 0
+        output = b"".join(chunks)
+        assert b"AEGIS PLATFORM INSTALLER" in output
+        assert b"PREVIEW ONLY" in output
+        assert b"\x1b" not in output
+    finally:
+        if proc is not None and proc.poll() is None:
+            proc.kill()
+            proc.wait(timeout=2)
+        if slave >= 0:
+            os.close(slave)
+        os.close(master)
