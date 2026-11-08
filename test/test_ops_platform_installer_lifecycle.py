@@ -13,6 +13,7 @@ from sofia.platform.ops.platform_installer_lifecycle import preview_platform_lif
 from sofia.platform.state.installation_identity import InstallationIdentityStore
 from sofia.sdk.platform_release import PlatformReleaseTarget
 from test.test_ops_platform_installation import SignedReleaseBuilder
+from test.test_platform_release_verifier import platform_wheels
 
 pytestmark = pytest.mark.pkg_ops
 
