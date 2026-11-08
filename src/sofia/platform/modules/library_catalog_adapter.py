@@ -173,10 +173,11 @@ def review_selected_library_catalog_module(
         raise ModuleRecipientRejected("manifest differs from selected signed index")
     if signer_binding_admit(row["signer_key_id"], manifest.trust_ref) is not True:
         raise ModuleRecipientRejected("publisher signing key and trust root unbound")
-    if signed_content_admit(row, package_root) is not True:
-        raise ModuleRecipientRejected("archive digest or signed receipt not independently verified")
+    # Check publisher revocation BEFORE even asking B to read candidate bytes.
     if publisher_current(manifest.trust_ref) is not True:
         raise ModuleRecipientRejected("current publisher revocation denied")
+    if signed_content_admit(row, package_root) is not True:
+        raise ModuleRecipientRejected("archive digest or signed receipt not independently verified")
     public_key = publisher_key_lookup(manifest.trust_ref)
     if type(public_key) is not bytes or len(public_key) != 32:
         raise ModuleRecipientRejected("independent publisher public key unavailable")
