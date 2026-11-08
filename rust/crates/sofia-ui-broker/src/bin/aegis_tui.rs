@@ -84,8 +84,16 @@ fn color_supported() -> bool {
 
 fn render_menu(colors: bool) -> String {
     let mut lines = vec![
-        paint("AEGIS PLATFORM | TERMINAL CONTROL CENTER", "primary", colors),
-        paint("MODE: READ ONLY / MANAGEMENT SERVICE UNAVAILABLE", "warning", colors),
+        paint(
+            "AEGIS PLATFORM | TERMINAL CONTROL CENTER",
+            "primary",
+            colors,
+        ),
+        paint(
+            "MODE: READ ONLY / MANAGEMENT SERVICE UNAVAILABLE",
+            "warning",
+            colors,
+        ),
         String::new(),
     ];
     for (digit, title) in [
@@ -98,7 +106,10 @@ fn render_menu(colors: bool) -> String {
         ("7", "Diagnostics"),
         ("0", "Exit"),
     ] {
-        lines.push(format!("{} {title}", paint(&format!("[{digit}]"), "accent", colors)));
+        lines.push(format!(
+            "{} {title}",
+            paint(&format!("[{digit}]"), "accent", colors)
+        ));
     }
     lines.join("\n")
 }
@@ -120,9 +131,11 @@ fn run() -> io::Result<ExitCode> {
         println!("This read-only shell does not perform management operations.");
         return Ok(ExitCode::SUCCESS);
     }
-    if args.len() > 1 || args.first().is_some_and(|arg| {
-        arg != "--plain" && arg != "--status"
-    }) {
+    if args.len() > 1
+        || args
+            .first()
+            .is_some_and(|arg| arg != "--plain" && arg != "--status")
+    {
         eprintln!("Unknown option. Use --help.");
         return Ok(ExitCode::from(2));
     }
