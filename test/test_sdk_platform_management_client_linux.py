@@ -3,11 +3,12 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 import json
 import os
-from pathlib import Path
 import socket
 import threading
-import time
+import sys
 import pytest
+
+pytestmark = pytest.mark.skipif(sys.platform != "linux", reason="Linux SO_PEERCRED IPC")
 
 from sofia.sdk.platform_management import UntrustedManagementRead
 from sofia.sdk.platform_management_response import make_response
