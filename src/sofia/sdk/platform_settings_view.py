@@ -124,3 +124,91 @@ def render_settings_lines(view: SettingsReadView) -> tuple[str, ...]:
             for row in view.rows
         ),
     )
+
+
+
+@dataclass(frozen=True, slots=True)
+class ModuleSettingsReadView:
+    """Identity-bound module projection, not a current Platform grant."""
+
+    module_id: str
+    package_digest: str
+    lifecycle: str
+    lifecycle_revision: int
+    revision: int
+    effective_revision: int
+    rows: tuple[SettingsRow, ...]
+
+    def needs_review(self, current: "ModuleSettingsReadView") -> bool:
+        """Require a new review on any module or settings incarnation change."""
+        return (
+            self.module_id != current.module_id
+            or self.package_digest != current.package_digest
+            or self.lifecycle != current.lifecycle
+            or self.lifecycle_revision != current.lifecycle_revision
+            or self.revision != current.revision
+            or self.effective_revision != current.effective_revision
+        )
+
+
+def project_module_settings_snapshot(raw: object) -> ModuleSettingsReadView:
+    """Safely display scoped ModuleSettingsService.snapshot without database access.
+
+    Protected secret references are always hidden. The provided signed
+    contract is parsed, but this view does not independently verify the
+    package signature or supply any settings update authorization.
+    """
+    from sofia.sdk.module_settings import module_settings_contract_from_document
+
+    fields = {
+        "module_id", "package_digest", "lifecycle", "lifecycle_revision",
+        "revision", "effective_revision", "values", "contract",
+    }
+    if not isinstance(raw, Mapping) or set(raw) != fields:
+        raise ValueError("invalid module settings snapshot")
+    module_id = raw["module_id"]
+    digest = raw["package_digest"]
+    lifecycle = raw["lifecycle"]
+    if (not isinstance(module_id, str) or len(module_id) > 160
+            or _FIELD.fullmatch(module_id.replace(".", "_").replace("-", "_")) is None
+            or not isinstance(digest, str)
+            or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+            or not isinstance(lifecycle, str)
+            or re.fullmatch(r"[a-z_]{1,40}", lifecycle) is None):
+        raise ValueError("invalid module settings identity")
+    revisions = (
+        raw["lifecycle_revision"], raw["revision"], raw["effective_revision"]
+    )
+    if (any(type(item) is not int or item < 0 for item in revisions)
+            or revisions[0] == 0 or revisions[2] > revisions[1]):
+        raise ValueError("invalid module settings revisions")
+    contract = module_settings_contract_from_document(raw["contract"])
+    values = raw["values"]
+    if not isinstance(values, Mapping):
+        raise ValueError("invalid module settings values")
+    allowed = {field.field_id: field for field in contract.fields}
+    if len(values) > 128 or any(key not in allowed for key in values):
+        raise ValueError("unreviewed module settings fields")
+    rows: list[SettingsRow] = []
+    for field_id in sorted(values):
+        field = allowed[field_id]
+        value = values[field_id]
+        if field.secret_reference:
+            if value not in (None, "<protected-secret-reference>"):
+                raise ValueError("unredacted module secret field refused")
+            visible = "[REDACTED]"
+        else:
+            field.validate(value)
+            visible = _display_value(field_id, value)
+        rows.append(SettingsRow(
+            field_id=field_id,
+            owner="module",
+            apply_class=field.apply_class.value,
+            saved_value=visible,
+            requires_apply=None if revisions[2] < revisions[1] else False,
+        ))
+    return ModuleSettingsReadView(
+        module_id=module_id, package_digest=digest, lifecycle=lifecycle,
+        lifecycle_revision=revisions[0], revision=revisions[1],
+        effective_revision=revisions[2], rows=tuple(rows),
+    )
