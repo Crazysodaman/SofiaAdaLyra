@@ -226,6 +226,21 @@ impl UntrustedManagementResponse {
                 "management response identity, generation or operation mismatch",
             ));
         }
+        // Python datetime stores microseconds, while chrono accepts nanos.
+        // Freeze 0..6 digits so freshness comparisons cannot disagree at
+        // a nanosecond boundary across GUI/TUI and service clients.
+        if reply
+            .observed_at
+            .split_once('.')
+            .is_some_and(|(_, suffix)| {
+                suffix.bytes().take_while(u8::is_ascii_digit).count() > 6
+            })
+        {
+            return Err(ContractError::new(
+                "invalid_management_response",
+                "observation precision exceeds six fractional digits",
+            ));
+        }
         let observed = DateTime::parse_from_rfc3339(&reply.observed_at).map_err(|_| {
             ContractError::new("invalid_management_response", "invalid observation time")
         })?;
