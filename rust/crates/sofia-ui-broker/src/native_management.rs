@@ -42,6 +42,7 @@ pub mod linux {
         generation: u64,
         service_uid: u32,
         service_gid: u32,
+        socket_group_gid: Option<u32>,
         service_pid: Option<i32>,
     }
 
@@ -57,6 +58,7 @@ pub mod linux {
             generation: u64,
             service_uid: u32,
             service_gid: u32,
+            socket_group_gid: Option<u32>,
             service_pid: Option<i32>,
         ) -> Result<Self, ReadFailure> {
             let bytes = platform_id.as_bytes();
@@ -83,6 +85,7 @@ pub mod linux {
                 generation,
                 service_uid,
                 service_gid,
+                socket_group_gid,
                 service_pid,
             })
         }
@@ -219,15 +222,20 @@ pub mod linux {
         let leaf = fs::symlink_metadata(&pins.socket_path)
             .map_err(|_| ReadFailure::Offline)?;
         let mode = dir.permissions().mode() & 0o777;
+        let (expected_group, expected_dir_mode, expected_sock_mode) =
+            if let Some(group) = pins.socket_group_gid {
+                (group, 0o750, 0o660)
+            } else {
+                (pins.service_gid, 0o700, 0o600)
+            };
         if !dir.is_dir()
             || dir.uid() != pins.service_uid
-            || dir.gid() != pins.service_gid
-            || !matches!(mode, 0o700 | 0o750)
+            || dir.gid() != expected_group
+            || mode != expected_dir_mode
             || !leaf.file_type().is_socket()
             || leaf.uid() != pins.service_uid
-            || leaf.gid() != pins.service_gid
-            || (leaf.permissions().mode() & 0o777)
-                != if mode == 0o700 { 0o600 } else { 0o660 }
+            || leaf.gid() != expected_group
+            || (leaf.permissions().mode() & 0o777) != expected_sock_mode
         {
             return Err(ReadFailure::Unverified);
         }
@@ -303,6 +311,7 @@ pub mod linux {
                 3,
                 info.uid(),
                 info.gid(),
+                None,
                 Some(i32::try_from(std::process::id()).unwrap()),
             ).unwrap();
             let handle = thread::spawn(move || {
@@ -396,6 +405,33 @@ pub mod linux {
                 assert_eq!(client.next().err(), Some(expected), "{case}");
                 thread.join().unwrap();
             }
+        }
+
+        #[test]
+        fn private_and_enrolled_group_modes_do_not_downgrade() {
+            let (home, mut pins, thread) = fake_service("EOF");
+            fs::set_permissions(
+                home.path(),
+                fs::Permissions::from_mode(0o750),
+            ).unwrap();
+            fs::set_permissions(
+                &pins.socket_path,
+                fs::Permissions::from_mode(0o660),
+            ).unwrap();
+            // Different service primary and socket group must be pinned
+            // separately by B. The synthetic same-user test uses current GID,
+            // so this is mode coverage, NOT a distinct-operator acceptance.
+            pins.socket_group_gid = Some(pins.service_gid);
+            let mut client = NativeLinuxManagementReader::new(pins);
+            assert_eq!(client.next().err(), Some(ReadFailure::Offline));
+            thread.join().unwrap();
+
+            let (_home, mut pins, thread) = fake_service("EOF");
+            pins.socket_group_gid = Some(pins.service_gid);
+            let mut client = NativeLinuxManagementReader::new(pins);
+            assert_eq!(client.next().err(), Some(ReadFailure::Unverified));
+            let _ = UnixStream::connect(&client.pins.socket_path);
+            thread.join().unwrap();
         }
 
         #[test]
