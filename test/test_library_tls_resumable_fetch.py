@@ -104,7 +104,7 @@ def test_authenticated_reconnect_resumes_durable_receiver(tmp_path):
     final = fetch_resumable_chunks(
         transfer=transfer, receiver=receiver, open_enrolled_tls=open_tls,
         authorize_peer=grant, publisher_current=lambda _: True,
-        chunk_bytes=16384, max_chunks=20,
+        chunk_bytes=16384, max_chunks=20, start_offset=partial,
     )
     assert final == len(payload)
     for worker in workers:
@@ -112,6 +112,8 @@ def test_authenticated_reconnect_resumes_durable_receiver(tmp_path):
         assert not worker.is_alive()
     assert not failures
     assert len(authorizations) > 4
+    assert all(length > 0 for _, length in authorizations)
+    assert not any(offset == 0 and length == 0 for offset, length in authorizations)
     assert receiver.finalize(transfer, authorize=lambda _: True).read_bytes() == payload
 
 
@@ -142,3 +144,22 @@ def test_reject_missing_canonical_tls_source(tmp_path):
             open_enrolled_tls=lambda: None, authorize_peer=lambda *_: True,
             publisher_current=lambda _: True,
         )
+
+
+def test_reject_invalid_resume_cursor_without_network(tmp_path):
+    transfer = _transfer(b"known-bytes")
+    receiver = ChunkedArtifactReceiver(tmp_path / "quarantine", max_bytes=65536)
+    opened = []
+    def must_not_dial():
+        opened.append(True)
+        raise AssertionError("invalid resume must not start network")
+    for bad_offset in (-1, transfer.size_bytes + 1, True):
+        with pytest.raises(ChunkTransferRejected, match="resume cursor"):
+            fetch_resumable_chunks(
+                transfer=transfer, receiver=receiver,
+                open_enrolled_tls=must_not_dial,
+                authorize_peer=lambda *_: True,
+                publisher_current=lambda _: True,
+                start_offset=bad_offset,
+            )
+    assert not opened
