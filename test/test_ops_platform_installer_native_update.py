@@ -121,9 +121,6 @@ def test_b1_accepts_valid_signed_predecessor_but_not_unhistoried_one(signed_vers
 
 def test_native_register_update_repair_approved_rollback_and_remove(signed_versions):
     builder, first_manifest, first, base, tmp = signed_versions
-    staging, signed = _successor(builder, first_manifest.digest)
-    second = tmp / "release-v6"
-    install_staged_release(staging, second, store=base["store"], verifier=builder.verifier)
     backend, calls = _backend()
 
     def execute(scope, label):
@@ -135,6 +132,11 @@ def test_native_register_update_repair_approved_rollback_and_remove(signed_versi
     original = dict(base, operation="register", destination=first)
     first_result = execute(original, "approval:d028-native-initial")
     assert first_result["process_state"] == "RUNNING"
+    # Only after a valid service registration do we accept and select the
+    # separately signed direct-successor release (B1 floor becomes 6).
+    staging, signed = _successor(builder, first_manifest.digest)
+    second = tmp / "release-v6"
+    install_staged_release(staging, second, store=base["store"], verifier=builder.verifier)
 
     update = dict(base, operation="update", destination=second, previous_destination=first)
     updated = execute(update, "approval:d028-native-update")
