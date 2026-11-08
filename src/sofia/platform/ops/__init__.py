@@ -84,6 +84,8 @@ _EXPORTS: dict[str, str] = {
     "PlatformKind": ".platform_install",
     "RecoveryBundle": ".platform_install",
     "ACTIVATION_CAPABILITY": ".platform_installation",
+    "ROLLBACK_CAPABILITY": ".platform_installation",
+    "platform_rollback_request": ".platform_installation",
     "INSTALL": ".platform_installation",
     "InstallationCheckpoint": ".platform_installation",
     "PlatformInstallationDenied": ".platform_installation",
