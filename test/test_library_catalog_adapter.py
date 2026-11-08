@@ -71,6 +71,9 @@ def review(data, value, root, pub, **changes):
         manifest=value, package_root=root, now=NOW,
         target=target(), profile=OperationProfileKind.OBSERVE,
         signed_index_admit=lambda _: True, signed_content_admit=lambda *_: True,
+        current_host_scope_admit=lambda *_: True,
+        license_policy_admit=lambda _: True,
+        remote_source_preflight=lambda _: True,
         signer_binding_admit=lambda signer, ref: signer == "key:fixture-trusted"
                                                and ref == "trust:owner-modules",
         os_sdk_abi_admit=lambda row, host:
@@ -194,3 +197,58 @@ def test_hub_peer_license_and_offline_are_not_signed_execution_grants(tmp_path):
     data["items"][0]["distribution_allowed"] = True
     with pytest.raises(ModuleRecipientRejected, match="Internet"):
         review(data, value, root, pub, remote_source_current=lambda _: True)
+
+
+
+def test_denied_current_safe_scope_has_zero_archive_or_key_access(tmp_path):
+    data, value, root, pub = fixture(tmp_path)
+    calls = []
+    with pytest.raises(ModuleRecipientRejected, match="SAFE/STOP"):
+        review(
+            data, value, root / "missing", pub,
+            current_host_scope_admit=lambda *_: calls.append("safe") or False,
+            signed_content_admit=lambda *_: calls.append("content") or True,
+            publisher_key_lookup=lambda _: calls.append("key") or pub,
+        )
+    assert calls == ["safe"]
+
+
+def test_remote_offer_disallowed_even_with_permitted_license(tmp_path):
+    data, value, root, pub = fixture(tmp_path)
+    data["source"]["kind"] = "AUTHORIZED_PEER"
+    data["items"][0]["distribution_allowed"] = False
+    calls = []
+    with pytest.raises(ModuleRecipientRejected, match="remote offer"):
+        review(
+            data, value, root / "missing", pub,
+            remote_source_current=lambda _: True,
+            signed_content_admit=lambda *_: calls.append("archive") or True,
+        )
+    assert calls == []
+
+
+def test_revoked_peer_preflight_prevents_first_byte_validation(tmp_path):
+    data, value, root, pub = fixture(tmp_path)
+    data["source"]["kind"] = "AUTHORIZED_PEER"
+    calls = []
+    with pytest.raises(ModuleRecipientRejected, match="enrolled source"):
+        review(
+            data, value, root / "missing", pub,
+            remote_source_preflight=lambda _: calls.append("peer") or False,
+            signed_content_admit=lambda *_: calls.append("archive") or True,
+            remote_source_current=lambda _: True,
+        )
+    assert calls == ["peer"]
+
+
+def test_license_policy_denial_before_key_or_archive(tmp_path):
+    data, value, root, pub = fixture(tmp_path)
+    calls = []
+    with pytest.raises(ModuleRecipientRejected, match="license"):
+        review(
+            data, value, root / "missing", pub,
+            license_policy_admit=lambda _: calls.append("license") or False,
+            signed_content_admit=lambda *_: calls.append("archive") or True,
+            publisher_key_lookup=lambda _: calls.append("key") or pub,
+        )
+    assert calls == ["license"]
