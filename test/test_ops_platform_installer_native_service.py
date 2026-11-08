@@ -59,8 +59,8 @@ def test_systemd_strict_sandbox_allows_only_verified_platform_state_wal_path(nat
         unit_path=tmp_path / "aegis-platform.service",
     )
     unit = service._unit(native_spec).decode("ascii")
-    assert "ProtectSystem=strict\\n" in unit
-    assert "ProtectHome=true\\n" in unit
+    assert "ProtectSystem=strict\n" in unit
+    assert "ProtectHome=true\n" in unit
     # SQLite WAL, SHM and the canonical process/lease locks need writes
     # in this ONE B1-provisioned, service-owned local-state directory.
     allowed = "ReadWritePaths=" + str(native_spec.local_state.parent)
@@ -68,11 +68,11 @@ def test_systemd_strict_sandbox_allows_only_verified_platform_state_wal_path(nat
     assert len([line for line in unit.splitlines()
                 if line.startswith("ReadWritePaths=")]) == 1
     assert not any(line in unit for line in (
-        "ReadWritePaths=/\\n", "ReadWritePaths=/opt\\n",
-        "ReadWritePaths=/var\\n", "ReadWritePaths=/home\\n",
+        "ReadWritePaths=/\n", "ReadWritePaths=/opt\n",
+        "ReadWritePaths=/var\n", "ReadWritePaths=/home\n",
     ))
-    assert "RuntimeDirectoryMode=0700\\n" in unit
-    assert "User=aegis\\nGroup=aegis\\n" in unit
+    assert "RuntimeDirectoryMode=0700\n" in unit
+    assert "User=aegis\nGroup=aegis\n" in unit
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX native systemd path semantics")
