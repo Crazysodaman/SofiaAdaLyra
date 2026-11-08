@@ -196,6 +196,9 @@ class ManagementWindowsPipeListener:
             error = ctypes.get_last_error()
             if error == ERROR_PIPE_LISTENING:
                 return False
+            if error == ERROR_NO_DATA:
+                k.DisconnectNamedPipe(self._handle)
+                return False
             if error != ERROR_PIPE_CONNECTED:
                 raise PermissionError("Windows pipe connection unavailable")
         try:
