@@ -22,6 +22,28 @@ All six source-to-parent recommendations are **approved design targets**, but th
 
 **Next real code batch:** choose a source with easiest *correct* migration: Generalization → ML transfer review, preserving the old public `review_generalization` and exact registered capability until signed SDK compatibility tests and source-artifact inclusion pass. Never make a standalone signed module import another optional module by accident. Calendar provider integration follows only after independent privacy/permission review. Changes to `EXPECTED_OPTIONAL_IDS`, module manifests, package signatures and database migration must be a separate source-backed revision with comprehensive tests, not a hard-coded alias in an audit script.
 
+## Hot-pluggable module socket contract (owner clarification 2026-11-08)
+
+**Owner requirement:** The Platform is the permanent backplane. Optional modules are dynamically admitted/removed capability sockets: signed installation, activation, pause, disable, upgrade, and approved uninstall **must not require a Platform/OS reboot**. The Aegis GUI and headless TUI continue running and render module state after a bounded authenticated refresh without reopening Settings. A Core is a client; no Core is required for Platform module management.
+
+**Verified source foundations, not yet installed-host certification:** `platform/modules/lifecycle.py` registers exact capabilities only on complete verified activation, unregisters them during pause/drain, requires an inactive module to update its package pointer and keeps removal records. `platform/modules/operations.py` records external worker start/stop outcomes and uncertain states; `process_worker.py` has an isolated Research worker. `test/test_module_lifecycle_v1.py` already exercises activate/pause/resume/disable/remove, update+rollback without implicit auto-activation, and cold-start non-resurrection of stale capability registrations. These are code/test coverage facts, **not proof** every optional provider currently supports hot swapping or UI event auto-refresh.
+
+| Operation | Expected Platform behavior | Local module effect and boundary |
+| --- | --- | --- |
+| Discover/install/stage | Platform and unrelated modules stay running; no Core required | Only verified signed package is staged; new capability remains unavailable until approved activation |
+| Activate/reconnect | Only the exact module worker is started, registered after independent health/identity proof | Revision/generation/permissions checked; no silent permission from discovery |
+| Pause/disconnect | Immediately withdraw executable capability admissions; drain exact worker | Unrelated modules/Core/Platform remain alive; in-flight effects must reconcile |
+| Disable | Retain signed package and permitted settings but remove any active capability | UI keeps read-only module details and policy/history |
+| Upgrade/rollback | Fence old generation and suspend target worker; stage reviewed version and migrate state as approved | Restart/recreate that **one module worker** may be necessary; do not restart Platform/OS or auto-activate |
+| Remove | Apply dependency/lease safety checks; unregister all of target capabilities; audited removal | Keep history, obey owner block/unblock and data retention; external resources (e.g. Docker stacks) remain untouched |
+| Fault/reconnect | Runtime status UNKNOWN/DEGRADED during lost health, source restart or IPC outage | Re-sync snapshot/event cursor; no fake connected state from lifecycle ACTIVE |
+
+**Honest limitation:** “No reboot” means no *OS/Platform* reboot for module lifecycle. A specific worker may restart for its own update or settings apply. OS drivers, device firmware, kernel interfaces and inaccessible legacy start-only integrations may need a separately described *component* restart or reviewed maintenance window; never promise live kernel/driver changes. Current legacy Portainer tool registration uses startup environment and is not a fully hot-enrolled signed module yet.
+
+**Required cross-interface acceptance:** On installed disposable Windows/Debian hosts, run Platform + GUI + SSH TUI once. Install/activate/pause/update/remove a signed disposable module and a real provider connection. Verify live Installed/Available/Blocked/History, exact IDs, truthful health, no unrelated service restart, zero-Core operation, permission revocation, two simultaneous UI clients, and missed-event recovery. Repeat with pending settings edits and a worker crash. No signed/host evidence means NOT CERTIFIED.
+
+**Read-only Portainer follow-on in this branch:** `it_containers/portainer_projection.py`, legacy adapter `stack_inventory_summary()`, and Core tool mapping in `integrations/capabilities.py` produce bounded allowlisted stack metadata rather than raw Portainer stack records. Tests cover secrets in omitted fields, endpoint mismatch and unknown health. This is **not** stack editing, independent module enrollment, HTTPS hardening or deployment authority. Portainer inspect/logs/container tools still require a separate secret-exposure audit before assigning wider Core permissions.
+
 ## Phase B | Flesh out existing release modules
 
 | Wave | Catalog modules | Required acceptance before release |
