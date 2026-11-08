@@ -1,9 +1,9 @@
 # AG-D026 | Full 55-module rationalization and functional gap audit
 
-**Status:** SOURCE-BACKED DESIGN RECOMMENDATIONS, NOT OWNER APPROVED MERGES OR CODING ASSIGNMENTS.
+**Status:** OWNER APPROVED 2026-11-08 **for staged implementation**, not completed consolidation, signed retirement or production deployment. See [AG-D027 implementation program](AG_D027_MODULE_IMPLEMENTATION_PROGRAM.md).
 **Baseline:** GitHub `main` inspected November 8, 2026; catalog `docs/sofia2/PLATFORM_AND_MODULE_CATALOG_V1.md`, `MODULE_OWNERSHIP_MATRIX.md`, `src/sofia/modules/optional_release_audit.py`, `optional_release_packages.py`, directory inventories for release and optional modules, and sample 0.1.0 candidate source. **Not** full line-by-line audit of each module, signed install or exact-commit runtime certification.
 **Inventory:** 55 accepted catalog entries: **5 release channels + 47 optional identities + 1 attached submodule + 2 adapters**. Inventory identity is not equivalent to 55 independently deployable processes. Most optional candidate files sampled implement OBSERVE/ADVISORY/SIMULATE **over supplied, unverified projections**; the release-preparation code explicitly produces UNSIGNED, NOT_VERIFIED drafts. Existing V18 production-adjacent code in other directories may be deeper; no global code-empty conclusion is implied.
-**Decision:** Do not add new required modules now. Reuse existing modules, restore clear ownership, and promote effect-capable implementations only through Platform SDK, signed package/maintenance contract, scoped authority and installed-host evidence. All merge/attach proposals below remain **unapproved**; preserve IDs, data and signed package compatibility until migration decision.
+**Decision:** Proceed with the six reviewed consolidation targets and each module-specific refinement under [AG-D027](AG_D027_MODULE_IMPLEMENTATION_PROGRAM.md). **Only the target intent is approved**: individual migration effects and identity retirement require tested compatibility, data preservation, signed package transition and separate real-host authority. The two optional new module ideas remain conditional and are not auto-registered. Reuse existing modules, Platform SAFE/RUN and signed SDK before any production effect.
 
 ## 1. Per-entry review of all 55 modules
 

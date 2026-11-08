@@ -352,6 +352,52 @@ def test_configured_service_catalog_registers_homelab_tools(tmp_path,monkeypatch
             "github.pull_request.create","github.pull_request.merge"} <= names
 
 
+def test_core_portainer_stacks_tool_uses_redacted_summary_not_raw_metadata(
+    tmp_path, monkeypatch,
+):
+    """LLM-facing tool must not receive raw Portainer Compose/secret metadata."""
+    monkeypatch.setenv("SOFIA_PORTAINER_URL", "http://portainer.local")
+    monkeypatch.setenv("SOFIA_PORTAINER_API_KEY", "fake-test-key")
+    monkeypatch.setenv("SOFIA_PORTAINER_ENDPOINT_ID", "7")
+
+    class FakePortainer:
+        def __init__(self, url, key, endpoint_id):
+            assert endpoint_id == 7
+
+        def stacks(self):
+            raise AssertionError("Core-facing Portainer stack tool used raw data")
+
+        def stack_inventory_summary(self):
+            return {
+                "schema": "sofia.it.containers.portainer_stacks_projection.v1",
+                "module_id": "MOD-IT-CONTAINERS",
+                "endpoint_id": 7,
+                "source_verified": False,
+                "effect": "none",
+                "stacks": [{
+                    "stack_id": 42, "name": "mealie",
+                    "portainer_status_code": 1,
+                    "runtime_health": "UNKNOWN",
+                    "deployment_verified": False,
+                }],
+            }
+
+    monkeypatch.setattr(
+        "sofia.modules.integrations.capabilities.PortainerAdapter", FakePortainer,
+    )
+    entries = create_configured_integration_tools(
+        filesystem_root=tmp_path, state_path=tmp_path / "sofia.db",
+    )
+    tool = next(x for x in entries if x.capability.name == "portainer.stacks")
+    returned = tool.handler(CapabilityRequest(
+        capability=tool.capability, parameters={},
+        requested_scope=None, rationale="read authorized stack summary",
+    ))
+    assert returned["source_verified"] is False
+    assert returned["stacks"][0]["runtime_health"] == "UNKNOWN"
+    assert returned["effect"] == "none"
+
+
 def test_tool_catalog_reports_registered_and_standing_authorized(tmp_path):
     runtime=compose(_configuration(tmp_path,allowed=("tool.catalog","dev.status")))
     cap=runtime.capability_system.resolve("tool.catalog")

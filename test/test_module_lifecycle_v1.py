@@ -516,3 +516,66 @@ def test_dependency_aware_removal_refuses_installed_dependents(
             library.manifest.module_id, expected_revision=disabled.revision,
             operation_ref="approval:remove", actor="principal:sparks", now=NOW,
         )
+
+
+def test_two_hotplug_modules_do_not_unplug_each_other(canonical_state_path, tmp_path):
+    """Removing one admitted socket must not disrupt another live capability.
+
+    This is an in-process lifecycle test. OS service/GUI/TUI no-reboot
+    acceptance still requires independently installed host evidence.
+    """
+    first = verified_custom(
+        tmp_path, directory="hotplug_first", module_id="org.sofia.hotplug.first",
+        capabilities=("hotplug.first.observe",),
+    )
+    second = verified_custom(
+        tmp_path, directory="hotplug_second", module_id="org.sofia.hotplug.second",
+        capabilities=("hotplug.second.observe",),
+    )
+    system = CapabilitySystem(authorization_checker=lambda request: True)
+    lifecycle, calls = manager(canonical_state_path, tmp_path / "store", system)
+    staged_first = prepare(lifecycle, first)
+    staged_second = prepare(lifecycle, second)
+    caps_first = ((Capability("hotplug.first.observe", "first"), lambda request: None),)
+    caps_second = ((Capability("hotplug.second.observe", "second"), lambda request: None),)
+
+    active_first = lifecycle.activate(
+        first, expected_revision=staged_first.revision,
+        profile=OperationProfileKind.OBSERVE,
+        compatibility=compatibility(first), registrations=caps_first,
+        operation_ref="approval:hotplug:first", actor="principal:sparks", now=NOW,
+    )
+    active_second = lifecycle.activate(
+        second, expected_revision=staged_second.revision,
+        profile=OperationProfileKind.OBSERVE,
+        compatibility=compatibility(second), registrations=caps_second,
+        operation_ref="approval:hotplug:second", actor="principal:sparks", now=NOW,
+    )
+    assert active_first.lifecycle is ModuleLifecycle.ACTIVE
+    assert active_second.lifecycle is ModuleLifecycle.ACTIVE
+    assert system.capability_names() == (
+        "hotplug.first.observe", "hotplug.second.observe",
+    )
+
+    paused = lifecycle.pause(
+        first.manifest.module_id, expected_revision=active_first.revision,
+        operation_ref="approval:hotplug:pause", actor="principal:sparks", now=NOW,
+    )
+    assert paused.lifecycle is ModuleLifecycle.PAUSED
+    assert system.capability_names() == ("hotplug.second.observe",)
+    assert lifecycle.describe(second.manifest.module_id).revision == active_second.revision
+    assert lifecycle.describe(second.manifest.module_id).lifecycle is ModuleLifecycle.ACTIVE
+
+    disabled = lifecycle.disable(
+        first.manifest.module_id, expected_revision=paused.revision,
+        operation_ref="approval:hotplug:disable", actor="principal:sparks", now=NOW,
+    )
+    removed = lifecycle.remove(
+        first.manifest.module_id, expected_revision=disabled.revision,
+        operation_ref="approval:hotplug:remove", actor="principal:sparks", now=NOW,
+    )
+    assert removed.lifecycle is ModuleLifecycle.REMOVED
+    assert system.capability_names() == ("hotplug.second.observe",)
+    assert lifecycle.describe(second.manifest.module_id).lifecycle is ModuleLifecycle.ACTIVE
+    assert (tmp_path / "store" / first.package_digest).is_dir()
+    assert [item[0] for item in calls][-3:] == ["pause", "disable", "remove"]
