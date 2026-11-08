@@ -25,8 +25,15 @@ pub struct CatalogProvenance {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DisplayReceipt {
     pub reference: String,
+    /// Issuer identified by A/B/D evidence, not a UI approval.
+    pub issuer_identity: String,
     pub target_platform_id: String,
     pub content_sha256: String,
+    /// CURRENT service verification context; original signed receipt
+    /// generation, revision and creation time remain B/D-owned history.
+    pub evidence_generation: u64,
+    pub evidence_revision: u64,
+    pub evidence_observed_unix_ms: u64,
 }
 
 /// Each stage needs its own service-verified receipt; an earlier stage
@@ -59,6 +66,8 @@ pub struct LibraryObservation {
     pub generation: u64,
     pub state_revision: u64,
     pub sequence: u64,
+    /// External service observation time, never a UI clock approval.
+    pub observed_unix_ms: u64,
     pub safe: SafeState,
     pub catalog: Option<CatalogProvenance>,
     pub artifact: Option<ArtifactStages>,
@@ -90,6 +99,7 @@ pub enum LibraryDisplayError {
     PlatformChanged,
     GenerationRegressed,
     RevisionRegressed,
+    TimeRegressed,
     SequenceReplayed,
     InvalidProvenance,
     InvalidStageReceipt,
@@ -103,6 +113,7 @@ pub struct LibraryDisplaySession {
     generation: u64,
     revision: u64,
     sequence: u64,
+    observed_unix_ms: u64,
     last_observed: Option<Instant>,
     link: LinkState,
     last_snapshot: Option<LibraryObservation>,
@@ -115,6 +126,7 @@ impl Default for LibraryDisplaySession {
             generation: 0,
             revision: 0,
             sequence: 0,
+            observed_unix_ms: 0,
             last_observed: None,
             link: LinkState::Offline,
             last_snapshot: None,
@@ -242,7 +254,11 @@ impl LibraryDisplaySession {
         now: Instant,
     ) -> Result<(), LibraryDisplayError> {
         let identity = valid_id(&incoming.platform_id);
-        if !identity || incoming.generation == 0 || incoming.sequence == 0 {
+        if !identity
+            || incoming.generation == 0
+            || incoming.sequence == 0
+            || incoming.observed_unix_ms == 0
+        {
             self.fail(ReadFailure::UnknownGeneration);
             return Err(LibraryDisplayError::InvalidIdentity);
         }
@@ -261,6 +277,10 @@ impl LibraryDisplaySession {
         if incoming.state_revision < self.revision {
             self.fail(ReadFailure::Stale);
             return Err(LibraryDisplayError::RevisionRegressed);
+        }
+        if incoming.observed_unix_ms < self.observed_unix_ms {
+            self.fail(ReadFailure::Stale);
+            return Err(LibraryDisplayError::TimeRegressed);
         }
         if incoming.generation == self.generation && incoming.sequence <= self.sequence {
             self.fail(ReadFailure::Stale);
@@ -285,7 +305,7 @@ impl LibraryDisplaySession {
         }
         if incoming.artifact.as_ref().is_some_and(|artifact| {
             !valid_digest(&artifact.content_sha256)
-                || !stage_receipts_match(artifact, &incoming.platform_id)
+                || !stage_receipts_match(artifact, &incoming)
                 || (artifact.active.is_some() && artifact.installed.is_none())
         }) {
             self.fail(ReadFailure::Unverified);
@@ -303,6 +323,7 @@ impl LibraryDisplaySession {
         self.generation = incoming.generation;
         self.revision = incoming.state_revision;
         self.sequence = incoming.sequence;
+        self.observed_unix_ms = incoming.observed_unix_ms;
         self.pinned_platform_id = Some(incoming.platform_id.clone());
         self.last_observed = Some(now);
         self.last_snapshot = Some(incoming);
@@ -326,7 +347,7 @@ fn valid_digest(digest: &str) -> bool {
             .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
 }
 
-fn stage_receipts_match(artifact: &ArtifactStages, platform_id: &str) -> bool {
+fn stage_receipts_match(artifact: &ArtifactStages, observation: &LibraryObservation) -> bool {
     let mut seen = HashSet::new();
     [
         &artifact.downloaded,
@@ -340,9 +361,13 @@ fn stage_receipts_match(artifact: &ArtifactStages, platform_id: &str) -> bool {
     .flatten()
     .all(|receipt| {
         valid_id(&receipt.reference)
+            && valid_id(&receipt.issuer_identity)
             && seen.insert(receipt.reference.as_str())
-            && receipt.target_platform_id == platform_id
+            && receipt.target_platform_id == observation.platform_id
             && receipt.content_sha256 == artifact.content_sha256
+            && receipt.evidence_generation == observation.generation
+            && receipt.evidence_revision == observation.state_revision
+            && receipt.evidence_observed_unix_ms == observation.observed_unix_ms
     })
 }
 
@@ -365,11 +390,20 @@ mod tests {
         }
     }
 
-    fn receipt(stage: &str, artifact: &str) -> DisplayReceipt {
+    fn receipt(
+        stage: &str,
+        artifact: &str,
+        generation: u64,
+        revision: u64,
+    ) -> DisplayReceipt {
         DisplayReceipt {
             reference: format!("receipt:{stage}:1"),
+            issuer_identity: "issuer:b1".into(),
             target_platform_id: "platform:alpha".into(),
             content_sha256: artifact.into(),
+            evidence_generation: generation,
+            evidence_revision: revision,
+            evidence_observed_unix_ms: 1_000_000,
         }
     }
 
@@ -379,6 +413,7 @@ mod tests {
             generation,
             state_revision: revision,
             sequence,
+            observed_unix_ms: 1_000_000,
             safe: SafeState::Clear,
             catalog: Some(CatalogProvenance {
                 signer_key_id: "publisher:approved".into(),
@@ -388,7 +423,12 @@ mod tests {
             }),
             artifact: Some(ArtifactStages {
                 content_sha256: "b".repeat(64),
-                downloaded: Some(receipt("downloaded", &"b".repeat(64))),
+                downloaded: Some(receipt(
+                    "downloaded",
+                    &"b".repeat(64),
+                    generation,
+                    revision,
+                )),
                 verified: None,
                 staged: None,
                 installed: None,
@@ -432,10 +472,10 @@ mod tests {
         let mut ui = LibraryDisplaySession::default();
         let mut valid = snapshot(3, 7, 1);
         let artifact = valid.artifact.as_mut().unwrap();
-        artifact.verified = Some(receipt("verified", &"b".repeat(64)));
-        artifact.staged = Some(receipt("staged", &"b".repeat(64)));
-        artifact.installed = Some(receipt("installed", &"b".repeat(64)));
-        artifact.active = Some(receipt("active", &"b".repeat(64)));
+        artifact.verified = Some(receipt("verified", &"b".repeat(64), 3, 7));
+        artifact.staged = Some(receipt("staged", &"b".repeat(64), 3, 7));
+        artifact.installed = Some(receipt("installed", &"b".repeat(64), 3, 7));
+        artifact.active = Some(receipt("active", &"b".repeat(64), 3, 7));
         ui.refresh(&mut Stub(Ok(valid)), t).unwrap();
         assert_eq!(ui.stage_label("verified"), "OBSERVED_WITH_VERIFIED_SERVICE_RECEIPT");
         assert_eq!(ui.stage_label("active"), "OBSERVED_WITH_VERIFIED_SERVICE_RECEIPT");
@@ -443,7 +483,7 @@ mod tests {
         let artifact = forged.artifact.as_mut().unwrap();
         artifact.installed = Some(DisplayReceipt {
             target_platform_id: "platform:other".into(),
-            ..receipt("installed", &"b".repeat(64))
+            ..receipt("installed", &"b".repeat(64), 3, 8)
         });
         assert_eq!(
             ui.refresh(&mut Stub(Ok(forged)), t),
@@ -453,7 +493,7 @@ mod tests {
         assert_eq!(ui.stage_label("installed"), "NOT_CURRENTLY_VERIFIED");
         let mut duplicate = snapshot(3, 9, 3);
         duplicate.artifact.as_mut().unwrap().verified =
-            Some(receipt("downloaded", &"b".repeat(64)));
+            Some(receipt("downloaded", &"b".repeat(64), 3, 9));
         assert_eq!(
             ui.refresh(&mut Stub(Ok(duplicate)), t),
             Err(LibraryDisplayError::InvalidStageReceipt)
@@ -535,7 +575,7 @@ mod tests {
         );
         let mut invalid_stage = snapshot(2, 3, 1);
         invalid_stage.artifact.as_mut().unwrap().active =
-            Some(receipt("active", &"b".repeat(64)));
+            Some(receipt("active", &"b".repeat(64), 2, 3));
         assert_eq!(
             ui.refresh(&mut Stub(Ok(invalid_stage)), t),
             Err(LibraryDisplayError::InvalidStageReceipt)
