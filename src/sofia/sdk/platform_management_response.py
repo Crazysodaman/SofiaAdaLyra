@@ -30,7 +30,7 @@ _STATUS = frozenset({
     "platform_id", "generation", "operator_stop", "core_started",
 })
 _RFC3339 = re.compile(
-    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$"
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$"
 )
 _SENSITIVE = (
     "secret", "password", "credential", "access_token", "refresh_token",
