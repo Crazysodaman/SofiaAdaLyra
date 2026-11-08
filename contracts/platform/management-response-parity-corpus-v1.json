@@ -1,0 +1,180 @@
+{
+  "schema": "aegis.platform.management.parity-v1",
+  "at": "2026-11-08T04:00:01Z",
+  "cases": [
+    {
+      "name": "valid_status_explicit_null_denial",
+      "request": "status",
+      "accepted": true,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"platform.status\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"OK\",\"data\":{\"platform_id\":\"platform:alpha\",\"generation\":3,\"operator_stop\":false,\"core_started\":false},\"denial\":null}"
+    },
+    {
+      "name": "valid_typed_stop_explicit_null_data",
+      "request": "status",
+      "accepted": true,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"platform.status\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"DENIED\",\"data\":null,\"denial\":{\"code\":\"STOPPED\"}}"
+    },
+    {
+      "name": "valid_typed_not_permitted",
+      "request": "status",
+      "accepted": true,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"platform.status\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"DENIED\",\"data\":null,\"denial\":{\"code\":\"NOT_PERMITTED\"}}"
+    },
+    {
+      "name": "valid_typed_revoked",
+      "request": "status",
+      "accepted": true,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"platform.status\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"DENIED\",\"data\":null,\"denial\":{\"code\":\"REVOKED\"}}"
+    },
+    {
+      "name": "valid_typed_stale_generation",
+      "request": "status",
+      "accepted": true,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"platform.status\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"DENIED\",\"data\":null,\"denial\":{\"code\":\"STALE_GENERATION\"}}"
+    },
+    {
+      "name": "valid_typed_expired",
+      "request": "status",
+      "accepted": true,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"platform.status\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"DENIED\",\"data\":null,\"denial\":{\"code\":\"EXPIRED\"}}"
+    },
+    {
+      "name": "valid_typed_unavailable",
+      "request": "status",
+      "accepted": true,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"platform.status\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"DENIED\",\"data\":null,\"denial\":{\"code\":\"UNAVAILABLE\"}}"
+    },
+    {
+      "name": "valid_settings_unicode_line_separator",
+      "request": "settings",
+      "accepted": true,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"settings.inspect\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"OK\",\"data\":{\"message\":\" \"},\"denial\":null}"
+    },
+    {
+      "name": "valid_settings_max_exact_integer",
+      "request": "settings",
+      "accepted": true,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"settings.inspect\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"OK\",\"data\":{\"count\":9007199254740991},\"denial\":null}"
+    },
+    {
+      "name": "rejected_missing_explicit_denial_field",
+      "request": "status",
+      "accepted": false,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"platform.status\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"OK\",\"data\":{\"platform_id\":\"platform:alpha\",\"generation\":3,\"operator_stop\":false,\"core_started\":false}}"
+    },
+    {
+      "name": "rejected_missing_explicit_data_field",
+      "request": "status",
+      "accepted": false,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"platform.status\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"OK\",\"denial\":null}"
+    },
+    {
+      "name": "rejected_missing_explicit_denial_code",
+      "request": "status",
+      "accepted": false,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"platform.status\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"DENIED\",\"data\":null,\"denial\":{}}"
+    },
+    {
+      "name": "rejected_typed_denial_with_data",
+      "request": "status",
+      "accepted": false,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"platform.status\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"DENIED\",\"data\":{},\"denial\":{\"code\":\"STOPPED\"}}"
+    },
+    {
+      "name": "rejected_unreviewed_denial_code",
+      "request": "status",
+      "accepted": false,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"platform.status\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"DENIED\",\"data\":null,\"denial\":{\"code\":\"OWNER_APPROVED\"}}"
+    },
+    {
+      "name": "rejected_wrong_protocol_minor",
+      "request": "status",
+      "accepted": false,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.1\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"platform.status\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"OK\",\"data\":{\"platform_id\":\"platform:alpha\",\"generation\":3,\"operator_stop\":false,\"core_started\":false},\"denial\":null}"
+    },
+    {
+      "name": "rejected_wrong_protocol_major",
+      "request": "status",
+      "accepted": false,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"2.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"platform.status\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"OK\",\"data\":{\"platform_id\":\"platform:alpha\",\"generation\":3,\"operator_stop\":false,\"core_started\":false},\"denial\":null}"
+    },
+    {
+      "name": "rejected_stale_observation",
+      "request": "status",
+      "accepted": false,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"platform.status\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T03:59:54Z\",\"outcome\":\"OK\",\"data\":{\"platform_id\":\"platform:alpha\",\"generation\":3,\"operator_stop\":false,\"core_started\":false},\"denial\":null}"
+    },
+    {
+      "name": "rejected_future_observation",
+      "request": "status",
+      "accepted": false,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"platform.status\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:03Z\",\"outcome\":\"OK\",\"data\":{\"platform_id\":\"platform:alpha\",\"generation\":3,\"operator_stop\":false,\"core_started\":false},\"denial\":null}"
+    },
+    {
+      "name": "rejected_nine_digit_timestamp",
+      "request": "status",
+      "accepted": false,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"platform.status\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00.123456789Z\",\"outcome\":\"OK\",\"data\":{\"platform_id\":\"platform:alpha\",\"generation\":3,\"operator_stop\":false,\"core_started\":false},\"denial\":null}"
+    },
+    {
+      "name": "rejected_wrong_generation",
+      "request": "status",
+      "accepted": false,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":4,\"operation\":\"platform.status\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"OK\",\"data\":{\"platform_id\":\"platform:alpha\",\"generation\":3,\"operator_stop\":false,\"core_started\":false},\"denial\":null}"
+    },
+    {
+      "name": "rejected_c1_escaped_u0085",
+      "request": "settings",
+      "accepted": false,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"settings.inspect\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"OK\",\"data\":{\"message\":\"\"},\"denial\":null}"
+    },
+    {
+      "name": "rejected_c0_escaped_newline",
+      "request": "settings",
+      "accepted": false,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"settings.inspect\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"OK\",\"data\":{\"message\":\"\\n\"},\"denial\":null}"
+    },
+    {
+      "name": "rejected_surrogate_u_d800",
+      "request": "settings",
+      "accepted": false,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"settings.inspect\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"OK\",\"data\":{\"message\":\"\\uD800\"},\"denial\":null}"
+    },
+    {
+      "name": "rejected_surrogate_u_dfff",
+      "request": "settings",
+      "accepted": false,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"settings.inspect\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"OK\",\"data\":{\"message\":\"\\uDFFF\"},\"denial\":null}"
+    },
+    {
+      "name": "rejected_nonascii_key",
+      "request": "settings",
+      "accepted": false,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"settings.inspect\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"OK\",\"data\":{\"nönascii\":\"safe\"},\"denial\":null}"
+    },
+    {
+      "name": "rejected_oversized_integer",
+      "request": "settings",
+      "accepted": false,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"settings.inspect\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"OK\",\"data\":{\"count\":9007199254740992},\"denial\":null}"
+    },
+    {
+      "name": "rejected_negative_oversized_integer",
+      "request": "settings",
+      "accepted": false,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"settings.inspect\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"OK\",\"data\":{\"count\":-9007199254740992},\"denial\":null}"
+    },
+    {
+      "name": "rejected_oversized_float",
+      "request": "settings",
+      "accepted": false,
+      "wire": "{\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"settings.inspect\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"OK\",\"data\":{\"message\":1e300},\"denial\":null}"
+    },
+    {
+      "name": "rejected_duplicate_key",
+      "request": "status",
+      "accepted": false,
+      "wire": "{\"schema\":\"forged\",\"schema\":\"aegis.platform.management.read-response.v1\",\"protocol\":\"1.0\",\"request_id\":\"req:read:1\",\"platform_id\":\"platform:alpha\",\"platform_generation\":3,\"operation\":\"platform.status\",\"source\":\"PLATFORM_SESSION\",\"observed_at\":\"2026-11-08T04:00:00Z\",\"outcome\":\"OK\",\"data\":{\"platform_id\":\"platform:alpha\",\"generation\":3,\"operator_stop\":false,\"core_started\":false},\"denial\":null}"
+    }
+  ]
+}

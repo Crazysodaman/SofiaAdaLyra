@@ -1,0 +1,28 @@
+{
+  "schema": "aegis.platform.library.response.v1",
+  "protocol": "1.0",
+  "request_id": "req:d028:job:1",
+  "correlation_id": "corr:d028:job:1",
+  "operation": "library.transfer.status.v1",
+  "platform_id": "platform:fixture",
+  "platform_generation": 7,
+  "state_revision": 12,
+  "observed_at": "2026-11-08T04:00:01Z",
+  "outcome": "OK",
+  "data": {
+    "job_id": "job:test-only",
+    "artifact_content_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "target_platform_id": "platform:fixture",
+    "source_platform_id": "platform:peer-fixture",
+    "source_kind": "AUTHORIZED_PEER",
+    "received_bytes": 4096,
+    "verified_bytes": 0,
+    "total_bytes": 4096,
+    "state": "VERIFYING",
+    "failure": null,
+    "last_observed_at": "2026-11-08T04:00:01Z",
+    "restart_cursor": null,
+    "receipt_ref": "receipt:transfer-fixture"
+  },
+  "denial": null
+}

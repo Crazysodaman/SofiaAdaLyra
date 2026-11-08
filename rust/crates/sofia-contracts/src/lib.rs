@@ -3,6 +3,7 @@
 
 pub mod identity;
 pub mod management;
+pub mod library;
 pub mod ui_theme;
 pub use identity::{AegisIdentity, IdentityKind, IDENTITY_SCHEMA};
 

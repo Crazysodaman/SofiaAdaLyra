@@ -6,7 +6,9 @@
 
 use crate::{parse_strict, ContractError};
 use chrono::{DateTime, Duration, FixedOffset};
+use regex::Regex;
 use serde::Deserialize;
+use std::sync::OnceLock;
 
 pub const MANAGEMENT_READ_SCHEMA: &str = "aegis.platform.management.read.v1";
 pub const MANAGEMENT_READ_PROTOCOL: &str = "1.0";
@@ -35,6 +37,27 @@ fn valid_id(value: &str) -> bool {
         })
 }
 
+fn management_time(value: &str) -> Result<DateTime<FixedOffset>, ContractError> {
+    // Same exact grammar as Python _RFC3339, including case, offset and
+    // 0..6 fractional digits. chrono alone accepts more timestamp variants.
+    static FORMAT: OnceLock<Regex> = OnceLock::new();
+    let format = FORMAT.get_or_init(|| {
+        Regex::new(
+            r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$",
+        )
+        .expect("management RFC3339 format")
+    });
+    if !format.is_match(value) {
+        return Err(ContractError::new(
+            "invalid_management_timestamp",
+            "timestamp must use canonical RFC3339 with <= 6 digits",
+        ));
+    }
+    DateTime::parse_from_rfc3339(value).map_err(|_| {
+        ContractError::new("invalid_management_timestamp", "invalid timestamp")
+    })
+}
+
 impl UntrustedManagementRead {
     /// Parse untrusted read-only request syntax without granting access.
     ///
@@ -55,6 +78,7 @@ impl UntrustedManagementRead {
         if !valid_id(&request.request_id)
             || !valid_id(&request.target_platform_id)
             || request.expected_generation == 0
+            || request.expected_generation > 9_007_199_254_740_991
         {
             return Err(ContractError::new(
                 "invalid_management_read",
@@ -78,10 +102,24 @@ impl UntrustedManagementRead {
                 "only reviewed read-only management queries are permitted",
             ));
         }
-        let created = DateTime::parse_from_rfc3339(&request.created_at)
-            .map_err(|_| ContractError::new("invalid_management_read", "invalid creation time"))?;
-        let deadline = DateTime::parse_from_rfc3339(&request.deadline)
-            .map_err(|_| ContractError::new("invalid_management_read", "invalid deadline"))?;
+        // Python datetime preserves microseconds, so refuse nanosecond
+        // precision rather than silently permitting cross-language rounding.
+        if request
+            .created_at
+            .split_once('.')
+            .is_some_and(|(_, suffix)| suffix.bytes().take_while(u8::is_ascii_digit).count() > 6)
+            || request
+                .deadline
+                .split_once('.')
+                .is_some_and(|(_, suffix)| suffix.bytes().take_while(u8::is_ascii_digit).count() > 6)
+        {
+            return Err(ContractError::new(
+                "invalid_management_read",
+                "request timestamp precision exceeds six fractional digits",
+            ));
+        }
+        let created = management_time(&request.created_at)?;
+        let deadline = management_time(&request.deadline)?;
         if created > now
             || created < now - Duration::seconds(60)
             || deadline <= now
@@ -97,9 +135,277 @@ impl UntrustedManagementRead {
     }
 }
 
+pub const MANAGEMENT_RESPONSE_SCHEMA: &str = "aegis.platform.management.read-response.v1";
+pub const MAX_MANAGEMENT_RESPONSE_BYTES: usize = 32 * 1024;
+
+/// Parsed syntax and correlation only; it NEVER proves an authenticated sender.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct UntrustedManagementResponse {
+    pub schema: String,
+    pub protocol: String,
+    pub request_id: String,
+    pub platform_id: String,
+    pub platform_generation: u64,
+    pub operation: String,
+    pub source: String,
+    pub observed_at: String,
+    pub outcome: String,
+    pub data: Option<serde_json::Value>,
+    pub denial: Option<ManagementDenial>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagementDenial {
+    pub code: String,
+}
+
+fn safe_management_projection(
+    value: &serde_json::Value,
+    depth: usize,
+) -> Result<(), ContractError> {
+    if depth > 8 {
+        return Err(ContractError::new(
+            "invalid_management_response",
+            "management result nesting exceeds bound",
+        ));
+    }
+    match value {
+        serde_json::Value::Object(values) => {
+            if values.len() > 256 {
+                return Err(ContractError::new(
+                    "invalid_management_response",
+                    "management result has too many keys",
+                ));
+            }
+            for (key, member) in values {
+                let lower = key.to_ascii_lowercase();
+                if key.is_empty()
+                    || key.len() > 160
+                    || !key.is_ascii()
+                    || key.chars().any(char::is_control)
+                    || ["__proto__", "prototype", "constructor"].contains(&lower.as_str())
+                    || [
+                        "secret",
+                        "password",
+                        "credential",
+                        "access_token",
+                        "refresh_token",
+                        "private_key",
+                        "api_key",
+                        "owner_proof",
+                        "authorization",
+                    ]
+                    .iter()
+                    .any(|name| lower.contains(*name))
+                {
+                    return Err(ContractError::new(
+                        "invalid_management_response",
+                        "management result contains unsafe key",
+                    ));
+                }
+                safe_management_projection(member, depth + 1)?;
+            }
+        }
+        serde_json::Value::Array(values) => {
+            if values.len() > 1024 {
+                return Err(ContractError::new(
+                    "invalid_management_response",
+                    "management result array exceeds bound",
+                ));
+            }
+            for member in values {
+                safe_management_projection(member, depth + 1)?;
+            }
+        }
+        serde_json::Value::Number(number) => {
+            const MAX_EXACT_JSON_INTEGER: f64 = 9_007_199_254_740_991.0;
+            // If a huge integer token became f64 during serde parsing,
+            // reject it too. Never advertise cross-language exactness that
+            // Python, Rust and a GUI client cannot preserve identically.
+            let Some(value) = number.as_f64() else {
+                return Err(ContractError::new(
+                    "invalid_management_response",
+                    "unrepresentable management numeric value",
+                ));
+            };
+            if !value.is_finite() || value.abs() > MAX_EXACT_JSON_INTEGER {
+                return Err(ContractError::new(
+                    "invalid_management_response",
+                    "management numeric value exceeds portable JSON range",
+                ));
+            }
+        }
+        serde_json::Value::String(value) => {
+            if value.chars().any(char::is_control) {
+                return Err(ContractError::new(
+                    "invalid_management_response",
+                    "management result contains control characters",
+                ));
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+impl UntrustedManagementResponse {
+    /// Parse only bounded, correlated, fresh syntax; transport trust is independent.
+    ///
+    /// # Errors
+    /// Reject duplicate keys, stale/future responses, secret payload and forged denial.
+    pub fn parse(
+        raw: &[u8],
+        expected: &UntrustedManagementRead,
+        now: DateTime<FixedOffset>,
+    ) -> Result<Self, ContractError> {
+        if raw.is_empty() || raw.len() > MAX_MANAGEMENT_RESPONSE_BYTES {
+            return Err(ContractError::new(
+                "invalid_management_response",
+                "response byte size exceeds bound",
+            ));
+        }
+        let value = parse_strict(raw)?;
+        // Serde's Option<T> permits *missing* fields by default; Python's
+        // canonical v1 parser requires all eleven envelope keys, including
+        // explicit null for the unused data or denial side. Fence that here.
+        let keys = value.as_object().ok_or_else(|| {
+            ContractError::new("invalid_management_response", "response must be an object")
+        })?;
+        const REQUIRED: [&str; 11] = [
+            "schema", "protocol", "request_id", "platform_id",
+            "platform_generation", "operation", "source", "observed_at",
+            "outcome", "data", "denial",
+        ];
+        if keys.len() != REQUIRED.len() || REQUIRED.iter().any(|key| !keys.contains_key(*key)) {
+            return Err(ContractError::new(
+                "invalid_management_response",
+                "response envelope must include every versioned field",
+            ));
+        }
+        let reply: Self = serde_json::from_value(value).map_err(|_| {
+            ContractError::new("invalid_management_response", "response fields invalid")
+        })?;
+        if reply.schema != MANAGEMENT_RESPONSE_SCHEMA
+            || reply.protocol != MANAGEMENT_READ_PROTOCOL
+            || reply.source != "PLATFORM_SESSION"
+            || reply.request_id != expected.request_id
+            || reply.platform_id != expected.target_platform_id
+            || reply.platform_generation != expected.expected_generation
+            || reply.operation != expected.operation
+        {
+            return Err(ContractError::new(
+                "uncorrelated_management_response",
+                "management response identity, generation or operation mismatch",
+            ));
+        }
+        // Python datetime stores microseconds, while chrono accepts nanos.
+        // Freeze 0..6 digits so freshness comparisons cannot disagree at
+        // a nanosecond boundary across GUI/TUI and service clients.
+        if reply
+            .observed_at
+            .split_once('.')
+            .is_some_and(|(_, suffix)| {
+                suffix.bytes().take_while(u8::is_ascii_digit).count() > 6
+            })
+        {
+            return Err(ContractError::new(
+                "invalid_management_response",
+                "observation precision exceeds six fractional digits",
+            ));
+        }
+        let observed = management_time(&reply.observed_at)?;
+        let created = management_time(&expected.created_at)?;
+        let deadline = management_time(&expected.deadline)?;
+        if observed < created
+            || observed > now
+            || observed >= deadline
+            || now >= deadline
+            || now - observed > Duration::seconds(5)
+        {
+            return Err(ContractError::new(
+                "stale_management_response",
+                "management observation outside fresh request window",
+            ));
+        }
+        match reply.outcome.as_str() {
+            "OK" => {
+                if reply.denial.is_some() {
+                    return Err(ContractError::new(
+                        "invalid_management_response",
+                        "successful observation may not contain a denial",
+                    ));
+                }
+                let Some(serde_json::Value::Object(data)) = reply.data.as_ref() else {
+                    return Err(ContractError::new(
+                        "invalid_management_response",
+                        "successful observation requires an object",
+                    ));
+                };
+                safe_management_projection(&serde_json::Value::Object(data.clone()), 0)?;
+                if reply.operation == "platform.status"
+                    && (data.len() != 4
+                        || data.get("platform_id").and_then(serde_json::Value::as_str)
+                            != Some(expected.target_platform_id.as_str())
+                        || data.get("generation").and_then(serde_json::Value::as_u64)
+                            != Some(expected.expected_generation)
+                        || data
+                            .get("core_started")
+                            .and_then(serde_json::Value::as_bool)
+                            != Some(false)
+                        || data
+                            .get("operator_stop")
+                            .and_then(serde_json::Value::as_bool)
+                            != Some(false))
+                {
+                    return Err(ContractError::new(
+                        "invalid_management_response",
+                        "Platform status projection differs from trusted request",
+                    ));
+                }
+            }
+            "DENIED" => {
+                let Some(denial) = reply.denial.as_ref() else {
+                    return Err(ContractError::new(
+                        "invalid_management_response",
+                        "typed denial code required",
+                    ));
+                };
+                if reply.data.is_some()
+                    || !matches!(
+                        denial.code.as_str(),
+                        "NOT_PERMITTED"
+                            | "REVOKED"
+                            | "STOPPED"
+                            | "STALE_GENERATION"
+                            | "EXPIRED"
+                            | "UNAVAILABLE"
+                    )
+                {
+                    return Err(ContractError::new(
+                        "invalid_management_response",
+                        "management denial malformed",
+                    ));
+                }
+            }
+            _ => {
+                return Err(ContractError::new(
+                    "invalid_management_response",
+                    "management outcome unsupported",
+                ));
+            }
+        }
+        Ok(reply)
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{UntrustedManagementRead, MANAGEMENT_READ_PROTOCOL, MANAGEMENT_READ_SCHEMA};
+    use super::{
+        UntrustedManagementRead, UntrustedManagementResponse, MANAGEMENT_READ_PROTOCOL,
+        MANAGEMENT_READ_SCHEMA,
+    };
     use serde_json::{json, Value};
 
     fn valid() -> (Value, chrono::DateTime<chrono::FixedOffset>) {
@@ -178,4 +484,241 @@ mod tests {
         value["created_at"] = json!("2026-11-08T03:50:00Z");
         assert!(UntrustedManagementRead::parse(value.to_string().as_bytes(), now).is_err());
     }
+    #[test]
+    fn management_reply_shared_fixture_and_denial_are_strict() {
+        let request_json =
+            include_str!("../../../../contracts/platform/management-read-valid-v1.json");
+        let response_json =
+            include_str!("../../../../contracts/platform/management-read-response-valid-v1.json");
+        let start =
+            chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:00Z").expect("known start");
+        let now = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:01Z")
+            .expect("known receiver time");
+        let request =
+            UntrustedManagementRead::parse(request_json.as_bytes(), start).expect("shared request");
+        let response = UntrustedManagementResponse::parse(response_json.as_bytes(), &request, now)
+            .expect("correlated read observation");
+        assert_eq!(response.outcome, "OK");
+        assert_eq!(response.platform_generation, 3);
+
+        let mut value: Value = serde_json::from_str(response_json).expect("response");
+        value["outcome"] = json!("DENIED");
+        value["data"] = Value::Null;
+        value["denial"] = json!({"code":"NOT_PERMITTED"});
+        assert!(
+            UntrustedManagementResponse::parse(value.to_string().as_bytes(), &request, now).is_ok()
+        );
+        value["denial"] = json!({"code":"UNREVIEWED"});
+        assert!(
+            UntrustedManagementResponse::parse(value.to_string().as_bytes(), &request, now)
+                .is_err()
+        );
+        value["denial"] = json!({"code":"NOT_PERMITTED"});
+        value["data"] = json!({});
+        assert!(
+            UntrustedManagementResponse::parse(value.to_string().as_bytes(), &request, now)
+                .is_err()
+        );
+
+        // Absent Option<T> is NOT equivalent to explicit null in v1.
+        let mut omitted: Value = serde_json::from_str(response_json).expect("response");
+        omitted.as_object_mut().expect("object").remove("denial");
+        assert!(UntrustedManagementResponse::parse(
+            omitted.to_string().as_bytes(), &request, now
+        ).is_err());
+        let mut omitted_data: Value = serde_json::from_str(response_json).expect("response");
+        omitted_data.as_object_mut().expect("object").remove("data");
+        assert!(UntrustedManagementResponse::parse(
+            omitted_data.to_string().as_bytes(), &request, now
+        ).is_err());
+        let mut forged: Value = serde_json::from_str(response_json).expect("response");
+        forged["platform_generation"] = json!(4);
+        assert!(
+            UntrustedManagementResponse::parse(forged.to_string().as_bytes(), &request, now)
+                .is_err()
+        );
+        forged["platform_generation"] = json!(3);
+        forged["data"]["owner_secret"] = json!("leak");
+        assert!(
+            UntrustedManagementResponse::parse(forged.to_string().as_bytes(), &request, now)
+                .is_err()
+        );
+        let duplicate = response_json.replacen('{', r#"{"schema":"forged","#, 1);
+        assert!(UntrustedManagementResponse::parse(duplicate.as_bytes(), &request, now).is_err());
+        let late =
+            chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:06Z").expect("known late time");
+        assert!(
+            UntrustedManagementResponse::parse(response_json.as_bytes(), &request, late).is_err()
+        );
+    }
+
+    #[test]
+    fn timestamp_grammar_matches_python_six_digit_and_uppercase_contract() {
+        use super::management_time;
+        for allowed in [
+            "2026-11-08T04:00:00Z",
+            "2026-11-08T04:00:00.123456Z",
+            "2026-11-08T04:00:00+00:00",
+        ] {
+            assert!(management_time(allowed).is_ok(), "{allowed}");
+        }
+        for denied in [
+            "2026-11-08t04:00:00z",
+            "2026-11-08T04:00:00.1234567Z",
+            "2026-11-08T04:00:00",
+            "2026-11-08T04:00:00+0000",
+        ] {
+            assert!(management_time(denied).is_err(), "{denied}");
+        }
+    }
+
+    #[test]
+    fn shared_29_case_rust_python_management_wire_corpus() {
+        let corpus: Value = serde_json::from_str(include_str!(
+            "../../../../contracts/platform/management-response-parity-corpus-v1.json"
+        ))
+        .expect("shared versioned corpus");
+        assert_eq!(corpus["schema"], "aegis.platform.management.parity-v1");
+        let vectors = corpus["cases"].as_array().expect("corpus cases");
+        assert_eq!(vectors.len(), 29);
+        let moment = chrono::DateTime::parse_from_rfc3339(
+            corpus["at"].as_str().expect("trusted fixture time"),
+        )
+        .expect("trusted fixture time");
+        let status = UntrustedManagementRead::parse(
+            include_str!("../../../../contracts/platform/management-read-valid-v1.json")
+                .as_bytes(),
+            moment,
+        )
+        .expect("shared status request");
+        let settings = UntrustedManagementRead::parse(
+            include_str!("../../../../contracts/platform/management-read-settings-valid-v1.json")
+                .as_bytes(),
+            moment,
+        )
+        .expect("shared settings request");
+        for vector in vectors {
+            let name = vector["name"].as_str().expect("vector label");
+            let request = match vector["request"].as_str().expect("vector request") {
+                "status" => &status,
+                "settings" => &settings,
+                _ => panic!("unsupported corpus request class: {name}"),
+            };
+            let raw = vector["wire"].as_str().expect("raw JSON wire");
+            let accepted = vector["accepted"].as_bool().expect("expected verdict");
+            let result = UntrustedManagementResponse::parse(raw.as_bytes(), request, moment);
+            assert_eq!(result.is_ok(), accepted, "parity vector: {name}");
+        }
+    }
+
+    #[test]
+    fn management_portable_numbers_and_missing_optional_keys_are_refused() {
+        let request_json = include_str!(
+            "../../../../contracts/platform/management-read-settings-valid-v1.json"
+        );
+        let response_json = include_str!(
+            "../../../../contracts/platform/management-read-response-valid-v1.json"
+        );
+        let start = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:00Z")
+            .expect("start");
+        let now = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:01Z")
+            .expect("now");
+        let request = UntrustedManagementRead::parse(request_json.as_bytes(), start)
+            .expect("settings fixture");
+        let mut reply: Value = serde_json::from_str(response_json).expect("fixture");
+        reply["operation"] = json!("settings.inspect");
+        for numeric in [
+            json!(9_007_199_254_740_992_u64),
+            json!(-9_007_199_254_740_992_i64),
+            json!(9_007_199_254_740_993_u64),
+            json!(1.0e300_f64),
+        ] {
+            reply["data"] = json!({"revision": numeric});
+            assert!(
+                UntrustedManagementResponse::parse(
+                    reply.to_string().as_bytes(), &request, now
+                )
+                .is_err(),
+                "out of portable range must fail closed"
+            );
+        }
+        let mut ok: Value = serde_json::from_str(response_json).expect("fixture");
+        let req = UntrustedManagementRead::parse(
+            include_str!("../../../../contracts/platform/management-read-valid-v1.json").as_bytes(),
+            start,
+        )
+        .expect("status");
+        ok.as_object_mut().expect("object").remove("denial");
+        assert!(UntrustedManagementResponse::parse(
+            ok.to_string().as_bytes(), &req, now
+        ).is_err());
+        let mut missing: Value = serde_json::from_str(response_json).expect("fixture");
+        missing.as_object_mut().expect("object").remove("data");
+        assert!(UntrustedManagementResponse::parse(
+            missing.to_string().as_bytes(), &req, now
+        ).is_err());
+
+        let mut too_large: Value = serde_json::from_str(
+            include_str!("../../../../contracts/platform/management-read-valid-v1.json")
+        ).expect("request");
+        too_large["expected_generation"] = json!(9_007_199_254_740_992_u64);
+        assert!(UntrustedManagementRead::parse(
+            too_large.to_string().as_bytes(), start
+        ).is_err());
+    }
+
+    #[test]
+    fn shared_denial_and_unicode_c1_parity_corpus() {
+        let request_json =
+            include_str!("../../../../contracts/platform/management-read-valid-v1.json");
+        let denied_json =
+            include_str!("../../../../contracts/platform/management-read-response-denied-v1.json");
+        let settings_json =
+            include_str!("../../../../contracts/platform/management-read-settings-valid-v1.json");
+        let c1_json =
+            include_str!("../../../../contracts/platform/management-read-response-invalid-c1-v1.json");
+        let start = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:00Z")
+            .expect("known start");
+        let now = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:01Z")
+            .expect("known receiver");
+        let request = UntrustedManagementRead::parse(request_json.as_bytes(), start)
+            .expect("valid status request");
+        let denied = UntrustedManagementResponse::parse(
+            denied_json.as_bytes(), &request, now,
+        ).expect("correlated typed denial");
+        assert_eq!(denied.outcome, "DENIED");
+        assert_eq!(denied.denial.expect("denial").code, "STOPPED");
+        let settings = UntrustedManagementRead::parse(settings_json.as_bytes(), start)
+            .expect("valid read syntax");
+        assert!(UntrustedManagementResponse::parse(
+            c1_json.as_bytes(), &settings, now,
+        ).is_err());
+        let mut allowed: Value = serde_json::from_str(c1_json).expect("strict fixture");
+        allowed["data"] = json!({"message":"\u{2028}"});
+        assert!(UntrustedManagementResponse::parse(
+            allowed.to_string().as_bytes(), &settings, now,
+        ).is_ok());
+        allowed["data"] = json!({"nönascii":"safe"});
+        let surrogate = r#"{"value":"\ud800"}"#;
+        assert!(serde_json::from_str::<Value>(surrogate).is_err());
+        assert!(UntrustedManagementResponse::parse(
+            allowed.to_string().as_bytes(), &settings, now,
+        ).is_err());
+    }
+
+    #[test]
+    fn reject_request_nanoseconds_before_authorization() {
+        let raw = include_str!("../../../../contracts/platform/management-read-valid-v1.json");
+        let now = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:00Z")
+            .expect("known time");
+        let mut request: Value = serde_json::from_str(raw).expect("fixture");
+        request["created_at"] = json!("2026-11-08T03:59:59.123456789Z");
+        assert!(UntrustedManagementRead::parse(request.to_string().as_bytes(), now).is_err());
+        request["created_at"] = json!("2026-11-08T03:59:59.123456Z");
+        request["deadline"] = json!("2026-11-08T04:00:05.123456789Z");
+        assert!(UntrustedManagementRead::parse(request.to_string().as_bytes(), now).is_err());
+        request["deadline"] = json!("2026-11-08T04:00:05.123456Z");
+        assert!(UntrustedManagementRead::parse(request.to_string().as_bytes(), now).is_ok());
+    }
+
 }

@@ -1,0 +1,80 @@
+name: Aegis Linux Kernel Peer Transport
+
+on:
+  pull_request:
+    paths:
+      - 'src/sofia/platform/run/local_peer.py'
+      - 'test/test_run_local_peer_kernel.py'
+      - 'test/test_run_management_unix_listener.py'
+      - 'src/sofia/platform/run/management_unix_listener.py'
+      - 'src/sofia/platform/run/management_read.py'
+      - 'test/test_run_management_read_dispatch.py'
+      - 'src/sofia/platform/run/management_windows_pipe.py'
+      - 'test/test_run_management_windows_pipe.py'
+      - 'src/sofia/platform/run/management_peer_authority.py'
+      - 'src/sofia/platform/run/platform_service.py'
+      - 'src/sofia/platform/safe/permissions.py'
+      - 'test/test_platform_service_management_ipc.py'
+      - 'test/test_platform_management_safe_service_e2e_linux.py'
+      - 'src/sofia/sdk/platform_management_client.py'
+      - 'test/test_sdk_platform_management_client_linux.py'
+      - 'test/test_sdk_platform_management_client_cross_uid_linux.py'
+      - 'test/test_safe_platform_library_contract_preview.py'
+      - 'contracts/platform/library-*-preview-v1.json'
+      - '.github/workflows/aegis-unix-kernel-peer.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/sofia/platform/run/local_peer.py'
+      - 'test/test_run_local_peer_kernel.py'
+      - 'test/test_run_management_unix_listener.py'
+      - 'src/sofia/platform/run/management_unix_listener.py'
+      - 'src/sofia/platform/run/management_read.py'
+      - 'test/test_run_management_read_dispatch.py'
+      - 'src/sofia/platform/run/management_windows_pipe.py'
+      - 'test/test_run_management_windows_pipe.py'
+      - 'src/sofia/platform/run/management_peer_authority.py'
+      - 'src/sofia/platform/run/platform_service.py'
+      - 'src/sofia/platform/safe/permissions.py'
+      - 'test/test_platform_service_management_ipc.py'
+      - 'test/test_platform_management_safe_service_e2e_linux.py'
+      - 'src/sofia/sdk/platform_management_client.py'
+      - 'test/test_sdk_platform_management_client_linux.py'
+      - 'test/test_sdk_platform_management_client_cross_uid_linux.py'
+      - 'test/test_safe_platform_library_contract_preview.py'
+      - 'contracts/platform/library-*-preview-v1.json'
+      - '.github/workflows/aegis-unix-kernel-peer.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  peer-credential-contract:
+    name: Kernel peer / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify exact checked-out HEAD
+        shell: bash
+        run: |
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          actual="$(git rev-parse HEAD)"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "Wrong checked-out source SHA" >&2
+            exit 1
+          fi
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install exact-source test dependencies
+        run: python -m pip install -e . pytest
+      - name: Test verified kernel peer provenance and bounded response
+        run: python -m pytest -q test/test_run_local_peer_kernel.py test/test_run_management_unix_listener.py test/test_run_management_read_dispatch.py test/test_run_management_windows_pipe.py test/test_platform_service_management_ipc.py test/test_platform_management_safe_service_e2e_linux.py test/test_sdk_platform_management_client_linux.py test/test_sdk_platform_management_client_cross_uid_linux.py test/test_platform_service_session.py test/test_safe_platform_library_contract_preview.py

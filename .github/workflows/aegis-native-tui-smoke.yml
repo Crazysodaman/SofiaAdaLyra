@@ -1,0 +1,93 @@
+name: Aegis Native Rust TUI Smoke
+
+on:
+  pull_request:
+    paths:
+      - "rust/crates/sofia-ui-broker/src/bin/aegis_tui.rs"
+      - "rust/crates/sofia-ui-broker/src/control_center_session.rs"
+      - "rust/crates/sofia-ui-broker/src/library_display.rs"
+      - "rust/crates/sofia-ui-broker/src/native_management.rs"
+      - "rust/crates/sofia-ui-broker/Cargo.toml"
+      - "rust/crates/sofia-contracts/src/management.rs"
+      - "contracts/platform/management-response-parity-corpus-v1.json"
+      - "Cargo.lock"
+      - "contracts/ui/aegis-theme-v1.json"
+      - "test/test_ui_aegis_tui_binary_smoke.py"
+      - "test/capture_aegis_tui_evidence.py"
+      - ".github/workflows/aegis-native-tui-smoke.yml"
+  push:
+    branches: [main]
+    paths:
+      - "rust/crates/sofia-ui-broker/src/bin/aegis_tui.rs"
+      - "rust/crates/sofia-ui-broker/src/control_center_session.rs"
+      - "rust/crates/sofia-ui-broker/src/library_display.rs"
+      - "rust/crates/sofia-ui-broker/src/native_management.rs"
+      - "rust/crates/sofia-ui-broker/Cargo.toml"
+      - "rust/crates/sofia-contracts/src/management.rs"
+      - "contracts/platform/management-response-parity-corpus-v1.json"
+      - "Cargo.lock"
+      - "test/test_ui_aegis_tui_binary_smoke.py"
+      - "test/capture_aegis_tui_evidence.py"
+      - ".github/workflows/aegis-native-tui-smoke.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  native-binary:
+    name: Rust TUI / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact checked-out source SHA
+        shell: bash
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          actual="$(git rev-parse HEAD)"
+          if [ "$actual" != "$EXPECTED_SOURCE_SHA" ]; then
+            printf 'WRONG_SHA expected=%s actual=%s\n' "$EXPECTED_SOURCE_SHA" "$actual"
+            exit 1
+          fi
+          printf 'EXACT_SOURCE_SHA=%s\n' "$actual"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.88.0
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Rust format check
+        run: cargo fmt --all --check
+      - name: Rust Clippy check
+        run: cargo clippy --locked -p sofia-ui-broker --all-targets -- -D warnings
+      - name: Verify exact Team A management response 29-vector Rust corpus
+        run: cargo test --locked -p sofia-contracts shared_29_case_rust_python_management_wire_corpus -- --nocapture
+      - name: Verify Core-free UI display state policies and native OS client
+        run: cargo test --locked -p sofia-ui-broker
+      - name: Build Core-free native terminal binary
+        run: cargo build --locked -p sofia-ui-broker --bin aegis_tui
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install narrow test harness
+        run: python -m pip install pytest
+      - name: Exercise headless, denied mutation, plain output and help
+        run: python -m pytest -q test/test_ui_aegis_tui_binary_smoke.py
+      - name: Capture native TUI read-only evidence
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python test/capture_aegis_tui_evidence.py
+      - name: Preserve exact-SHA TUI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aegis-tui-${{ matrix.os }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: aegis-native-tui-evidence.json
+          if-no-files-found: warn

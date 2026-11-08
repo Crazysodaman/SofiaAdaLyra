@@ -1,0 +1,51 @@
+name: Aegis D028 Four Host Evidence Intake (Team E)
+
+on:
+  pull_request:
+    paths:
+      - 'tools/aegis_platform_row_preflight.py'
+      - 'test/test_ops_platform_row_preflight.py'
+      - 'test/fixtures/aegis_d028/qa_four_host_topology.json'
+      - 'docs/development/PLATFORM_1_0_TEAM_E_D028_DISPOSABLE_TOPOLOGY_2026-11-08.md'
+      - '.github/workflows/aegis-d028-four-host-preflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  plan-only:
+    name: D028 fail-closed fixture and receipt intake (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    steps:
+      - name: Checkout exact reviewed source, not PR synthetic merge
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Configure Python for CI only, not target OS
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test-only sources
+        shell: bash
+        run: python -m pip install -e . pytest
+      - name: Run negative tests without external hosts, installers or signing
+        shell: bash
+        run: python -m pytest -q test/test_ops_platform_row_preflight.py test/test_package_grouping.py
+      - name: Export exact-source 38-row plus LIB-16 four-host PLAN ONLY
+        shell: bash
+        run: |
+          python -m tools.aegis_platform_row_preflight --include-artifact-library --d028-four-host --output d028-four-host-preflight.json
+          python -c 'import json; p=json.load(open("d028-four-host-preflight.json",encoding="utf-8")); assert p["row_count"]==38 and len(p["artifact_library"]["scenarios"])==16 and p["d028_four_host"]["scenario_count"]==16; assert not p["release_accepted"] and not p["d028_four_host"]["release_accepted"]; assert all(x["acceptance"]=="NOT_CLAIMED" for x in p["d028_four_host"]["scenarios"])'
+      - name: Preserve source-only plan receipt, never signed installed-host proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: d028-e-four-host-plan-only-${{ matrix.os }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: d028-four-host-preflight.json
+          if-no-files-found: error
+          retention-days: 14
