@@ -152,12 +152,17 @@ def preview_signed_seed_cache(
             }),
         )
         installed = bool(verified["manifest_sha256"] == manifest.digest)
+    checkpoint = store.checkpoint()
+    b1_generation = 0 if checkpoint is None else checkpoint.generation
+    b1_floor = 0 if checkpoint is None else checkpoint.minimum_accepted_revision
     # A durable installed/activated receipt does not prove the OS service is
     # healthy *now*. ACTIVE remains UNKNOWN without Team A's live observation.
     return {
         "schema": "aegis.platform.library.local-cache-review.v1",
         "release_id": manifest.release_id,
         "asset_kind": asset.kind,
+        "b1_generation": b1_generation,
+        "b1_revision_floor": b1_floor,
         "artifact_digest": ref.sha256,
         "artifact_size_bytes": ref.size_bytes,
         "manifest_sha256": manifest.digest,
@@ -213,6 +218,8 @@ def admit_signed_seed_asset_with_owner_proof(
         manifest_sha256=plan["manifest_sha256"],
         asset_sha256=plan["artifact_digest"],
         asset_size_bytes=plan["artifact_size_bytes"],
+        b1_generation=plan["b1_generation"],
+        b1_revision_floor=plan["b1_revision_floor"],
         target=expected_target.value,
         source="OFFLINE_MEDIA",
         state=str(safe),
@@ -238,6 +245,7 @@ def admit_signed_seed_asset_with_owner_proof(
     if any(repeated[k] != plan[k] for k in (
         "release_id", "manifest_sha256", "artifact_digest",
         "artifact_size_bytes", "signer_key_id",
+        "b1_generation", "b1_revision_floor",
     )):
         raise PlatformReleaseRejected("signed selected artifact changed after approval")
     root, manifest, _trust = _verified_seed(
