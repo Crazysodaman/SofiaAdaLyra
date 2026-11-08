@@ -97,6 +97,68 @@ impl UntrustedManagementRead {
     }
 }
 
+
+/// A read-only reply that has passed schema and request-correlation checks.
+/// This is *not* evidence that the reply came from an authenticated service.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct UntrustedManagementStatus {
+    pub schema: String,
+    pub protocol: String,
+    pub request_id: String,
+    pub platform_id: String,
+    pub platform_generation: u64,
+    pub operation: String,
+    pub source: String,
+    pub data: ManagementStatusData,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagementStatusData {
+    pub platform_id: String,
+    pub generation: u64,
+    pub operator_stop: bool,
+    pub core_started: bool,
+}
+
+impl UntrustedManagementStatus {
+    /// Strict parsing does not authenticate an IPC sender.
+    ///
+    /// # Errors
+    /// Reject oversized, duplicated, uncorrelated or forged-status fields.
+    pub fn parse(raw: &[u8], expected: &UntrustedManagementRead) -> Result<Self, ContractError> {
+        if raw.is_empty() || raw.len() > 65536 || expected.operation != "platform.status" {
+            return Err(ContractError::new(
+                "invalid_management_status",
+                "bounded status response requires matching status operation",
+            ));
+        }
+        let value = parse_strict(raw)?;
+        let response: Self = serde_json::from_value(value).map_err(|error| {
+            ContractError::new("invalid_management_status", error.to_string())
+        })?;
+        if response.schema != "aegis.platform.management.read-response.v1"
+            || response.protocol != MANAGEMENT_READ_PROTOCOL
+            || response.operation != "platform.status"
+            || response.source != "PLATFORM_SESSION"
+            || response.request_id != expected.request_id
+            || response.platform_id != expected.target_platform_id
+            || response.platform_generation != expected.expected_generation
+            || response.data.platform_id != expected.target_platform_id
+            || response.data.generation != expected.expected_generation
+            || response.data.core_started
+            || response.data.operator_stop
+        {
+            return Err(ContractError::new(
+                "uncorrelated_management_status",
+                "current Platform identity, generation or operation mismatch",
+            ));
+        }
+        Ok(response)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{UntrustedManagementRead, MANAGEMENT_READ_PROTOCOL, MANAGEMENT_READ_SCHEMA};
