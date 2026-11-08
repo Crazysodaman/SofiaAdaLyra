@@ -15,6 +15,7 @@ THEME="$ROOT/contracts/ui/aegis-theme-v1.json"
 MODE=menu
 PLAIN=0
 JSON_MODE=0
+DRY_RUN=0
 OPERATION=none
 
 usage() {
@@ -31,7 +32,7 @@ while (($#)); do
     --help|-h) MODE=help; shift ;;
     --no-color|--plain|--line-mode) PLAIN=1; shift ;;
     --json) JSON_MODE=1; shift ;;
-    --dry-run) shift ;;
+    --dry-run) DRY_RUN=1; shift ;;
     --operation)
       if (($# < 2)); then printf '%s\n' 'Missing operation' >&2; exit 2; fi
       OPERATION="$2"
@@ -64,6 +65,9 @@ if [[ "$PLAIN" -eq 0 && "$JSON_MODE" -eq 0 && -t 0 && -t 1 && ! -v NO_COLOR &&
   else
     use_color=1
   fi
+  # Narrow SSH/serial windows use monochrome instead of clipped color art.
+  width="$(tput cols 2>/dev/null || printf 80)"
+  if [[ "$width" =~ ^[0-9]{1,4}$ ]] && ((width < 64)); then use_color=0; fi
 fi
 
 paint() {
@@ -133,8 +137,8 @@ if [[ "$MODE" == operation ]]; then
     *) blocked; exit 3 ;;
   esac
 fi
-if [[ "$JSON_MODE" -eq 1 ]]; then
-  printf '%s\n' '--json requires --check or --operation' >&2
+if [[ "$JSON_MODE" -eq 1 || "$DRY_RUN" -eq 1 ]]; then
+  printf '%s\n' '--json/--dry-run require --check or --operation' >&2
   exit 2
 fi
 if [[ ! -t 0 || ! -t 1 ]]; then
