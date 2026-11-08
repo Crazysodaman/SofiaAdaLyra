@@ -178,3 +178,72 @@ def test_native_unknown_operation_refuses_any_backend(installed_scope):
     with pytest.raises(PlatformInstallationDenied, match="unsupported"):
         native_service_operation_request(**scope)
     assert calls == []
+
+
+def test_revoked_credential_blocks_native_effect_even_with_saved_approval(
+        installed_scope):
+    import sqlite3
+    scope = dict(installed_scope)
+    backend, calls = fake_backend()
+    now = datetime.now(timezone.utc)
+    approval = grant_for_request(scope, id="approval:b2-revoked-credential", now=now)
+    with sqlite3.connect(scope["canonical_safe_state"]) as conn:
+        conn.execute("UPDATE safe_owner_credential SET revoked_at=?",
+                     (now.isoformat(),))
+    with pytest.raises(PermissionError, match="authentication"):
+        apply_owner_approved_native_service(
+            **scope, backend=backend, approval_id=approval.approval_id, now=now,
+        )
+    assert calls == []
+    assert not (scope["store"].path.parent / "native-service-transaction.json").exists()
+
+
+def test_operator_stop_before_effect_denies_native_registration(
+        installed_scope, monkeypatch):
+    import sofia.platform.ops.platform_installer_native_transaction as transaction
+    from types import SimpleNamespace
+
+    scope = dict(installed_scope)
+    backend, calls = fake_backend()
+    now = datetime.now(timezone.utc)
+    approval = grant_for_request(scope, id="approval:b2-stop-before", now=now)
+    monkeypatch.setattr(
+        transaction.OperatorStopStore, "current",
+        lambda self: SimpleNamespace(active=True),
+    )
+    with pytest.raises(PlatformInstallationDenied, match="STOP engaged"):
+        apply_owner_approved_native_service(
+            **scope, backend=backend, approval_id=approval.approval_id, now=now,
+        )
+    assert calls == []
+
+
+def test_operator_stop_during_service_effect_forces_unknown_outcome(
+        installed_scope, monkeypatch):
+    import sofia.platform.ops.platform_installer_native_transaction as transaction
+    from types import SimpleNamespace
+
+    scope = dict(installed_scope)
+    backend, calls = fake_backend()
+    now = datetime.now(timezone.utc)
+    approval = grant_for_request(scope, id="approval:b2-stop-during", now=now)
+    state = {"active": False}
+    monkeypatch.setattr(
+        transaction.OperatorStopStore, "current",
+        lambda self: SimpleNamespace(active=state["active"]),
+    )
+    original = backend.register
+
+    def interrupted(spec):
+        observed = original(spec)
+        state["active"] = True
+        return observed
+
+    backend.register = interrupted
+    with pytest.raises(PlatformInstallationDenied, match="STOP changed"):
+        apply_owner_approved_native_service(
+            **scope, backend=backend, approval_id=approval.approval_id, now=now,
+        )
+    assert len(calls) == 1
+    journal = scope["store"].path.parent / "native-service-transaction.json"
+    assert '"OUTCOME_UNKNOWN"' in journal.read_text()
