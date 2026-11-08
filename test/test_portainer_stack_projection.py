@@ -5,6 +5,7 @@ import json
 import pytest
 
 from sofia.modules.it_containers.portainer_projection import project_portainer_stacks
+from sofia.modules.integrations.portainer import PortainerAdapter
 
 NOW = datetime(2026, 11, 8, tzinfo=timezone.utc)
 
@@ -82,3 +83,39 @@ def test_rejects_naive_timestamp_and_non_list_input():
                                 observed_at=datetime(2026, 11, 8))
     with pytest.raises(ValueError):
         project_portainer_stacks((), endpoint_id=7, observed_at=NOW)
+
+def test_legacy_portainer_core_stack_summary_does_not_return_raw_secrets():
+    class FakeHTTP:
+        def __init__(self):
+            self.calls = []
+
+        def request(self, method, path, *, query=None):
+            self.calls.append((method, path, query))
+            return [stack()]
+
+    adapter = PortainerAdapter("http://portainer.local", "placeholder-test-key", 7)
+    fake = FakeHTTP()
+    adapter.http = fake
+    projected = adapter.stack_inventory_summary()
+    assert fake.calls == [("GET", "/api/stacks", {"endpointId": 7})]
+    assert projected["module_id"] == "MOD-IT-CONTAINERS"
+    assert projected["endpoint_id"] == 7
+    assert projected["source_verified"] is False
+    assert projected["stacks"][0]["stack_id"] == 42
+    serialized = json.dumps(projected)
+    assert "do-not-expose" not in serialized
+    assert "Env" not in serialized
+    assert "StackFileContent" not in serialized
+    assert "GitConfig" not in serialized
+
+
+def test_legacy_adapter_rejects_wrong_environment_without_exposing_raw_stacks():
+    adapter = PortainerAdapter("http://portainer.local", "placeholder-test-key", 7)
+
+    class FakeHTTP:
+        def request(self, method, path, *, query=None):
+            return [stack(EndpointId=9)]
+
+    adapter.http = FakeHTTP()
+    with pytest.raises(ValueError, match="endpoint mismatch"):
+        adapter.stack_inventory_summary()
