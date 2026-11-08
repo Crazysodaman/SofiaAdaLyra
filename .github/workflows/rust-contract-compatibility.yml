@@ -35,6 +35,17 @@ jobs:
         profile: [debug, release]
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact checked-out HEAD
+        shell: bash
+        run: |
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          actual="$(git rev-parse HEAD)"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "Wrong checked-out source SHA" >&2
+            exit 1
+          fi
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.88.0
@@ -64,6 +75,17 @@ jobs:
         python: ["3.12", "3.14"]
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact checked-out HEAD
+        shell: bash
+        run: |
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          actual="$(git rev-parse HEAD)"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "Wrong checked-out source SHA" >&2
+            exit 1
+          fi
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
@@ -82,6 +104,17 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact checked-out HEAD
+        shell: bash
+        run: |
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          actual="$(git rev-parse HEAD)"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "Wrong checked-out source SHA" >&2
+            exit 1
+          fi
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.88.0
