@@ -34,16 +34,16 @@ Boundary commitments inherited from the directive and existing design docs:
   activation. Disposable installed systems only.
 
 Out of minimum shakedown scope (preserved from AG-D005/AG-D007 fences):
-advanced personal SofA-a Workbench, the full Model Manager and autonomous
+advanced personal Sofía Workbench, the full Model Manager and autonomous
 Core self-management.
 
 ## Batches
 
 | Batch | Scope | Acceptance rows | Tests / evidence committed | Exact source SHA |
 | --- | --- | --- | --- | --- |
-| U0 | Reconciliation of design TODOs, AG-D022/AG-D024/theme specs, rows 31-38 (this document) | (documentation only) | docs commit: reconciliation diff reviewed | pending |
+| U0 | Reconciliation of canonical AG-D022/AG-D024/theme specs, rows 31-38 (this document) | (documentation only) | docs commit: reconciliation diff reviewed | pending |
 | U1 | Versioned authenticated management API skeleton over existing SAFE/STOP/session authority: read-only status + snapshot/event live updates, CLI verbs first | 31 | Rust contract tests, Python adapter tests, platform-only gate run, Windows+Debian host receipts | pending |
-| U2 | Terminal Control Center on Windows + Debian 12 over the U1 API, with shared-theme tokens, reconnect/stale handling and read-only manager views (Cores/Modules/Settings/Diagnostics/Updates/Revolutions from AG-D006/AG-D013 sources) | 32, 33, 34 via parity protocol (AG-D024) | TUI contract tests, Windows Terminal + Debian 12 disposable-host receipts, parity table | pending |
+| U2 | Terminal Control Center on Windows + Debian 12 over the U1 API, with shared-theme tokens, reconnect/stale handling and read-only manager views (Cores/Modules/Settings/Diagnostics/Updates/Recovery from AG-D006/AG-D013 sources) | 32, 33 via parity protocol (AG-D024) | TUI contract tests, Windows Terminal + Debian 12 disposable-host receipts, parity table | pending |
 | U3 | GUI Control Center shell (Windows): CC-1 read-only shell + CC-2 manager views over the same U1 API; independently installable | 34, 35 | GUI smoke contract tests, disposable Windows host receipts, parity table | pending |
 | U4 | Governed protected effects: Core Manager (AG-D004) and Module Manager (AG-D006, including live status, uninstall/reinstall policy and Core-originated removal proposals) through exact scoped approvals on both interfaces | 35, 36 | SAFE consumption tests, anti-replay/STOP denials per client, disposable receipts, parity table | pending |
 | U5 | Security/Approvals, Updates/Recovery and Diagnostics surfaces + shared-theme verification + independent installer receipts; parity review closeout honoring AG-D024 | 37, 38 | Theme diff review, installer receipts, complete parity closeout | pending |
