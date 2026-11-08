@@ -77,11 +77,21 @@ pub enum ModelError {
     CapacityExceeded,
 }
 
+/// An editor is bound to the exact observed installed module incarnation.
+/// This is not a write permission, and a UI can only re-submit after review.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EditSnapshot {
+    pub platform_generation: u64,
+    pub module_generation: u64,
+    pub package_digest: String,
+    pub settings_revision: u64,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModuleRow {
     pub observation: ModuleObservation,
     pub freshness: ObservationFreshness,
-    pub editing_started_at_revision: Option<u64>,
+    pub editing_snapshot: Option<EditSnapshot>,
 }
 
 impl ModuleRow {
@@ -98,8 +108,11 @@ impl ModuleRow {
     /// Drafts are never silently applied to a changed or unavailable module.
     #[must_use]
     pub fn needs_edit_review(&self) -> bool {
-        self.editing_started_at_revision.is_some_and(|original| {
-            original != self.observation.settings_revision
+        self.editing_snapshot.as_ref().is_some_and(|original| {
+            original.settings_revision != self.observation.settings_revision
+                || original.platform_generation != self.observation.platform_generation
+                || original.module_generation != self.observation.module_generation
+                || original.package_digest != self.observation.package_digest
                 || self.freshness != ObservationFreshness::Fresh
                 || self.observation.lifecycle != ModuleLifecycle::Active
                 || self.current_health() != ModuleHealth::VerifiedHealthy
@@ -108,7 +121,12 @@ impl ModuleRow {
 
     /// Pure read-only draft marker. The service still decides edit authority.
     pub fn begin_edit(&mut self) {
-        self.editing_started_at_revision = Some(self.observation.settings_revision);
+        self.editing_snapshot = Some(EditSnapshot {
+            platform_generation: self.observation.platform_generation,
+            module_generation: self.observation.module_generation,
+            package_digest: self.observation.package_digest.clone(),
+            settings_revision: self.observation.settings_revision,
+        });
     }
 }
 
@@ -192,7 +210,7 @@ impl ModuleStatusModel {
         let prior_edit = self
             .rows
             .get(&key)
-            .and_then(|row| row.editing_started_at_revision);
+            .and_then(|row| row.editing_snapshot.clone());
         self.host_clocks.insert(
             incoming.host_id.clone(),
             (incoming.platform_generation, incoming.sequence),
@@ -202,7 +220,7 @@ impl ModuleStatusModel {
             ModuleRow {
                 observation: incoming,
                 freshness: ObservationFreshness::Fresh,
-                editing_started_at_revision: prior_edit,
+                editing_snapshot: prior_edit,
             },
         );
         Ok(())
@@ -341,6 +359,60 @@ mod tests {
         assert!(model
             .row("host:local", "module:one")
             .expect("row")
+            .needs_edit_review());
+    }
+
+    #[test]
+    fn editor_needs_review_after_reinstall_even_when_revision_reused() {
+        let mut model = ModuleStatusModel::default();
+        model.observe(event("module:one", 1), true).expect("initial module");
+        model
+            .row_mut("host:local", "module:one")
+            .expect("editor")
+            .begin_edit();
+
+        let mut removed = event("module:one", 2);
+        removed.lifecycle = ModuleLifecycle::Removed;
+        removed.health = ModuleHealth::Unknown;
+        removed.removal_receipt_id = Some("receipt:old".to_owned());
+        model.observe(removed, true).expect("verified removal event");
+        let mut replacement = event("module:one", 3);
+        replacement.module_generation = 2;
+        // Same settings revision is not authority to reuse a stale draft.
+        model.observe(replacement, true).expect("new incarnation");
+        assert!(model
+            .row("host:local", "module:one")
+            .expect("replacement")
+            .needs_edit_review());
+    }
+
+    #[test]
+    fn editor_needs_review_after_signed_package_replacement_or_host_restart() {
+        let mut model = ModuleStatusModel::default();
+        model.observe(event("module:one", 1), true).expect("initial module");
+        model
+            .row_mut("host:local", "module:one")
+            .expect("editor")
+            .begin_edit();
+        let mut replacement = event("module:one", 2);
+        replacement.package_digest = "b".repeat(64);
+        model.observe(replacement, true).expect("signed package changed");
+        assert!(model
+            .row("host:local", "module:one")
+            .expect("package replacement")
+            .needs_edit_review());
+
+        model
+            .row_mut("host:local", "module:one")
+            .expect("new editor")
+            .begin_edit();
+        let mut restarted = event("module:one", 1);
+        restarted.package_digest = "b".repeat(64);
+        restarted.platform_generation = 2;
+        model.observe(restarted, true).expect("new host process");
+        assert!(model
+            .row("host:local", "module:one")
+            .expect("restarted")
             .needs_edit_review());
     }
 
