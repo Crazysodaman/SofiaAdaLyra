@@ -1,0 +1,66 @@
+name: Aegis Windows Control Center Shell
+
+on:
+  pull_request:
+    paths:
+      - "packaging/gui/**"
+      - "contracts/ui/aegis-theme-v1.json"
+      - "test/test_ui_aegis_windows_gui_shell.py"
+      - "test/test_ui_aegis_team_c_policy.py"
+      - ".github/workflows/aegis-gui-shell.yml"
+  push:
+    branches: [main]
+    paths:
+      - "packaging/gui/**"
+      - "test/test_ui_aegis_windows_gui_shell.py"
+      - "test/test_ui_aegis_team_c_policy.py"
+      - ".github/workflows/aegis-gui-shell.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  gui-contract:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-24.04]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact checked-out source SHA
+        shell: bash
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          actual="$(git rev-parse HEAD)"
+          if [ "$actual" != "$EXPECTED_SOURCE_SHA" ]; then
+            printf 'WRONG_SHA expected=%s actual=%s\n' "$EXPECTED_SOURCE_SHA" "$actual"
+            exit 1
+          fi
+          printf 'EXACT_SOURCE_SHA=%s\n' "$actual"
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install optional GUI test harness
+        run: python -m pip install -e . pytest
+      - name: Verify GUI policy and native Windows construction
+        run: python -m pytest -q test/test_ui_aegis_windows_gui_shell.py test/test_ui_aegis_team_c_policy.py
+      - name: Capture native WinForms control-tree evidence
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & powershell.exe -STA -NoProfile -NonInteractive -File packaging/gui/Start-AegisControlCenter.ps1 -UiProbe |
+            Tee-Object -FilePath aegis-native-winforms-probe.txt
+          if ($LASTEXITCODE -ne 0) { throw "Native WinForms probe failed" }
+      - name: Preserve exact-SHA native WinForms evidence
+        if: ${{ always() && runner.os == 'Windows' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: aegis-winforms-${{ github.event.pull_request.head.sha || github.sha }}
+          path: aegis-native-winforms-probe.txt
+          if-no-files-found: warn

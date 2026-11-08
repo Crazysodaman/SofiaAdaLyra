@@ -3,7 +3,12 @@
 
 use std::collections::BTreeMap;
 
+pub mod control_center;
+pub mod control_center_session;
+pub mod library_display;
+pub mod native_management;
 pub mod journal;
+pub mod platform_status;
 
 pub const DAILY_AUTONOMOUS_LIMIT: usize = 5;
 const MAX_APPEARANCE_ID_BYTES: usize = 256;

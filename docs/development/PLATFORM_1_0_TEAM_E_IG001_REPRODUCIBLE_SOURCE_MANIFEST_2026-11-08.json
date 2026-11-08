@@ -1,0 +1,389 @@
+{
+  "schema": "aegis.platform.ig001.reproducible-integration-manifest.v1",
+  "milestone": "IG-001",
+  "coordinator_decision": "E-006",
+  "created_utc": "2026-11-08",
+  "authoring_team": "E independent QA",
+  "source_snapshot_only": true,
+  "integrated_tree_built": false,
+  "integration_branch_created": false,
+  "release_accepted": false,
+  "production_authorized": false,
+  "real_core_activation": false,
+  "owner_hub_deployed": false,
+  "reference_main_sha": "668e403d91b98a9cc467c6fc2caa554063aedeb9",
+  "qa_branch": "chatgpt/team-e-release-qa-20261108",
+  "qa_parent_sha": "b4c864202e65482a2a49f06109b277b640e37c4f",
+  "dependency_sources": [
+    {
+      "team": "A",
+      "pr": 241,
+      "head": "3f20f098953fc7c7a4f273d240978917353ef79a",
+      "base": "fddc4ae78c61b3a1227920a667b6aa60cf8f5389",
+      "role": "Canonical service, management status, SAFE/STOP, IPC",
+      "integrated": false,
+      "run_evidence": "QUEUED",
+      "source_blocks": [
+        "A/C not formally frozen",
+        "not installed authorized second-user IPC"
+      ],
+      "stacked_ancestry": [
+        235
+      ],
+      "previous_reviewed_head": "5bc8f9c2269ac2ac2b5b0e6c8c9bd1d769cba2a9"
+    },
+    {
+      "team": "B",
+      "pr": 244,
+      "head": "05425f68468008869e4022ae2d678d01d3b090c1",
+      "base": "dd7020ce48c06e82684d3439779266de9ea965b4",
+      "role": "Single governed native offline installer and publisher trust",
+      "integrated": false,
+      "run_evidence": "UNVERIFIED_CURRENT_HEAD",
+      "source_blocks": [
+        "no complete independently publisher-signed stock-OS installer",
+        "owner-safe native mutation deliberately disabled"
+      ],
+      "previous_reviewed_head": "c7da7128e9a17fa025500f3ca40668dfa643847c"
+    },
+    {
+      "team": "C",
+      "pr": 243,
+      "head": "3feb6674cbfb517bbf3cc71536b7ed0abf4ef45c",
+      "base": "dd7020ce48c06e82684d3439779266de9ea965b4",
+      "role": "Shared read-only platform.status CLI/TUI/WinForms client",
+      "integrated": false,
+      "run_evidence": "UNVERIFIED_CURRENT_HEAD",
+      "source_blocks": [
+        "OfflineReader only, no live status adapter",
+        "explicit formal A/C ACK withheld"
+      ],
+      "previous_reviewed_head": "fc018586db90a94b7e5b544b442a973da59a4578"
+    },
+    {
+      "team": "D",
+      "pr": 251,
+      "head": "aea6cdff2162b9aba884c9a939bfb8d42de020cf",
+      "base": "dd7020ce48c06e82684d3439779266de9ea965b4",
+      "role": "Source-only signed catalog/recipient and module dependency negatives",
+      "integrated": false,
+      "run_evidence": "UNVERIFIED_CURRENT_HEAD",
+      "source_blocks": [
+        "A authenticated and B publisher root callbacks not live",
+        "no actual signed Hub or peer transfer"
+      ],
+      "milestone_scope": "OPTIONAL_SOURCE_NEGATIVES_NO_EXECUTABLE_EFFECT",
+      "previous_reviewed_head": "cf6cc97e5fc02c6475f6bef7e0b29642d949dfd2"
+    },
+    {
+      "team": "D",
+      "pr": 247,
+      "head": "c5c9178ac3e2a1fd913e42b61120e4bfd5ce488e",
+      "base": "dd7020ce48c06e82684d3439779266de9ea965b4",
+      "role": "Disposable worker STOP/hot-unplug negative suite",
+      "integrated": false,
+      "run_evidence": "7_OF_7_SOURCE_WORKFLOWS_GREEN",
+      "milestone_scope": "NEGATIVES_ONLY"
+    },
+    {
+      "team": "D",
+      "pr": 249,
+      "head": "1ee89b8cf4fdb6c98a1a18ea694a081e5794901b",
+      "base": "33f7ba020cdd266284ac1803ebe79d2e9b33b3a9",
+      "role": "Controlled bounded cold-start recovery diagnostic; don't cherry-pick duplicate Rust service",
+      "integrated": false,
+      "run_evidence": "4_OF_4_SOURCE_WORKFLOWS_GREEN",
+      "milestone_scope": "DIAGNOSTIC_PROBE_ONLY_NOT_ROOT_CAUSE"
+    },
+    {
+      "team": "D",
+      "pr": 255,
+      "head": "145aa726caf480b61e62b1f4ff9401ad55c08a9f",
+      "base": "43404546d6c8d012b701f2faf6e22f6e86cdd434",
+      "role": "Same two diagnostic blobs on #242, independent FIRST-READY comparison",
+      "integrated": false,
+      "run_evidence": "FOUR_WORKFLOWS_QUEUED",
+      "milestone_scope": "DIAGNOSTIC_EXCLUDED_FROM_COMBINED",
+      "previous_reviewed_head": "98503f8d65b94a3c38b3968f07d7b66f95df047b"
+    },
+    {
+      "team": "E",
+      "pr": 245,
+      "head": "b4c864202e65482a2a49f06109b277b640e37c4f",
+      "base": "dd7020ce48c06e82684d3439779266de9ea965b4",
+      "role": "One existing E QA runner, 38+LIB16 ledger, Debian artifacts and topology",
+      "integrated": false,
+      "run_evidence": "EIGHT_WORKFLOWS_QUEUED"
+    },
+    {
+      "team": "DESIGN",
+      "pr": 248,
+      "head": "8d5c7ae58fde4a51a3beb3d0d73ad956c0a80f21",
+      "base": "dd7020ce48c06e82684d3439779266de9ea965b4",
+      "role": "Mandatory Artifact Library requirements, not installed code",
+      "integrated": false,
+      "milestone_scope": "DESIGN_ONLY"
+    }
+  ],
+  "deferred_release_sources": [
+    {
+      "pr": 236,
+      "sha": "33f7ba020cdd266284ac1803ebe79d2e9b33b3a9",
+      "reason": "original POST_KILL VM red; #249 stacks on it; do not duplicate module rewrites"
+    },
+    {
+      "pr": 240,
+      "sha": "8f0a9f9a72bc2ec314ef7cc2b182cdb41f312bb1",
+      "reason": "FIRST_READY VM red, SDK conformance source only"
+    },
+    {
+      "pr": 242,
+      "sha": "43404546d6c8d012b701f2faf6e22f6e86cdd434",
+      "reason": "FIRST_READY VM red; #255 diagnostic stacks on it"
+    },
+    {
+      "pr": 239,
+      "sha": "3f3e4ab06d2e7f9ae9dcdfd693803f7ab92ea95b",
+      "reason": "stacked #238 and #246 Portainer later; not core-free minimal IG001"
+    },
+    {
+      "pr": 246,
+      "sha": "9184ab8078bb4cdba9976d7ff3170c64e24fc654",
+      "reason": "Portainer no-extra-HTTP negative preserved but not required in first platform.status demo"
+    }
+  ],
+  "overlapping_files": [
+    {
+      "path": ".github/workflows/aegis-debian12-vm.yml",
+      "contributors": [
+        241,
+        245
+      ],
+      "resolution": "Keep A's exact checkout assertion and E's PR-head artifact naming; verify source SHA in inputs.json and receipts. Never rename without actual check.",
+      "status": "REVIEW_REQUIRED",
+      "a_blob": "f899d7e7d04faaa82c2adc1c0af5bc511afe3344",
+      "e_blob": "9054821d380f3c3217373f9b861fdb22515d6e0d"
+    },
+    {
+      "path": "rust/crates/sofia-platform-lifecycle/src/bin/platform_service.rs",
+      "contributors": [
+        241,
+        249,
+        255
+      ],
+      "resolution": "Use A's canonical service with 12s first handshake, 5s later health; DO NOT cherry-pick either D Rust service wholesale. Compare A blob against D diagnostic before local test.",
+      "status": "REVIEW_REQUIRED",
+      "a_blob": "3b5ab81a3334f6eac7e61e0868972635d29716b5",
+      "d249_blob": "60ade556c4e77e68b1bcd9ff7d719673224281f3"
+    },
+    {
+      "path": "test/fixtures/aegis_debian_vm/probe.py",
+      "contributors": [
+        249,
+        255
+      ],
+      "resolution": "Use additive D #249 probe only once, same SHA blob in #255. Keep 45s, two-boot, SIGKILL and refusal assertions.",
+      "status": "CANDIDATE",
+      "shared_blob": "a3c59eb3ea101ce006f15161d1a664be07337e63"
+    },
+    {
+      "path": "test/conftest.py",
+      "contributors": [
+        251,
+        236,
+        239
+      ],
+      "resolution": "Reconcile explicit package ownership markers; test/test_package_grouping.py must remain unchanged.",
+      "status": "REVIEW_REQUIRED"
+    },
+    {
+      "path": "src/sofia/modules/integrations/portainer.py",
+      "contributors": [
+        236,
+        239,
+        246
+      ],
+      "resolution": "Defer full stack to later negative audit; do not merge stale raw portainer.stack/portainer.stacks exposure into IG-001.",
+      "status": "DEFERRED"
+    },
+    {
+      "path": "src/sofia/platform/run/local_peer.py",
+      "contributors": [
+        235,
+        241
+      ],
+      "resolution": "241 already stacks on 235: preserve exactly one canonical peer transport, no duplicate change.",
+      "status": "STACKED_ANCESTRY"
+    },
+    {
+      "path": "src/sofia/platform/safe/permissions.py",
+      "contributors": [
+        241,
+        239
+      ],
+      "resolution": "A owns SAFE/STOP authority; defer overlapping D Portainer source until explicit permission semantics reviewed.",
+      "status": "A_CANONICAL"
+    },
+    {
+      "path": "docs/roadmaps/AEGIS_DESIGN_TODO.md",
+      "contributors": [
+        236,
+        248
+      ],
+      "resolution": "Requirement updates from #248 cannot be overwritten by D module draft.",
+      "status": "REVIEW_REQUIRED"
+    }
+  ],
+  "semantic_boundaries": [
+    {
+      "issue": "A/C platform.status wire",
+      "state": "HOLD",
+      "require": "29/29 same wire Rust and Python actual ACCEPT/REJECT case results; C formal SHA ACK; correlated fresh generation denied states"
+    },
+    {
+      "issue": "A/B native caller",
+      "state": "HOLD",
+      "require": "Debian current enrolled second-user UID/GID UDS ACL and SAFE/STOP, Windows future exact user SID DACL; no kernel identity implies approval"
+    },
+    {
+      "issue": "B signed stock OS installer",
+      "state": "HOLD",
+      "require": "independently provisioned publisher root, full release asset coverage incl launchers, no Python/Git/Cargo/Ollama, native systemd start and READY"
+    },
+    {
+      "issue": "C live status",
+      "state": "HOLD",
+      "require": "actual authenticated service platform.status consumed via native CLI/TUI with freshness/STOP, no OfflineReader substitution"
+    },
+    {
+      "issue": "A/D library catalog",
+      "state": "HOLD",
+      "require": "A current host grant and B publisher signed index/archive/root + D recipient no-before-read/STOP recheck; no transfer/install"
+    },
+    {
+      "issue": "Canonical writer",
+      "state": "HOLD",
+      "require": "single Platform identity and generation across systemd reboot, crash, duplicate denied, worker receives 12s first/5s health"
+    }
+  ],
+  "proposed_disposable_environment": {
+    "required_os": "Debian GNU/Linux 12 x86_64",
+    "stock_host_no_developer_toolchain": true,
+    "privileged_native_service": false,
+    "network": "isolated no production LAN no outbound WAN",
+    "platform_only": true,
+    "personal_core": false,
+    "source_checkout_on_host": false
+  },
+  "local_author_environment": {
+    "observed_os": "Debian GNU/Linux 13.3 trixie",
+    "python": "3.13.5",
+    "pytest": "9.0.2",
+    "git": true,
+    "cargo": false,
+    "rustc": false,
+    "qemu": false,
+    "github_dns": false,
+    "signed_native_installer": false,
+    "limitation": "Cannot perform actual Debian 12 native install or platform.status in this container"
+  },
+  "execution_phases": [
+    {
+      "id": "G0_SOURCE_PIN",
+      "status": "NOT_EXECUTED",
+      "commands": [
+        "git rev-parse HEAD",
+        "git merge-base <main_sha> <candidate_sha>",
+        "git diff --check"
+      ],
+      "evidence": "pin exact source and reviewed conflict table"
+    },
+    {
+      "id": "G1_LOCAL_NEGATIVES",
+      "status": "NOT_EXECUTED",
+      "commands": [
+        "python -m pytest -q test/test_run_management_unix_listener.py test/test_platform_service_management_ipc.py test/test_run_management_read_dispatch.py test/test_ui_platform_management_response.py",
+        "python -m pytest -q test/test_ops_platform_row_preflight.py test/test_package_grouping.py"
+      ],
+      "evidence": "Unexecuted for integrated checkout; separate E archive audit 7/7 local source-independent tests passed; A's 12 Linux synthetic status tests self-reported, E source/test code inspected."
+    },
+    {
+      "id": "G2_NATIVE_SOURCE",
+      "status": "NOT_EXECUTED",
+      "commands": [
+        "cargo fmt --all --check",
+        "cargo clippy --workspace --all-targets --locked -- -D warnings",
+        "cargo test --workspace --locked"
+      ],
+      "evidence": "same integrated source; Rust and service toolchain actual output"
+    },
+    {
+      "id": "G3_INSTALL_AND_START",
+      "status": "BLOCKED_UNSIGNED_INSTALLER",
+      "commands": [
+        "python -m pytest -q -rs test/test_rust_platform_systemd.py",
+        "python -m tools.aegis_debian_vm --checkout \"$PWD\" --output \"${IG001_VM_OUTPUT}\" --toolchain \"$(rustc --print sysroot)\" --disposable-vm"
+      ],
+      "evidence": "When available, actual Debian12 systemd VM two boots under QEMU and service READY; NOT a production-signed native install. Requires separate signed stock OS installer receipts and approved A/B operator authority for IG-001 installed-host gate."
+    },
+    {
+      "id": "G4_LIVE_STATUS_AND_DENIALS",
+      "status": "BLOCKED_AUTHORITY_AND_UI",
+      "commands": [],
+      "evidence": "two independently enrolled OS users; CLI/TUI genuine platform.status origin, STOP and revocation, stale generation, duplicate writer refused, systemd restart"
+    },
+    {
+      "id": "G5_IG001_CI",
+      "status": "BLOCKED_G0_G4",
+      "commands": [],
+      "evidence": "all integrated HEAD GitHub CI; no queued statuses marked pass"
+    }
+  ],
+  "security_negatives_must_preserve": [
+    "unknown peer",
+    "revoked peer",
+    "STOP before and midrequest",
+    "stale RUN generation",
+    "truthy forged SAFE",
+    "wrong signed index issuer",
+    "unsigned and revoked publisher",
+    "source identity mismatch",
+    "untrusted archive path symlink",
+    "single canonical writer",
+    "no production LAN",
+    "no Core or personal state import"
+  ],
+  "acceptance": {
+    "platform_total": 38,
+    "platform_pass": 0,
+    "platform_fail": 7,
+    "platform_not_tested": 31,
+    "library_total": 16,
+    "library_pass": 0,
+    "library_not_tested": 16,
+    "ig001_functional_status": "NOT_EXECUTED",
+    "milestone_ci": "NOT_COMPLETE",
+    "go": "NO"
+  },
+  "last_pins_refreshed_utc": "2026-11-08",
+  "refreshed_from_e_branch_head": "34f23c3ab8ee9d9ccf93555835c923553a8618cc",
+  "recheck_before_assembly": true,
+  "local_verification_checkpoint": {
+    "environment": "Debian GNU/Linux 13.3 Python 3.13.5 pytest 9.0.2; no cargo/rustc/QEMU/no GitHub DNS",
+    "archive_audit_cmd": "python /mnt/data/ig001_artifact_audit.py --output /mnt/data/ig001_archive_audit_results_e006_repeat.json",
+    "pytest_cmd": "python -m pytest -q /mnt/data/test_ig001_artifact_audit.py --disable-warnings --maxfail=1",
+    "pytest_result": "7 PASSED IN 0.06s",
+    "evidence_json_sha256": "9b464c30a6659acd23effce2a6d762aa978dbd60dc6b34f12e3b01e17448f0bf",
+    "source_checkout_tests": "UNEXECUTED",
+    "same_release_signed_debian12_install": "UNEXECUTED",
+    "live_platform_status": "UNEXECUTED",
+    "authoritative_b_root": "NOT_VERIFIED"
+  },
+  "source_reconciliation_notes": [
+    "Team A pinned current A #241 includes Linux OS-pinned native read-only status client with 12 synthetic local source tests reported by Team A; not independently rerun by E and not installed-host status.",
+    "Team B pinned current B #244 includes stock-OS publisher verifier, offline capsule and read-only Debian12 service observer; still not signed launcher/native installer activation.",
+    "Team C pinned current C #243 still requires formal A/C frozen response and Rust TUI real authenticated service integration.",
+    "Team D pinned current #251 includes SAFE-before-signed-index and revocation recheck negatives; cryptographic trust callbacks and actual recipient not installed.",
+    "Existing separate D #249 successful disposable guest and D #255 controlled source require independent boot receipts, do not claim timing root cause."
+  ]
+}
