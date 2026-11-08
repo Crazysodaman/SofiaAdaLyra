@@ -18,7 +18,7 @@ def test_v1_disposable_application_wiring_survives_restart(tmp_path):
         first, disposable_root=tmp_path, approved_by=owner,
     )
     first.start()
-    session_id = first.conversation.session_id
+    session_id = first.conversation.session.id
     try:
         first.conversation.respond(
             "Remember that the synthetic violet sensor is connected.",
@@ -64,7 +64,7 @@ def test_v1_disposable_application_wiring_survives_restart(tmp_path):
     try:
         assert second._runtime.identity == original_identity
         assert second._runtime.personality == original_personality
-        assert second.conversation.session_id == session_id
+        assert second.conversation.session.id == session_id
         assert second_policy.allows(candidate.candidate_id)
         assert [x.id for x in second._runtime.memory_system.recall_relevant(
             "violet sensor", principal=owner,
@@ -81,7 +81,7 @@ def test_v1_reviewed_correction_reaches_application_memory_after_two_restarts(tm
         first, disposable_root=tmp_path, approved_by=owner,
     )
     first.start()
-    session_id = first.conversation.session_id
+    session_id = first.conversation.session.id
     try:
         first.conversation.respond(
             "Remember that the synthetic calibration marker is sapphire.",
