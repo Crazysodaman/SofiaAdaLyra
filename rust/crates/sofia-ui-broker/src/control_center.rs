@@ -10,6 +10,8 @@ pub enum LinkState {
     Stale,
     Restarting,
     AccessDenied,
+    Revoked,
+    UnknownGeneration,
     Observed,
 }
 
@@ -115,6 +117,8 @@ impl ControlCenterView {
             LinkState::Stale => "STALE",
             LinkState::Restarting => "RESTARTING",
             LinkState::AccessDenied => "ACCESS_DENIED",
+            LinkState::Revoked => "REVOKED",
+            LinkState::UnknownGeneration => "UNKNOWN_GENERATION",
             LinkState::Observed if self.has_observed_generation() => "OBSERVED",
             LinkState::Observed => "UNVERIFIED",
         }
@@ -127,6 +131,8 @@ impl ControlCenterView {
             LinkState::Observed => "UNVERIFIED",
             LinkState::Stale => "STALE_OBSERVATION",
             LinkState::AccessDenied => "DENIED",
+            LinkState::Revoked => "REVOKED",
+            LinkState::UnknownGeneration => "UNVERIFIED",
             _ => "UNVERIFIED",
         }
     }
@@ -194,11 +200,16 @@ impl ControlCenterView {
                 LinkState::Stale => "OBSERVATION_STALE",
                 LinkState::Restarting => "SERVICE_RESTARTING",
                 LinkState::AccessDenied => "ACCESS_DENIED",
+                LinkState::Revoked => "OWNER_REVOKED",
+                LinkState::UnknownGeneration => "GENERATION_NOT_OBSERVED",
                 LinkState::Observed => unreachable!(),
             });
         }
         if !self.has_observed_generation() {
             return ActionHint::Blocked("GENERATION_NOT_OBSERVED");
+        }
+        if self.permission == PermissionState::Denied {
+            return ActionHint::Blocked("PERMISSION_DENIED");
         }
         if action == ProposedAction::Inspect {
             return ActionHint::ReadOnly;
@@ -208,9 +219,6 @@ impl ControlCenterView {
         }
         if self.safe != SafeState::Clear {
             return ActionHint::Blocked("SAFE_STATE_UNKNOWN");
-        }
-        if self.permission == PermissionState::Denied {
-            return ActionHint::Blocked("PERMISSION_DENIED");
         }
         if self.permission != PermissionState::MayRequest {
             return ActionHint::Blocked("PERMISSION_NOT_EVALUATED");
@@ -282,6 +290,8 @@ mod tests {
             (LinkState::Restarting, "SERVICE_RESTARTING"),
             (LinkState::Unverified, "SOURCE_UNVERIFIED"),
             (LinkState::Connecting, "AUTHENTICATION_PENDING"),
+            (LinkState::Revoked, "OWNER_REVOKED"),
+            (LinkState::UnknownGeneration, "GENERATION_NOT_OBSERVED"),
         ] {
             view.link = link;
             assert_eq!(view.installation_label(), "NOT_CURRENTLY_VERIFIED");
@@ -320,6 +330,12 @@ mod tests {
         assert_eq!(
             view.action_hint(ProposedAction::Inspect),
             ActionHint::Blocked("ACCESS_DENIED")
+        );
+        view.link = LinkState::Observed;
+        view.permission = PermissionState::Denied;
+        assert_eq!(
+            view.action_hint(ProposedAction::Inspect),
+            ActionHint::Blocked("PERMISSION_DENIED")
         );
     }
 
