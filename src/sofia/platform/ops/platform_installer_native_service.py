@@ -235,6 +235,10 @@ class DebianSystemdNativeService:
                 raise PlatformInstallationDenied(
                     "signed code or protected Platform identity has wrong service UID"
                 )
+            if details.st_gid != group.gr_gid:
+                raise PlatformInstallationDenied(
+                    "signed code or protected Platform identity has wrong service primary GID"
+                )
             if details.st_mode & 0o077:
                 raise PlatformInstallationDenied(
                     "service code/private state must not grant group/world access"
@@ -253,6 +257,35 @@ class DebianSystemdNativeService:
             if not stat.S_ISREG(details.st_mode) or not details.st_mode & stat.S_IXUSR:
                 raise PlatformInstallationDenied(
                     "signed native executable and bundled interpreter need owner execute"
+                )
+        # B1's signed release root may itself be placed under root-owned
+        # directories such as /opt/aegis/releases. Those ancestors need not
+        # be service-owned, but the actual service UID or its primary GID
+        # must be able to traverse every one. A foreign 0700 ancestor is
+        # otherwise a deterministic systemd ExecStart EACCES on a clean host.
+        # Never auto-chmod/chown these paths: provisioning is owner-governed.
+        ancestor_paths = set()
+        for protected in (release_root, state_directory, spec.identity_home):
+            path = protected.parent
+            while True:
+                ancestor_paths.add(path)
+                if path == path.parent:
+                    break
+                path = path.parent
+        for parent in sorted(ancestor_paths, key=lambda item: (len(item.parts), str(item))):
+            assert_no_redirected_components(parent, include_leaf=True)
+            info = parent.stat(follow_symlinks=False)
+            if not stat.S_ISDIR(info.st_mode):
+                raise PlatformInstallationDenied("native path ancestor is not a directory")
+            if info.st_uid == user.pw_uid:
+                execute = stat.S_IXUSR
+            elif info.st_gid == group.gr_gid:
+                execute = stat.S_IXGRP
+            else:
+                execute = stat.S_IXOTH
+            if not info.st_mode & execute:
+                raise PlatformInstallationDenied(
+                    "native path ancestor not traversable by installed service principal"
                 )
         if not spec.identity_home.is_dir() or not spec.local_state.is_file():
             raise PlatformInstallationDenied("protected local state/identity unavailable")

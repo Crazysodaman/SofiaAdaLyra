@@ -167,7 +167,11 @@ class ManagementUnixListener:
                     connection, dispatch=self._dispatch,
                     now=lambda: datetime.now(timezone.utc),
                 )
-            except (PermissionError, ValueError, TimeoutError, OSError):
+            except (PermissionError, ValueError, TimeoutError, OSError, RuntimeError):
+                # A vanished RUN lease, STOP ledger or canonical identity can
+                # legitimately fail during restart/recovery. Refuse the read
+                # with EOF; never disclose the internal exception to a peer
+                # or let a single failed request kill the supervised listener.
                 return False
         return True
 
