@@ -54,6 +54,15 @@ Acceptance to define: one semantics-compatible CLI on Windows/Linux; signed byte
 
 **Status:** OWNER-DESIRED. **Target release:** TBD; not a hidden Platform-only shakedown blocker.
 
+**Update (owner directive 2026-11-08):** the owner scheduled GUI/TUI
+management functionality into the expanded Platform 1.0 shakedown, so the
+Core Manager surfaces take effect through the versioned authenticated
+management API defined in [AEGIS UI shakedown batches](../development/AEGIS_UI_SHAKEDOWN_BATCHES_2026-11-08.md)
+with acceptance rows 31-38. The "same governed service API" sentence above is
+now binding; no GUI-only security bypass is permitted. Framework evaluation
+(Rust backend + Tauri or alternatives) is recorded in batch U1/U3 before
+implementation merges.
+
 Design: native cross-platform management window, optionally reachable from tray, showing installed/available Cores, stable IDs, verified package versions, bindings, lifecycle status and actionable diagnostics. Offer install, activate, deactivate, update and uninstall through the **same governed service API** as the CLI. No GUI-only security bypass; no display-name-only authorization. Candidate technology: Rust backend + Tauri desktop shell, pending implementation review.
 
 ### AG-D005 | Aegis Model Manager
@@ -67,6 +76,14 @@ Existing partial foundations to reuse: Python Settings Models tab, Ollama invent
 ### AG-D006 | Aegis Module Manager
 
 **Status:** CAPTURED. **Target release:** TBD.
+
+**Update (owner directive 2026-11-08):** module management enters the expanded
+Platform 1.0 shakedown via the [same batches plan](../development/AEGIS_UI_SHAKEDOWN_BATCHES_2026-11-08.md)
+(rows 31-38) including live status, the uninstall/reinstall policy feedback
+and Core-originated removal proposals on GUI and TUI. The earlier
+"Keep a GUI optional when a headless CLI suffices" rule still holds for the
+Platform service itself: CLI/API remain mandatory parity, and headless hosts
+without any UI stay fully operational.
 
 Design: browse signed installed/available modules, versions and compatibility; install/enable/pause/update/remove with exact scoped approvals, health and recovery receipts. Reuse existing Platform module contracts and service authority. Keep a GUI optional when a headless CLI suffices for Platform 1.0.
 

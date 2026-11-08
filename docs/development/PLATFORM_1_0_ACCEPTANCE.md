@@ -69,6 +69,29 @@ claims complete signed-release installed-host acceptance.
 | 28 | Installed-wheel isolation | NOT TESTED | NOT TESTED | NOT TESTED | Component CI + minimal dependency test; final exact release receipt pending |
 | 29 | Exact-SHA release CI | NOT TESTED | NOT TESTED | NOT TESTED | Distinct Platform-only gate plus signed release artifacts |
 | 30 | Complete operator runbook | FAIL | NOT TESTED | NOT TESTED | Installed service, recovery and diagnostic commands |
+| 31 | Versioned authenticated management API | NOT TESTED | NOT TESTED | NOT TESTED | B3 CLI/IPC boundary consumed by CLI, TUI and GUI without duplicate stores |
+| 32 | Terminal Control Center (Windows) | NOT TESTED | NOT TESTED | NOT TESTED | AG-D022 TUI over the management API with live status, reconnect and stale-state handling |
+| 33 | Terminal Control Center (Debian 12) | NOT TESTED | NOT TESTED | NOT TESTED | AG-D022 TUI on headless Debian 12; headless Platform keeps running with no GUI dependency |
+| 34 | GUI Control Center shell (Windows) | NOT TESTED | NOT TESTED | NOT TESTED | AG-D007 CC-1 read-only shell with service-owned authorization rechecks |
+| 35 | Core Manager surfaces (parity) | NOT TESTED | NOT TESTED | NOT TESTED | AG-D004 via the versioned API on GUI and TUI; no display-name-only authorization |
+| 36 | Module Manager surfaces (policy) | NOT TESTED | NOT TESTED | NOT TESTED | AG-D006 live status, uninstall/reinstall policy and Core-originated removal proposals |
+| 37 | Security/Approvals, Updates/Recovery and Diagnostics surfaces | NOT TESTED | NOT TESTED | NOT TESTED | Protected operations gated service-side; approval surface may not mint authority |
+| 38 | Shared GUI/TUI theme and independent installability | NOT TESTED | NOT TESTED | NOT TESTED | AEGIS_SHARED_GUI_TUI_THEME tokens applied to both interfaces; independently installable; headless operation unaffected |
+
+## UI scope added by owner directive (2026-11-08)
+
+Rows 31-38 extend the shakedown per the explicit owner directive to include
+the native GUI, TUI and their essential management functionality. Rows 01-30
+keep their historical evidence discipline; no row above was renumbered,
+deleted or quietly completed. Rows 31-38 begin in NOT TESTED and require the
+same receipt discipline: exact source SHA, test IDs, CI run, artifact digests
+and actual Windows/Debian host observations before PASS. Row 31 (the
+authenticated management API) is the prerequisite for every UI row, so the
+previously documented failure of row 10 stays a blocker until resolved.
+Advanced personal SofA-a Workbench, the full Model Manager and autonomous
+Core self-management remain outside the minimum Platform-only release
+requirements. Batch definitions and exact implementation evidence live in
+[AEGIS UI shakedown batches](AEGIS_UI_SHAKEDOWN_BATCHES_2026-11-08.md).
 
 ## Audit reconciliation
 
