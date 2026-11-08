@@ -119,7 +119,7 @@ class ReleaseChildProcess:
                         ) from exc
                     required = {
                         "pid", "ready_at", "state_path", "start_token",
-                        "generation_epoch",
+                        "generation_epoch", "phase",
                     }
                     if (
                         not isinstance(marker, dict)
@@ -128,6 +128,7 @@ class ReleaseChildProcess:
                         or marker["pid"] != self.process.pid
                         or marker["state_path"] != str(self.state_path.resolve())
                         or marker["start_token"] != token
+                        or marker["phase"] != "PROCESS_READY"
                         or marker["generation_epoch"] != self.expected_generation_epoch
                         or type(marker["ready_at"]) is not str
                         or not marker["ready_at"].strip()
