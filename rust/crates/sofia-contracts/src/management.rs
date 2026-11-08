@@ -45,8 +45,7 @@ impl UntrustedManagementRead {
         let value = parse_strict(raw)?;
         let request: Self = serde_json::from_value(value)
             .map_err(|error| ContractError::new("invalid_management_read", error.to_string()))?;
-        if request.schema != MANAGEMENT_READ_SCHEMA
-            || request.protocol != MANAGEMENT_READ_PROTOCOL
+        if request.schema != MANAGEMENT_READ_SCHEMA || request.protocol != MANAGEMENT_READ_PROTOCOL
         {
             return Err(ContractError::new(
                 "unsupported_management_schema",
@@ -106,16 +105,19 @@ mod tests {
     fn valid() -> (Value, chrono::DateTime<chrono::FixedOffset>) {
         let now = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:00Z")
             .expect("known test timestamp");
-        (json!({
-            "schema": MANAGEMENT_READ_SCHEMA,
-            "protocol": MANAGEMENT_READ_PROTOCOL,
-            "request_id": "req:1",
-            "target_platform_id": "platform:alpha",
-            "expected_generation": 1,
-            "operation": "platform.status",
-            "created_at": "2026-11-08T03:59:59Z",
-            "deadline": "2026-11-08T04:00:05Z"
-        }), now)
+        (
+            json!({
+                "schema": MANAGEMENT_READ_SCHEMA,
+                "protocol": MANAGEMENT_READ_PROTOCOL,
+                "request_id": "req:1",
+                "target_platform_id": "platform:alpha",
+                "expected_generation": 1,
+                "operation": "platform.status",
+                "created_at": "2026-11-08T03:59:59Z",
+                "deadline": "2026-11-08T04:00:05Z"
+            }),
+            now,
+        )
     }
 
     #[test]
@@ -141,7 +143,12 @@ mod tests {
     #[test]
     fn rejects_mutation_and_unknown_operations() {
         let (mut value, now) = valid();
-        for operation in ["module.remove", "core.start", "platform.install", "safe.approve"] {
+        for operation in [
+            "module.remove",
+            "core.start",
+            "platform.install",
+            "safe.approve",
+        ] {
             value["operation"] = json!(operation);
             assert!(UntrustedManagementRead::parse(value.to_string().as_bytes(), now).is_err());
         }
