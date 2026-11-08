@@ -226,3 +226,29 @@ def test_ollama_rejects_unpaired_surrogate_content_before_persistence():
     )
     with pytest.raises(LLMProviderError, match="Unicode"):
         provider.respond(CognitiveRequest(messages=()))
+
+@pytest.mark.parametrize("provider_class", [
+    OllamaProvider,
+    pytest.param(
+        __import__(
+            "sofia.platform.core_worker.ollama_transport",
+            fromlist=["GenericOllamaProvider"],
+        ).GenericOllamaProvider,
+        id="generic-transport",
+    ),
+])
+@pytest.mark.parametrize("content", ["", "   \\n\\t", None])
+def test_empty_ollama_completion_fails_closed_instead_of_becoming_canned_chat(
+    provider_class, content,
+):
+    """Thinking-only/blank model output is a failed inference, not a reply."""
+    response = SimpleNamespace(
+        message=SimpleNamespace(content=content, tool_calls=()),
+    )
+    provider = provider_class(
+        create_default_configuration().provider,
+        client=MalformedClient(response),
+    )
+    with pytest.raises(LLMProviderError, match="empty cognitive response"):
+        provider.respond(CognitiveRequest(messages=(), allow_tools=False))
+
