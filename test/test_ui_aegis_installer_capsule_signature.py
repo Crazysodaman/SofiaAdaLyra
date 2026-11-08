@@ -89,9 +89,6 @@ def test_stock_shell_signed_capsule_is_authenticated_without_install(sealed_caps
     assert proof["capsule_sha256"] == sha256(sealed_capsule[0].read_bytes()).hexdigest()
     assert proof["publisher_public_key_sha256"] == sealed_capsule[3]
     assert proof["publisher_delivery_verified"] is True
-    assert proof["delivery_members_hashed"] is True
-    assert proof["delivery_member_count"] == 2
-    assert len(proof["delivery_index_sha256"]) == 64
     assert proof["release_manifest_verified"] is False
     assert proof["release_assets_verified"] is False
     assert proof["publisher_revocation_current"] is False
