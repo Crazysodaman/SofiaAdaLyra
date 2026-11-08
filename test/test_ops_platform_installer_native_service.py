@@ -322,6 +322,7 @@ def test_systemd_refuses_inaccessible_intermediate_python_runtime_directory(
             )
             return SimpleNamespace(
                 st_uid=0 if path == python_parent else 40411,
+                st_gid=40412,
                 st_mode=(stat.S_IFREG if is_file else stat.S_IFDIR) | 0o700,
             )
         return actual
@@ -372,7 +373,7 @@ def test_systemd_rejects_runtime_parent_without_owner_traverse(
             mode = (stat.S_IFREG if is_file else stat.S_IFDIR) | 0o700
             if path == python_parent:
                 mode = stat.S_IFDIR | 0o600
-            return SimpleNamespace(st_uid=40411, st_mode=mode)
+            return SimpleNamespace(st_uid=40411, st_gid=40412, st_mode=mode)
         return actual
 
     monkeypatch.setattr(Path, "stat", synthetic_ownership)
@@ -423,7 +424,7 @@ def test_systemd_refuses_nonwritable_or_foreign_sqlite_parent(
             mode = (stat.S_IFREG if file else stat.S_IFDIR) | 0o700
             if path == state_directory and failure == "not-writable":
                 mode = stat.S_IFDIR | 0o500
-            return SimpleNamespace(st_uid=owner_uid, st_mode=mode)
+            return SimpleNamespace(st_uid=owner_uid, st_gid=40412, st_mode=mode)
         return actual
 
     monkeypatch.setattr(Path, "stat", synthetic_stat)
@@ -431,3 +432,91 @@ def test_systemd_refuses_nonwritable_or_foreign_sqlite_parent(
     with pytest.raises(PlatformInstallationDenied, match=expected):
         service.register(native_spec)
     assert not service.unit_path.exists()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX service principal and ancestry semantics")
+@pytest.mark.parametrize("defect", ("none", "foreign-release-parent",
+                                      "foreign-state-parent", "foreign-primary-group"))
+def test_signed_systemd_preflight_denies_foreign_outer_ancestor_and_primary_gid(
+        native_spec, tmp_path, monkeypatch, defect):
+    """A signed leaf behind foreign 0700 is not runnable as non-root aegis."""
+    import grp
+    import pwd
+    import stat
+    from types import SimpleNamespace
+    import sofia.platform.ops.platform_installer_native_service as mod
+
+    driver = DebianSystemdNativeService(unit_path=tmp_path / "aegis-platform.service")
+    monkeypatch.setattr(driver, "_require_root", lambda: None)
+    monkeypatch.setattr(mod, "_check_spec", lambda *args: None)
+    monkeypatch.setattr(
+        pwd, "getpwnam", lambda name: SimpleNamespace(
+            pw_uid=40411, pw_gid=40412, pw_shell="/usr/sbin/nologin",
+        ),
+    )
+    monkeypatch.setattr(
+        grp, "getgrnam", lambda name: SimpleNamespace(gr_gid=40412),
+    )
+    release_root = native_spec.executable.parent.parent
+    state_dir = native_spec.local_state.parent
+    protected = {release_root, native_spec.identity_home,
+                 native_spec.local_state, state_dir}
+    for executable in (native_spec.executable, native_spec.python_executable):
+        node = executable
+        while node != release_root:
+            protected.add(node)
+            node = node.parent
+        protected.add(release_root)
+    outer = set()
+    for directory in (release_root, state_dir, native_spec.identity_home):
+        node = directory.parent
+        while True:
+            outer.add(node)
+            if node == node.parent:
+                break
+            node = node.parent
+    # The selected release ancestor is above the B1 signed tree. It must be
+    # traversable without asking the installer to chmod a foreign parent.
+    foreign_release = release_root.parent
+    foreign_state = state_dir.parent
+    original_stat = Path.stat
+
+    def fake_stat(node, *, follow_symlinks=True):
+        actual = original_stat(node, follow_symlinks=follow_symlinks)
+        if node in protected:
+            is_file = node in (
+                native_spec.executable, native_spec.python_executable,
+                native_spec.local_state,
+            )
+            wrong_gid = defect == "foreign-primary-group" and node == state_dir
+            return SimpleNamespace(
+                st_uid=40411,
+                st_gid=40413 if wrong_gid else 40412,
+                st_mode=(stat.S_IFREG if is_file else stat.S_IFDIR) | 0o700,
+            )
+        if node in outer:
+            foreign = (
+                defect == "foreign-release-parent" and node == foreign_release
+            ) or (
+                defect == "foreign-state-parent" and node == foreign_state
+            )
+            return SimpleNamespace(
+                st_uid=0, st_gid=0,
+                st_mode=stat.S_IFDIR | (0o700 if foreign else 0o755),
+            )
+        return actual
+
+    monkeypatch.setattr(Path, "stat", fake_stat)
+    if defect == "none":
+        # No caller-provided owner-grant flag. Merely validating existing
+        # signed installation permissions cannot register or start anything.
+        driver._require_service_identity(native_spec)
+    else:
+        error = (
+            "wrong service primary GID"
+            if defect == "foreign-primary-group"
+            else "native path ancestor not traversable"
+        )
+        with pytest.raises(PlatformInstallationDenied, match=error):
+            driver._require_service_identity(native_spec)
+    assert not driver.unit_path.exists()
