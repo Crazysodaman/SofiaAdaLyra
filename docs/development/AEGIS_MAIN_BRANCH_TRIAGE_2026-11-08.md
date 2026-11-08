@@ -26,7 +26,7 @@ D028-05 durable resume/quotas/rollback/GC: INTERNAL RECEIVER COMPONENT ONLY, bro
 D028-06 GUI/TUI actual same-service workflow: NOT DEMONSTRATED.
 D028-07 LIB-01–LIB-16 independent Windows/Debian installed-host verification: 0/16 accepted (latest known source ledger); recheck before changing any PASS state.
 
-**Engineering evidence:** Internal bounded receiver with five locally executed tests added in `ec1cce6c`, without network listener or owner grant. The canonical publisher trust, host transport and B1 install/rollback remain separate contracts. Do not mistake a test callback for owner SAFE authority.
+**Engineering evidence:** Internal bounded receiver and sender, signed-manifest/catalog/license pins, aggregate quotas and fail-closed revocation gates at `c5dc9982`; 12 focused disposable local tests passed (not original-repository or multi-host acceptance). No network listener, actual publisher authority, installed-host grant, GUI/TUI execution or approved install operation is supplied by these primitives. The canonical publisher trust, host transport and B1 install/rollback remain separate contracts. Do not mistake a test callback for owner SAFE authority.
 
 ## Complete remote-ref listing
 
