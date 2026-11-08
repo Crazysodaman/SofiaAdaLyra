@@ -62,3 +62,44 @@ For backup capture source catalog signed revision, protected pin graph, external
 Team E preserves legacy [38-row evidence](PLATFORM_1_0_TEAM_E_EVIDENCE_2026-11-08.md) separately from [16-case LIB ledger](PLATFORM_1_0_TEAM_E_AG_D028_LIB_LEDGER_2026-11-08.md). No whole row or LIB case becomes PASS from a design spec, ZIP checksum alone, demo signer, in-process SDK plan, QEMU *development harness*, synthetic worker or host whose installer is not the signed final native release. An independently verified actual installed signed release across four hosts, source and sink, current trust root, owner SAFE/STOP and all negative tests is required. Missing records produce **BLOCKED/NOT TESTED** and a precise failed dependency.
 
 **Coordinator decision E-003: Platform 1.0 GO remains NO.** No production download, Sofía VM mutation, native privileged installation, Hub listener, personal Core activation, branch merge or `main` change.
+
+
+## E-004 | Executable source-only evidence intake, not a fake installed-host test
+
+E-004 extends **Team E's existing** `tools/aegis_platform_row_preflight.py`; it does not add another installer, package signer, trusted network listener, Core database writer or acceptance authority. The independent cross-OS [D028 evidence-intake CI](../../.github/workflows/aegis-d028-four-host-preflight.yml) executes source-level negative tests on Windows and Linux and emits a **PLAN ONLY** artifact named with the exact checkout SHA.
+
+From an isolated checked-out repository (runner Python allowed; the final *installation targets* must remain Python-free for offline bootstrap):
+
+```bash
+# Validate immutable test plan and display exact-source 38 + LIB-16 blockers.
+python -m tools.aegis_platform_row_preflight --include-artifact-library --d028-four-host --output d028-four-host-preflight.json
+
+# AFTER genuine signed-host test runs, inspect externally obtained receipts.
+# If metadata is incomplete/tampered return 2; if metadata complete but still
+# self-reported/untrusted return 3. NEVER returns 0 for a supplied evidence dir.
+python -m tools.aegis_platform_row_preflight --include-artifact-library --d028-four-host --d028-evidence-dir release-evidence/ag-d028/REVIEWED_EXACT_SOURCE_SHA --output d028-host-intake.json
+```
+
+**Deliberately limited behavior:** this preflight does **not** provision VMs, start services, enroll owner peers, operate Windows SCM or systemd, verify B's publisher signature/root, sign receipts, grant SAFE, test an actual receiver or claim acceptance. Its first command returns 0 for a structurally valid **not-executed** plan. The second command returns **2** for missing, invalid or stale source-bound receipt metadata and **3** for a complete bundle requiring independent trust/signature/OS witness review. Both codes are nonzero in GitHub CI. A `PASS` string or `signature_valid=true` inside submitted JSON cannot make any LIB case or #201 row PASS.
+
+**Provisional evidence intake directory (NOT Team A/B wire schema):**
+
+```text
+release-evidence/ag-d028/<40-hex reviewed combined source>/
+  release-manifest.json
+  host-inventory.json
+  signed-artifacts.json
+  cross-host-receipts.json
+  network-denials.json
+  backup-restore.json
+  LIB-01.json
+  ...
+  LIB-16.json
+  artifacts/                          # Actual signed release bytes, if available
+```
+
+Each submitted top-level or case JSON includes `"source_sha": "<exact 40-hex combined release commit>"`; each LIB JSON also includes its `"scenario_id"`. `signed-artifacts.json` may include a list `"artifacts": [{"path": "artifacts/relative-file", "sha256": "<64-hex>"}]`. The QA runner **streams and independently recomputes SHA256 on the actual bytes**, forbids absolute paths/traversal/backslashes/symlink chains and caps metadata files to 64 KiB. Digest verification is **HASH_MATCH_ONLY**, not publisher authentication. Release signature, trusted root/revocation, native service origin, actual enrolled host identity and signed index must be verified later with Team B/A's canonical frozen format and independently witnessed OS-level observations.
+
+**Security negative CI:** deliberately forged `release_accepted`, second primary, alternate Hub owner authority, WAN/production LAN use, unexecuted phase marked PASSED, wrong source SHA, tampered bytes, symlinked metadata, wrong-case receipt and self-asserted `PASS` are all rejected or kept `NOT_CLAIMED`. Tests assert the incomplete bundle cannot return successful CI exit and that even a complete fabricated metadata bundle returns exit **3**, never PASS.
+
+**Execution blocker:** A/C signed canonical strict Rust/Python management and D028 contract, B native signed *self-contained* Platform-only Windows/Debian12 installer and independent trust roots, plus D signer/SDK catalog/recipient semantics and CI still need exact-SHA approval. No source-level or plan-only test can manufacture missing installed-host evidence. Final release workflow requires the separate **real disposable four-host** test exercise and reviewer decisions. No synthetic progress receipts should be produced to hide a missing OS installer.
