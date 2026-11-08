@@ -5,6 +5,7 @@ from sofia.core.memory.historical import HistoricalConversationEvidence
 from sofia.core.memory.model import MemoryRecord
 from sofia.core.memory.promoted_retrieval import retrieve_promoted
 from sofia.core.memory.provenance import CandidateStatus
+from sofia.core.memory.eligibility_v1 import ReviewedMemoryEligibilityV1
 from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.core.personality.influence import ContinuityInfluence
 from sofia.core.social.model import AudienceKind, PrincipalContext
@@ -26,6 +27,7 @@ class MemorySystem:
         historical_store: ChatGPTExportEvidenceStore | None = None,
         association_store=None,
         ranking_service=None,
+        eligibility_policy: ReviewedMemoryEligibilityV1 | None = None,
     ) -> None:
         if (
             not isinstance(
@@ -63,6 +65,11 @@ class MemorySystem:
             if not isinstance(ranking_service, MemoryRankingService):
                 raise TypeError("ranking_service must be MemoryRankingService")
         self._ranking_service = ranking_service
+        if eligibility_policy is not None and not isinstance(
+            eligibility_policy, ReviewedMemoryEligibilityV1
+        ):
+            raise TypeError('eligibility_policy must be ReviewedMemoryEligibilityV1')
+        self._eligibility_policy = eligibility_policy
 
     @property
     def candidate_store(
@@ -189,6 +196,7 @@ class MemorySystem:
             audience_id=principal.audience_id,
             influence=influence,
             association_store=self._association_store,
+            eligibility_policy=self._eligibility_policy,
         )
 
         records: list[MemoryRecord] = []
@@ -198,9 +206,9 @@ class MemorySystem:
             # cognitive MemoryRecord shape. A revoke that lands between
             # retrieval and projection must fail closed.
             if (
-                candidate_store.status(
-                    projected.candidate_id
-                )
+                (self._eligibility_policy is not None
+                 and not self._eligibility_policy.allows(projected.candidate_id))
+                or candidate_store.status(projected.candidate_id)
                 is not CandidateStatus.PROMOTED
             ):
                 continue
@@ -235,6 +243,8 @@ class MemorySystem:
                 or candidate_store.status(current.candidate_id)
                 is not CandidateStatus.PROMOTED
                 or not candidate_store.is_recall_eligible(current.candidate_id)
+                or (self._eligibility_policy is not None
+                    and not self._eligibility_policy.allows(current.candidate_id))
             ):
                 continue
 
