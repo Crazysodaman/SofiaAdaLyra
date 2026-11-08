@@ -4,7 +4,9 @@ import sqlite3
 
 import pytest
 
-from sofia.platform.run.heartbeat import ApplicationHeartbeat, ApplicationHeartbeatStore
+from sofia.platform.run.heartbeat import (
+    ApplicationHeartbeat, ApplicationHeartbeatStore, generation_bound_heartbeat_publisher,
+)
 from sofia.platform.run.host import LocalServiceRuntimeBackend, RunSupervisorHost
 from sofia.platform.run.lease import LeaseResult, RunLease, LocalRunLeaseStore
 from sofia.platform.run.runtime_service import (
@@ -280,3 +282,35 @@ def test_core001_operator_stop_blocks_scm_ready_and_start(tmp_path):
     assert backend.observe().ready is False
     with pytest.raises(PermissionError, match="STOP"):
         backend.start(epoch=lease.epoch)
+
+
+def test_core001_generation_bound_publisher_never_adopts_newer_epoch(tmp_path):
+    path = state(tmp_path)
+    now = datetime.now(timezone.utc)
+    heartbeats = ApplicationHeartbeatStore(path)
+    heartbeats.bind_generation(3, now=now)
+    publish = generation_bound_heartbeat_publisher(
+        heartbeats, instance_id="disposable-original", runtime_state=lambda: "ready",
+    )
+    publish(now, True)
+    current = heartbeats.current()
+    assert current is not None and current.generation_epoch == 3
+    assert current.ready
+
+    # Only the service/supervisor may bind an epoch, but when it does,
+    # a stale background publisher may not impersonate its successor.
+    heartbeats.bind_generation(4, now=now + timedelta(seconds=1))
+    with pytest.raises(PermissionError, match="stale application heartbeat"):
+        publish(now + timedelta(seconds=2), True)
+    assert heartbeats.current().generation_epoch == 3
+
+
+def test_core001_generation_bound_publisher_denies_missing_initial_authority(tmp_path):
+    path = state(tmp_path)
+    heartbeats = ApplicationHeartbeatStore(path)
+    publish = generation_bound_heartbeat_publisher(
+        heartbeats, instance_id="disposable-unleased", runtime_state=lambda: "ready",
+    )
+    with pytest.raises(PermissionError, match="no startup generation"):
+        publish(datetime.now(timezone.utc), True)
+    assert heartbeats.current() is None
