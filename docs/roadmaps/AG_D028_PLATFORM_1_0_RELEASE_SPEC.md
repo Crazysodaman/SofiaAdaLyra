@@ -226,6 +226,10 @@ Every test below must be run on **actual disposable signed installed Windows + D
 - E: build disposable 2 Windows + 2 Debian host test topology and signed synthetic packages, negative suite, trace collection and preserved artifact receipts.
 - Central Hub/Peer transfer needs current host enrollment/SAFE grants, transport, signed verifier and bounded content store; do not call this independent of those prerequisites.
 
+### Single-primary deployment and replica-readiness acceptance
+
+Platform 1.0 must support **one primary and zero replicas** as a valid healthy configuration, with one Core hosted on the same VM **without Core dependency**. It must not hardcode a single mutable Hub endpoint instead of a logical library identity, host-bound primary role and revision/fencing. The release test suite shall exercise a **disposable read-only second replica** and refusal of simultaneous primary writes, while **not requiring the owner to deploy any second live Library**. Manual owner-approved promotion may be staged only with old-primary fence evidence; automated failover is explicitly out of scope. Co-located Core shutdown does not stop Hub, and Hub cache/disk pressure cannot corrupt Core state. Evidence in [deployment profile](AG_D028_SOFIA_VM_PRIMARY_LIBRARY_DEPLOYMENT.md) extends existing LIB-02/03/08/10/12/13/14/15/16 and does not add another acceptance row or scenario number.
+
 ## 10. Engineering checklist and release dashboard
 
 - [ ] Platform-only clean offline bootstrap, signed Windows/Debian (LIB-01/02)
