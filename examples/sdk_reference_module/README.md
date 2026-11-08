@@ -1,5 +1,7 @@
 # Aegis SDK Reference Module (test-only)
 
+**New:** The [three-piece Core + Platform + Module SDK reference bench](../sdk_reference_system/README.md) uses this exact module alongside dummy Core and Platform clients. Run `python -m examples.sdk_reference_system.try_it` to watch two Core clients share, gain/revoke, and lose this capability without touching production.
+
 This is the **golden, inert module example** for developers of Sofía/Aegis modules. It models **the actual Python SDK v1 contracts and Platform lifecycle**, not a magical plugin loader or an installer.
 
 **Catalog status:** Not part of the 55 production module entries and **NOT** an independently installable release. Its example module ID is `dev.aegis.reference`, version `0.1.0`, and its only capability is `reference.ping`. No real-world services, external devices, Docker, credentials or model execution are involved.
