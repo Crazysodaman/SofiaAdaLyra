@@ -16,6 +16,7 @@ from __future__ import annotations
 from hashlib import sha256
 import os
 from pathlib import Path
+import re
 import stat
 import tempfile
 import zipfile
@@ -59,6 +60,29 @@ def _archive_member(zipper: zipfile.ZipFile, name: str, data: bytes) -> None:
     info.create_system = 3
     info.external_attr = (stat.S_IFREG | 0o644) << 16
     zipper.writestr(info, data)
+
+
+def offline_capsule_publisher_seal_message(
+    *, capsule_sha256: str, signer_key_id: str,
+) -> bytes:
+    """Exact message for the EXISTING publisher key to sign, never a new key.
+
+    Same-byte contract as verify-aegis-capsule.sh. An approved release
+    signing workflow signs these bytes only in the owner-authorized
+    production release environment, never on this draft branch.
+    """
+    if (not isinstance(capsule_sha256, str)
+            or re.fullmatch(r"[0-9a-f]{64}", capsule_sha256) is None):
+        raise ValueError("canonical lowercase capsule digest required")
+    if (not isinstance(signer_key_id, str)
+            or re.fullmatch(r"[A-Za-z0-9_.-]{1,128}", signer_key_id) is None):
+        raise ValueError("bounded release publisher key ID required")
+    return (
+        b"aegis.offline.capsule.v1\0"
+        + signer_key_id.encode("ascii")
+        + b"\0"
+        + capsule_sha256.encode("ascii")
+    )
 
 
 def build_reviewed_offline_capsule(
@@ -177,6 +201,13 @@ def build_reviewed_offline_capsule(
             "result": "SIGNED_RELEASE_BYTES_PACKAGED_NOT_INSTALLED",
             "capsule_sha256": digest,
             "capsule_size_bytes": size,
+            "publisher_capsule_seal_schema": "aegis.offline.capsule.v1",
+            "publisher_capsule_seal_message_sha256": sha256(
+                offline_capsule_publisher_seal_message(
+                    capsule_sha256=digest, signer_key_id=trusted_signer_key_id,
+                )
+            ).hexdigest(),
+            "publisher_capsule_seal_signature_verified": False,
             "release_manifest_sha256": manifest.digest,
             "release_id": manifest.release_id,
             "revision": manifest.revision,
