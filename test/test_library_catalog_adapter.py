@@ -3,7 +3,6 @@
 Fake callbacks stand in for A's signed-index service and B's independent
 publisher/archive verification. They are NOT host or publisher authentication.
 """
-from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 
@@ -66,7 +65,7 @@ def review(data, value, root, pub, **changes):
     kwargs = dict(
         catalog_data=data, selected_artifact_id=item["artifact_id"],
         selected_manifest_digest=value.package_identity_digest(),
-        selected_content_digest=item["content_digest"],
+        selected_content_digest="b" * 64,
         bound_platform_id="platform:fixture-client",
         expected_catalog_generation=5, minimum_catalog_revision=22,
         manifest=value, package_root=root, now=NOW,
@@ -161,7 +160,6 @@ def test_abi_signer_revocation_and_archive_verification_required(tmp_path):
 
 def test_wrong_local_ed25519_signature_and_modified_file_fail(tmp_path):
     data, value, root, pub = fixture(tmp_path)
-    bad = replace(value, signature_b64=replace(value, signature_b64=value.signature_b64).signature_b64)
     other = Ed25519PrivateKey.generate()
     bad = signed(value, other)
     with pytest.raises(ModuleRecipientRejected, match="signature"):
