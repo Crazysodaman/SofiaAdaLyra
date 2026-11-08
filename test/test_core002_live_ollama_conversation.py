@@ -101,11 +101,27 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
 
     def observe_real_call(self, request):
         began = monotonic()
+        system_projection = "\n".join(
+            message.content for message in request.messages
+            if message.role.value == "system"
+        )
         receipt = {
             "provider": "ollama",
             "model": self.configuration.model,
             "endpoint": self.endpoint,
             "real_client_path": True,
+            "authoritative_identity_present": (
+                "AUTHORITATIVE SELF-STATE PROJECTION" in system_projection
+                and "Sofía Ada Lyra" in system_projection
+            ),
+            "canonical_personality_present": (
+                "PERSONALITY EXPRESSION BOUNDARY" in system_projection
+                and "rigorous" in system_projection
+                and "curious" in system_projection
+            ),
+            "quality_retry_requested": (
+                "RESPONSE QUALITY RETRY" in system_projection
+            ),
         }
         try:
             generated = true_provider_call(self, request)
@@ -177,6 +193,14 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
             assert any(c["status"] == "generated" for c in new_calls), (
                 f"Turn {index + 1} had no genuine successful model response"
             )
+            assert any(
+                c["authoritative_identity_present"]
+                and c["canonical_personality_present"]
+                for c in new_calls
+            ), (
+                "Authoritative identity/personality were not observed in the "
+                "actual provider request; a correct-looking answer is not proof"
+            )
             assert result.content.strip(), "Blank response was falsely accepted"
             assert result.content != "Test cognitive response."
             final_digest = sha256(result.content.encode("utf-8")).hexdigest()
@@ -224,6 +248,12 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
                 "assistant_sha256": final_digest,
                 "model_origin": origin["kind"],
                 "provider_calls": len(new_calls),
+                "quality_retry_calls": sum(
+                    1 for c in new_calls if c["quality_retry_requested"]
+                ),
+                "failed_provider_calls": sum(
+                    1 for c in new_calls if c["status"] == "failed"
+                ),
             })
 
         # Conversation continuity evidence, not a fixed synthetic output.
