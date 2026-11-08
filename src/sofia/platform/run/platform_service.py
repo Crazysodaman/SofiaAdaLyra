@@ -121,7 +121,10 @@ class PlatformServiceSession:
                     # *separate* dedicated group and mode. Not a wildcard
                     # over the existing 'aegis' service group.
                     import grp
-                    group_gid = grp.getgrnam("aegis-mgmt").gr_gid
+                    try:
+                        group_gid = grp.getgrnam("aegis-mgmt").gr_gid
+                    except KeyError as exc:
+                        raise PermissionError("dedicated management group missing") from exc
                     required_mode = 0o750
                     if group_gid != os.getegid():
                         raise PermissionError("installed management group differs")
