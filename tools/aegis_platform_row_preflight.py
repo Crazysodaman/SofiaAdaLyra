@@ -48,6 +48,58 @@ PROBES: dict[int, tuple[str, ...]] = {
     38: ("test_ui_aegis_theme_contract.py",),
 }
 
+# AG-D028 LIB scenarios refine existing rows, never create row 39. This map is
+# source-pinned to draft PR #248's release specification and must be reviewed
+# again at the A/C/B integration contract freeze. It is NOT execution evidence.
+LIB_ROWS: dict[str, tuple[int, ...]] = {
+    "LIB-01": (1, 2, 3, 5, 28, 30, 38),
+    "LIB-02": (1, 2, 3, 7, 28, 30, 33, 38),
+    "LIB-03": (10, 11, 12, 13, 14, 19, 29, 31),
+    "LIB-04": (2, 3, 21, 22, 24, 28, 35),
+    "LIB-05": (21, 22, 23, 24, 26, 35),
+    "LIB-06": (17, 18, 25, 28, 36),
+    "LIB-07": (10, 11, 12, 13, 14, 17, 18, 19, 29, 31, 36),
+    "LIB-08": (10, 11, 12, 13, 14, 21, 31, 37),
+    "LIB-09": (17, 18, 19, 21, 25, 28, 29),
+    "LIB-10": (8, 9, 19, 20, 26, 29),
+    "LIB-11": (19, 25, 28, 29),
+    "LIB-12": (19, 20, 26, 29, 37),
+    "LIB-13": (10, 11, 12, 19, 22, 29, 37),
+    "LIB-14": (30, 31, 32, 33, 34, 35, 36, 37, 38),
+    "LIB-15": (1, 5, 8, 16, 19, 20, 29, 30),
+    "LIB-16": (29, 30, 32, 33, 34, 35, 36, 37, 38),
+}
+assert tuple(LIB_ROWS) == tuple(f"LIB-{i:02d}" for i in range(1, 17))
+assert all(set(rows) <= set(range(1, COUNT + 1)) for rows in LIB_ROWS.values())
+
+
+def make_library_preflight() -> dict:
+    """Conservative AG-D028 work inventory; NOT a signed host witness.
+
+    Never ingest a JUnit result as release-level LIB acceptance. Host-specific
+    authentication/signature/STOP/negative receipts are independently required.
+    """
+    return {
+        "schema": "aegis.artifact-library.acceptance-preflight.v1",
+        "source_spec": "AG-D028 PR #248 (draft; requires contract review)",
+        "scenario_count": len(LIB_ROWS),
+        "acceptance": "NOT_CLAIMED",
+        "release_accepted": False,
+        "production_authorized": False,
+        "scenarios": [
+            {
+                "scenario_id": scenario,
+                "refined_platform_rows": [f"{row:02d}" for row in rows],
+                "preflight": "BLOCKED_NO_SIGNED_INSTALLED_HOST_EVIDENCE",
+                "acceptance": "NOT_CLAIMED",
+                "signed_windows_debian_host_receipts": "REQUIRED",
+                "positive_negative_cases": "NOT_VERIFIED",
+            }
+            for scenario, rows in LIB_ROWS.items()
+        ],
+    }
+
+
 BLOCKED_BY_MISSING_INTEGRATION = frozenset(set(range(1, COUNT + 1)) - PROBES.keys())
 assert len(PROBES) == 25 and len(BLOCKED_BY_MISSING_INTEGRATION) == 13
 
@@ -75,7 +127,10 @@ def _git_sha() -> str:
     return sha
 
 
-def make_report(junit_path: Path | None, source_sha: str, platform: str) -> dict:
+def make_report(
+    junit_path: Path | None, source_sha: str, platform: str,
+    *, include_artifact_library: bool = False,
+) -> dict:
     """Build a conservative row-by-row snapshot from actual JUnit testcases."""
     observed: dict[str, list[str]] = defaultdict(list)
     source = "JUNIT_UNAVAILABLE"
@@ -116,7 +171,7 @@ def make_report(junit_path: Path | None, source_sha: str, platform: str) -> dict
             "acceptance": "NOT_CLAIMED",
             "signed_installed_host_receipt": "REQUIRED",
         })
-    return {
+    report = {
         "schema": SCHEMA,
         "source_sha": source_sha,
         "runner": platform,
@@ -126,14 +181,22 @@ def make_report(junit_path: Path | None, source_sha: str, platform: str) -> dict
         "row_count": len(rows),
         "rows": rows,
     }
+    if include_artifact_library:
+        report["artifact_library"] = make_library_preflight()
+    return report
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--junit", type=Path)
+    parser.add_argument("--include-artifact-library", action="store_true",
+                        help="Include conservative LIB-01..16 preflight, never release PASS")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    report = make_report(args.junit, _git_sha(), sys.platform)
+    report = make_report(
+        args.junit, _git_sha(), sys.platform,
+        include_artifact_library=args.include_artifact_library,
+    )
     payload = json.dumps(report, sort_keys=True, indent=2) + "\n"
     if args.output:
         args.output.write_text(payload, encoding="utf-8")
