@@ -1,0 +1,49 @@
+name: Aegis D028 Selective Module Plan (Team D)
+
+on:
+  pull_request:
+    paths:
+      - 'src/sofia/platform/modules/library_plan.py'
+      - 'src/sofia/platform/modules/library_recipient.py'
+      - 'src/sofia/platform/modules/library_catalog_adapter.py'
+      - 'src/sofia/platform/modules/package.py'
+      - 'src/sofia/platform/modules/compatibility.py'
+      - 'test/test_library_module_plan.py'
+      - 'test/test_library_module_recipient.py'
+      - 'test/test_library_catalog_adapter.py'
+      - 'test/conftest.py'
+      - '.github/workflows/aegis-d028-module-plan.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-conformance:
+    name: Selective module closure (Python 3.12, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install tests from isolated branch
+        run: python -m pip install -e . pytest
+      - name: Check dependency integrity
+        run: python -m pip check
+      - name: Compile pure plan and test module
+        run: python -m compileall -q src/sofia/platform/modules/library_plan.py src/sofia/platform/modules/library_recipient.py src/sofia/platform/modules/library_catalog_adapter.py test/test_library_module_plan.py test/test_library_module_recipient.py test/test_library_catalog_adapter.py
+      - name: Verify dependency closure and existing canonical module checks
+        run: >-
+          python -m pytest -q
+          test/test_library_module_plan.py
+          test/test_library_module_recipient.py
+          test/test_library_catalog_adapter.py
+          test/test_module_compatibility_v1.py
+          test/test_module_package_v1.py
+          test/test_module_lifecycle_v1.py
+          test/test_package_grouping.py
