@@ -93,7 +93,7 @@ def test_native_tui_json_platform_status_is_not_false_live_success():
     result = _run("--status-json")
     assert result.returncode == 3
     data = json.loads(result.stdout)
-    assert data["schema"] == "aegis.ui.platform.offline-status.v1"
+    assert data["schema"] == "aegis.ui.platform.status-display.v1"
     assert data["status"] == "UNAVAILABLE"
     assert data["source"] == "UNVERIFIED"
     assert data["platform_generation"] is None

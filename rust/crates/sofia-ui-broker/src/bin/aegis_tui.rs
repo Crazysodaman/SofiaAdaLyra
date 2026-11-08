@@ -108,7 +108,7 @@ fn color_supported() -> bool {
             .is_ok_and(|term| term.contains("truecolor") || term.contains("24bit"))
 }
 
-fn render_menu(colors: bool) -> String {
+fn render_menu(colors: bool, view: &ControlCenterView) -> String {
     let mut lines = vec![
         paint(
             "AEGIS PLATFORM | TERMINAL CONTROL CENTER",
@@ -116,7 +116,11 @@ fn render_menu(colors: bool) -> String {
             colors,
         ),
         paint(
-            "MODE: READ ONLY / MANAGEMENT SERVICE UNAVAILABLE",
+            &format!(
+                "MODE: READ ONLY / MANAGEMENT SERVICE {} / SOURCE {}",
+                view.service_label(),
+                view.source_label()
+            ),
             "warning",
             colors,
         ),
@@ -196,7 +200,7 @@ fn status_line(view: &ControlCenterView) -> String {
 fn status_json(view: &ControlCenterView) -> Value {
     let current = view.link == LinkState::Observed && view.platform_generation.is_some();
     serde_json::json!({
-        "schema": "aegis.ui.platform.offline-status.v1",
+        "schema": "aegis.ui.platform.status-display.v1",
         "status": view.service_label(),
         "source": view.source_label(),
         "platform_generation": if current { view.platform_generation } else { None },
@@ -283,12 +287,13 @@ fn run() -> io::Result<ExitCode> {
     }
     let colors = !args.iter().any(|arg| arg == "--plain") && color_supported();
     if !io::stdin().is_terminal() {
-        print!("{}", render_menu(false));
+        print!("{}", render_menu(false, session.view()));
         println!("\nInteractive input requires a terminal; no operation performed.");
         return Ok(ExitCode::SUCCESS);
     }
     loop {
-        println!("{}", render_menu(colors));
+        session.expire_at(std::time::Instant::now());
+        println!("{}", render_menu(colors, session.view()));
         print!("Select [0-15]: ");
         io::stdout().flush()?;
         let mut selection = String::new();
@@ -298,6 +303,7 @@ fn run() -> io::Result<ExitCode> {
         if selection.trim() == "0" {
             return Ok(ExitCode::SUCCESS);
         }
+        session.expire_at(std::time::Instant::now());
         if let Some(page) = select_page(&selection) {
             println!("{}\n", render_page(page, colors, session.view()));
         } else {
@@ -335,9 +341,10 @@ mod tests {
 
     #[test]
     fn plain_mode_has_no_ansi_or_unsupported_authority_claims() {
-        let menu = render_menu(false);
+        let menu = render_menu(false, &ControlCenterView::offline());
         assert!(!menu.contains('\x1b'));
         assert!(menu.contains("UNAVAILABLE"));
+        assert!(menu.contains("SOURCE UNVERIFIED"));
         assert!(menu.contains("Settings"));
         assert!(!menu.contains("VERIFIED HEALTHY"));
         let page = render_page(Page::Settings, false, &ControlCenterView::offline());
@@ -403,13 +410,28 @@ mod tests {
         let text = status_line(&view);
         assert!(text.starts_with("status=UNAVAILABLE source=UNVERIFIED"));
         let data = status_json(&view);
-        assert_eq!(data["schema"], "aegis.ui.platform.offline-status.v1");
+        assert_eq!(data["schema"], "aegis.ui.platform.status-display.v1");
         assert_eq!(data["platform_generation"], serde_json::Value::Null);
         assert_eq!(data["operator_stop"], serde_json::Value::Null);
         assert_eq!(data["core_started"], serde_json::Value::Null);
         assert_eq!(data["actions_enabled"], false);
         assert_eq!(data["installation"], "NOT_CURRENTLY_VERIFIED");
         assert_eq!(status_exit(&view), std::process::ExitCode::from(3));
+    }
+
+    #[test]
+    fn menu_reflects_observation_or_denial_instead_of_hardcoded_offline() {
+        let mut view = ControlCenterView::offline();
+        view.link = LinkState::Revoked;
+        let denied = render_menu(false, &view);
+        assert!(denied.contains("SERVICE REVOKED"));
+        assert!(denied.contains("SOURCE REVOKED"));
+        view.link = LinkState::Observed;
+        view.platform_generation = Some(9);
+        let live = render_menu(false, &view);
+        assert!(live.contains("SERVICE OBSERVED"));
+        assert!(live.contains("SOURCE SERVICE_OBSERVED"));
+        assert!(!live.contains("SERVICE UNAVAILABLE"));
     }
 
     #[test]

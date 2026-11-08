@@ -162,3 +162,12 @@ def test_c007_status_cli_is_sourced_from_display_and_denials_fail_closed():
     assert '"actions_enabled": false' in source
     assert "fn denied_stop_revoked_and_stale_status_never_expose_generation()" in source
     assert "session.refresh(&mut OfflineReader" in source
+
+
+def test_c007_menu_never_freezes_a_future_live_status_as_offline():
+    source = TUI.read_text(encoding="utf-8")
+    assert "fn render_menu(colors: bool, view: &ControlCenterView)" in source
+    assert "view.service_label()" in source
+    assert "view.source_label()" in source
+    assert "session.expire_at(std::time::Instant::now())" in source
+    assert "menu_reflects_observation_or_denial_instead_of_hardcoded_offline" in source
