@@ -25,7 +25,7 @@ if [[ -r /etc/os-release ]]; then
 fi
 if [[ "$(uname -m)" == x86_64 ]]; then architecture_amd64=true; fi
 required=(bash sha256sum base64 stat realpath openssl systemctl getent id
-          install flock timeout readlink mktemp chmod)
+          install flock timeout readlink mktemp chmod tar unzip)
 for binary in "${required[@]}"; do
   if ! command -v "$binary" >/dev/null 2>&1; then
     if [[ -n "$missing" ]]; then missing+=','; fi
