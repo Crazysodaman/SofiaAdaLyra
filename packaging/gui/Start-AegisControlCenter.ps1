@@ -371,6 +371,7 @@ if ($UiProbe) {
             if (@($script:actionButtons | Where-Object { $_.Enabled }).Count -ne 0) {
                 throw "Library action unexpectedly enabled: $pageName"
             }
+            Write-Output ('LIBRARY_PAGE_VERIFIED=' + $pageName + ';SOURCE=UNVERIFIED;ACTIONS=DISABLED')
         }
         Write-Output 'LIBRARY_NAVIGATION_PROBE=PASS'
         Write-Output 'AEGIS_GUI_NATIVE_CONSTRUCTION=PASS'

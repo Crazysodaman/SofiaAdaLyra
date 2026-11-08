@@ -77,6 +77,7 @@ def test_d028_06_library_navigation_is_read_only_without_a_service_source():
     assert "ACTIVE: UNKNOWN" in tui
     assert "download" in gui.lower()
     assert "Enabled = $true" not in gui
+    assert "LIBRARY_PAGE_VERIFIED=" in gui
 
 
 def test_c003_stop_denial_mapping_matches_canonical_a_management_codes():

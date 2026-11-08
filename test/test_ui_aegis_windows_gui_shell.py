@@ -88,6 +88,10 @@ def test_windows_native_controls_constructed_with_management_disabled():
     assert "AEGIS_GUI_NATIVE_CONSTRUCTION=PASS" in result.stdout
     assert "ARTIFACT_LIBRARY_NAVIGATION=7" in result.stdout
     assert "LIBRARY_NAVIGATION_PROBE=PASS" in result.stdout
+    for page in ("Catalog", "Sources", "Downloads", "Installed",
+                 "Storage", "Hub", "History"):
+        assert ("LIBRARY_PAGE_VERIFIED=Library > " + page +
+                ";SOURCE=UNVERIFIED;ACTIONS=DISABLED") in result.stdout
     assert "LIBRARY_ACTIONS=DISABLED" in result.stdout
     assert "AUTHENTICATION=NOT_CONNECTED" in result.stdout
     assert "ACTIONS=DISABLED" in result.stdout
