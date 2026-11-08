@@ -19,11 +19,15 @@ DRY_RUN=0
 CHECK_REQUESTED=0
 OPERATION_REQUESTED=0
 OPERATION=none
+SEED_ARCHIVE=''
+SEED_SHA256=''
+SEED_REQUESTED=0
 
 usage() {
   printf '%s\n' 'Aegis installer (PREVIEW ONLY)' \
     'Usage: install-aegis.sh [--check] [--no-color|--plain|--line-mode] [--json]' \
     '       install-aegis.sh --operation OP [--json] [--dry-run]' \
+    '       install-aegis.sh --verify-seed FILE --trusted-seed-sha256 HEX [--json]' \
     'OP: status, doctor, install, update, repair, rollback, uninstall, purge' \
     'Mutation is BLOCKED until the signed OS executor and SAFE/STOP are connected.'
 }
@@ -31,6 +35,12 @@ usage() {
 while (($#)); do
   case "$1" in
     --check) MODE=check; CHECK_REQUESTED=1; shift ;;
+    --verify-seed)
+      if ((SEED_REQUESTED)) || (($# < 2)); then printf '%s\n' 'Invalid seed argument' >&2; exit 2; fi
+      SEED_REQUESTED=1; MODE=seed; SEED_ARCHIVE="$2"; shift 2 ;;
+    --trusted-seed-sha256)
+      if [[ -n "$SEED_SHA256" ]] || (($# < 2)); then printf '%s\n' 'Invalid trusted digest argument' >&2; exit 2; fi
+      SEED_SHA256="$2"; shift 2 ;;
     --help|-h) MODE=help; shift ;;
     --no-color|--plain|--line-mode) PLAIN=1; shift ;;
     --json) JSON_MODE=1; shift ;;
@@ -49,9 +59,12 @@ while (($#)); do
   esac
 done
 
-if ((CHECK_REQUESTED && OPERATION_REQUESTED)); then
-  printf '%s\n' '--check cannot be combined with --operation' >&2
+if (( (CHECK_REQUESTED && OPERATION_REQUESTED) || (SEED_REQUESTED && (CHECK_REQUESTED || OPERATION_REQUESTED || DRY_RUN)) )); then
+  printf '%s\n' 'Ambiguous operation or seed flags' >&2
   exit 2
+fi
+if [[ -n "$SEED_SHA256" && "$SEED_REQUESTED" -eq 0 ]]; then
+  printf '%s\n' '--trusted-seed-sha256 requires --verify-seed' >&2; exit 2
 fi
 
 # Presentation manifest is never evaluated or sourced as executable code.
@@ -139,7 +152,47 @@ readonly_preview() {
   fi
 }
 
+# Offline byte verification uses Debian standard coreutils, not a project
+# Python/Rust/Git/Ollama installation. The SHA must be obtained independently
+# from trusted release provenance: a hash printed on the same medium is not trust.
+verify_seed_bytes() {
+  if [[ ! "$SEED_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+    printf '%s\n' 'An independently pinned lowercase SHA-256 is required' >&2
+    return 2
+  fi
+  if [[ ! -f "$SEED_ARCHIVE" || -L "$SEED_ARCHIVE" ]]; then
+    printf '%s\n' 'Seed must be an existing ordinary file' >&2; return 3
+  fi
+  # Debian 12 coreutils realpath rejects symlink/junction-like path components.
+  local original actual size observed
+  original="$(realpath -ms -- "$SEED_ARCHIVE")" || return 3
+  actual="$(realpath -es -- "$SEED_ARCHIVE")" || return 3
+  if [[ "$original" != "$actual" ]]; then
+    printf '%s\n' 'Seed path contains filesystem redirection' >&2; return 3
+  fi
+  size="$(stat -c '%s' -- "$actual")" || return 3
+  if [[ ! "$size" =~ ^[0-9]+$ ]] || ((size < 1 || size > 1073741824)); then
+    printf '%s\n' 'Offline seed size outside bounded policy' >&2; return 3
+  fi
+  observed="$(sha256sum -- "$actual")" || return 3
+  observed="${observed:0:64}"
+  if [[ "$observed" != "$SEED_SHA256" ]]; then
+    if ((JSON_MODE)); then
+      printf '%s\n' '{"schema":"aegis.installer.seed-byte-check.v1","result":"REJECTED","byte_digest_match":false,"signature_verified":false,"executed":false,"core_activated":false}'
+    else printf '%s\n' 'RESULT=REJECTED' 'SIGNED_RELEASE=NOT_VERIFIED' 'NO_CHANGES_MADE=TRUE'
+    fi
+    return 3
+  fi
+  if ((JSON_MODE)); then
+    printf '{"schema":"aegis.installer.seed-byte-check.v1","result":"HASH_MATCH_ONLY","sha256":"%s","size_bytes":%s,"signature_verified":false,"owner_approved":false,"executed":false,"core_activated":false}\n' "$observed" "$size"
+  else
+    printf '%s\n' 'RESULT=HASH_MATCH_ONLY' "SHA256=$observed" "SIZE_BYTES=$size" 'SIGNED_RELEASE=NOT_VERIFIED' 'PUBLISHER_SIGNATURE=NOT_VERIFIED' 'INSTALL_AUTHORITY=NOT_CONNECTED' 'NO_CHANGES_MADE=TRUE'
+  fi
+  return 0
+}
+
 if [[ "$MODE" == help ]]; then usage; exit 0; fi
+if [[ "$MODE" == seed ]]; then verify_seed_bytes; exit $?; fi
 if [[ "$MODE" == check ]]; then readonly_preview; exit 0; fi
 if [[ "$MODE" == operation ]]; then
   case "$OPERATION" in
