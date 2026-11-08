@@ -30,6 +30,15 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact PR HEAD before tests
+        shell: bash
+        run: |
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          actual="$(git rev-parse HEAD)"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "Wrong checked-out source SHA" >&2
+            exit 1
+          fi
           persist-credentials: false
       - uses: actions/setup-python@v7
         with:
