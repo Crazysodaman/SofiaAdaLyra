@@ -464,4 +464,41 @@ mod tests {
             .is_err());
     }
 
+    #[test]
+    fn shared_denial_and_unicode_c1_parity_corpus() {
+        let request_json =
+            include_str!("../../../../contracts/platform/management-read-valid-v1.json");
+        let denied_json =
+            include_str!("../../../../contracts/platform/management-read-response-denied-v1.json");
+        let settings_json =
+            include_str!("../../../../contracts/platform/management-read-settings-valid-v1.json");
+        let c1_json =
+            include_str!("../../../../contracts/platform/management-read-response-invalid-c1-v1.json");
+        let start = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:00Z")
+            .expect("known start");
+        let now = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:01Z")
+            .expect("known receiver");
+        let request = UntrustedManagementRead::parse(request_json.as_bytes(), start)
+            .expect("valid status request");
+        let denied = UntrustedManagementResponse::parse(
+            denied_json.as_bytes(), &request, now,
+        ).expect("correlated typed denial");
+        assert_eq!(denied.outcome, "DENIED");
+        assert_eq!(denied.denial.expect("denial").code, "STOPPED");
+        let settings = UntrustedManagementRead::parse(settings_json.as_bytes(), start)
+            .expect("valid read syntax");
+        assert!(UntrustedManagementResponse::parse(
+            c1_json.as_bytes(), &settings, now,
+        ).is_err());
+        let mut allowed: Value = serde_json::from_str(c1_json).expect("strict fixture");
+        allowed["data"] = json!({"message":"\u{2028}"});
+        assert!(UntrustedManagementResponse::parse(
+            allowed.to_string().as_bytes(), &settings, now,
+        ).is_ok());
+        allowed["data"] = json!({"nönascii":"safe"});
+        assert!(UntrustedManagementResponse::parse(
+            allowed.to_string().as_bytes(), &settings, now,
+        ).is_err());
+    }
+
 }
