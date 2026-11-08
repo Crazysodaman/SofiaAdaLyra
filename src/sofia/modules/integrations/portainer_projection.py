@@ -50,7 +50,7 @@ def project_portainer_stack_metadata(
         "stack_id": stack_id,
         "endpoint_id": endpoint_id,
         "name": name,
-        "source_hint": "git" if git_config is not None else "unknown",
+        "source_hint": "git" if git_config else "unknown",
         "raw_status_code": status,
         "evidence_class": "portainer_metadata_unverified_health",
     }
