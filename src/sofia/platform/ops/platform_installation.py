@@ -54,6 +54,7 @@ STAGE_SCHEMA = 'aegis.platform.code-stage.v1'
 ACTIVATION_SCHEMA = 'aegis.platform.code-activation.v1'
 SERVICE_SCHEMA = 'aegis.platform.service-control.v1'
 ACTIVATION_CAPABILITY = 'platform.activate_release'
+ROLLBACK_CAPABILITY = 'platform.rollback_release'
 INSTALL = 'install'
 ROLLBACK = 'rollback'
 SUCCEEDED = 'SUCCEEDED'
@@ -445,8 +446,33 @@ def _publish_verified_tree(candidate, destination, *, verifier, operation, now,
              state_initialized=False, service_health_verified=False)))
 
 
+def platform_rollback_request(staging_path, destination, state_path, *, store, verifier):
+    """Create a non-executable, checkpoint-bound owner rollback approval preview.
+
+    The exact signed candidate, destination and current anti-rollback
+    generation are included so a stale approval cannot authorize later work.
+    """
+    candidate = verify_staged_release_candidate(
+        staging_path, verifier=verifier, minimum_revision=1)
+    checkpoint = store.checkpoint()
+    if checkpoint is None:
+        raise PlatformInstallationDenied('rollback requires existing installation history')
+    parameters = dict(
+        release_id=candidate.release_id,
+        manifest_sha256=candidate.manifest_sha256,
+        revision=candidate.revision,
+        staging_path=str(candidate.staging_path),
+        destination=str(Path(destination).absolute()),
+        state_path=str(Path(state_path).absolute()),
+        checkpoint_revision=checkpoint.minimum_accepted_revision,
+        checkpoint_generation=checkpoint.generation)
+    return dict(capability=ROLLBACK_CAPABILITY, parameters=parameters,
+                fingerprint=execution_fingerprint(ROLLBACK_CAPABILITY, parameters))
+
+
 def install_staged_release(staging_path, destination, *, store, verifier,
-                           minimum_revision=None, operation=INSTALL, now=None):
+                           minimum_revision=None, operation=INSTALL, now=None,
+                           state_path=None, approval_id=None):
     """Publish an independently re-verified staged release into an owned target.
 
     No activation happens here. The durable anti-rollback checkpoint floors
@@ -485,6 +511,18 @@ def install_staged_release(staging_path, destination, *, store, verifier,
             raise PlatformInstallationDenied(
                 'rollback target must be exact previously attested bytes from'
                 ' this Platform install history')
+    if operation == ROLLBACK:
+        if state_path is None or not approval_id:
+            raise PlatformInstallationDenied(
+                'rollback requires fresh owner approval and canonical SAFE state')
+        state_path = Path(state_path).absolute()
+        if OperatorStopStore(state_path).current().active:
+            raise PlatformInstallationDenied('operator STOP is engaged; rollback refused')
+        request = platform_rollback_request(
+            staging_path, destination, state_path, store=store, verifier=verifier)
+        ExecutionApprovalVerifier(state_path).consume(
+            approval_id=approval_id, capability=request['capability'],
+            parameters=request['parameters'], now=now)
     receipt = store.receipt_for_release(candidate.release_id)
     if receipt is not None and receipt['result'] == SUCCEEDED:
         verify_installed(receipt['destination'], store=store, verifier=verifier)
