@@ -57,6 +57,7 @@ def test_systemd_register_stop_and_remove_only_exact_new_unit(native_spec, tmp_p
     import sofia.platform.ops.platform_installer_native_service as mod
     service = DebianSystemdNativeService(unit_path=tmp_path / "aegis-platform.service")
     monkeypatch.setattr(service, "_require_root", lambda: None)
+    monkeypatch.setattr(service, "_require_service_identity", lambda spec: None)
     calls = []
 
     def systemctl(*args):
@@ -89,6 +90,7 @@ def test_systemd_refuses_foreign_existing_unit_without_changing_it(native_spec, 
     service.unit_path.write_text("[Service]\nExecStart=/foreign\n")
     before = service.unit_path.read_bytes()
     monkeypatch.setattr(service, "_require_root", lambda: None)
+    monkeypatch.setattr(service, "_require_service_identity", lambda spec: None)
     monkeypatch.setattr(mod, "_run_systemctl", lambda *a: "LoadState=loaded\n")
     with pytest.raises(PlatformInstallationDenied, match="adopt"):
         service.register(native_spec)
@@ -103,6 +105,7 @@ def test_systemd_verified_replacement_retains_identity(native_spec, tmp_path, mo
     import sofia.platform.ops.platform_installer_native_service as mod
     service = DebianSystemdNativeService(unit_path=tmp_path / "aegis-platform.service")
     monkeypatch.setattr(service, "_require_root", lambda: None)
+    monkeypatch.setattr(service, "_require_service_identity", lambda spec: None)
     calls = []
 
     def ctl(*args):
@@ -225,3 +228,31 @@ def test_windows_scm_replace_requires_unchanged_platform_identity(native_spec):
     assert fake.events[-3:] == ["stopped", "updated", "started"]
     with pytest.raises(PlatformInstallationDenied, match="identity|Platform UUID"):
         driver.replace_verified(replacement, replace(spec, platform_id="forged"))
+
+@pytest.mark.skipif(os.name == "nt", reason="Requires POSIX account lookup")
+def test_systemd_refuses_unprovisioned_service_identity_before_unit_write(
+        native_spec, tmp_path, monkeypatch):
+    import pwd
+    import grp
+    service = DebianSystemdNativeService(unit_path=tmp_path / "aegis-platform.service")
+    monkeypatch.setattr(service, "_require_root", lambda: None)
+    monkeypatch.setattr(pwd, "getpwnam", lambda name: (_ for _ in ()).throw(KeyError(name)))
+    monkeypatch.setattr(grp, "getgrnam", lambda name: (_ for _ in ()).throw(KeyError(name)))
+    with pytest.raises(PlatformInstallationDenied, match="not provisioned"):
+        service.register(native_spec)
+    assert not service.unit_path.exists()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Requires POSIX account lookup")
+def test_systemd_refuses_root_or_login_account(native_spec, tmp_path, monkeypatch):
+    import pwd
+    import grp
+    service = DebianSystemdNativeService(unit_path=tmp_path / "aegis-platform.service")
+    monkeypatch.setattr(service, "_require_root", lambda: None)
+    monkeypatch.setattr(pwd, "getpwnam", lambda name: SimpleNamespace(
+        pw_uid=0, pw_gid=0, pw_shell="/bin/bash",
+    ))
+    monkeypatch.setattr(grp, "getgrnam", lambda name: SimpleNamespace(gr_gid=0))
+    with pytest.raises(PlatformInstallationDenied, match="noninteractive"):
+        service.register(native_spec)
+    assert not service.unit_path.exists()
