@@ -151,6 +151,32 @@ impl ControlCenterView {
         }
     }
 
+    /// Service-reported SAFE observation, not an approval.
+    #[must_use]
+    pub fn safe_label(&self) -> &'static str {
+        if !self.has_observed_generation() {
+            return "UNKNOWN";
+        }
+        match self.safe {
+            SafeState::Unknown => "UNKNOWN",
+            SafeState::Clear => "CLEAR_OBSERVED",
+            SafeState::StopActive => "STOP_ACTIVE",
+        }
+    }
+
+    /// Observed permission is not a grant. Any action still needs the service.
+    #[must_use]
+    pub fn permission_label(&self) -> &'static str {
+        if !self.has_observed_generation() {
+            return "UNKNOWN";
+        }
+        match self.permission {
+            PermissionState::Unknown => "UNKNOWN",
+            PermissionState::Denied => "DENIED",
+            PermissionState::MayRequest => "MAY_REQUEST_RECHECK_REQUIRED",
+        }
+    }
+
     /// Separate saved revision from effective revision. A revision difference
     /// is a UI warning, NOT proof the settings update or apply succeeded.
     #[must_use]
@@ -273,6 +299,8 @@ mod tests {
         assert_eq!(view.source_label(), "UNVERIFIED");
         assert_eq!(view.installation_label(), "NOT_CURRENTLY_VERIFIED");
         assert_eq!(view.settings_label(), "UNKNOWN_UNVERIFIED");
+        assert_eq!(view.safe_label(), "UNKNOWN");
+        assert_eq!(view.permission_label(), "UNKNOWN");
         assert_eq!(
             view.action_hint(ProposedAction::RestartCore),
             ActionHint::Blocked("PLATFORM_OFFLINE")

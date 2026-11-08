@@ -129,7 +129,11 @@ fn render_page(page: Page, colors: bool, state: &ControlCenterView) -> String {
         state.settings_label(),
         state.installation_label(),
         "VALUES: UNAVAILABLE (not disconnected, removed, healthy or zero)",
-        "PERMISSION: NOT_EVALUATED / SAFE-STOP: UNKNOWN",
+        format!(
+            "PERMISSION: {} / SAFE-STOP: {}",
+            state.permission_label(),
+            state.safe_label()
+        ),
         "No writes, approvals, downloads, installation, state files or service changes."
     )
 }
@@ -195,7 +199,9 @@ fn main() -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::{paint, render_menu, render_page, rgb, select_page, Page};
-    use sofia_ui_broker::control_center::{ControlCenterView, LinkState};
+    use sofia_ui_broker::control_center::{
+        ControlCenterView, LinkState, PermissionState, SafeState,
+    };
 
     #[test]
     fn theme_imports_exact_shared_manifest() {
@@ -233,6 +239,19 @@ mod tests {
             assert!(page.contains("NOT_CURRENTLY_VERIFIED"));
             assert!(!page.contains('\x1b'));
         }
+    }
+
+    #[test]
+    fn observed_stop_and_denied_are_not_mislabeled_unknown() {
+        let mut state = ControlCenterView::offline();
+        state.link = LinkState::Observed;
+        state.platform_generation = Some(7);
+        state.safe = SafeState::StopActive;
+        state.permission = PermissionState::Denied;
+        let page = render_page(Page::Security, false, &state);
+        assert!(page.contains("SAFE-STOP: STOP_ACTIVE"));
+        assert!(page.contains("PERMISSION: DENIED"));
+        assert!(!page.contains('\x1b'));
     }
 
     #[test]
