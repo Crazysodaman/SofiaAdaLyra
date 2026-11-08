@@ -34,7 +34,22 @@ def ready(previous=None):
                     if row.get('phase')=='ready' and row.get('supervisor_pid')==pid:
                         return row
         time.sleep(.1)
-    raise AssertionError('VM service readiness deadline')
+    # A missing restart is a real failure, not permission to extend the gate.
+    # Report bounded systemd state (not journal payloads or private identity)
+    # so we can distinguish start-limit, failed process, and stale observation.
+    observed={}
+    try:
+        lines=command('systemctl','show',UNIT,
+            '--property=ActiveState,SubState,Result,MainPID,NRestarts,ExecMainStatus,ExecMainCode').splitlines()
+        for line in lines:
+            if '=' not in line: continue
+            key,value=line.split('=',1)
+            if key in {'ActiveState','SubState','Result','MainPID','NRestarts','ExecMainStatus','ExecMainCode'}:
+                observed[key]=value[:96]
+    except (OSError,subprocess.CalledProcessError,subprocess.TimeoutExpired):
+        observed={'observation':'unavailable'}
+    raise AssertionError('VM service readiness deadline: '+json.dumps(
+        {'previous_pid':previous,'systemd':observed},sort_keys=True))
 
 def stop(row):
     command('systemctl','stop',UNIT)
