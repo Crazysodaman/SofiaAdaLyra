@@ -33,11 +33,13 @@ pytestmark = [pytest.mark.pkg_ops, pytest.mark.skipif(
 @pytest.fixture
 def context(reviewed, tmp_path, canonical_state_path, monkeypatch):
     import sofia.platform.ops.platform_library_admission as lib
+    import sofia.platform.ops.platform_installer_bundle as bundle
     builder, root, manifest, params = reviewed
-    monkeypatch.setattr(
-        lib, "host_release_target",
-        lambda: PlatformReleaseTarget.DEBIAN12_X86_64,
-    )
+    for module in (lib, bundle):
+        monkeypatch.setattr(
+            module, "host_release_target",
+            lambda: PlatformReleaseTarget.DEBIAN12_X86_64,
+        )
     cache = OfflineArtifactCache(tmp_path / "library-cache", max_bytes=64 * 1024**2)
     store = PlatformInstallationStore(tmp_path / "installer.db")
     asset = next(item for item in manifest.assets if item.kind == "sdk")
