@@ -256,3 +256,103 @@ def test_systemd_refuses_root_or_login_account(native_spec, tmp_path, monkeypatc
     with pytest.raises(PlatformInstallationDenied, match="noninteractive"):
         service.register(native_spec)
     assert not service.unit_path.exists()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Debian UID/GID and POSIX file modes")
+def test_systemd_refuses_inaccessible_intermediate_python_runtime_directory(
+        native_spec, tmp_path, monkeypatch):
+    """Owner-readable Python leaf is useless behind a foreign 0700 parent."""
+    import pwd
+    import grp
+    import stat
+    from types import SimpleNamespace
+    import sofia.platform.ops.platform_installer_native_service as mod
+
+    driver = DebianSystemdNativeService(
+        unit_path=tmp_path / "aegis-platform.service",
+    )
+    monkeypatch.setattr(driver, "_require_root", lambda: None)
+    monkeypatch.setattr(mod, "_check_spec", lambda *args: None)
+    monkeypatch.setattr(
+        pwd, "getpwnam", lambda name: SimpleNamespace(
+            pw_uid=40411, pw_gid=40412, pw_shell="/usr/sbin/nologin",
+        ),
+    )
+    monkeypatch.setattr(
+        grp, "getgrnam", lambda name: SimpleNamespace(gr_gid=40412),
+    )
+
+    release_root = native_spec.executable.parent.parent
+    python_parent = native_spec.python_executable.parent.parent
+    assert release_root in python_parent.parents
+    original_stat = Path.stat
+
+    def synthetic_ownership(path, *, follow_symlinks=True):
+        actual = original_stat(path, follow_symlinks=follow_symlinks)
+        if (path == release_root or release_root in path.parents
+                or path == native_spec.identity_home
+                or path == native_spec.local_state):
+            is_file = path in (
+                native_spec.executable,
+                native_spec.python_executable,
+                native_spec.local_state,
+            )
+            return SimpleNamespace(
+                st_uid=0 if path == python_parent else 40411,
+                st_mode=(stat.S_IFREG if is_file else stat.S_IFDIR) | 0o700,
+            )
+        return actual
+
+    monkeypatch.setattr(Path, "stat", synthetic_ownership)
+    with pytest.raises(PlatformInstallationDenied, match="wrong service UID"):
+        driver.register(native_spec)
+    assert not driver.unit_path.exists()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Debian UID/GID and POSIX file modes")
+def test_systemd_rejects_runtime_parent_without_owner_traverse(
+        native_spec, tmp_path, monkeypatch):
+    """Signed runtime archive extraction must not publish a nontraversable dir."""
+    import pwd
+    import grp
+    import stat
+    from types import SimpleNamespace
+    import sofia.platform.ops.platform_installer_native_service as mod
+
+    driver = DebianSystemdNativeService(
+        unit_path=tmp_path / "aegis-platform.service",
+    )
+    monkeypatch.setattr(driver, "_require_root", lambda: None)
+    monkeypatch.setattr(mod, "_check_spec", lambda *args: None)
+    monkeypatch.setattr(
+        pwd, "getpwnam", lambda name: SimpleNamespace(
+            pw_uid=40411, pw_gid=40412, pw_shell="/usr/sbin/nologin",
+        ),
+    )
+    monkeypatch.setattr(
+        grp, "getgrnam", lambda name: SimpleNamespace(gr_gid=40412),
+    )
+    release_root = native_spec.executable.parent.parent
+    python_parent = native_spec.python_executable.parent.parent
+    original_stat = Path.stat
+
+    def synthetic_ownership(path, *, follow_symlinks=True):
+        actual = original_stat(path, follow_symlinks=follow_symlinks)
+        if (path == release_root or release_root in path.parents
+                or path == native_spec.identity_home
+                or path == native_spec.local_state):
+            is_file = path in (
+                native_spec.executable,
+                native_spec.python_executable,
+                native_spec.local_state,
+            )
+            mode = (stat.S_IFREG if is_file else stat.S_IFDIR) | 0o700
+            if path == python_parent:
+                mode = stat.S_IFDIR | 0o600
+            return SimpleNamespace(st_uid=40411, st_mode=mode)
+        return actual
+
+    monkeypatch.setattr(Path, "stat", synthetic_ownership)
+    with pytest.raises(PlatformInstallationDenied, match="owner-traversable"):
+        driver.register(native_spec)
+    assert not driver.unit_path.exists()
