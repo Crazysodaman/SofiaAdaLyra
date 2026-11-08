@@ -69,6 +69,7 @@ jobs:
           test/test_conversation_service.py
           test/test_cognition_reply_origin_production.py
           test/test_personality_provider_path.py
+          test/test_core002_live_ollama_conversation.py
       - name: Verify live probe is not silently counted as model inference
         shell: bash
         run: |

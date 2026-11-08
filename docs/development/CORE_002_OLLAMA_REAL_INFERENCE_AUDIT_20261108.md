@@ -140,3 +140,11 @@ The test is not evidence until an approved host executes it and Team 5 independe
 | Four real model-generated turns, saved provenance | Strict test committed; NOT RUN |
 
 Historical five real Ollama tests retain NOT-RUN-current status until separately executed. A CI skip or synthetic provider cannot count as real inference.
+
+## C-005 | Development-first verification and model-derived text
+
+- Local execution attempt: container Python/pytest available; SofiaAdaLyra checkout absent; `git ls-remote https://github.com/Crazysodaman/SofiaAdaLyra.git HEAD` failed with `Could not resolve host: github.com`. No actual local pytest completed in this runtime. Direct GitHub connector remains available for source inspection and draft fixes.
+- A saved assistant reply can legitimately be transformed by `naturalize_embodied_semantics` or `trim_generic_assistant_closer` after Ollama generation. Genuine-inference verification now allows only raw candidate SHA-256 or the exact output of these two audited pure normalizers applied to that same candidate and request. It deliberately refuses unrelated `grounded_quality_fallback` canned text and host substitutions. The allowlist has a deterministic negative test.
+- Added focused provider negatives: Ollama 404 missing-model exception followed by successful new response without falsely retrying the original failed request, plus synthetic socket reset rejection. Both are fixture-based, NOT real-host evidence.
+- Runnable scoped command on a fully checked out disposable Python 3.12 host: `python -m pytest -q -m "not integration" test/test_ollama_malformed_response_boundary.py test/test_ollama_endpoint_and_diagnostics.py test/test_ollama_provider.py test/test_ollama_generation_contract.py test/test_generic_cognition_providers.py test/test_conversation_service.py test/test_cognition_reply_origin_production.py test/test_personality_provider_path.py test/test_core002_live_ollama_conversation.py`. Capture exact SHA, environment, pass/fail/skip and tracebacks before claiming proof.
+- Development-first policy does not waive full exact-SHA GitHub CI at integrated IG-001 milestone acceptance. Do not force new commits merely to refresh pending CI.

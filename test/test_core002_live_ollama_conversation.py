@@ -14,6 +14,12 @@ from time import monotonic
 import pytest
 
 from sofia.core.cognition.providers.ollama_provider import OllamaProvider
+from sofia.core.cognition.repetition_guard import (
+    naturalize_embodied_semantics, trim_generic_assistant_closer,
+)
+from sofia.core.cognition.model import (
+    CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole,
+)
 from sofia.core.cognition.reply_origin import ReplyModelOriginStore
 from sofia.core.identity.store import IdentityStore
 from sofia.core.conversation.model import ConversationRole
@@ -32,6 +38,34 @@ ROOT = Path(__file__).resolve().parents[1]
 CONSTITUTION = ROOT / "src/sofia/core/constitution/constitution.md"
 CONSTITUTION_HASH = ROOT / "src/sofia/core/constitution/constitution.sha256"
 AVATAR = ROOT / "src/sofia/core/embodiment/avatar.json"
+
+
+
+def _model_derived_hashes(
+    request: CognitiveRequest, candidate: CognitiveResponse,
+) -> frozenset[str]:
+    """Only raw model output or two audited pure normalizers are model-derived.
+
+    Never include deterministic grounded_quality_fallback in these digests.
+    """
+    normalized = trim_generic_assistant_closer(
+        request, naturalize_embodied_semantics(request, candidate)
+    )
+    return frozenset(
+        sha256(text.encode("utf-8")).hexdigest()
+        for text in (candidate.content, normalized.content)
+    )
+
+
+def test_model_derived_hashes_refuse_unrelated_canned_fallback():
+    """Deterministic hash contract only; DOES NOT claim real model inference."""
+    request = CognitiveRequest(messages=(CognitiveMessage(
+        role=CognitiveRole.USER, content="What does a circuit breaker do?",
+    ),))
+    candidate = CognitiveResponse(content="A circuit breaker interrupts overloads.")
+    allowed = _model_derived_hashes(request, candidate)
+    assert sha256(candidate.content.encode("utf-8")).hexdigest() in allowed
+    assert sha256(b"Hey, Sparks. I'm listening.").hexdigest() not in allowed
 
 
 @pytest.mark.integration
@@ -142,6 +176,9 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
             receipt["generated_sha256"] = sha256(
                 generated.content.encode("utf-8")
             ).hexdigest()
+            receipt["model_derived_sha256"] = sorted(
+                _model_derived_hashes(request, generated)
+            )
             receipt["generated_characters"] = len(generated.content)
             receipt["tool_candidates"] = len(generated.tool_calls)
             return generated
@@ -217,12 +254,13 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
             assert result.content.strip(), "Blank response was falsely accepted"
             assert result.content != "Test cognitive response."
             final_digest = sha256(result.content.encode("utf-8")).hexdigest()
-            assert final_digest in {
-                call.get("generated_sha256") for call in new_calls
-                if call["status"] == "generated"
-            }, (
-                "Saved reply is not a directly observed generated candidate; "
-                "post-generation canned repair is NOT an inference PASS"
+            assert any(
+                final_digest in call.get("model_derived_sha256", ())
+                for call in new_calls if call["status"] == "generated"
+            ), (
+                "Saved reply is neither raw model text nor an authorized pure "
+                "normalization of a genuine Ollama response; canned fallback "
+                "cannot count as genuine inference"
             )
 
             saved = app.conversation.messages()
