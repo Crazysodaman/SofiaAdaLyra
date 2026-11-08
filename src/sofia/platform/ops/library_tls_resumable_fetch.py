@@ -54,7 +54,7 @@ def fetch_resumable_chunks(
     if type(max_chunks) is not int or not 1 <= max_chunks <= 10000:
         raise ChunkTransferRejected("bounded chunk budget required")
     if (type(start_offset) is not int or start_offset < 0
-            or start_offset > transfer.size_bytes):
+            or start_offset >= transfer.size_bytes):
         raise ChunkTransferRejected("bounded expected resume cursor required")
 
     first_fingerprint: str | None = None
@@ -89,8 +89,6 @@ def fetch_resumable_chunks(
             observed = receiver.received_bytes(transfer, authorize=current)
             if observed != offset:
                 raise ChunkTransferRejected("local resume cursor differs from expected offset")
-            if offset == transfer.size_bytes:
-                return offset
             next_offset = receive_one_chunk(
                 session, transfer=transfer, offset=offset, length=length,
                 receiver=receiver, authorize_peer=authorize_peer,
