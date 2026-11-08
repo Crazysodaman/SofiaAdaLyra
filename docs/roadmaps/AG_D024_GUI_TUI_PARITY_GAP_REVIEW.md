@@ -1,8 +1,8 @@
 # AG-D024 | Aegis GUI/TUI parity and operator-experience gap review
 
-**Status:** OWNER-REQUESTED DESIGN AUDIT (2026-11-07); owner wants the same palette on GUI and TUI and asked what else is missing. **CAPTURED**, NOT A NEW PRODUCT MANAGER OR CODING AUTHORIZATION.
+**Status:** DESIGN AUDIT (2026-11-07), now OWNER-APPROVED FOR EXPANDED PLATFORM 1.0 SHAKEDOWN (2026-11-08); implementation and acceptance pending.
 **Baseline:** GitHub `main` `5fea1df38bc6e1f2cd5c7744c7be7b222c45fe0f` inspected for this audit; subsequent shared-theme docs are design commits only. This is source/docs inspection, **not** executable acceptance, exact-SHA Windows/Debian UI CI or deployed-host observation.
-**Authoritative targets:** AG-D007 (GUI), AG-D011 (installer), AG-D022 (headless terminal), AG-D023 (Core self-settings), AG-D013 (security), AG-D020 (jobs), AG-D016 (diagnostics); Platform-only #201 remains independent and not automatically expanded.
+**Authoritative targets:** AG-D007 (GUI), AG-D011 (installer), AG-D022 (headless terminal), AG-D023 (Core self-settings), AG-D013 (security), AG-D020 (jobs), AG-D016 (diagnostics); The 2026-11-08 owner decision explicitly expands #201 with UI rows 31–38 while preserving the original rows 01–30.
 **Shared colors:** [Canonical Aegis GUI + CLI/TUI theme](AEGIS_SHARED_GUI_TUI_THEME.md), with separate [terminal rendering rules](AEGIS_CLI_TUI_COLOR_THEME.md).
 
 ## 1. Verified design inventory: don't duplicate it
