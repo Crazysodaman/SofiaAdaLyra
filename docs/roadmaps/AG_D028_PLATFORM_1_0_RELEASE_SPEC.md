@@ -38,6 +38,7 @@ Every Platform 1.0 release must support the same governed local component librar
 3. Start a **Core-free Platform** with its own unique local Platform installation identity and protected local state. The service is valid without Internet access, any Hub role, or Fleet enrollment.
 4. Only after local setup may the owner choose **Hub role**, **Library Client role**, both, or **Local-only**. Separately enroll/authorize remote peers and sources using the canonical Platform SAFE/STOP authority. Do not automatically trust other hosts because they share a LAN.
 5. A Hub bootstraps from the same Core-free Platform release; it can serve signed package artifacts without Core cognition or GPU inference. If hub unavailable, local hosts continue using their verified local caches and retain existing installed components.
+6. **Owner's first deployment** uses **one logical library, one primary Hub, zero live replicas**, hosted on the Sofía VM beside its separately governed Sofía Core. Hub role is Platform-owned and works independently of Core lifecycle. Future read-only replicas may join the same logical library on independently enrolled hosts; signed immutable bytes can be mirrored while the mutable primary catalog stays single-writer. No automatic multi-master or unseen primary promotion. See [VM primary + replica profile](AG_D028_SOFIA_VM_PRIMARY_LIBRARY_DEPLOYMENT.md).
 
 ### Roles are configured features, not separate mandatory programs
 
