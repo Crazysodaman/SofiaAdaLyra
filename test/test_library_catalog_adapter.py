@@ -462,3 +462,54 @@ def test_publisher_revoke_during_file_digest_verification_denies_candidate(tmp_p
     with pytest.raises(ModuleRecipientRejected, match="module verification"):
         review(data, value, root, pub, publisher_current=trust)
     assert calls == ["publisher", "publisher", "publisher", "publisher"]
+
+
+
+@pytest.mark.parametrize("denied", [False, None, "verified", 1])
+def test_untrusted_dependency_receipt_denies_before_archive_or_key_io(
+    tmp_path, denied,
+):
+    """A constructible VerifiedModulePackage never authorizes archive reads."""
+    from test.test_module_lifecycle_v1 import verified_custom
+
+    data, manifest_value, root, pub = fixture(
+        tmp_path, dependencies=(DependencyRequirement(
+            "org.sofia.other", "1.0.0", "2.0.0",
+        ),),
+    )
+    dep = verified_custom(
+        tmp_path, directory="denied-dep", module_id="org.sofia.other",
+        version="1.5.0", capabilities=("research.search",),
+    )
+    calls = []
+    with pytest.raises(ModuleRecipientRejected, match="dependency receipt"):
+        review(
+            data, manifest_value, root / "absent", pub,
+            verified_dependencies=(dep,),
+            dependency_receipt_admit=lambda _: calls.append("receipt") or denied,
+            signed_content_admit=lambda *_: calls.append("archive") or True,
+            publisher_key_lookup=lambda _: calls.append("key") or pub,
+        )
+    assert calls == ["receipt"]
+
+
+def test_missing_dependency_receipt_policy_denies_before_archive_read(tmp_path):
+    from test.test_module_lifecycle_v1 import verified_custom
+    data, value, root, pub = fixture(
+        tmp_path, dependencies=(DependencyRequirement(
+            "org.sofia.other", "1.0.0", "2.0.0",
+        ),),
+    )
+    dep = verified_custom(
+        tmp_path, directory="missing-dep", module_id="org.sofia.other",
+        version="1.5.0", capabilities=("research.search",),
+    )
+    calls = []
+    with pytest.raises(ModuleRecipientRejected, match="canonical dependency receipt"):
+        review(
+            data, value, root / "absent", pub,
+            verified_dependencies=(dep,), dependency_receipt_admit=None,
+            signed_content_admit=lambda *_: calls.append("archive") or True,
+            publisher_key_lookup=lambda _: calls.append("key") or pub,
+        )
+    assert calls == []
