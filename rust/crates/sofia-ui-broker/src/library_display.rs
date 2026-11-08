@@ -185,7 +185,7 @@ impl LibraryDisplaySession {
             _ => return "UNKNOWN_STAGE",
         };
         if receipt.is_some() {
-            "OBSERVED_WITH_VERIFIED_SERVICE_RECEIPT"
+            "RECEIPT_REFERENCE_NOT_AUTHORITY"
         } else {
             "NOT_OBSERVED"
         }
@@ -459,7 +459,7 @@ mod tests {
         let mut ui = LibraryDisplaySession::default();
         ui.refresh(&mut Stub(Ok(snapshot(3, 7, 1))), Instant::now())
             .unwrap();
-        assert_eq!(ui.stage_label("downloaded"), "OBSERVED_WITH_VERIFIED_SERVICE_RECEIPT");
+        assert_eq!(ui.stage_label("downloaded"), "RECEIPT_REFERENCE_NOT_AUTHORITY");
         assert_eq!(ui.stage_label("verified"), "NOT_OBSERVED");
         assert_eq!(ui.stage_label("installed"), "NOT_OBSERVED");
         assert_eq!(ui.stage_label("active"), "NOT_OBSERVED");
@@ -477,8 +477,8 @@ mod tests {
         artifact.installed = Some(receipt("installed", &"b".repeat(64), 3, 7));
         artifact.active = Some(receipt("active", &"b".repeat(64), 3, 7));
         ui.refresh(&mut Stub(Ok(valid)), t).unwrap();
-        assert_eq!(ui.stage_label("verified"), "OBSERVED_WITH_VERIFIED_SERVICE_RECEIPT");
-        assert_eq!(ui.stage_label("active"), "OBSERVED_WITH_VERIFIED_SERVICE_RECEIPT");
+        assert_eq!(ui.stage_label("verified"), "RECEIPT_REFERENCE_NOT_AUTHORITY");
+        assert_eq!(ui.stage_label("active"), "RECEIPT_REFERENCE_NOT_AUTHORITY");
         let mut forged = snapshot(3, 8, 2);
         let artifact = forged.artifact.as_mut().unwrap();
         artifact.installed = Some(DisplayReceipt {
