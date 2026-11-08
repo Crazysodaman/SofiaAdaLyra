@@ -157,3 +157,14 @@ def test_replaced_after_hash_cannot_be_published(tmp_path, monkeypatch):
     with pytest.raises(ChunkTransferRejected, match="published object failed identity"):
         receiver.finalize(pin, authorize=approve)
     assert not list(receiver.completed.iterdir())
+
+
+def test_redirected_library_root_denied_before_creation(tmp_path):
+    """A symlink ancestor must not redirect any CAS write outside the root."""
+    external = tmp_path / "external"
+    external.mkdir()
+    redir = tmp_path / "redirect"
+    redir.symlink_to(external, target_is_directory=True)
+    with pytest.raises((PermissionError, ChunkTransferRejected)):
+        ChunkedArtifactReceiver(redir / "library", max_bytes=1024)
+    assert not (external / "library").exists()
