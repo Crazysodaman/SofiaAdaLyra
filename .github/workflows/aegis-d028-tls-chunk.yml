@@ -1,0 +1,47 @@
+name: D028 Verified TLS Chunk Transport
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/sofia/platform/ops/library_chunk_receiver.py'
+      - 'src/sofia/platform/ops/library_chunk_sender.py'
+      - 'src/sofia/platform/ops/library_tls_chunk_transport.py'
+      - 'test/test_library_tls_chunk_transport.py'
+      - 'test/test_library_chunk_receiver.py'
+      - 'test/test_library_chunk_sender.py'
+      - '.github/workflows/aegis-d028-tls-chunk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verified-disposable-tls:
+    name: D028 mTLS transport
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated library test dependencies
+        run: python -m pip install -e . pytest cryptography
+      - name: Verify dependencies
+        run: python -m pip check
+      - name: Compile new transport and tests
+        run: python -m compileall -q src/sofia/platform/ops/library_tls_chunk_transport.py test/test_library_tls_chunk_transport.py
+      - name: Execute transport, hostile frames, sender and receiver tests
+        run: >-
+          python -m pytest -q
+          test/test_library_tls_chunk_transport.py
+          test/test_library_chunk_receiver.py
+          test/test_library_chunk_sender.py
+          test/test_package_grouping.py
