@@ -347,6 +347,18 @@ Design: dedicated test environment dashboard for Platform-only clean installs, s
 
 **Owner-facing module lifecycle:** Uninstalling `MOD-IT-CONTAINERS` removes Aegis's Portainer capability, **not** Portainer/Docker/containers/stacks themselves, and must honor [AG-D006 owner choice](AG_D006_MODULE_UNINSTALL_REINSTALL_POLICY.md) to allow later approved reinstall or block future installation. Platform runs Core-free and Portainer-free. This design cannot authorize live Docker changes.
 
+### AG-D026 | All 55 modules: overlaps, consolidation, missing capability and release-depth review
+
+**Status:** SOURCE-BACKED DESIGN RECOMMENDATIONS (2026-11-08), NOT OWNER-APPROVED MERGES, NEW MODULES OR IMPLEMENTATION. **Detailed 55-row audit:** [AG-D026 Module Catalog Rationalization](AG_D026_MODULE_CATALOG_RATIONALIZATION_AUDIT.md).
+
+**Scope audited:** 5 companion release modules, 47 optional module catalog identities, attached Interaction submodule and VTube Studio/Memory Import adapters. Compared [ownership matrix](../sofia2/MODULE_OWNERSHIP_MATRIX.md), [catalog](../sofia2/PLATFORM_AND_MODULE_CATALOG_V1.md), actual `src/sofia/modules/` source folders, optional-source audit and unsigned release prep. Many sampled optional `0.1.0` capabilities analyze unverified supplied snapshots, so source presence is not signed independent installation, connector integration, deployed authority or production readiness.
+
+**Proposals:** Keep strong security/physical/provider boundaries. Candidate packaging consolidations, **not accepted**: Generalization into ML evaluation; Calendar into Productivity (separate grant); Project Forge workflow into Productivity+Creative; File Watch into scoped Platform event/IT Observability provider; Digital Twin as Homelab/Workshop simulation profile; Avatar Studio share Creative/Avatar authoring. Keep release renderers distinct, and keep Platform SAFE/Fleet/backup authority separate from optional IT modules. Existing `MOD-IT-CONTAINERS` covers Portainer, no new Docker module.
+
+**New design candidates only if independently needed:** `MOD-IT-GAME-SERVERS` for provider-scoped dedicated game-server lifecycle/backup admin, and `MOD-IT-IDENTITY-DIRECTORY` for external AD/LDAP management. Neither is added to the accepted 55-entry catalog or registered in code by this review; existing provider profiles may cover the use cases.
+
+**Not a Platform #201 blocker:** Adopt no package/ID merge, code deletion or installation without explicit owner decision, migration design, source preservation and tests. Finish mandatory Platform security/SDK and real release acceptance first.
+
 ---
 
 ## Questions to decide before promoting UX concepts
