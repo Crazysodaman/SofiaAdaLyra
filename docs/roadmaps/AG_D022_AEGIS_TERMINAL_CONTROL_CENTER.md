@@ -76,7 +76,11 @@ The Module Manager/Settings menu follows [AG-D006 Module Uninstall, Block and Re
 
 Use [AG-D006 Core-Initiated Module Removal](AG_D006_CORE_INITIATED_MODULE_REMOVAL.md) in the ASCII Owner Inbox: exact Core and host ID, proposed module, signed package, current lifecycle/health, dependency/capability impact and a separately labelled Core explanation. Options are owner-authorized **remove and allow future separately approved reinstall**, **remove and durably block**, **defer**, or **deny**. Never interpret a numeric key as owner proof. Current SAFE policy classifies `module.remove` PROTECTED, and neither the TUI nor Core may bypass this with a self-issued approval. Ordinary remove retains auditable package bytes; no implicit data purge or background auto-install. Update live module status after real receipts.
 
-### Fleet page
+### Fleet page### Optional Docker/Portainer management via Platform module
+
+The existing signed catalog entry `MOD-IT-CONTAINERS` is the optional **Aegis Platform module** for container management. Portainer is its provider adapter, not part of the Platform kernel or any Core. See [AG-D025 Portainer/docker stack design](AG_D025_PORTAINER_DOCKER_STACK_CONTROL.md). Show a `Modules > Containers / Portainer` ASCII submenu with independently authenticated connection status, exact Docker/Portainer environment ID, redacted stack inspection, proposed Compose diff, protected owner approval, verified job outcomes and read-only fallback. No GUI or Sofía Core required. Any module uninstall changes Aegis functionality only, never deletes external Docker stacks. Never allow a TUI numeric choice alone to authorize stack edits.
+
+
 
 - Show **local identity**, trusted enrolled peers, merely discovered candidates and stale/unreachable peers as distinct categories.
 - Display signed host IDs, callsign, verified scope, last observed time, connection/freshness and accepted authorization. Never grant permission through host discovery or a name.
