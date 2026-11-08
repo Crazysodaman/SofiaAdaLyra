@@ -35,7 +35,7 @@ def _private_bind(host: str) -> tuple[int, str]:
     except ValueError as exc:
         raise ChunkTransferRejected("DNS, wildcard and nonnumeric binds forbidden") from exc
     if (address.is_unspecified or address.is_multicast
-            or address.is_link_local or address.is_reserved
+            or address.is_link_local or (address.is_reserved and not address.is_loopback)
             or not any(address in net for net in (_LAN_V4 if address.version == 4 else _LAN_V6))):
         raise ChunkTransferRejected("public or unreviewed network exposure forbidden")
     return (socket.AF_INET if address.version == 4 else socket.AF_INET6), str(address)
