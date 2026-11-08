@@ -137,6 +137,10 @@ def retrieve_promoted(
         if not isinstance(eligibility_policy, ReviewedMemoryEligibilityV1):
             raise TypeError('eligibility_policy must be ReviewedMemoryEligibilityV1')
         eligibility_policy.require_current()
+        if not principal_id or not audience_id:
+            raise PermissionError(
+                "strict reviewed-memory retrieval requires current owner/audience scope"
+            )
 
     query_tokens = _tokens(query)
     if not query_tokens:
