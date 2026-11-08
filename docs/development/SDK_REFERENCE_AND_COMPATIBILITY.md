@@ -32,7 +32,13 @@
 | Privileged capability/permission classification, secret or signing contract | Independent SAFE/security review, signed digest, explicit owner approval | Scope dictated by actual affected trusted boundary |
 | Hardware/OS driver, native extension or shared in-process ABI | Require dependency impact review, host staging, verified rollback | Affected worker or Platform/OS maintenance where necessary, not 'always hot' |
 
-## 3. Golden reference module as the conformance template
+## 3. Golden Core, Platform, and Module reference fixtures
+
+The [Core + Platform + Module SDK bench](../../examples/sdk_reference_system/README.md) demonstrates actual portable Python `ComponentRequestEnvelope` and `ComponentResponseEnvelope`, synthetic two-Core test sessions, per-Core permissions, revocation, STOP, replay rejection and module plug/unplug through `CapabilitySystem`. Core only *constructs* requests; Platform is the only fixture routing them. Test-only session handles are not OS authentication, and authority projections are not credentials. Separate negative tests confirm source/destination/generation/payload digest, request expiry, response binding and lack of independently VERIFIED effects.
+
+The bench uses the **same** reference module as the signed-disposable lifecycle tests. Reference Platform does not replace real Platform SAFE, signed module RUN, trusted credential store, worker supervisor or canonical state. It proves SDK-shaped requests and educational separation only.
+
+### Signed module conformance
 
 Tests in `test/test_sdk_reference_module.py` exercise:
 - version/protocol parity: Python `SDK_PROTOCOL_VERSION` vs Rust `SUPPORTED_PROTOCOL`, negotiation rejects incompatible majors;
