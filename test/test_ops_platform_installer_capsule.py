@@ -7,6 +7,7 @@ unsignable launcher/theme resources are publisher certified.
 from __future__ import annotations
 
 from hashlib import sha256
+import os
 from pathlib import Path
 import shutil
 import zipfile
@@ -97,6 +98,7 @@ def test_capsule_does_not_replace_existing_reviewed_media(reviewed, tmp_path):
     assert output.read_bytes() == b"immutable owner selected media"
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Windows symlink elevation differs")
 def test_capsule_does_not_accept_root_redirection(reviewed, tmp_path):
     _builder, staged, _manifest, params = reviewed
     alias = tmp_path / "stage-link"
