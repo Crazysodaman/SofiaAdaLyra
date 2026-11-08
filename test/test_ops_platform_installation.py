@@ -316,6 +316,36 @@ def test_publish_failure_records_failed_attempt_and_keeps_target_absent(
     verify_installed(destination, store=store, verifier=builder.verifier)
 
 
+def test_failed_parent_rename_sync_never_commits_installed_state(
+        tmp_path, builder, monkeypatch):
+    """A published directory without a durable parent is not an install."""
+    import sofia.platform.ops.platform_installation as installation
+
+    staging, _manifest, _signature = builder.stage(revision=1)
+    store = PlatformInstallationStore(tmp_path / 'installation.db')
+    destination = tmp_path / 'installed'
+
+    def interrupted_fsync(_destination):
+        raise OSError('simulated parent directory sync failure')
+
+    monkeypatch.setattr(installation, '_sync_installation_parent',
+                        interrupted_fsync)
+    with pytest.raises(OSError, match='parent directory sync failure'):
+        install_staged_release(staging, destination, store=store,
+                               verifier=builder.verifier)
+
+    # The renamed bytes may physically exist; that is NOT successful install.
+    assert destination.is_dir()
+    assert store.receipt_for_destination(destination) is None
+    assert store.checkpoint() is None
+    assert store.pending_attempts() == []
+    assert store.attempts()[0]['outcome'].startswith(
+        'reviewed: simulated parent directory sync failure')
+    with pytest.raises(FileExistsError, match='must not replace existing'):
+        install_staged_release(staging, destination, store=store,
+                               verifier=builder.verifier)
+
+
 def test_store_refuses_canonical_core_state_file(tmp_path):
     with pytest.raises(PermissionError, match='canonical Core state'):
         PlatformInstallationStore(tmp_path / 'sofia.db')
