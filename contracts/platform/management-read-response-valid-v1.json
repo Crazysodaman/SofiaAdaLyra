@@ -1,0 +1,12 @@
+{
+  "schema": "aegis.platform.management.response.v1",
+  "request_id": "req:read:1",
+  "platform_id": "platform:alpha",
+  "generation": 3,
+  "observed_at": "2026-11-08T04:00:00Z",
+  "operation": "platform.status",
+  "payload": {
+    "health": "unknown",
+    "connection": "not-observed"
+  }
+}
