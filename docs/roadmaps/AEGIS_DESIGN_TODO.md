@@ -335,6 +335,18 @@ Design: dedicated test environment dashboard for Platform-only clean installs, s
 
 **First priority:** Backend authenticated Platform IPC/owner authorization under #201 is a prerequisite for privileged GUI/TUI actions. Then build the read-only GUI/TUI shell and host selector, then shared settings/receipts, then approved effects and signed packaging. Do not redirect OpenCode or expand release scope just by capturing this design.
 
+### AG-D025 | Portainer/Docker integration as optional Platform module
+
+**Status:** OWNER-DESIRED, SOURCE-AUDITED DESIGN (2026-11-08); **implementation NOT SCHEDULED/VERIFIED**. Not a Core feature or mandatory Platform kernel feature and not automatically a #201 blocker.
+
+**Detailed design:** [AG-D025: Portainer/Docker and governed Compose stack editing](AG_D025_PORTAINER_DOCKER_STACK_CONTROL.md).
+
+**Owner architecture decision:** Reuse the already cataloged **`MOD-IT-CONTAINERS`** optional signed **Aegis Platform module** from [Platform and Module Catalog V1](../sofia2/PLATFORM_AND_MODULE_CATALOG_V1.md), with Portainer as one provider adapter. The Platform owns trusted integration enrollment, credentials, grants/STOP, jobs, auditing, signed module lifecycle and execution authorization. `MOD-IT-CONTAINERS` provides typed inspection, health, sanitized logs, Compose plan/validate, approved stack deployment and recovery operations. Sofía's Core only reasons, proposes and requests through the scoped SDK; it never handles tokens, runs unrestricted Docker commands or grants its own stack-deploy authority. Aegis GUI and headless TUI display identical live connector/status, stack-diff, owner-approval and job states.
+
+**Source overlap:** Existing `modules/integrations/portainer.py`, its `capabilities.py` registration, `distributed/agent_tools.py`, and SAFE already support endpoint/container/stack **read-only inspection** and exact scope-restricted container restart; they are currently Core runtime/agent integrations, **not** a separately signed, dynamic Portainer Platform module. Do not create duplicate code/authority for Docker. Work remaining: signed provider-module packaging, reviewed secret-store enrollment, least-privilege TLS endpoint binding, stack read-source/Compose validation/diff, privileged deploy/rollback API with fresh owner approval, GUI/TUI live parity and real Windows/Debian tests. Git-managed stacks must be edited through their source Git workflow rather than overwritten as Web Editor stacks.
+
+**Owner-facing module lifecycle:** Uninstalling `MOD-IT-CONTAINERS` removes Aegis's Portainer capability, **not** Portainer/Docker/containers/stacks themselves, and must honor [AG-D006 owner choice](AG_D006_MODULE_UNINSTALL_REINSTALL_POLICY.md) to allow later approved reinstall or block future installation. Platform runs Core-free and Portainer-free. This design cannot authorize live Docker changes.
+
 ---
 
 ## Questions to decide before promoting UX concepts
