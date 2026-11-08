@@ -285,6 +285,8 @@ def test_core001_unverified_forced_kill_retains_process_identity(tmp_path):
             return self.returncode
         def wait(self, timeout=None):
             self.calls.append(("wait", timeout))
+            if self.returncode is not None:
+                return self.returncode
             raise release_process.subprocess.TimeoutExpired("synthetic-child", timeout)
         def terminate(self):
             self.calls.append(("terminate",))
