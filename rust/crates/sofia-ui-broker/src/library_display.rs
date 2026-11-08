@@ -323,7 +323,7 @@ fn valid_digest(digest: &str) -> bool {
     digest.len() == 64
         && digest
             .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
 }
 
 fn stage_receipts_match(artifact: &ArtifactStages, platform_id: &str) -> bool {
