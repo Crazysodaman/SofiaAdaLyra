@@ -254,9 +254,13 @@ def make_d028_four_host_preflight(
                     invalid.append(f"artifact[{idx}]:INVALID_SHA256")
                     continue
                 try:
+                    if not isinstance(name, str) or not name.startswith("artifacts/"):
+                        raise ValueError("only isolated artifacts/ bytes are inspected")
                     p = _safe_evidence_path(root, name)
                     if not p.is_file():
                         raise ValueError("artifact bytes absent")
+                    if p.stat().st_size > 512 * 1024 * 1024:
+                        raise ValueError("individual artifact exceeds bounded chunk")
                     digest = sha256()
                     with p.open("rb") as stream:
                         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
