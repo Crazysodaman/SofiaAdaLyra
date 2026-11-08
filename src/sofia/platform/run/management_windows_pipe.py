@@ -159,7 +159,7 @@ class ManagementWindowsPipeListener:
             raise ValueError("bounded Aegis pipe name required")
         if not callable(dispatch):
             raise TypeError("service-owned dispatcher required")
-        self.name = r"\\.\pipe\" + name
+        self.name = "\\\\.\\pipe\\" + name
         self._dispatch = dispatch
         self._handle = None
 
