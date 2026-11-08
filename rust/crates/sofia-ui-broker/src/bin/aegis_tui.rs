@@ -193,7 +193,12 @@ fn run() -> io::Result<ExitCode> {
     if args.len() > 1
         || args
             .first()
-            .is_some_and(|arg| arg != "--plain" && arg != "--status" && arg != "--library-status" && arg != "--library-json")
+            .is_some_and(|arg| {
+                arg != "--plain"
+                    && arg != "--status"
+                    && arg != "--library-status"
+                    && arg != "--library-json"
+            })
     {
         eprintln!("Unknown option. Use --help.");
         return Ok(ExitCode::from(2));
@@ -224,7 +229,13 @@ fn run() -> io::Result<ExitCode> {
         return Ok(ExitCode::from(3));
     }
     if args.first().is_some_and(|arg| arg == "--library-status") {
-        println!("library=UNAVAILABLE source=UNVERIFIED catalog=UNKNOWN cache=UNKNOWN installed=UNKNOWN active=UNKNOWN received_bytes=UNKNOWN verified_bytes=UNKNOWN internet_fallback=DISABLED actions=DISABLED");
+        let status = concat!(
+            "library=UNAVAILABLE source=UNVERIFIED catalog=UNKNOWN ",
+            "cache=UNKNOWN installed=UNKNOWN active=UNKNOWN ",
+            "received_bytes=UNKNOWN verified_bytes=UNKNOWN ",
+            "internet_fallback=DISABLED actions=DISABLED"
+        );
+        println!("{status}");
         return Ok(ExitCode::from(3));
     }
     let colors = !args.iter().any(|arg| arg == "--plain") && color_supported();
