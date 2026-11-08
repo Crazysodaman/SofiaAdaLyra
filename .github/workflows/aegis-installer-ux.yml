@@ -50,6 +50,33 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Assert exact PR-head checkout SHA
+        shell: bash
+        run: |
+          expected='${{ github.event.pull_request.head.sha || github.sha }}'
+          actual="$(git rev-parse HEAD)"
+          printf 'Expected checked-out SHA: %s\\nActual checked-out SHA: %s\\n' "$expected" "$actual"
+          test "$expected" = "$actual" || {
+            echo 'Refusing stale/merge-head test evidence.' >&2
+            exit 1
+          }
+      - name: Parse Bash installer before any fixture tests
+        if: runner.os == 'Linux'
+        shell: bash
+        run: bash -n packaging/installers/install-aegis.sh
+      - name: Parse Windows PowerShell installer before any fixture tests
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path ./packaging/installers/Install-Aegis.ps1).Path,
+            [ref]$tokens, [ref]$parseErrors) | Out-Null
+          if ($parseErrors.Count -ne 0) {
+            $parseErrors | ForEach-Object { Write-Error $_.Message }
+            throw 'Native installer PowerShell syntax is not valid'
+          }
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -86,22 +113,6 @@ jobs:
           path: ${{ runner.temp }}/aegis-b004-disposable-media/
           if-no-files-found: error
           retention-days: 7
-      - name: Check Bash syntax
-        if: runner.os == 'Linux'
-        run: bash -n packaging/installers/install-aegis.sh
-      - name: Parse native PowerShell installer with strict PS5.1 parser
-        if: runner.os == 'Windows'
-        shell: powershell
-        run: |
-          $tokens = $null
-          $parseErrors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile(
-            (Resolve-Path ./packaging/installers/Install-Aegis.ps1).Path,
-            [ref]$tokens, [ref]$parseErrors) | Out-Null
-          if ($parseErrors.Count -ne 0) {
-            $parseErrors | ForEach-Object { Write-Error $_.Message }
-            throw 'Native installer PowerShell syntax is not valid'
-          }
       - name: Confirm noninteractive Windows PowerShell preflight
         if: runner.os == 'Windows'
         shell: powershell
