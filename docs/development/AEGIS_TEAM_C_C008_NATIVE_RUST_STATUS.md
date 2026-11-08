@@ -32,10 +32,19 @@ cargo test --locked -p sofia-ui-broker native_management -- --nocapture
 cargo test --locked -p sofia-ui-broker
 cargo build --locked -p sofia-ui-broker --bin aegis_tui
 python -m pytest -q test/test_ui_aegis_team_c_policy.py test/test_ui_aegis_tui_binary_smoke.py
-NO_COLOR=1 ./target/debug/aegis_tui --status
-NO_COLOR=1 ./target/debug/aegis_tui --status-json
-NO_COLOR=1 ./target/debug/aegis_tui --library-status
-NO_COLOR=1 ./target/debug/aegis_tui --library-json
+# All four below MUST return 3 until B1 profile is genuinely trusted.
+for flag in --status --status-json --library-status --library-json; do
+  set +e
+  NO_COLOR=1 ./target/debug/aegis_tui "$flag"
+  result=$?
+  set -e
+  test "$result" -eq 3
+done
+set +e
+NO_COLOR=1 ./target/debug/aegis_tui --install
+result=$?
+set -e
+test "$result" -eq 2
 ```
 
 **Expected CLI while no verified B1 installed-service profile is connected:** `--status` / `--status-json` return **3** (UNAVAILABLE, UNVERIFIED, null generation, null operator STOP, null core status), not 0. `--install` returns 2. A real connected transcript is **blocked** until B supplies signed profile and A approves one native Rust consumer activation route. Do not mark these commands as PASS without executing on a correct host.
