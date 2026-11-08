@@ -7,6 +7,8 @@ requires separate signed Windows/Debian installation and operator receipts.
 from __future__ import annotations
 
 import argparse
+from hashlib import sha256
+import re
 from collections import defaultdict
 from datetime import datetime, timezone
 import json
@@ -97,6 +99,204 @@ def make_library_preflight() -> dict:
             }
             for scenario, rows in LIB_ROWS.items()
         ],
+    }
+
+
+# E-004: strictly read-only *evidence intake*, NOT another installer/attestor.
+# These file names describe Team E's pending receipt bundle only. They are not
+# Team A's management protocol, B's signed package format or an approval API.
+D028_HOST_IDS = ("W-EMPTY", "D-HUB", "D-CLIENT", "W-PEER")
+D028_PHASE_IDS = (
+    "BASELINE", "OFFLINE_SEED", "OWNER_ENABLED_PRIMARY", "SELECTIVE_CATALOG",
+    "TRANSFER_AND_NEGATIVES", "COEXISTENCE_AND_RETENTION",
+    "REPLICA_AND_RECOVERY", "UI_AND_RUNBOOK",
+)
+D028_EVIDENCE_FILES = (
+    "release-manifest.json", "host-inventory.json", "signed-artifacts.json",
+    "cross-host-receipts.json", "network-denials.json", "backup-restore.json",
+)
+D028_TOPOLOGY_PATH = (
+    Path(__file__).resolve().parent.parent
+    / "test" / "fixtures" / "aegis_d028" / "qa_four_host_topology.json"
+)
+_SHA256_PATTERN = re.compile(r"[0-9a-f]{64}\\Z")
+
+
+def _read_bounded_json(root: Path, relative: str) -> dict | None:
+    """Never follow a symlink, absolute path or a caller-supplied traversal."""
+    if (not isinstance(relative, str) or relative.startswith(("/", "\\\\"))
+            or ".." in Path(relative).parts or "\\\\" in relative):
+        raise ValueError("invalid evidence relative path")
+    path = root / relative
+    if path.is_symlink():
+        raise ValueError("evidence symlinks are forbidden")
+    if not path.is_file():
+        return None
+    if path.stat().st_size > 65536:
+        raise ValueError("oversized evidence metadata")
+    loaded = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(loaded, dict):
+        raise ValueError("evidence object required")
+    return loaded
+
+
+def make_d028_four_host_preflight(
+    source_sha: str, *, topology: dict, evidence_dir: Path | None = None,
+) -> dict:
+    """Inspect one lab plan/receipt set, with *no* network, signatures or effects.
+
+    Metadata cannot certify native OS runtime, signatures or owner permission.
+    Even an apparently complete fixture always requires B's canonical signed
+    release and independent E witnesses. No scenario may become PASS here.
+    """
+    if (not isinstance(source_sha, str)
+            or re.fullmatch(r"[0-9a-f]{40}", source_sha) is None):
+        raise ValueError("full exact checkout SHA required")
+    if not isinstance(topology, dict):
+        raise ValueError("topology object required")
+    if (topology.get("schema") != "aegis.qa.d028.disposable-four-host-plan.v1"
+            or topology.get("state") != "PLAN_ONLY"
+            or topology.get("production_authorized") is not False
+            or topology.get("release_accepted") is not False
+            or topology.get("live_production_targets") != []
+            or topology.get("actual_host_ids") != []):
+        raise ValueError("unsafe, modified or production-facing topology")
+    hosts = topology.get("hosts", [])
+    if (not isinstance(hosts, list) or len(hosts) != 4
+            or any(not isinstance(h, dict) for h in hosts)
+            or {h.get("id") for h in hosts} != set(D028_HOST_IDS)
+            or any(h.get("platform_id") != "OBSERVE_AFTER_INSTALL" for h in hosts)):
+        raise ValueError("topology must contain four unexecuted lab hosts")
+    roles = {h["id"]: h.get("role") for h in hosts}
+    if (roles != {"W-EMPTY": "EMPTY_PLATFORM_CLIENT",
+                  "D-HUB": "SOLE_PRIMARY_HUB",
+                  "D-CLIENT": "ENROLLED_INDEPENDENT_RECIPIENT",
+                  "W-PEER": "ENROLLED_SENDER_PEER"}):
+        raise ValueError("one initial lab primary only")
+    logical = topology.get("logical_library", {})
+    if (not isinstance(logical, dict) or logical.get("primary_count") != 1
+            or logical.get("primary_test_host") != "D-HUB"
+            or logical.get("read_replica_test_hosts_initially") != []
+            or logical.get("owner_authority") != "SAME_CANONICAL_PLATFORM_SAFE_STOP"
+            or logical.get("publisher_signing_authority")
+            != "EXTERNAL_INDEPENDENT_TRUST_ROOT"):
+        raise ValueError("second primary, signer or owner authority not permitted")
+    network = topology.get("network_isolation", {})
+    if (not isinstance(network, dict) or network.get("user_production_lan") != "DENY"
+            or network.get("real_host_dns_and_discovery") != "DISABLED"
+            or network.get("no_real_addresses_or_hostnames_embedded") is not True
+            or not str(network.get("wan", "")).startswith("DENY_BY_DEFAULT")):
+        raise ValueError("disposable network isolation is mandatory")
+    phases = topology.get("phase_sequence", [])
+    if (not isinstance(phases, list) or len(phases) != len(D028_PHASE_IDS)
+            or tuple(p.get("id") for p in phases) != D028_PHASE_IDS
+            or any(p.get("status") != "NOT_EXECUTED" for p in phases)):
+        raise ValueError("executed or altered phase is not a source fixture")
+    if (topology.get("original_acceptance_rows") != COUNT
+            or topology.get("required_completed_lib_cases") != len(LIB_ROWS)
+            or topology.get("acceptance_claim") != "NOT_CLAIMED"
+            or topology.get("proposed_real_primary_placement", {}).get(
+                "deployment_authorized") is not False):
+        raise ValueError("acceptance or real deployment forged")
+
+    root = None
+    missing = []
+    invalid = []
+    verified_byte_digests = []
+    if evidence_dir is not None:
+        root = evidence_dir
+        if (root.is_symlink() or not root.is_dir()
+                or not root.resolve().is_dir()):
+            raise ValueError("evidence directory must be a real local directory")
+        for name in D028_EVIDENCE_FILES:
+            try:
+                item = _read_bounded_json(root, name)
+            except (ValueError, OSError, json.JSONDecodeError):
+                invalid.append(name)
+                continue
+            if item is None:
+                missing.append(name)
+            elif item.get("source_sha") != source_sha:
+                invalid.append(name + ":SOURCE_SHA_MISMATCH")
+        # Metadata integrity is not publisher-authenticated software.
+        try:
+            signed = _read_bounded_json(root, "signed-artifacts.json")
+        except (ValueError, OSError, json.JSONDecodeError):
+            signed = None
+        if signed is not None and signed.get("source_sha") == source_sha:
+            artifacts = signed.get("artifacts", [])
+            if not isinstance(artifacts, list) or len(artifacts) > 32:
+                invalid.append("signed-artifacts.json:INVALID_COUNT")
+                artifacts = []
+            for idx, artifact in enumerate(artifacts):
+                if not isinstance(artifact, dict):
+                    invalid.append("artifact:INVALID_OBJECT")
+                    continue
+                name = artifact.get("path")
+                expected = artifact.get("sha256")
+                if (not isinstance(expected, str)
+                        or _SHA256_PATTERN.fullmatch(expected) is None):
+                    invalid.append(f"artifact[{idx}]:INVALID_SHA256")
+                    continue
+                try:
+                    if (not isinstance(name, str)
+                            or name.startswith(("/", "\\\\"))
+                            or ".." in Path(name).parts or "\\\\" in name):
+                        raise ValueError("artifact path denied")
+                    p = root / name
+                    if p.is_symlink() or not p.is_file():
+                        raise ValueError("artifact bytes absent or symlink")
+                    digest = sha256()
+                    with p.open("rb") as stream:
+                        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                            digest.update(chunk)
+                    if digest.hexdigest() != expected:
+                        raise ValueError("artifact byte SHA256 mismatch")
+                    verified_byte_digests.append(expected)
+                except (ValueError, OSError):
+                    invalid.append(f"artifact[{idx}]:BYTE_INTEGRITY_FAILED")
+    cases = []
+    for key, rows in LIB_ROWS.items():
+        state = "NOT_EXECUTED"
+        if root is not None:
+            try:
+                case = _read_bounded_json(root, key + ".json")
+                if case is None:
+                    missing.append(key + ".json")
+                elif (case.get("scenario_id") != key
+                      or case.get("source_sha") != source_sha):
+                    state = "REJECTED_UNBOUND_CASE_RECEIPT"
+                    invalid.append(key + ".json:UNBOUND")
+                else:
+                    state = "RECEIPT_PRESENT_INDEPENDENT_REVIEW_REQUIRED"
+            except (ValueError, OSError, json.JSONDecodeError):
+                state = "REJECTED_INVALID_CASE_RECEIPT"
+                invalid.append(key + ".json:INVALID")
+        cases.append({
+            "scenario_id": key, "refined_platform_rows": [f"{i:02d}" for i in rows],
+            "receipt_inspection": state,
+            "acceptance": "NOT_CLAIMED",
+            "signed_installed_host_witness": "NOT_VERIFIED",
+        })
+    return {
+        "schema": "aegis.d028.four-host-evidence-intake.v1",
+        "source_sha": source_sha,
+        "host_ids": list(D028_HOST_IDS),
+        "one_initial_primary": True,
+        "initial_replica_count": 0,
+        "topology_status": "PLAN_VALIDATED_NOT_EXECUTED",
+        "evidence_dir_supplied": root is not None,
+        "evidence_missing": sorted(set(missing)),
+        "evidence_invalid": sorted(set(invalid)),
+        "byte_digests_verified_only": verified_byte_digests,
+        "publisher_signature_and_revocation": "NOT_INDEPENDENTLY_VERIFIED",
+        "OS_installed_service_and_enrolled_SAFE": "NOT_INDEPENDENTLY_VERIFIED",
+        "signed_Hub_index_and_peer_receipts": "NOT_INDEPENDENTLY_VERIFIED",
+        "scenario_count": len(cases),
+        "scenarios": cases,
+        "release_accepted": False,
+        "production_authorized": False,
+        "acceptance": "NOT_CLAIMED",
     }
 
 
@@ -191,12 +391,24 @@ def main() -> int:
     parser.add_argument("--junit", type=Path)
     parser.add_argument("--include-artifact-library", action="store_true",
                         help="Include conservative LIB-01..16 preflight, never release PASS")
+    parser.add_argument("--d028-four-host", action="store_true",
+                        help="Add read-only four-host plan/receipt inspection, never certify")
+    parser.add_argument("--d028-evidence-dir", type=Path,
+                        help="Optional local evidence bundle, never a trusted signed host verdict")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     report = make_report(
         args.junit, _git_sha(), sys.platform,
         include_artifact_library=args.include_artifact_library,
     )
+    if args.d028_evidence_dir and not args.d028_four_host:
+        parser.error("--d028-evidence-dir requires --d028-four-host")
+    if args.d028_four_host:
+        topology = json.loads(D028_TOPOLOGY_PATH.read_text(encoding="utf-8"))
+        report["d028_four_host"] = make_d028_four_host_preflight(
+            report["source_sha"], topology=topology,
+            evidence_dir=args.d028_evidence_dir,
+        )
     payload = json.dumps(report, sort_keys=True, indent=2) + "\n"
     if args.output:
         args.output.write_text(payload, encoding="utf-8")
