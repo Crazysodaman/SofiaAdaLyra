@@ -30,6 +30,17 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact checked-out HEAD
+        shell: bash
+        run: |
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          actual="$(git rev-parse HEAD)"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "Wrong checked-out source SHA" >&2
+            exit 1
+          fi
+        with:
           persist-credentials: false
       - uses: actions/setup-python@v7
         with:
@@ -54,6 +65,17 @@ jobs:
       AEGIS_REQUIRE_SYSTEMD_ACCEPTANCE: '1'
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact checked-out HEAD
+        shell: bash
+        run: |
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          actual="$(git rev-parse HEAD)"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "Wrong checked-out source SHA" >&2
+            exit 1
+          fi
         with:
           persist-credentials: false
       - uses: actions/setup-python@v7
