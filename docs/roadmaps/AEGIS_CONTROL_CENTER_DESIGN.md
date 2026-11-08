@@ -101,7 +101,9 @@ User-visible action states must distinguish **PROPOSED**, **AWAITING_APPROVAL**,
 
 **Core-initiated module uninstall:** The Owner Inbox must support a Core-authored suggestion for module removal without granting the Core execution authority. See [AG-D006 Core-Initiated Module Removal](AG_D006_CORE_INITIATED_MODULE_REMOVAL.md): show verified Core and Platform identity, package/digest, dependence, loss of capabilities, actual module health, explanation (labelled as Core claim), and owner-only choices to approve normal removal, approve removal plus durable install block, defer or deny. Current `module.remove` is PROTECTED, not an automatically delegated standing grant. No silent Core-driven purge or self-uninstall of management/security dependencies. On accepted effect, update GUI and TUI from the same real receipt, without restart.
 
-## 6. Core-free, multiple-Core and remote-host rules
+## 6. Core-free, multiple-Core and remote-host rules**Optional Docker/Portainer experience:** Use the existing Module Manager to install/disable/remove the independently signed **`MOD-IT-CONTAINERS` Platform module**, with a nested `Infrastructure / Containers / Portainer` view and per-connection configuration. Detailed boundaries in [AG-D025](AG_D025_PORTAINER_DOCKER_STACK_CONTROL.md): Portainer is NOT a mandatory Platform component or part of Sofía's Core. Platform owns API secrets, trusted endpoint binding, owner approval, SAFE/STOP, jobs and receipts; the optional module owns inspected Docker data and the exact reviewed deployment adapter; the Core proposes stack YAML diffs. GUI/TUI use the same authenticated views with no model required. Disabling/uninstalling Aegis's module must not remove Portainer or stop unrelated Docker services.
+
+
 
 - **Zero Cores:** Control Center and all Platform-local management remain usable. Show an empty Cores page and optional signed package installation plan; no Sofía state, LLM or GPU needed.
 - **One Core:** Display its immutable Core ID, current worker generation, lifecycle, selected authorized model/provider and protected data-retention state. Core status cannot substitute for Platform status.
