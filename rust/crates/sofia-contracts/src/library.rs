@@ -162,7 +162,7 @@ fn safe(value: &Value, depth: usize) -> Result<(), ContractError> {
                         "peer_uid",
                     ]
                     .iter()
-                    .any(|part| lower.contains(part))
+                    .any(|part| lower.contains(*part))
                 {
                     return Err(invalid("unsafe Library projection key"));
                 }
