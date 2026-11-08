@@ -1,10 +1,10 @@
 # Aegis | Shared GUI + CLI/TUI Visual Theme
 
-**Status:** OWNER-DESIRED VISUAL STANDARD (2026-11-07); DESIGN ONLY. The owner chose the same exact default palette for ALL first-party Aegis graphical and terminal management interfaces.
+**Status:** OWNER-APPROVED FOR EXPANDED PLATFORM 1.0 SHAKEDOWN (2026-11-08); implementation and evidence pending. The owner chose the same exact default palette for ALL first-party Aegis graphical and terminal management interfaces.
 **Authoritative palette:** This document is the **single cross-surface token source**. The earlier [CLI/TUI color specification](AEGIS_CLI_TUI_COLOR_THEME.md) remains the terminal-specific rendering, ANSI, fallback and accessibility companion; avoid drifting copies of token definitions.
 **Applies to:** AG-D007 GUI Control Center, AG-D011 interactive installer, AG-D022 headless Terminal Control Center, AG-D023 Core self-settings, Core/Fleet/Model/Module/Jobs/Security/Backup/Diagnostics/Update managers and future first-party `aegis` terminal commands.
 **Does not automatically recolor:** Sofía's separate personal Workbench/avatar/emotional theme or arbitrary third-party apps. Personal Sofía theme changes must not silently alter neutral Aegis security or operator views.
-**Release fence:** A design choice does not mean native GUI/TUI implementation or Platform-only #201 release acceptance is complete; no new work assignment, service change, agent execution or deployment is authorized.
+**Release fence:** Owner authorization on 2026-11-08 promotes GUI/TUI integration into Platform-only acceptance rows 31–38. This does not prove implementation or authorize live service changes, production Core activation or G8 cutover. All original design tokens remain authoritative.
 
 ## 1. Exact palette: owner-supplied hex
 

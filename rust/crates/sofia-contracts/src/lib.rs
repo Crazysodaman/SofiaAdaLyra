@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 
 pub mod identity;
+pub mod ui_theme;
 pub use identity::{AegisIdentity, IdentityKind, IDENTITY_SCHEMA};
 
 use chrono::{DateTime, FixedOffset};

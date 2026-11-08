@@ -1,0 +1,28 @@
+{
+  "schema": "aegis.ui.theme.v1",
+  "name": "aegis-dark",
+  "tokens": {
+    "primary": "#9400D3",
+    "accent": "#00C2FF",
+    "tertiary": "#39FF14",
+    "background": "#000000",
+    "text_on_background_brand": "#9400D3",
+    "text_on_primary": "#000000",
+    "danger": "#9F0202",
+    "surface_card": "#0B1020",
+    "button_primary": "#9400D3",
+    "hover": "#AA1DFF",
+    "indicator": "#00C2FF",
+    "text_main": "#E5E7EB",
+    "text_muted": "#94A3B8",
+    "tertiary_dark": "#4CAF50",
+    "hud_primary": "#FFB000",
+    "hud_secondary": "#FF8C00",
+    "visr": "#FFB000",
+    "highlight_bright": "#FFC83D",
+    "glow": "#FFD54F",
+    "success": "#39FF14",
+    "warning": "#FFB000",
+    "error": "#9F0202"
+  }
+}
