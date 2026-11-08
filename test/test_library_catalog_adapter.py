@@ -280,7 +280,7 @@ def test_current_safe_rechecked_after_archive_review_for_midflight_revocation(tm
             signed_content_admit=lambda *_: calls.append("archive") or True,
             catalog_admit=lambda _: calls.append("final-safe") or False,
         )
-    assert calls == ["initial-safe", "archive", "final-safe"]
+    assert calls == ["initial-safe", "archive", "initial-safe", "final-safe"]
     # Verified local bytes are not accepted for install after SAFE revocation.
 
 
@@ -381,3 +381,40 @@ def test_absent_current_authority_callback_cannot_be_forged_by_catalog(tmp_path)
     # when Team A's current, enrolled request admission is not supplied.
     with pytest.raises(ModuleRecipientRejected, match="gate"):
         review(data, value, root, pub, current_request_admit=None)
+
+
+
+def test_stop_revoked_during_archive_refuses_before_publisher_key_lookup(tmp_path):
+    data, value, root, pub = fixture(tmp_path)
+    calls = []
+
+    def current_host_scope(*_):
+        calls.append("safe")
+        return calls.count("safe") == 1
+
+    with pytest.raises(ModuleRecipientRejected, match="revoked during archive"):
+        review(
+            data, value, root, pub,
+            current_host_scope_admit=current_host_scope,
+            signed_content_admit=lambda *_: calls.append("archive") or True,
+            publisher_key_lookup=lambda _: calls.append("publisher-key") or pub,
+        )
+    assert calls == ["safe", "archive", "safe"]
+
+
+def test_publisher_revoked_during_archive_refuses_before_key_lookup(tmp_path):
+    data, value, root, pub = fixture(tmp_path)
+    calls = []
+
+    def publisher_current(*_):
+        calls.append("publisher")
+        return calls.count("publisher") == 1
+
+    with pytest.raises(ModuleRecipientRejected, match="revoked during archive"):
+        review(
+            data, value, root, pub,
+            publisher_current=publisher_current,
+            signed_content_admit=lambda *_: calls.append("archive") or True,
+            publisher_key_lookup=lambda _: calls.append("publisher-key") or pub,
+        )
+    assert calls == ["publisher", "archive", "publisher"]
