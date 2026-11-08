@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import json
+from hashlib import sha256
 from pathlib import Path
 
 import pytest
 
 from tools.aegis_platform_row_preflight import (
     BLOCKED_BY_MISSING_INTEGRATION, COUNT, LIB_ROWS, PROBES,
+    D028_EVIDENCE_FILES, make_d028_four_host_preflight,
     make_library_preflight, make_report,
 )
 
@@ -174,3 +176,133 @@ def test_d028_four_host_network_backup_and_approvals_fail_closed() -> None:
     assert "manual_promotion_only_after_old_primary_fence_and_independent_witness" in combined
     assert "recipient_reverifies_trusted_signature" in combined
     assert "restore_verified_off_primary_backup_no_core_state" in combined
+
+
+def _d028_plan() -> dict:
+    path = Path(__file__).resolve().parent / "fixtures" / "aegis_d028" / "qa_four_host_topology.json"
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_d028_runnable_harness_has_16_blocked_cases_and_no_acceptance() -> None:
+    report = make_d028_four_host_preflight("a" * 40, topology=_d028_plan())
+    assert report["schema"] == "aegis.d028.four-host-evidence-intake.v1"
+    assert report["host_ids"] == ["W-EMPTY", "D-HUB", "D-CLIENT", "W-PEER"]
+    assert report["one_initial_primary"] is True
+    assert report["initial_replica_count"] == 0
+    assert not report["evidence_dir_supplied"]
+    assert report["scenario_count"] == len(LIB_ROWS) == 16
+    assert [x["scenario_id"] for x in report["scenarios"]] == list(LIB_ROWS)
+    assert all(x["receipt_inspection"] == "NOT_EXECUTED" for x in report["scenarios"])
+    assert all(x["acceptance"] == "NOT_CLAIMED" for x in report["scenarios"])
+    assert all(x["signed_installed_host_witness"] == "NOT_VERIFIED"
+               for x in report["scenarios"])
+    assert report["publisher_signature_and_revocation"] == "NOT_INDEPENDENTLY_VERIFIED"
+    assert report["OS_installed_service_and_enrolled_SAFE"] == "NOT_INDEPENDENTLY_VERIFIED"
+    assert report["release_accepted"] is False
+    assert report["production_authorized"] is False
+
+
+@pytest.mark.parametrize("bad_case", [
+    "production", "second_primary", "reader_grants", "wan", "fake_execution",
+    "fake_release_pass", "source_sha",
+])
+def test_d028_runnable_harness_rejects_unsafe_topology(bad_case: str) -> None:
+    plan = _d028_plan()
+    source = "b" * 40
+    if bad_case == "production":
+        plan["live_production_targets"] = ["DO_NOT_TOUCH_HOST"]
+    elif bad_case == "second_primary":
+        plan["logical_library"]["primary_count"] = 2
+    elif bad_case == "reader_grants":
+        plan["logical_library"]["owner_authority"] = "HUB_LOCAL_ADMIN"
+    elif bad_case == "wan":
+        plan["network_isolation"]["user_production_lan"] = "ALLOW"
+    elif bad_case == "fake_execution":
+        plan["phase_sequence"][0]["status"] = "PASSED"
+    elif bad_case == "fake_release_pass":
+        plan["release_accepted"] = True
+    else:
+        source = "fake-sha"
+    with pytest.raises(ValueError):
+        make_d028_four_host_preflight(source, topology=plan)
+
+
+def test_d028_runnable_harness_rehashes_bytes_but_does_not_trust_signer(
+    tmp_path: Path,
+) -> None:
+    exact = "c" * 40
+    payload = tmp_path / "artifacts" / "synthetic-seed.bin"
+    payload.parent.mkdir()
+    payload.write_bytes(b"non-executable mock package bytes only")
+    digest = sha256(payload.read_bytes()).hexdigest()
+    (tmp_path / "signed-artifacts.json").write_text(json.dumps({
+        "source_sha": exact,
+        "artifacts": [{"path": "artifacts/synthetic-seed.bin", "sha256": digest}],
+        "signature_valid": True,   # Never trust an unsigned JSON Boolean.
+    }), encoding="utf-8")
+    (tmp_path / "LIB-01.json").write_text(json.dumps({
+        "scenario_id": "LIB-01", "source_sha": exact, "status": "PASS",
+    }), encoding="utf-8")
+    report = make_d028_four_host_preflight(
+        exact, topology=_d028_plan(), evidence_dir=tmp_path,
+    )
+    assert report["byte_digests_verified_only"] == [digest]
+    assert report["evidence_invalid"] == []
+    assert "release-manifest.json" in report["evidence_missing"]
+    assert len(report["evidence_missing"]) == 5 + 15
+    assert report["scenarios"][0]["receipt_inspection"] == (
+        "RECEIPT_PRESENT_INDEPENDENT_REVIEW_REQUIRED"
+    )
+    assert report["scenarios"][0]["acceptance"] == "NOT_CLAIMED"
+    assert report["publisher_signature_and_revocation"] == "NOT_INDEPENDENTLY_VERIFIED"
+    assert report["signed_Hub_index_and_peer_receipts"] == "NOT_INDEPENDENTLY_VERIFIED"
+    assert report["release_accepted"] is False
+    assert report["production_authorized"] is False
+    assert set(D028_EVIDENCE_FILES) - {"signed-artifacts.json"} <= set(report["evidence_missing"])
+
+
+def test_d028_runnable_harness_rejects_changed_bytes_wrong_sha_and_links(
+    tmp_path: Path,
+) -> None:
+    exact = "d" * 40
+    (tmp_path / "signed-artifacts.json").write_text(json.dumps({
+        "source_sha": exact, "artifacts": [
+            {"path": "payload.bin", "sha256": sha256(b"expected").hexdigest()},
+            {"path": "../escape.bin", "sha256": "a" * 64},
+        ],
+    }), encoding="utf-8")
+    (tmp_path / "payload.bin").write_bytes(b"tampered")
+    (tmp_path / "LIB-02.json").write_text(json.dumps({
+        "scenario_id": "LIB-02", "source_sha": "e" * 40, "status": "PASS",
+    }), encoding="utf-8")
+    try:
+        (tmp_path / "link.json").symlink_to(tmp_path / "signed-artifacts.json")
+    except (OSError, NotImplementedError):
+        pass
+    report = make_d028_four_host_preflight(
+        exact, topology=_d028_plan(), evidence_dir=tmp_path,
+    )
+    assert "artifact[0]:BYTE_INTEGRITY_FAILED" in report["evidence_invalid"]
+    assert "artifact[1]:BYTE_INTEGRITY_FAILED" in report["evidence_invalid"]
+    assert "LIB-02.json:UNBOUND" in report["evidence_invalid"]
+    assert report["byte_digests_verified_only"] == []
+    assert report["scenarios"][1]["receipt_inspection"] == "REJECTED_UNBOUND_CASE_RECEIPT"
+    assert not report["release_accepted"]
+
+
+def test_d028_runnable_harness_fails_closed_on_symlinked_signed_metadata(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "external-metadata.json"
+    target.write_text('{"source_sha":"' + "f" * 40 + '"}', encoding="utf-8")
+    link = tmp_path / "release-manifest.json"
+    try:
+        link.symlink_to(target)
+    except (OSError, NotImplementedError):
+        pytest.skip("symbolic links unavailable")
+    report = make_d028_four_host_preflight(
+        "f" * 40, topology=_d028_plan(), evidence_dir=tmp_path,
+    )
+    assert "release-manifest.json" in report["evidence_invalid"]
+    assert report["acceptance"] == "NOT_CLAIMED"
+    assert not report["release_accepted"]
