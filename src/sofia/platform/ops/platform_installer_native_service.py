@@ -133,7 +133,11 @@ def _check_spec(spec: NativeServiceSpecification, expected: PlatformReleaseTarge
         raise PlatformInstallationDenied("native service target mismatch")
     for path in (spec.executable, spec.python_executable, spec.identity_home, spec.local_state):
         assert_no_redirected_components(path, include_leaf=True)
-    if sha256(spec.executable.read_bytes()).hexdigest() != spec.executable_sha256:
+    size = spec.executable.stat(follow_symlinks=False).st_size
+    if not 1 <= size <= 64 * 1024**2:
+        raise PlatformInstallationDenied("selected native service exceeds signed size bound")
+    observed_sha, _ = read_artifact_file(spec.executable, size)
+    if observed_sha != spec.executable_sha256:
         raise PlatformInstallationDenied("selected signed native binary changed")
     identity = InstallationIdentityStore(spec.identity_home).load()
     if (identity.identity.canonical_uuid != spec.platform_id or
