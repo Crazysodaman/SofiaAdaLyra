@@ -1,6 +1,6 @@
 # AG-D028 / Team A D028-00: one authenticated Artifact Library contract
 
-**Status:** CROSS-TEAM CANDIDATE ONLY; A/C/B/D/E freeze is **NOT** signed. The canonical release design is [AG-D028 #248](../../roadmaps/AG_D028_PLATFORM_1_0_RELEASE_SPEC.md) and [issue #250](https://github.com/Crazysodaman/SofiaAdaLyra/issues/250). The signed installed-host LIB-01–16 acceptance tests remain unpassed. This document proposes a protocol for review; it installs no Hub, broker, downloader, signer, grant, listener, database or Core.
+**Status:** CROSS-TEAM CANDIDATE ONLY; A/C/B/D/E freeze is **NOT** signed. The canonical release design is [AG-D028 #248](../roadmaps/AG_D028_PLATFORM_1_0_RELEASE_SPEC.md) and [issue #250](https://github.com/Crazysodaman/SofiaAdaLyra/issues/250). The signed installed-host LIB-01–16 acceptance tests remain unpassed. This document proposes a protocol for review; it installs no Hub, broker, downloader, signer, grant, listener, database or Core.
 
 ## 1. Trust and package ownership
 
@@ -12,9 +12,9 @@ Team B owns independently pinned publisher roots, signed Platform-only offline s
 
 Proposal: `aegis.platform.library.request.v1` / `aegis.platform.library.response.v1`, protocol **exactly** `"1.0"` (no implicit minor acceptance, negotiation from unknown peer, fallback to #232/#234 or auto-downgrade). Fields are exact, bounded UTF-8 strict JSON with duplicate keys/nonfinite values rejected. No raw pathname, URL, credential, executable command, owner grant, session token, arbitrary class or unknown key. Source+transport authenticated **outside** the JSON on the same canonical service; `caller_principal`, `audience`, `peer_sid`, `peer_uid` MUST NOT appear as asserted client fields. The session owner derives target + audience from native OS token or fresh mutually authenticated enrolled Platform TLS/peer binding and compares the request's target against that **current** source of truth.
 
-### Request v1 (candidate exactly 11 keys)
+### Request v1 (candidate exactly 12 keys)
 
-`schema,protocol,request_id,correlation_id,operation,target_platform_id,expected_generation,expected_revision,idempotency_key,created_at,deadline,parameters` **(12 keys)**. IDs have bounded ASCII forms and must be unique per request/session; idempotency is **null on reads** and a scoped exact-operation key on effectful requests. `expected_generation` positive; `expected_revision` nonnegative; both re-read immediately before publishing any response, starting data transfer, or consuming one-time authority. RFC3339 aware time (0–6 fractional digits), bounded created/deadline at most 60s, checked on both ends. `parameters` is an operation-specific allowlisted bounded object; never treats submitted principal/role/target as authenticated.
+`schema,protocol,request_id,correlation_id,operation,target_platform_id,expected_generation,expected_revision,idempotency_key,created_at,deadline,parameters` (12 keys). IDs have bounded ASCII forms and must be unique per request/session; idempotency is **null on reads** and a scoped exact-operation key on effectful requests. `expected_generation` positive; `expected_revision` nonnegative; both re-read immediately before publishing any response, starting data transfer, or consuming one-time authority. RFC3339 aware time (0–6 fractional digits), bounded created/deadline at most 60s, checked on both ends. `parameters` is an operation-specific allowlisted bounded object; never treats submitted principal/role/target as authenticated.
 
 ### Response v1 (candidate exactly 12 keys)
 
