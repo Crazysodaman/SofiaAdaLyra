@@ -111,33 +111,36 @@ class PlatformServiceSession:
                 # Trust only the exact, signed-systemd configured runtime
                 # directory. Never adopt /tmp, HOME, colon lists or a caller's
                 # arbitrary environment path as an external IPC endpoint.
-                if runtime == "/run/aegis":
-                    # Legacy signed systemd unit remains private, never
-                    # reinterpreted as a shared external operator path.
-                    required_mode = 0o700
-                    group_gid = None
-                elif runtime == "/run/aegis-platform":
-                    # New Team B installer must explicitly provision this
-                    # *separate* dedicated group and mode. Not a wildcard
-                    # over the existing 'aegis' service group.
-                    import grp
-                    try:
-                        group_gid = grp.getgrnam("aegis-mgmt").gr_gid
-                    except KeyError as exc:
-                        raise PermissionError("dedicated management group missing") from exc
-                    required_mode = 0o750
-                    if group_gid != os.getegid():
-                        raise PermissionError("installed management group differs")
-                else:
+                if runtime not in {"/run/aegis", "/run/aegis-platform"}:
                     raise PermissionError("unreviewed systemd runtime directory")
                 home = Path(runtime)
                 assert_no_redirected_components(home, include_leaf=True)
                 parent = home.stat(follow_symlinks=False)
                 if (not stat.S_ISDIR(parent.st_mode)
                         or parent.st_uid != os.geteuid()
-                        or parent.st_gid != os.getegid()
-                        or stat.S_IMODE(parent.st_mode) != required_mode):
+                        or parent.st_gid != os.getegid()):
                     raise PermissionError("systemd runtime directory not governed")
+                mode = stat.S_IMODE(parent.st_mode)
+                # Current Team B signed native provisioner reserves
+                # /run/aegis-platform mode 0700; accept it as owner-only.
+                # Never mistake an owner-private installation for an enrolled
+                # external operator. Existing /run/aegis also remains 0700.
+                if mode == 0o700:
+                    group_gid = None
+                elif runtime == "/run/aegis-platform" and mode == 0o750:
+                    # Only a separately signed/provisioned dedicated group
+                    # can make this socket reachable by external operators.
+                    # Current SAFE grant checks are still mandatory per read.
+                    import grp
+                    try:
+                        enrolled_group_gid = grp.getgrnam("aegis-mgmt").gr_gid
+                    except KeyError as exc:
+                        raise PermissionError("dedicated management group missing") from exc
+                    if enrolled_group_gid != os.getegid():
+                        raise PermissionError("installed management group differs")
+                    group_gid = enrolled_group_gid
+                else:
+                    raise PermissionError("unexpected systemd runtime directory mode")
                 # Epoch-fenced path avoids adopting a socket abandoned by a
                 # forced kill; old paths stay non-authoritative and offline.
                 socket_path = home / ("mgmt-" + str(self.lease.epoch) + ".sock")
