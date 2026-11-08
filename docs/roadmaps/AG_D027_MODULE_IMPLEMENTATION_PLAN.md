@@ -2,6 +2,7 @@
 
 **Owner direction:** 2026-11-08, "Okay lets do all the recomendations" in response to [AG-D026](AG_D026_MODULE_CATALOG_RATIONALIZATION_AUDIT.md).
 **Execution state:** IN PROGRESS in reviewed batches; no implication all modules are installed, production ready, migrated, or merged. The conditional new candidates in AG-D026 remain conditional pending an independently justified use case. This plan authorizes engineering changes subject to existing repository safety, independent security/host approvals, test evidence and concurrency controls, **not** automatic host deployment, destructive migration, privileged grants, or weakening Platform #201 gates.
+**Tracking:** [GitHub implementation issue #237](https://github.com/Crazysodaman/SofiaAdaLyra/issues/237); [draft batch 01 PR #238](https://github.com/Crazysodaman/SofiaAdaLyra/pull/238).
 **Full scope:** 55 existing catalog entries, six conditional consolidation directions, shared providers/SDK, optional integration enhancements, and tests.
 **Authoritative catalog:** [ownership matrix](../sofia2/MODULE_OWNERSHIP_MATRIX.md) and [module catalog](../sofia2/PLATFORM_AND_MODULE_CATALOG_V1.md). Existing package IDs/state references remain valid until independently reviewed migration.
 
