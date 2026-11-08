@@ -45,7 +45,9 @@ impl UntrustedManagementRead {
         let value = parse_strict(raw)?;
         let request: Self = serde_json::from_value(value)
             .map_err(|error| ContractError::new("invalid_management_read", error.to_string()))?;
-        if request.schema != MANAGEMENT_READ_SCHEMA || request.protocol != MANAGEMENT_READ_PROTOCOL {
+        if request.schema != MANAGEMENT_READ_SCHEMA
+            || request.protocol != MANAGEMENT_READ_PROTOCOL
+        {
             return Err(ContractError::new(
                 "unsupported_management_schema",
                 "read-only management protocol version is unsupported",
