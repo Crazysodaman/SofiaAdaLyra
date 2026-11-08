@@ -116,7 +116,10 @@ class ChunkedArtifactReceiver:
 
     @staticmethod
     def _existing_file(path: Path) -> int:
-        assert_no_redirected_components(path, include_leaf=True)
+        try:
+            assert_no_redirected_components(path, include_leaf=True)
+        except PermissionError as exc:
+            raise ChunkTransferRejected("incoming path contains a redirected component") from exc
         try:
             meta = path.lstat()
         except FileNotFoundError:
