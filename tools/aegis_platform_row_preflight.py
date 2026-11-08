@@ -423,6 +423,14 @@ def main() -> int:
         args.output.write_text(payload, encoding="utf-8")
     else:
         print(payload, end="")
+    if args.d028_evidence_dir is not None:
+        # A source-data intake cannot certify native service origin, a trusted
+        # publisher root or installed-host independent observer. Never return
+        # successful CI status from an unverified/fabricated receipt bundle.
+        receipt = report["d028_four_host"]
+        if receipt["evidence_invalid"] or receipt["evidence_missing"]:
+            return 2  # Incomplete, stale, tampered or unsafe evidence.
+        return 3  # Byte inventory only; independent signed-host review required.
     return 0
 
 
