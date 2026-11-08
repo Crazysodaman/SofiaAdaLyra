@@ -1,6 +1,6 @@
 # Aegis SDK Reference Module (test-only)
 
-**New:** The [three-piece Core + Platform + Module SDK reference bench](../sdk_reference_system/README.md) uses this exact module alongside dummy Core and Platform clients. Run `python -m examples.sdk_reference_system.try_it` to watch two Core clients share, gain/revoke, and lose this capability without touching production.
+**New:** The [three-piece Core + Platform + Module SDK reference bench](../sdk_reference_system/README.md) and [goal-first guided SDK lessons](../sdk_reference_system/LEARNING_WORKBOOK.md) uses this exact module alongside dummy Core and Platform clients. Run `python -m examples.sdk_reference_system.try_it` to watch two Core clients share, gain/revoke, and lose this capability without touching production.
 
 This is the **golden, inert module example** for developers of Sofía/Aegis modules. It models **the actual Python SDK v1 contracts and Platform lifecycle**, not a magical plugin loader or an installer.
 
