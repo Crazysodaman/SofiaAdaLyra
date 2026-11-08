@@ -266,3 +266,40 @@ def test_library_rejects_duplicate_json_and_surrogate_tricks():
         UntrustedLibraryResponse.parse(
             _wire(response), expected=request, now=UTC_NOW,
         )
+
+
+def test_d028_peer_requires_actual_mutually_authenticated_tls_not_a_fake_identity(tmp_path):
+    from sofia.platform.run.library_peer_gate import admit_owner_enrolled_library_chunk
+    from sofia.platform.safe.permissions import PermissionStore, capability_permission_policy
+    from sofia.platform.safe.operator_stop import OperatorStopStore
+    from test.test_platform_service_session import provision
+
+    identity, current, state = provision(tmp_path)
+    permissions = PermissionStore(state)
+    stop = OperatorStopStore(state)
+    assert capability_permission_policy("library.peer.fetch").standing_grant_allowed is False
+    host = current.identity.canonical_uuid
+    status = {
+        "platform_id": host, "generation": 1,
+        "operator_stop": False, "core_started": False,
+    }
+    arguments = dict(
+        tls_socket=object(), permissions=permissions, stop=stop,
+        current_status=lambda: status,
+        source_platform_id="platform:peer-fixture",
+        target_platform_id=host,
+        expected_generation=1, catalog_revision=2,
+        manifest_digest="a" * 64, content_digest="b" * 64,
+        artifact_kind="module", offset=0, length=4096,
+        total_bytes=4096,
+    )
+    with pytest.raises(PermissionError, match="real OS TLS"):
+        admit_owner_enrolled_library_chunk(**arguments)
+    with pytest.raises(ValueError, match="out of declared bounds"):
+        admit_owner_enrolled_library_chunk(**{**arguments, "offset": 1000})
+    with pytest.raises(ValueError, match="signed pinned digest"):
+        admit_owner_enrolled_library_chunk(
+            **{**arguments, "content_digest": "signed-by-hub-only"}
+        )
+    with pytest.raises(ValueError, match="bounded"):
+        admit_owner_enrolled_library_chunk(**{**arguments, "length": 10 * 1024 * 1024})
