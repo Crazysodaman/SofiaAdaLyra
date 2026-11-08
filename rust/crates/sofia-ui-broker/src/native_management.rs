@@ -17,6 +17,7 @@ pub mod linux {
         MANAGEMENT_READ_SCHEMA, MAX_MANAGEMENT_RESPONSE_BYTES,
     };
     use nix::sys::socket::{getsockopt, sockopt::PeerCredentials};
+    use std::fmt::Write as _;
     use std::fs;
     use std::io::{Read, Write};
     use std::os::unix::ffi::OsStrExt;
@@ -111,7 +112,8 @@ pub mod linux {
             getrandom::getrandom(&mut random).map_err(|_| ReadFailure::Unverified)?;
             let mut request_id = String::from("req:");
             for value in random {
-                request_id.push_str(&format!("{value:02x}"));
+                write!(&mut request_id, "{value:02x}")
+                    .map_err(|_| ReadFailure::Unverified)?;
             }
             let created_at = now.to_rfc3339_opts(SecondsFormat::Micros, true);
             let deadline = (now + ChronoDuration::seconds(5))
