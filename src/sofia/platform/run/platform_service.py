@@ -39,21 +39,21 @@ SCHEMA = 'aegis.platform.service-control.v1'
 
 def systemd_management_operator_group(
     runtime: str, parent, *, service_uid: int, service_gid: int,
+    service_groups: tuple[int, ...] = (),
 ) -> int | None:
-    """Interpret *installer-created* runtime mode without changing its ACL.
+    """Read installer-owned 0700 private or 0750 dedicated operator group.
 
-    Team B's present Debian unit is owner-private 0700. External sharing is
-    gated on a separate 0750 directory and exact dedicated aegis-mgmt group.
-    This policy never chmods, chowns, enrolls or authorizes any caller.
+    No OS ACL mutation, SAFE enrollment, or other authority is created here.
     """
     if runtime not in {"/run/aegis", "/run/aegis-platform"}:
         raise PermissionError("unreviewed systemd runtime directory")
     if (not stat.S_ISDIR(parent.st_mode)
-            or parent.st_uid != service_uid
-            or parent.st_gid != service_gid):
+            or parent.st_uid != service_uid):
         raise PermissionError("systemd runtime directory not governed")
     mode = stat.S_IMODE(parent.st_mode)
     if mode == 0o700:
+        if parent.st_gid != service_gid:
+            raise PermissionError("private service runtime group differs")
         return None
     if runtime == "/run/aegis-platform" and mode == 0o750:
         import grp
@@ -61,11 +61,11 @@ def systemd_management_operator_group(
             gid = grp.getgrnam("aegis-mgmt").gr_gid
         except KeyError as exc:
             raise PermissionError("dedicated management group missing") from exc
-        if gid != service_gid:
+        if (parent.st_gid != gid
+                or gid not in (service_gid, *service_groups)):
             raise PermissionError("installed management group differs")
         return gid
     raise PermissionError("unexpected systemd runtime directory mode")
-
 
 class PlatformServiceSession:
     """Hold existing local RUN authority plus an OS lifetime lock, never a Core lease."""
@@ -147,6 +147,7 @@ class PlatformServiceSession:
                 group_gid = systemd_management_operator_group(
                     runtime, parent,
                     service_uid=os.geteuid(), service_gid=os.getegid(),
+                    service_groups=tuple(os.getgroups()),
                 )
                 # Epoch-fenced path avoids adopting a socket abandoned by a
                 # forced kill; old paths stay non-authoritative and offline.

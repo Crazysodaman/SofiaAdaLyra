@@ -36,6 +36,7 @@ def _no_redirects(path: Path) -> None:
 
 def _native_socket_pin(
     path: Path, *, expected_uid: int, expected_gid: int,
+    expected_socket_group_gid: int | None = None,
 ) -> tuple[int, int]:
     if sys.platform != "linux" or not hasattr(socket, "SO_PEERCRED"):
         raise PermissionError("Linux OS peer credentials required")
@@ -46,18 +47,29 @@ def _native_socket_pin(
     if (type(expected_uid) is not int or expected_uid < 0
             or type(expected_gid) is not int or expected_gid < 0):
         raise ValueError("signed service UID/GID pin required")
+    if expected_socket_group_gid is not None and (
+        type(expected_socket_group_gid) is not int
+        or expected_socket_group_gid < 0
+    ):
+        raise ValueError("separate enrolled management socket group pin required")
     _no_redirects(path)
     parent = os.lstat(path.parent)
     leaf = os.lstat(path)
+    if expected_socket_group_gid is None:
+        group_gid, directory_mode, mode = expected_gid, 0o700, 0o600
+    else:
+        # Team B must provision the dedicated aegis-mgmt group. Its GID may
+        # be the systemd service's effective GID or a verified supplementary
+        # GID. SO_PEERCRED remains pinned to the actual service primary GID.
+        group_gid, directory_mode, mode = expected_socket_group_gid, 0o750, 0o660
     if (not stat.S_ISDIR(parent.st_mode)
             or parent.st_uid != expected_uid
-            or parent.st_gid != expected_gid
-            or stat.S_IMODE(parent.st_mode) not in {0o700, 0o750}):
+            or parent.st_gid != group_gid
+            or stat.S_IMODE(parent.st_mode) != directory_mode):
         raise PermissionError("untrusted Platform IPC runtime directory")
-    mode = 0o600 if stat.S_IMODE(parent.st_mode) == 0o700 else 0o660
     if (not stat.S_ISSOCK(leaf.st_mode)
             or leaf.st_uid != expected_uid
-            or leaf.st_gid != expected_gid
+            or leaf.st_gid != group_gid
             or stat.S_IMODE(leaf.st_mode) != mode):
         raise PermissionError("untrusted Platform IPC socket inode, owner or mode")
     return (leaf.st_dev, leaf.st_ino)
@@ -95,6 +107,7 @@ def read_linux_platform_status(
     installed_service_uid: int,
     installed_service_gid: int,
     installed_service_pid: int | None = None,
+    installed_socket_group_gid: int | None = None,
 ) -> UntrustedManagementResponse:
     """One native authenticated read; NO discovery, enrollment or mutation.
 
@@ -109,6 +122,7 @@ def read_linux_platform_status(
     inode = _native_socket_pin(
         socket_path, expected_uid=installed_service_uid,
         expected_gid=installed_service_gid,
+        expected_socket_group_gid=installed_socket_group_gid,
     )
     now = datetime.now(timezone.utc)
     # No client-provided owner SID, UID, secret, approval or arbitrary operation.
@@ -144,6 +158,7 @@ def read_linux_platform_status(
         if _native_socket_pin(
             socket_path, expected_uid=installed_service_uid,
             expected_gid=installed_service_gid,
+            expected_socket_group_gid=installed_socket_group_gid,
         ) != inode:
             raise PermissionError("management socket replaced during connect")
         try:
@@ -154,6 +169,7 @@ def read_linux_platform_status(
         if _native_socket_pin(
             socket_path, expected_uid=installed_service_uid,
             expected_gid=installed_service_gid,
+            expected_socket_group_gid=installed_socket_group_gid,
         ) != inode:
             raise PermissionError("management socket replaced during read")
     return UntrustedManagementResponse.parse(
