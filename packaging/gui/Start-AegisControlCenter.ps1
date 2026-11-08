@@ -346,6 +346,33 @@ if ($UiProbe) {
         if (@($script:actionButtons | Where-Object { $_.Enabled }).Count -ne 0) {
             throw 'Management button unexpectedly enabled'
         }
+        $expectedLibraryViews = @{
+            'Library > Catalog' = 'Catalog: NOT OBSERVED'
+            'Library > Sources' = 'Internet fallback: DISABLED'
+            'Library > Downloads' = 'Received bytes: UNKNOWN'
+            'Library > Installed' = 'Downloaded is not installed'
+            'Library > Storage' = 'Garbage collection: DISABLED'
+            'Library > Hub' = 'Hub role: UNKNOWN'
+            'Library > History' = 'Source/digest/signer/timestamp: UNKNOWN'
+        }
+        foreach ($pageName in $expectedLibraryViews.Keys) {
+            $position = $navigation.Items.IndexOf($pageName)
+            if ($position -lt 0) { throw "Missing Library page: $pageName" }
+            $navigation.SelectedIndex = $position
+            if ($script:head.Text -cne $pageName) {
+                throw "Library heading did not follow navigation: $pageName"
+            }
+            if (-not $script:body.Text.Contains($expectedLibraryViews[$pageName])) {
+                throw "Library page content is misleading or absent: $pageName"
+            }
+            if (-not $script:body.Text.Contains('SOURCE: UNVERIFIED')) {
+                throw "Library source failed closed incorrectly: $pageName"
+            }
+            if (@($script:actionButtons | Where-Object { $_.Enabled }).Count -ne 0) {
+                throw "Library action unexpectedly enabled: $pageName"
+            }
+        }
+        Write-Output 'LIBRARY_NAVIGATION_PROBE=PASS'
         Write-Output 'AEGIS_GUI_NATIVE_CONSTRUCTION=PASS'
         Write-Output 'ARTIFACT_LIBRARY_NAVIGATION=7'
         Write-Output 'LIBRARY_ACTIONS=DISABLED'
