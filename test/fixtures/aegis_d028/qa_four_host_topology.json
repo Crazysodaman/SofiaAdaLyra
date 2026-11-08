@@ -1,0 +1,289 @@
+{
+  "schema": "aegis.qa.d028.disposable-four-host-plan.v1",
+  "source_design_pr": 248,
+  "design_review_sha": "8d5c7ae58fde4a51a3beb3d0d73ad956c0a80f21",
+  "state": "PLAN_ONLY",
+  "production_authorized": false,
+  "release_accepted": false,
+  "signed_os_installed_host_evidence": "NOT_COLLECTED",
+  "actual_host_ids": [],
+  "live_production_targets": [],
+  "proposed_real_primary_placement": {
+    "description": "Owner-intended single primary on existing Sofia VM, not a QA machine",
+    "role": "PRIMARY",
+    "target_is_not_a_test_host": true,
+    "os_version": "UNVERIFIED",
+    "core_writer_authority": "UNCHANGED",
+    "deployment_authorized": false,
+    "replicas_initially": 0
+  },
+  "logical_library": {
+    "id": "GENERATE_BY_SIGNED_PLATFORM_SERVICE_NOT_A_TEST_VALUE",
+    "primary_test_host": "D-HUB",
+    "primary_count": 1,
+    "read_replica_test_hosts_initially": [],
+    "epoch": "OBSERVE_FROM_SERVICE_NOT_HARDCODED",
+    "catalog_revision": "OBSERVE_FROM_SERVICE_NOT_HARDCODED",
+    "publisher_signing_authority": "EXTERNAL_INDEPENDENT_TRUST_ROOT",
+    "owner_authority": "SAME_CANONICAL_PLATFORM_SAFE_STOP",
+    "cache_is_not_another_library": true
+  },
+  "network_isolation": {
+    "mode": "TEST_ONLY_NATLESS_ISOLATED_LAN",
+    "wan": "DENY_BY_DEFAULT_WITH_PACKET_EVIDENCE",
+    "user_production_lan": "DENY",
+    "real_host_dns_and_discovery": "DISABLED",
+    "intra_lab": "ONLY_EXACT_ENROLLED_AND_AUTHORIZED_PAIRS",
+    "internet_source": "OFF_UNLESS_EXPLICITLY_SEPARATELY_AUTHORIZED",
+    "no_real_addresses_or_hostnames_embedded": true
+  },
+  "hosts": [
+    {
+      "id": "W-EMPTY",
+      "os": "SUPPORTED_WINDOWS_PIN_BUILD_AT_RUN",
+      "role": "EMPTY_PLATFORM_CLIENT",
+      "boot": "FRESH_INSTALL",
+      "features": [
+        "signed_offline_platform_sdk",
+        "windows_scm",
+        "native_gui",
+        "cli",
+        "no_python_git_cargo_ollama_core_or_optional_module"
+      ],
+      "platform_id": "OBSERVE_AFTER_INSTALL",
+      "service_binary_sha256": "OBSERVE_AFTER_INSTALL"
+    },
+    {
+      "id": "D-HUB",
+      "os": "DEBIAN_12_PIN_KERNEL_AT_RUN",
+      "role": "SOLE_PRIMARY_HUB",
+      "boot": "FRESH_INSTALL",
+      "features": [
+        "signed_offline_platform_sdk",
+        "systemd",
+        "core_free_hub",
+        "headless_tui_cli",
+        "separate_optional_inert_synthetic_core_worker_for_coexistence_only"
+      ],
+      "platform_id": "OBSERVE_AFTER_INSTALL",
+      "service_binary_sha256": "OBSERVE_AFTER_INSTALL"
+    },
+    {
+      "id": "D-CLIENT",
+      "os": "DEBIAN_12_PIN_KERNEL_AT_RUN",
+      "role": "ENROLLED_INDEPENDENT_RECIPIENT",
+      "boot": "FRESH_INSTALL",
+      "features": [
+        "signed_offline_platform_sdk",
+        "systemd",
+        "headless_tui_cli",
+        "receiver_reverifies_publisher_and_license",
+        "cache_not_installed"
+      ],
+      "platform_id": "OBSERVE_AFTER_INSTALL",
+      "service_binary_sha256": "OBSERVE_AFTER_INSTALL"
+    },
+    {
+      "id": "W-PEER",
+      "os": "SUPPORTED_WINDOWS_PIN_BUILD_AT_RUN",
+      "role": "ENROLLED_SENDER_PEER",
+      "boot": "FRESH_INSTALL",
+      "features": [
+        "signed_offline_platform_sdk",
+        "windows_scm",
+        "optional_native_gui",
+        "exact_digest_offer",
+        "late_read_replica_experiment_only"
+      ],
+      "platform_id": "OBSERVE_AFTER_INSTALL",
+      "service_binary_sha256": "OBSERVE_AFTER_INSTALL"
+    }
+  ],
+  "phase_sequence": [
+    {
+      "id": "BASELINE",
+      "status": "NOT_EXECUTED",
+      "require": [
+        "four_disposable_os_images",
+        "one_signed_platform_only_bundle_per_OS",
+        "trusted_test_publisher_root_separate_from_hub_mtls",
+        "no_core_dependency",
+        "deny_all_real_networks",
+        "freeze_source_sha_and_release_manifest"
+      ]
+    },
+    {
+      "id": "OFFLINE_SEED",
+      "status": "NOT_EXECUTED",
+      "lib_cases": [
+        "LIB-01",
+        "LIB-02",
+        "LIB-15"
+      ],
+      "require": [
+        "native_scm_systemd_service_receipts",
+        "actual_no_core_files_processes",
+        "two_reboots",
+        "no_os_python_cargo_git",
+        "zero_internet_packets"
+      ]
+    },
+    {
+      "id": "OWNER_ENABLED_PRIMARY",
+      "status": "NOT_EXECUTED",
+      "lib_cases": [
+        "LIB-03",
+        "LIB-08"
+      ],
+      "require": [
+        "owner_approved_enablement",
+        "one_logical_id_one_primary",
+        "zero_replicas_healthy",
+        "no_public_listener",
+        "separate_hub_and_core_PIDs_and_roots",
+        "signed_index_but_hub_is_not_publisher"
+      ]
+    },
+    {
+      "id": "SELECTIVE_CATALOG",
+      "status": "NOT_EXECUTED",
+      "lib_cases": [
+        "LIB-04",
+        "LIB-05",
+        "LIB-06"
+      ],
+      "require": [
+        "one_core_only_no_auto_activation",
+        "separate_two_core_definition_lineages",
+        "same_lineage_duplicate_writer_denied",
+        "selected_two_module_dependency_closed",
+        "unselected_artifact_absent"
+      ]
+    },
+    {
+      "id": "TRANSFER_AND_NEGATIVES",
+      "status": "NOT_EXECUTED",
+      "lib_cases": [
+        "LIB-07",
+        "LIB-08",
+        "LIB-09",
+        "LIB-10",
+        "LIB-11",
+        "LIB-13"
+      ],
+      "require": [
+        "exact_peer_to_peer_digest_and_mtls",
+        "recipient_reverifies_trusted_signature",
+        "STOP_and_revocation_every_phase",
+        "tamper_bad_signer_replayed_generation_license_denial",
+        "bounded_resume_and_quota",
+        "synthetic_large_chunked_parent_gt_512MiB",
+        "no_executable_incomplete_blob"
+      ]
+    },
+    {
+      "id": "COEXISTENCE_AND_RETENTION",
+      "status": "NOT_EXECUTED",
+      "lib_cases": [
+        "LIB-02",
+        "LIB-03",
+        "LIB-10",
+        "LIB-12",
+        "LIB-15"
+      ],
+      "require": [
+        "test_synthetic_core_worker_shutdown_does_not_stop_hub",
+        "hub_stop_does_not_mutate_core_identity_or_writer",
+        "measure_CPU_RAM_disk_reservations",
+        "invalid_mount_fail_closed",
+        "active_and_rollback_pins_not_GC",
+        "restore_verified_off_primary_backup_no_core_state"
+      ]
+    },
+    {
+      "id": "REPLICA_AND_RECOVERY",
+      "status": "NOT_EXECUTED",
+      "lib_cases": [
+        "LIB-08",
+        "LIB-13",
+        "LIB-14",
+        "LIB-16"
+      ],
+      "require": [
+        "after_peer_tests_reconfigure_W-PEER_as_read_only_replica_under_separate_test_owner_approval",
+        "reverify_cas_signatures_and_license",
+        "no_catalog_writer_permission",
+        "stale_epoch_replay_denial",
+        "manual_promotion_only_after_old_primary_fence_and_independent_witness",
+        "old_primary_cannot_write_on_return",
+        "restore_one_primary_zero_replicas_test_baseline"
+      ]
+    },
+    {
+      "id": "UI_AND_RUNBOOK",
+      "status": "NOT_EXECUTED",
+      "lib_cases": [
+        "LIB-14",
+        "LIB-15",
+        "LIB-16"
+      ],
+      "require": [
+        "winforms_win_tui_debian_tui_cli_same_signed_service",
+        "truthful_cached_verified_installed_active_stale",
+        "offline_no_color_ascii_json",
+        "install_repair_rollback_reinstall_only_with_canonical_B1_approval",
+        "runbook_negative_receipts"
+      ]
+    }
+  ],
+  "backup_retention": {
+    "execution": "NOT_EXECUTED",
+    "preferred_test_backup_location": "DISPOSABLE_SECOND_FAULT_DOMAIN",
+    "independent_physical_fault_domain_required_for_real_continuity_claim": true,
+    "production_plan": "OFF_ARTEMIS_PHYSICAL_STORAGE_REVIEWED_SEPARATELY",
+    "includes": [
+      "immutable_signed_CAS_objects",
+      "catalog_revisions",
+      "retention_pins",
+      "revocation_trust_metadata_under_separate_protection",
+      "backup_manifest_digest",
+      "restore_receipts"
+    ],
+    "must_exclude": [
+      "sofia.db",
+      "personal_core_memory",
+      "core_identity_keys",
+      "owner_secret",
+      "module_credentials"
+    ],
+    "restore_requires": [
+      "fresh_platform_identity",
+      "separately_approved_library_namespace_restore",
+      "old_primary_fenced",
+      "verified_signed_catalog_and_current_trust"
+    ],
+    "deleted_pinned_artifacts_allowed": false
+  },
+  "required_independent_evidence": [
+    "exact_40_hex_integrated_source_SHA",
+    "signed_platform_only_release_manifest_and_trusted_publisher_fingerprint",
+    "OS_installed_binary_sha256_and_service_origin",
+    "4_distinct_actual_platform_UUID_and_public_key_fingerprints",
+    "kernel_and_windows_OS_builds",
+    "native_service_boot_and_restart_receipts",
+    "disposable_hub_logical_library_id_and_primary_epoch",
+    "signed_catalog_generation_and_scope",
+    "exact_source_and_recipient_content_digest",
+    "approved_acquisition_vs_install_vs_activation_receipt",
+    "network_packet_denials",
+    "signature_and_revocation_negative_cases",
+    "STOP_mid_transfer_and_mid_install_denial",
+    "quota_reserved_free_used_and_GC_pins",
+    "backup_second_fault_domain_and_restore_digest",
+    "GUI_TUI_CLI_version_generation_and_freshness_parity",
+    "independent_reviewer_and_timestamp"
+  ],
+  "required_completed_lib_cases": 16,
+  "original_acceptance_rows": 38,
+  "acceptance_claim": "NOT_CLAIMED"
+}
