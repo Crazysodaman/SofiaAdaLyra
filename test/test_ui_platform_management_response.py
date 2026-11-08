@@ -202,3 +202,37 @@ def test_request_timestamp_precision_matches_rust_no_nano_rounding():
     doc["created_at"] = "2026-11-08T03:59:59.123456Z"
     doc["deadline"] = "2026-11-08T04:00:05.123456Z"
     assert UntrustedManagementRead.parse(json.dumps(doc).encode("utf-8"), now=NOW)
+
+
+@pytest.mark.parametrize("removed", ["data", "denial"])
+def test_versioned_envelope_requires_explicit_null_fields_in_both_languages(removed):
+    req, raw = read()
+    reply = json.loads(raw)
+    del reply[removed]
+    with pytest.raises(ValueError, match="missing"):
+        parse(reply, request=req)
+
+
+@pytest.mark.parametrize("number", [
+    9007199254740992, -9007199254740992,
+    18446744073709551616, 1.0e300,
+])
+def test_nonportable_response_numbers_rejected_in_both_languages(number):
+    request = UntrustedManagementRead.parse(
+        (ROOT / "management-read-settings-valid-v1.json").read_bytes(), now=NOW,
+    )
+    _, raw = read()
+    reply = json.loads(raw)
+    reply["operation"] = "settings.inspect"
+    reply["data"] = {"revision": number}
+    with pytest.raises(ValueError, match="nonportable"):
+        parse(reply, request=request)
+
+
+def test_generation_larger_than_portable_json_integer_refused():
+    request = json.loads((ROOT / "management-read-valid-v1.json").read_text())
+    request["expected_generation"] = 2**53
+    with pytest.raises(ValueError, match="positive"):
+        UntrustedManagementRead.parse(
+            json.dumps(request).encode("utf-8"), now=NOW,
+        )
