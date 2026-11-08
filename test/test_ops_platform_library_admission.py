@@ -61,6 +61,8 @@ def test_signed_seed_cache_preview_keeps_download_install_active_separate(contex
     plan = preview_signed_seed_cache(**args, require_local_host=True)
     assert plan["schema"] == "aegis.platform.library.local-cache-review.v1"
     assert plan["cache_state"] == "MISSING"
+    assert plan["b1_generation"] == 0
+    assert plan["b1_revision_floor"] == 0
     assert plan["signed_release_verified"] is True
     assert plan["installed"] is None
     assert plan["active"] is None
@@ -94,6 +96,8 @@ def test_one_use_safe_approved_cache_does_not_install_or_activate(context):
         release_id=plan["release_id"], manifest_sha256=plan["manifest_sha256"],
         asset_sha256=plan["artifact_digest"],
         asset_size_bytes=plan["artifact_size_bytes"],
+        b1_generation=plan["b1_generation"],
+        b1_revision_floor=plan["b1_revision_floor"],
         target=args["expected_target"].value, source="OFFLINE_MEDIA",
         state=str(state.absolute()),
         cache_root=str(args["cache"].root),
