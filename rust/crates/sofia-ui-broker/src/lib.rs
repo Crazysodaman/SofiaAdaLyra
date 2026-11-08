@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 pub mod control_center;
 pub mod control_center_session;
 pub mod library_display;
+pub mod native_management;
 pub mod journal;
 pub mod platform_status;
 
