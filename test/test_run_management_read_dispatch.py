@@ -256,3 +256,45 @@ def test_invalid_non_json_settings_observation_is_rejected():
             request("settings.inspect"), authenticated_peer="peer:authorized",
             now=NOW
         )
+
+
+def test_enrolled_peer_only_receives_typed_stop_and_stale_denial():
+    dispatcher, current, events = service()
+    dispatcher._enrolled_denials = True
+    current["operator_stop"] = True
+    stopped = dispatcher.dispatch(
+        request(), authenticated_peer="peer:authorized", now=NOW,
+    )
+    assert stopped["outcome"] == "DENIED"
+    assert stopped["denial"] == {"code": "STOPPED"}
+    assert stopped["data"] is None
+    assert not any(entry[0] == "settings" for entry in events)
+
+    with pytest.raises(ManagementReadDenied):
+        dispatcher.dispatch(
+            request(), authenticated_peer="peer:unknown", now=NOW,
+        )
+    current["operator_stop"] = False
+    current["generation"] = 4
+    stale = dispatcher.dispatch(
+        request(), authenticated_peer="peer:authorized", now=NOW,
+    )
+    assert stale["outcome"] == "DENIED"
+    assert stale["denial"] == {"code": "STALE_GENERATION"}
+    assert stale["data"] is None
+
+
+def test_midflight_revocation_suppresses_typed_stop_denial():
+    dispatcher, current, _ = service()
+    dispatcher._enrolled_denials = True
+    current["operator_stop"] = True
+    attempts = []
+    def one_use(peer, operation):
+        attempts.append(peer)
+        return frozenset({SettingsOwner.HOST}) if len(attempts) == 1 else None
+    dispatcher._authorize = one_use
+    with pytest.raises(ManagementReadDenied):
+        dispatcher.dispatch(
+            request(), authenticated_peer="peer:authorized", now=NOW,
+        )
+    assert len(attempts) == 2
