@@ -517,3 +517,21 @@ def test_bounded_service_readiness_timeout_and_rejection():
 
     with pytest.raises(ValueError, match='readiness timeout'):
         installation._bounded_readline(SilentPipe(), 0)
+
+
+def test_service_launcher_close_does_not_flush_closed_stdin():
+    """EOF shutdown is idempotent on both Windows and Unix subprocess pipes."""
+    child = subprocess.Popen(
+        [sys.executable, '-c', 'import sys; sys.stdin.readline()'],
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        text=True)
+    launcher = object.__new__(PythonPlatformServiceLauncher)
+    launcher._child = child
+    try:
+        launcher.close()
+        assert child.poll() == 0
+        launcher.close()
+    finally:
+        if child.poll() is None:
+            child.kill()
+            child.wait(timeout=5)
