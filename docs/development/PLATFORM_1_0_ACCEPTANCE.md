@@ -78,6 +78,28 @@ claims complete signed-release installed-host acceptance.
 | 37 | Security/Approvals, Updates/Recovery and Diagnostics surfaces | NOT TESTED | NOT TESTED | NOT TESTED | Protected operations gated service-side; approval surface may not mint authority |
 | 38 | Shared GUI/TUI theme and independent installability | NOT TESTED | NOT TESTED | NOT TESTED | Same approved AEGIS_SHARED_GUI_TUI_THEME tokens in GUI, terminal Control Center and AG-D011 installer TUI; truecolor/limited-color/NO_COLOR plain-ASCII fallback; separately installable GUIs; headless service independent |
 
+## AG-D028 owner-required Artifact Library and selective distribution (2026-11-08)
+
+**Decision:** In addition to the signed Platform-only installer AG-D011, the owner expressly requires the [AG-D028 Artifact Library](../roadmaps/AG_D028_AEGIS_FEDERATED_ARTIFACT_LIBRARY.md) **before Platform 1.0 GO**. The [binding AG-D028 release specification](../roadmaps/AG_D028_PLATFORM_1_0_RELEASE_SPEC.md) defines catalog/store data ownership, SDK/management contracts, current trust/SAFE, owner-hosted LAN Hub, peer transfer, dependency-aware selective installs, large artifact chunking and disk quotas/GC. The [independent LIB-01 through LIB-16 QA runbook](../roadmaps/AG_D028_ARTIFACT_LIBRARY_QA_RUNBOOK.md) specifies exact disposable installed-host setups, negative cases and evidence fields. Engineering tracker: [#250](https://github.com/Crazysodaman/SofiaAdaLyra/issues/250). This is a new requirement inside existing 38 rows, **not a 39th row**.
+
+**Owner's primary deployment profile:** [single Hub on Sofía VM, one logical Library, zero replicas initially; future read-only replicas and controlled manual promotion](../roadmaps/AG_D028_SOFIA_VM_PRIMARY_LIBRARY_DEPLOYMENT.md). Hub remains Platform-owned even when Sofía Core shares the VM. Existing LIB-01–16 shall include Core/Hub coexistence, zero-replica operation, separate storage, and disposable replica safety/dual-primary negative tests, with **no new row or scenario number**.
+
+**Release-blocking minimum:** (1) air-gapped signed Core-free OS installation with only Platform+neutral SDK/runtime; (2) separate download/stage/installation of one or multiple selected synthetic Cores and optional modules, previewing dependencies and without auto-activation; (3) an owner-configured signed Hub library that can serve verified bytes over an authenticated LAN without WAN; (4) direct enrolled peer-to-peer transfer with independent recipient signature/hash/license verification and explicit target install authorization; (5) resumable bounded transfers with revoked-peer/STOP/crash/quota/rollback/GC safety and model-size chunked synthetic data handling; (6) truthful GUI/TUI/CLI parity and operator-runbook evidence. No private Core data, memory, owner secret, `sofia.db`, module credentials or public-network listener shared by default.
+
+**Test-to-row mapping:** All scenarios are **PENDING**, with no row states changed by this specification.
+
+| AG-D028 test IDs | Core acceptance classes | Original #201 rows refined |
+| --- | --- | --- |
+| LIB-01/02 | Offline Windows/Debian signed Platform-only bootstrap and OS-service/absence proof | 01,02,03,05,07,28,30,33,38 |
+| LIB-03/07/08 | Authenticated owner Hub, enrolled peer download, revocation, wrong-host/unknown-peer refusal, no Internet | 10–14,17–19,29,31,36,37 |
+| LIB-04/05/06 | Selective synthetic Core(s), single/multi optional modules, dependency graph, no auto-install/activation | 02,03,17,18,21–26,28,35,36 |
+| LIB-09/10/11/12/13 | Signature/path/license attacks, interruption, resume, large-data bounds, quota/GC, STOP, rollback and protected identity | 08–12,17–21,25,26,28,29,37 |
+| LIB-14/15/16 | Windows GUI, Windows+Debian TUI/CLI, offline normal operation, installation/runbook/receipt parity | 01,05,08,16,19,20,29–38 |
+
+**Evidence rule:** Team E must receive separately verifiable exact-HEAD CI, signed artifact and trusted test-signer provenance, release/SDK versions, disposable Windows/Debian 12 installed-host identity, service health, full positive/negative transfer logs, source/sink digest, ownership/STOP denial receipts and no-Core/no-private-state evidence. Each of LIB-01–16 plus every unrelated existing row must pass. Unit tests, a README or mock Hub cannot mark any row PASS. Current Platform-only GO remains **NO**, and this extension does not authorize live downloads/enrollment or personal Core start.
+
+**Owner/implementation coordination:** Team A owns authenticated management and Fleet trust/SAFE; B owns the sole signed installer/cache/acquisition execution; D owns SDK/core/module dependency manifests and adapter lifecycle; C owns management GUI/TUI; E independently tests the full multi-host matrix. Integrate in isolated draft branches with formal versioned contract freeze and reviewed merges; do not overwrite the 38-row source ledger or weaken negative checks.
+
 ## AG-D011 interactive installer promoted to Platform 1.0 GO-LIVE blocker (2026-11-08)
 
 **Explicit owner decision:** The cross-platform, one-script installer and its
