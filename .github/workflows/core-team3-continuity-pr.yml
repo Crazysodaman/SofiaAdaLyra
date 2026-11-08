@@ -5,6 +5,14 @@ on:
     branches: [main]
     paths:
       - 'test/test_core_team3_disposable_continuity.py'
+      - 'test/test_core_team3_legacy_policy_v1.py'
+      - 'test/test_core_team3_application_v1_hook.py'
+      - 'test/core_team3_policy_fixture.py'
+      - 'src/sofia/core/memory/eligibility_v1.py'
+      - 'src/sofia/core/memory/promoted_retrieval.py'
+      - 'src/sofia/core/memory/system.py'
+      - 'src/sofia/core/memory/provenance_store.py'
+      - 'src/sofia/platform/application/memory_review.py'
       - '.github/workflows/core-team3-continuity-pr.yml'
   workflow_dispatch:
 
@@ -40,6 +48,8 @@ jobs:
         run: >-
           python -m pytest -q
           test/test_core_team3_disposable_continuity.py
+          test/test_core_team3_legacy_policy_v1.py
+          test/test_core_team3_application_v1_hook.py
           test/test_application_restart_continuity.py
           test/test_memory_reviewed_corrections.py
           test/test_memory_review_source_revalidation.py

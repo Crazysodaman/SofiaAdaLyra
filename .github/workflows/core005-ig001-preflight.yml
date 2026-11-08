@@ -38,14 +38,19 @@ jobs:
           python -m pytest -q -m "not integration"
           test/test_run_release_process.py
           test/test_run_runtime_child.py
+          test/test_run_runtime_authority.py
+          test/test_run_host.py
           test/test_run_supervisor.py
           test/test_core_worker_process.py
           test/test_ollama_malformed_response_boundary.py
           test/test_ollama_endpoint_and_diagnostics.py
           test/test_ollama_provider.py
           test/test_core_team3_disposable_continuity.py
+          test/test_core_team3_legacy_policy_v1.py
+          test/test_core_team3_application_v1_hook.py
           test/test_core004_wire_security.py
           test/test_core004_admission_fence.py
+          test/test_core004_client_deadline.py
           test/test_core_link_conversation.py
           test/test_core_link_binding.py
           test/test_core_link_desktop.py

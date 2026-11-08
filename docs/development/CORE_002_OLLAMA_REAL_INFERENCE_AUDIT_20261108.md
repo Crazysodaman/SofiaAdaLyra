@@ -34,6 +34,8 @@ When the owner has approved the already-running endpoint for a model-loading tes
 $env:SOFIA_CORE002_LIVE = "1"
 $env:SOFIA_OLLAMA_MODEL = "qwen3.5:9b"
 $env:SOFIA_OLLAMA_URL = "http://127.0.0.1:11434"
+# Set to the independently reviewed exact SHA for this run, not main HEAD.
+$env:SOFIA_CORE002_EXPECTED_SHA = "<REVIEWED-EXACT-HEAD-SHA>"
 python -m pytest -q -s -m integration test/test_core002_live_ollama_conversation.py
 ```
 
@@ -100,3 +102,41 @@ The test is not evidence until an approved host executes it and Team 5 independe
 **Team 1 ACK pending:** a 45-second per-I/O HTTP timeout does not guarantee a 45-second total call. Test both ordinary 120-second workers and valid shorter configured deadlines, fault injection, STOP/lease expiry during inference and recovery without a second writer. Never confuse an OS-side timeout with evidence that the model honored the cancellation.
 
 **Team 5 independent QA pending:** capture host receipts, exact SHA, runnable command, provider `ollama`, actual installed model identifier/digest where available, Ollama server version, model runner result, per-call/per-turn latency, reply SHA-256, reply-model-origin kind/steps, failure classification, and restart recovery. Report each historic live test as PASS, FAIL or NOT RUN without conflation.
+
+## C-003-T2 | Worker deadline and Core Link alignment (NOT AGREED)
+
+- Verified in src/sofia/platform/core_worker/process.py: the parent _CoreWorkerProcess.respond() establishes a monotonic deadline, but _serve_provider_request() then calls binding.provider.respond() SYNCHRONOUSLY while holding the parent IPC lock.
+- While this blocking provider call is in progress, the parent cannot check its response deadline or promptly quarantine the worker. The eventual deadline check may deny late results but is NOT proof of bounded cancellation.
+- Generic and personal Ollama adapters currently use a 45-second PER-I/O HTTP timeout, not a total turn limit. Personal quality repair may issue a second model request. CPU model loading, response transfer and retries need separate wall-clock evidence.
+- Team 1 Core worker response deadline defaults to 120 seconds with a 180-second lease TTL, but shorter valid worker deadlines exist. Team 4 Core Link client and server socket timeouts default to 30 seconds. They cannot guarantee synchronous completion of a legitimate slow model turn.
+- Proposed cross-team safe contract: on 30-second client expiry retain exact client/session/idempotency identity, mark outcome UNKNOWN, reauthenticate and query conversation.result, never automatically regenerate. STOP, revoked grant, expired lease and generation change must fence late effects and delivery. Requesting cancellation is not proof Ollama stopped.
+- Blocking issue sent to Team 1 PR #256 and 30-second reconciliation request to Team 4 PR #254. No deadline agreement, no production change and no certification until two-OS forced-blocking, STOP, late-result and restart receipts are independently reviewed by Team 5.
+
+## C-003-T2 | Strict genuine inference evidence
+
+- The opt-in live probe requires SOFIA_CORE002_EXPECTED_SHA to equal git rev-parse HEAD of the actual checkout. It queries the already-running Ollama model inventory READ ONLY, requires an installed model digest, and records model ID/configuration, provider latency, observed runtime process, local canonical identity UUID and disposable database path.
+- Every turn must call the UNMOCKED Ollama client through the real application cognitive path. The final SAVED assistant reply SHA256 must exactly match a successful actual generated Ollama candidate, not merely a canned fallback after a failed attempt.
+- Provider request observations require authoritative identity and saved personality context. These are prompt-delivery prerequisites, NOT proof that personality changed model behavior. Reviewer must compare observed replies and grounding separately.
+- The local process/core identity/SQLite path is an observed writer receipt; it does NOT certify a verified exclusive RUN lease. No independently hosted two-machine Core shakedown is claimed.
+
+## C-003-T2 | Memory direction P3-LEGACY-01 (disposable only)
+
+- Team 3 PR #252 offers additive opt-in ReviewedMemoryEligibilityV1 and preserves current production composition. It remains unmerged and must not be imported into this branch without a pinned integration review.
+- Joint disposable test after that contract is available: compare approved exact-original owner-private reviewed memory (lower-trust retrieval context) against LEGACY_UNATTESTED, revoked, corrected, expired, erased and cross-audience memories. Prove the latter are absent FROM MODEL REQUEST, not just from its final answer.
+- Also verify same-writer restart, policy downgrade denial, erasure journal precedence, persona context, generated reply hashes, auditable candidate IDs and no fabricated owner attestation.
+- Team 3 supplies exact opt-in composition hook, Team 1 fences writer generation, Team 5 independently runs model and memory evidence. Memory-influenced genuine inference remains NOT RUN.
+
+## C-003-T2 | Negative / recovery verdicts
+
+| Case | Current status |
+| --- | --- |
+| Blank/whitespace/non-text response | Source-level negative tests staged; CI pending |
+| Connection refused, timeout, missing runner exception | Provider propagation negatives staged; actual current host not tested |
+| Missing installed Ollama model | Current real-host negative NOT RUN; no auto-pull |
+| 30s client timeout and durable unknown outcome | Contract pending Team 4; actual two-host test NOT RUN |
+| 120s worker deadline during blocked provider | SOURCE BLOCKER, Team 1 correction pending |
+| STOP, cancellation, late completion | NOT RUN; no false stop receipt |
+| Restart, one writer, conversation retained | Genuine host acceptance NOT RUN |
+| Four real model-generated turns, saved provenance | Strict test committed; NOT RUN |
+
+Historical five real Ollama tests retain NOT-RUN-current status until separately executed. A CI skip or synthetic provider cannot count as real inference.

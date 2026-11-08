@@ -216,3 +216,104 @@ def test_core004_durable_answer_withheld_when_access_changes_before_delivery(
         if gateway is not None:
             gateway.close()
         app.shutdown()
+
+
+@pytest.mark.parametrize("intervening_change", ["revocation", "operator_stop"])
+def test_core004_concurrent_stop_during_inference_preserves_admission_but_denies_delivery(
+    tmp_path, monkeypatch, intervening_change,
+):
+    """Real threads: STOP/revoke commits after admission, before test inference finishes.
+
+    Uses disposable canonical SQLite and the deterministic test provider;
+    no live model, external effects, or personal channels are invoked.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    state = tmp_path / "sofia.db"
+    bootstrap_canonical_sqlite(state)
+    app = SofiaApplication(configuration(tmp_path))
+    app.start()
+    gateway = None
+    entered_inference = Event()
+    permit_completion = Event()
+    try:
+        store = enrolled_store(state)
+        gateway = CoreLinkConversationGateway(
+            app, access_store=store,
+            remote_platform_id="platform:canonical",
+            remote_core_identity_id="core:sofia",
+            generation_provider=lambda: 7,
+            clock=lambda: NOW + timedelta(seconds=1),
+        )
+        service = gateway._service(access(), None)
+        original_inference = service._respond_once
+
+        def blocked_inference(content, *, principal=None, channel="conversation"):
+            entered_inference.set()
+            if not permit_completion.wait(timeout=15):
+                raise TimeoutError("test inference barrier not released")
+            return original_inference(content, principal=principal, channel=channel)
+
+        monkeypatch.setattr(service, "_respond_once", blocked_inference)
+        key = "core004:during-inference:" + intervening_change
+        event_id = gateway._event_id(access(), key)
+
+        def send_turn():
+            return gateway.dispatch(
+                certificate_public_key_sha256="a" * 64,
+                request=request(
+                    "conversation.send",
+                    {
+                        "session_id": service.session_id,
+                        "content": "Concurrent disposable inference barrier",
+                        "client_created_at": NOW.isoformat(),
+                    },
+                    idempotency_key=key,
+                ),
+            )
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            result = pool.submit(send_turn)
+            try:
+                assert entered_inference.wait(timeout=15), "model barrier never reached"
+                # The message has already been durably admitted before _respond_once.
+                during = LifelongThreadStore(state).turn_status(
+                    event_id=event_id, principal=access().principal,
+                )
+                assert during is not None and during.status == "processing"
+                if intervening_change == "revocation":
+                    approval = authorize(
+                        state, capability="core-link.revoke",
+                        parameters={
+                            "client_id": access().client_id,
+                            "expected_revision": 1,
+                        },
+                        now=NOW + timedelta(seconds=2),
+                    )
+                    store.revoke(
+                        access().client_id, expected_revision=1,
+                        approval_id=approval,
+                        now=NOW + timedelta(seconds=2),
+                    )
+                else:
+                    OperatorStopStore(state).set(
+                        active=True, updated_by="Sparks",
+                        reason="CORE-004 concurrency test STOP during inference",
+                        at=NOW + timedelta(seconds=2),
+                    )
+            finally:
+                permit_completion.set()
+            with pytest.raises(PermissionError, match="(actively enrolled|operator stop)"):
+                result.result(timeout=20)
+        completed = LifelongThreadStore(state).turn_status(
+            event_id=event_id, principal=access().principal,
+        )
+        assert completed is not None and completed.status == "completed"
+        # Receipt can be retained, but reply content may not be delivered
+        # to the now-revoked/stopped caller. Separate effects are not certified.
+    finally:
+        permit_completion.set()
+        if gateway is not None:
+            gateway.close()
+        app.shutdown()

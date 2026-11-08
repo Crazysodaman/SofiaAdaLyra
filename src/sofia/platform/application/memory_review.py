@@ -140,6 +140,89 @@ class MemoryReviewService:
         # correction/revocation lifecycle.
         self._candidates.promote(candidate_id)
 
+    def re_review_legacy_promoted(
+        self, candidate_id: UUID, *, approved_by: PrincipalContext,
+    ) -> str:
+        """Explicit authenticated owner re-review of surviving exact originals.
+
+        PROMOTED alone is no authority; absent/changed originals and foreign
+        audiences cannot gain V1 attestation. This is never called on startup.
+        """
+        candidate = self._require_current_review_scope(candidate_id, approved_by)
+        if candidate.audience_id != approved_by.audience_id:
+            raise PermissionError("unscoped historical audience cannot be inferred")
+        if self._candidates.status(candidate_id) is not CandidateStatus.PROMOTED:
+            raise ValueError("legacy re-review requires promoted memory")
+        if not 1 <= len(candidate.sources) <= 64:
+            raise ValueError("legacy source review requires 1..64 originals")
+        session_id = candidate.sources[0].session_id
+        if any(source.session_id != session_id for source in candidate.sources):
+            raise PermissionError("legacy sources must come from one session")
+        binding = self._social.get(session_id)
+        if (
+            binding is None
+            or binding.principal_id != approved_by.principal_id
+            or binding.audience_id != approved_by.audience_id
+            or binding.audience_kind != approved_by.audience_kind
+        ):
+            raise PermissionError("legacy original session is outside owner audience")
+        evidence = self._originals.retrieve(OriginalRetrievalRequest(
+            session_id=session_id,
+            message_ids=tuple(source.message_id for source in candidate.sources),
+            budget_characters=2**31 - 1,
+        ))
+        if evidence.missing_ids or evidence.omitted_ids:
+            raise LookupError("legacy original source is unavailable")
+        if evidence.selected != candidate.sources:
+            raise PermissionError("legacy original bytes, role, order or time changed")
+        return self._candidates.reattest_legacy_promoted_originals(
+            candidate_id,
+            session_id=session_id,
+            principal_id=binding.principal_id,
+            audience_id=binding.audience_id,
+            audience_kind=binding.audience_kind.value,
+            reviewed_by=approved_by.principal_id,
+        )
+
+    def propose_owner_testimony(
+        self, *, session_id: str, message_id: str,
+        content: str, created_at: datetime, approved_by: PrincipalContext,
+    ) -> MemoryCandidate:
+        """Propose a NEW fact sourced to a present owner user message.
+
+        Intended for a fact whose historical originals cannot be recovered.
+        The legacy candidate is never changed or given fabricated attestation.
+        Ordinary explicit promotion remains a separate owner decision.
+        """
+        self._require_sparks_reviewer(approved_by)
+        binding = self._social.get(session_id)
+        if (
+            binding is None
+            or binding.principal_id != approved_by.principal_id
+            or binding.audience_id != approved_by.audience_id
+            or binding.audience_kind != approved_by.audience_kind
+        ):
+            raise PermissionError("owner testimony requires current private session")
+        source = self._originals.retrieve(OriginalRetrievalRequest(
+            session_id=session_id,
+            message_ids=(message_id,),
+            budget_characters=2**31 - 1,
+        ))
+        if source.missing_ids or source.omitted_ids or len(source.selected) != 1:
+            raise LookupError("fresh owner testimony original unavailable")
+        if source.selected[0].role != "user":
+            raise PermissionError("owner testimony must be authored as a new user message")
+        proposed = self.propose(
+            session_id=session_id, message_ids=(message_id,),
+            content=content, created_at=created_at,
+        )
+        self._candidates.record_owner_testimony(
+            proposed.candidate_id, owner_id=approved_by.principal_id,
+            audience_id=approved_by.audience_id,
+            source_message_id=message_id,
+        )
+        return proposed
+
     def reject(
         self,
         candidate_id: UUID,

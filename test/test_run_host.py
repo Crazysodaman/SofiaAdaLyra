@@ -2,9 +2,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sqlite3
 
+import pytest
+
 from sofia.platform.run.heartbeat import ApplicationHeartbeat, ApplicationHeartbeatStore
 from sofia.platform.run.host import LocalServiceRuntimeBackend, RunSupervisorHost
-from sofia.platform.run.lease import LeaseResult, RunLease
+from sofia.platform.run.lease import LeaseResult, RunLease, LocalRunLeaseStore
 from sofia.platform.run.runtime_service import (
     runtime_package_identity,
     runtime_start_allowed,
@@ -99,14 +101,18 @@ def test_only_fresh_matching_application_heartbeat_is_ready(tmp_path, monkeypatc
     backend = LocalServiceRuntimeBackend(
         service_name="SofiaAdaLyra", state_path=path, maintenance=maintenance,
     )
-    backend.heartbeats.bind_generation(7, now=NOW)
-    heartbeat(path, epoch=6)
+    live_lease = LocalRunLeaseStore(path).acquire(
+        owner_id="watchdog:readiness-test", now=NOW, ttl_seconds=300,
+    ).lease
+    assert live_lease is not None
+    backend.heartbeats.bind_generation(live_lease.epoch, now=NOW)
+    heartbeat(path, epoch=live_lease.epoch + 1)
     assert backend.observe().ready is False
 
-    heartbeat(path, epoch=7, recorded_at=NOW - timedelta(minutes=2))
+    heartbeat(path, epoch=live_lease.epoch, recorded_at=NOW - timedelta(minutes=2))
     assert backend.observe().ready is False
 
-    heartbeat(path, epoch=7, recorded_at=datetime.now(timezone.utc))
+    heartbeat(path, epoch=live_lease.epoch, recorded_at=datetime.now(timezone.utc))
     assert backend.observe().ready is True
 
 
@@ -138,13 +144,18 @@ def test_service_start_binds_generation_before_scm_call(tmp_path):
         service_name="SofiaAdaLyra", state_path=path, maintenance=maintenance,
     )
 
-    backend.start(epoch=9)
+    live_lease = LocalRunLeaseStore(path).acquire(
+        owner_id="watchdog:service-test", now=datetime.now(timezone.utc),
+        ttl_seconds=300,
+    ).lease
+    assert live_lease is not None
+    backend.start(epoch=live_lease.epoch)
 
-    assert backend.heartbeats.current_generation() == 9
+    assert backend.heartbeats.current_generation() == live_lease.epoch
     assert maintenance.calls == [("SofiaAdaLyra", "start")]
 
     try:
-        backend.start(epoch=8)
+        backend.start(epoch=live_lease.epoch + 1)
     except PermissionError:
         pass
     else:
@@ -216,3 +227,56 @@ def test_runtime_diagnostic_identity_is_bounded_and_contains_no_path():
     assert len(identity) <= 120
     assert "/workspace/" not in identity
     assert "\\" not in identity
+
+def test_core001_scm_heartbeat_without_live_writer_lease_is_not_ready(tmp_path):
+    path = state(tmp_path)
+    backend = LocalServiceRuntimeBackend(
+        service_name="SofiaAdaLyra", state_path=path,
+        maintenance=Maintenance(),
+    )
+    backend.heartbeats.bind_generation(7, now=datetime.now(timezone.utc))
+    heartbeat(path, epoch=7, recorded_at=datetime.now(timezone.utc))
+    assert backend.observe().ready is False
+    with pytest.raises(PermissionError, match="lease"):
+        backend.start(epoch=7)
+
+
+def test_core001_lease_owner_revocation_removes_scm_readiness(tmp_path):
+    path = state(tmp_path)
+    store = LocalRunLeaseStore(path)
+    now = datetime.now(timezone.utc)
+    lease = store.acquire(
+        owner_id="watchdog:revocation", now=now, ttl_seconds=180,
+    ).lease
+    assert lease is not None
+    backend = LocalServiceRuntimeBackend(
+        service_name="SofiaAdaLyra", state_path=path,
+        maintenance=Maintenance(),
+    )
+    backend.heartbeats.bind_generation(lease.epoch, now=now)
+    heartbeat(path, epoch=lease.epoch, recorded_at=now)
+    assert backend.observe().ready is True
+
+    store.release(lease, now=now + timedelta(seconds=1))
+    assert backend.observe().ready is False
+
+
+def test_core001_operator_stop_blocks_scm_ready_and_start(tmp_path):
+    path = state(tmp_path)
+    now = datetime.now(timezone.utc)
+    lease = LocalRunLeaseStore(path).acquire(
+        owner_id="watchdog:operator-stop", now=now, ttl_seconds=180,
+    ).lease
+    assert lease is not None
+    backend = LocalServiceRuntimeBackend(
+        service_name="SofiaAdaLyra", state_path=path, maintenance=Maintenance(),
+    )
+    backend.heartbeats.bind_generation(lease.epoch, now=now)
+    heartbeat(path, epoch=lease.epoch, recorded_at=now)
+    assert backend.observe().ready is True
+    OperatorStopStore(path).set(
+        active=True, updated_by="Sparks", reason="disposable test STOP",
+    )
+    assert backend.observe().ready is False
+    with pytest.raises(PermissionError, match="STOP"):
+        backend.start(epoch=lease.epoch)

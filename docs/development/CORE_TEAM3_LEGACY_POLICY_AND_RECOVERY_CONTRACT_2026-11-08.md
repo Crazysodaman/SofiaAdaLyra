@@ -72,3 +72,42 @@ A disposable success case must produce a cryptographically linked receipt with *
 ## Request for decisions
 
 Core Coordinator: decide P3-LEGACY-01 before changing runtime eligibility. Teams 1/5/Platform A: provide SHA-pinned agreement on receipt fields and writer/restore sequencing; Team 2: provide traceable cognitive consumption evidence. Until then: **draft only, no merge, NO-GO**.
+
+
+## C-002-T3 approved disposable implementation (2026-11-08)
+
+Coordinator authorized P3-LEGACY-01 **for disposable engineering implementation only**. This approval does not authorize any protected-state migration, runtime policy activation, real identity modification, production install or merge.
+
+### Implemented isolation and version behavior
+
+- `core.memory.eligibility_v1.ReviewedMemoryEligibilityV1` is an explicit per-consumer opt-in on `MemorySystem`. Production composition continues to construct `MemorySystem` **without** this policy. Existing legacy behavior remains intact on deployed configurations.
+- The policy checks an explicitly installed canonical SQLite `core_memory_eligibility_policy` V1 marker. If marker is absent, including a pre-policy restored snapshot, the strict consumer raises `MemoryEligibilityVersionError` before providing memory. A different version or attempted downgrade also rejects. Installation needs private owner principal and expected-version compare-and-swap.
+- V1 requires both `PROMOTED` and current `memory_candidate_source_review` owner/audience equality. It rejects unattested memories **before** ranking and rechecks before projection and at final `MemorySystem` handoff. Revocation, expired validity and original/audience integrity remain governed by pre-existing canonical checks.
+- `MemoryReviewService.re_review_legacy_promoted` requires the owner-bound private audience and exact unchanged conversation originals. `DurableMemoryCandidateStore.reattest_legacy_promoted_originals` writes a current-source attestation and SHA-256 audit receipt inside **one BEGIN IMMEDIATE transaction**, revalidating exact source metadata again inside the same writer transaction. Failure leaves historical status and sources unchanged and produces no attestation.
+- For missing originals, `MemoryReviewService.propose_owner_testimony` creates a **new** candidate from a freshly authored, authenticated owner USER message in a current bound session. The separate `core_memory_owner_testimony` source pointer persists and still requires explicit owner promotion; it never fabricates historical attestation or mutates the old candidate.
+- Historical rows, originals, corrections and history remain in their original tables. There is no destructive backfill and no automatic provenance promotion.
+
+### Boundaries not yet proven
+
+- An in-SQLite V1 marker is **not** an independently authenticated external policy floor. A restored backup containing older marker bytes cannot be evaluated against a trusted monotonic external policy record until Team 1/Platform A/Team 5 define that contract. With strict V1 explicitly enabled, missing/downgraded marker fails closed; but production has **not** enabled strict V1. Do not count this as installed-host restore/no-resurrection certification.
+- `PrincipalContext` validation is a necessary application-layer check, not proof of cryptographic enrollment by itself. Single-writer authority and operator credentials are still owned by external Platform/SAFE admission.
+- SHA-256 source digest is integrity evidence inside a governed canonical write, **not** an independently signed external receipt.
+- Tests are synthetic. Team 2 must prove genuine Ollama model consumption; Team 5 must independently replay restores and external erasure journals.
+
+### Proposed supervised migration sequence (NOT authorized to execute on protected state)
+
+1. Pin current HEAD, signed artifacts, schema, identity UUID, Constitution expected digest, owner enrollment, lease/generation, and authorized offline snapshot; obtain Team 1/Platform A writer-fencing ACK plus Team 5 restore policy.
+2. Stop the authorized writer, capture integrity-protected backup + separately authenticated erasure journal and external minimum policy version. Verify snapshot consistency, record hashes and ensure old authorizations are fenced.
+3. On **disposable clone only**, install V1 using an explicit owner-issued decision and version compare-and-swap. This does not auto-promote historical candidates. Inventory attestations and ineligible legacy candidates without leaking source text.
+4. Re-review each eligible legacy record only if its unchanged exact originals and current private audience remain provable; record new attestation/receipt atomically. Quarantine all others.
+5. Where originals are absent, record a fresh owner USER testimony in a newly authenticated session, create a **new** candidate with truthful present-day source and require separate approval to promote it. Keep old candidate quarantined.
+6. Test revoked, corrected, expired, erased, cross-audience, interrupted-write, duplicate-writer and pre-policy backup restores; replay externally signed deletion ledger before any recall. Enforce external policy floor even if restored SQLite is older.
+7. Require independent Teams 1, 2, 5 and Platform A ACK, exact signed artifact bytes, verified negative-test receipts, and an **explicit separate owner authorization** for any later protected migration/activation. None is granted by C-002-T3.
+
+### Exact implementation tests (pending verified CI)
+
+`test/test_core_team3_legacy_policy_v1.py`: quarantine without deletion; owner re-review persistence; missing/edited/audience-rebound original denial; cross-audience owner denial; fresh owner testimony; old snapshot no-policy denial; downgrade rejection, owner scope and expected-version checks; interrupted attestation rollback; corrected/revoked/expired exclusion.
+
+Additional existing `test_memory_deletion_restore.py` must prove independent operator erasure-journal precedence, but passing it does not prove real-host backup installation. Combined Team 3 CI includes that fixture and whole-application restart tests.
+
+**Policy version:** V1 / `P3-LEGACY-01`; approval: disposable engineering only; activation: OFF; G8: 0/16; Core shakedown: NO; production GO: NO.

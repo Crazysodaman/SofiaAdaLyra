@@ -6,6 +6,8 @@ or production-state access. An integration skip NEVER counts as a PASS.
 from hashlib import sha256
 import json
 import os
+import platform
+import subprocess
 from pathlib import Path
 from time import monotonic
 
@@ -13,9 +15,11 @@ import pytest
 
 from sofia.core.cognition.providers.ollama_provider import OllamaProvider
 from sofia.core.cognition.reply_origin import ReplyModelOriginStore
+from sofia.core.identity.store import IdentityStore
 from sofia.core.conversation.model import ConversationRole
 from sofia.core.social.principals import local_sparks_principal
 from sofia.platform.application.bootstrap import SofiaApplication
+from sofia.platform.config.inference_endpoint import configured_ollama_endpoint
 from sofia.platform.config.model import (
     CognitiveRoutingConfiguration,
     ProviderConfiguration,
@@ -34,6 +38,18 @@ AVATAR = ROOT / "src/sofia/core/embodiment/avatar.json"
 def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
     if os.getenv("SOFIA_CORE002_LIVE") != "1":
         pytest.skip("OWNER OPT-IN REQUIRED; skip is NOT a live-inference PASS")
+    expected_sha = os.getenv("SOFIA_CORE002_EXPECTED_SHA", "").strip()
+    if len(expected_sha) != 40 or any(
+        character not in "0123456789abcdef" for character in expected_sha
+    ):
+        pytest.fail("Set SOFIA_CORE002_EXPECTED_SHA to exact 40-hex candidate SHA")
+    observed_sha = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT,
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    assert observed_sha == expected_sha, (
+        "Refusing to misattribute genuine inference to a different source SHA"
+    )
     model = os.getenv("SOFIA_OLLAMA_MODEL", "").strip()
     if not model:
         pytest.fail("SOFIA_OLLAMA_MODEL must specify an already installed model")
@@ -75,6 +91,21 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
             fallback_enabled=False,
         ),
         filesystem_root=tmp_path,
+        ollama_endpoint=configured_ollama_endpoint(),
+    )
+
+    # Read-only model inventory. A successful version ping is not inference.
+    from ollama import Client
+    listed = Client(host=configuration.ollama_endpoint, timeout=15.0).list()
+    selected = next(
+        (item for item in getattr(listed, "models", ())
+         if model in {getattr(item, "model", None), getattr(item, "name", None)}),
+        None,
+    )
+    assert selected is not None, "Configured model is not installed at endpoint"
+    model_digest = getattr(selected, "digest", None)
+    assert isinstance(model_digest, str) and model_digest.strip(), (
+        "Cannot verify installed model digest; do not invent model metadata"
     )
 
     # Instrument but never replace the actual Python Ollama client call.
@@ -83,11 +114,27 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
 
     def observe_real_call(self, request):
         began = monotonic()
+        system_projection = "\n".join(
+            message.content for message in request.messages
+            if message.role.value == "system"
+        )
         receipt = {
             "provider": "ollama",
             "model": self.configuration.model,
             "endpoint": self.endpoint,
             "real_client_path": True,
+            "authoritative_identity_present": (
+                "AUTHORITATIVE SELF-STATE PROJECTION" in system_projection
+                and "Sofía Ada Lyra" in system_projection
+            ),
+            "canonical_personality_present": (
+                "PERSONALITY EXPRESSION BOUNDARY" in system_projection
+                and "rigorous" in system_projection
+                and "curious" in system_projection
+            ),
+            "quality_retry_requested": (
+                "RESPONSE QUALITY RETRY" in system_projection
+            ),
         }
         try:
             generated = true_provider_call(self, request)
@@ -127,6 +174,19 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
         app.start()
         started = True
         origin_reader = ReplyModelOriginStore(state_path)
+        core_identity = IdentityStore(identity_path).load()
+        writer_receipt = {
+            "process_id": os.getpid(),
+            "host": platform.node(),
+            "platform": platform.system(),
+            "canonical_sqlite": str(Path(state_path).resolve()),
+            "core_identity_uuid": str(core_identity.instance_id),
+            "core_worker_enabled": configuration.core_worker.enabled,
+            "verified_exclusive_lease": False,
+        }
+        assert not writer_receipt["core_worker_enabled"], (
+            "This probe must not start a second Core worker"
+        )
         for index, prompt in enumerate(prompts):
             before_calls = len(calls)
             before_ids = {
@@ -146,8 +206,24 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
             assert any(c["status"] == "generated" for c in new_calls), (
                 f"Turn {index + 1} had no genuine successful model response"
             )
+            assert any(
+                c["authoritative_identity_present"]
+                and c["canonical_personality_present"]
+                for c in new_calls
+            ), (
+                "Authoritative identity/personality were not observed in the "
+                "actual provider request; a correct-looking answer is not proof"
+            )
             assert result.content.strip(), "Blank response was falsely accepted"
             assert result.content != "Test cognitive response."
+            final_digest = sha256(result.content.encode("utf-8")).hexdigest()
+            assert final_digest in {
+                call.get("generated_sha256") for call in new_calls
+                if call["status"] == "generated"
+            }, (
+                "Saved reply is not a directly observed generated candidate; "
+                "post-generation canned repair is NOT an inference PASS"
+            )
 
             saved = app.conversation.messages()
             assert any(
@@ -182,11 +258,15 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
             turns.append({
                 "turn": index + 1,
                 "latency_ms": duration_ms,
-                "assistant_sha256": sha256(
-                    result.content.encode("utf-8")
-                ).hexdigest(),
+                "assistant_sha256": final_digest,
                 "model_origin": origin["kind"],
                 "provider_calls": len(new_calls),
+                "quality_retry_calls": sum(
+                    1 for c in new_calls if c["quality_retry_requested"]
+                ),
+                "failed_provider_calls": sum(
+                    1 for c in new_calls if c["status"] == "failed"
+                ),
             })
 
         # Conversation continuity evidence, not a fixed synthetic output.
@@ -197,8 +277,21 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
         assert label in second[-1].casefold(), "Topic switch lost label"
     finally:
         print("CORE002_LIVE_RECEIPT=" + json.dumps({
+            "source_sha": observed_sha,
             "model": model,
+            "model_digest": model_digest,
             "provider": "ollama",
+            "endpoint": configuration.ollama_endpoint,
+            "provider_config": {
+                "temperature": provider_cfg.temperature,
+                "context_size": provider_cfg.context_size,
+                "max_output_tokens": provider_cfg.max_output_tokens,
+                "routing_fallback_enabled": configuration.routing.fallback_enabled,
+            },
+            "observed_writer": locals().get("writer_receipt", {
+                "status": "startup_not_completed",
+                "verified_exclusive_lease": False,
+            }),
             "turns": turns,
             "calls": calls,
             "elapsed_ms": round((monotonic() - overall_start) * 1000, 1),
