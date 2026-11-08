@@ -48,28 +48,31 @@ def ready(previous=None):
                 observed[key]=value[:96]
     except (OSError,subprocess.CalledProcessError,subprocess.TimeoutExpired):
         observed={'observation':'unavailable'}
-    # A bounded failure summary without service stdout, environment, tokens,
-    # full journal messages or private identity. Never change the 45s deadline.
+    # Preserve a bounded *classification* of the Rust supervisor failure
+    # without exporting configuration paths, credentials or journal payloads.
     try:
-        status=command('systemctl','show',UNIT,
-            '--property=LoadState,UnitFileState,ConditionResult,AssertResult,ActiveState,SubState,Result,MainPID,NRestarts,ExecMainStatus,ExecMainCode').splitlines()
-        for line in status:
-            if '=' not in line: continue
-            key,value=line.split('=',1)
-            if key in {'LoadState','UnitFileState','ConditionResult','AssertResult'}:
-                observed[key]=value[:96]
+        logs=subprocess.run(
+            ['journalctl','-u',UNIT,'-o','cat','--no-pager','-n','60'],
+            capture_output=True,text=True,timeout=5,check=True).stdout
+        reason='unclassified'
+        for line in reversed(logs.splitlines()):
+            prefix='Platform service failed closed: '
+            if prefix in line:
+                explanation=line.split(prefix,1)[1]
+                if 'timed out' in explanation:
+                    reason='worker-reply-timeout'
+                elif 'identity response differs' in explanation:
+                    reason='worker-identity-mismatch'
+                elif 'unavailable' in explanation:
+                    reason='worker-unavailable'
+                elif 'configuration' in explanation:
+                    reason='configuration-denied'
+                else:
+                    reason='supervisor-rejected'
+                break
+        observed['SupervisorFailureClass']=reason
     except (OSError,subprocess.CalledProcessError,subprocess.TimeoutExpired):
-        observed['unit_metadata']='unavailable'
-    # Does systemd think the service was ever activated? Count records
-    # without including any journal payloads, which may include sensitive state.
-    try:
-        journal=command('journalctl','-u',UNIT,'--no-pager','-o','short-unix','-n','60')
-        observed['journal_record_count']=len(journal.splitlines())
-        observed['journal_has_ready_phase']=any(
-            '"phase": "ready"' in line or '"phase":"ready"' in line
-            for line in journal.splitlines())
-    except (OSError,subprocess.CalledProcessError,subprocess.TimeoutExpired):
-        observed['journal_observation']='unavailable'
+        observed['SupervisorFailureClass']='diagnostic-unavailable'
     raise AssertionError('VM service readiness deadline: '+json.dumps(
         {'previous_pid':previous,'systemd':observed},sort_keys=True))
 
