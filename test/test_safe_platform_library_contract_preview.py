@@ -72,3 +72,48 @@ def test_transfer_full_receive_is_not_verified_or_installed():
     assert "installed" not in d and "active" not in d
     assert "token" not in json.dumps(seen).lower()
     assert "resume_url" not in json.dumps(seen).lower()
+
+
+# Do not silently enable a pending D028 contract by reusing the existing
+# management-read parser or a UI preview. Each future route needs a separately
+# reviewed versioned service dispatch + SAFE grant + receipt test.
+_LIBRARY_OPERATIONS = (
+    "library.catalog.snapshot.v1", "library.inventory.snapshot.v1",
+    "library.sources.snapshot.v1", "library.transfer.status.v1",
+    "library.history.snapshot.v1", "library.plan.acquire.v1",
+    "library.acquire.v1", "library.transfer.cancel.v1",
+    "library.verify.v1", "library.pin.v1", "library.unpin.v1",
+    "library.retire.cache.v1", "library.hub.offer.v1",
+    "library.peer.fetch.v1", "library.install.execute.v1",
+)
+
+
+@pytest.mark.parametrize("operation", _LIBRARY_OPERATIONS)
+def test_unfrozen_library_operation_cannot_be_smuggled_into_existing_read_broker(operation):
+    baseline = json.loads(
+        (FIX / "management-read-valid-v1.json").read_text(encoding="utf-8")
+    )
+    baseline["operation"] = operation
+    with pytest.raises(PermissionError, match="read-only"):
+        UntrustedManagementRead.parse(
+            json.dumps(baseline).encode("utf-8"),
+            now=datetime(2026, 11, 8, 4, 0, 1, tzinfo=timezone.utc),
+        )
+
+
+@pytest.mark.parametrize("field,value", [
+    ("caller_principal", "owner:forged"),
+    ("owner_approval", "YES"),
+    ("peer_sid", "S-1-5-18"),
+    ("download_url", "http://localhost/private"),
+    ("auto_activate", True),
+])
+def test_inert_d028_preview_forbids_client_asserted_authority_fields(field, value):
+    ask = sample("request-catalog")
+    ask[field] = value
+    assert set(ask) != RKEYS
+    with pytest.raises((ValueError, PermissionError)):
+        UntrustedManagementRead.parse(
+            json.dumps(ask).encode("utf-8"),
+            now=datetime(2026, 11, 8, 4, 0, 1, tzinfo=timezone.utc),
+        )
