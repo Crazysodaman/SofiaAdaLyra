@@ -133,8 +133,8 @@ def test_bootstrap_contract_does_not_embed_an_alternative_authority():
 
 @pytest.mark.skipif(os.name == "nt" or not shutil.which("tput"),
                     reason="Linux PTY with terminfo required")
-@pytest.mark.parametrize("columns,force_plain", [(40, False), (80, True)])
-def test_bash_interactive_pty_stays_ascii_in_narrow_or_no_color(columns, force_plain):
+@pytest.mark.parametrize("columns,color_mode", [(40, "narrow"), (80, "plain"), (80, "truecolor"), (80, "256"), (80, "16")])
+def test_bash_interactive_pty_theme_modes(columns, color_mode):
     """Exercise a real TTY, not a text-source assertion."""
     import fcntl
     import pty
@@ -147,11 +147,15 @@ def test_bash_interactive_pty_stays_ascii_in_narrow_or_no_color(columns, force_p
     proc = None
     try:
         fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, columns, 0, 0))
-        environment = {**os.environ, "TERM": "xterm-256color", "COLORTERM": "truecolor"}
-        if force_plain:
+        environment = {**os.environ, "TERM": "xterm-256color"}
+        environment.pop("NO_COLOR", None)
+        environment.pop("COLORTERM", None)
+        if color_mode == "plain":
             environment["NO_COLOR"] = "1"
-        else:
-            environment.pop("NO_COLOR", None)
+        elif color_mode in ("truecolor", "narrow"):
+            environment["COLORTERM"] = "truecolor"
+        elif color_mode == "16":
+            environment["TERM"] = "xterm"
         proc = subprocess.Popen(
             ["bash", str(BASH)], stdin=slave, stdout=slave, stderr=slave,
             env=environment, start_new_session=True,
@@ -176,7 +180,16 @@ def test_bash_interactive_pty_stays_ascii_in_narrow_or_no_color(columns, force_p
         output = b"".join(chunks)
         assert b"AEGIS PLATFORM INSTALLER" in output
         assert b"PREVIEW ONLY" in output
-        assert b"\x1b" not in output
+        if color_mode in ("plain", "narrow"):
+            assert b"\x1b" not in output
+        else:
+            expected = {
+                "truecolor": b"\x1b[38;2;148;0;211m",
+                "256": b"\x1b[38;5;128m",
+                "16": b"\x1b[35m",
+            }[color_mode]
+            assert expected in output
+
     finally:
         if proc is not None and proc.poll() is None:
             proc.kill()
