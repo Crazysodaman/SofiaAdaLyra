@@ -7,7 +7,6 @@ state database, reads secrets, approves a mutation or claims saved=effective.
 from __future__ import annotations
 
 from dataclasses import dataclass
-import json
 import re
 from typing import Mapping
 
@@ -29,7 +28,8 @@ class SettingsRow:
     owner: str
     apply_class: str
     saved_value: str
-    requires_apply: bool
+    # None means the snapshot does not identify which fields are pending.
+    requires_apply: bool | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,7 +104,7 @@ def project_settings_snapshot(raw: object) -> SettingsReadView:
             owner=contract["owner"],
             apply_class=contract["apply_class"],
             saved_value=_display_value(field_id, values[field_id]),
-            requires_apply=effective < rev,
+            requires_apply=None if effective < rev else False,
         ))
     return SettingsReadView(
         revision=rev, effective_revision=effective, rows=tuple(rows)
@@ -120,7 +120,7 @@ def render_settings_lines(view: SettingsReadView) -> tuple[str, ...]:
         status,
         *(
             f"[{row.owner}] {row.field_id}: {row.saved_value} "
-            f"({row.apply_class}{', PENDING' if row.requires_apply else ''})"
+            f"({row.apply_class}{', APPLY UNKNOWN' if row.requires_apply is None else ''})"
             for row in view.rows
         ),
     )
