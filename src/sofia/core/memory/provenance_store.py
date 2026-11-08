@@ -651,6 +651,7 @@ class DurableMemoryCandidateStore:
         principal_id: str | None = None,
         audience_id: str | None = None,
         batch_size: int = 128,
+        require_reviewed_source_v1: bool = False,
     ) -> Iterator[tuple[UUID, str]]:
         """Stream eligible promoted content in stable chronological keyset order.
 
@@ -671,6 +672,8 @@ class DurableMemoryCandidateStore:
             raise ValueError("audience_id requires principal_id")
         if type(batch_size) is not int or not 1 <= batch_size <= 512:
             raise ValueError("batch_size must be 1..512")
+        if type(require_reviewed_source_v1) is not bool:
+            raise TypeError("reviewed-source policy selector must be bool")
 
         with self._lock:
             existing_tables = {
@@ -728,6 +731,15 @@ class DurableMemoryCandidateStore:
         scope: list[str] = [
             CandidateStatus.PROMOTED.value, _utc(datetime.now(timezone.utc)),
         ]
+        if require_reviewed_source_v1:
+            # Opt-in V1 quarantine runs in the indexed SQL page query.
+            # Legacy copies never enter Python's ranking/scoring iterator.
+            clauses.append(
+                "EXISTS (SELECT 1 FROM memory_candidate_source_review AS r "
+                "WHERE r.candidate_id=memory_candidate.candidate_id "
+                "AND r.principal_id=memory_candidate.principal_id "
+                "AND r.audience_id=memory_candidate.audience_id)"
+            )
         if principal_id is not None:
             clauses.append("principal_id=?")
             scope.append(principal_id)
