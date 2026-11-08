@@ -61,6 +61,11 @@ def test_signed_seed_cache_preview_keeps_download_install_active_separate(contex
     plan = preview_signed_seed_cache(**args, require_local_host=True)
     assert plan["schema"] == "aegis.platform.library.local-cache-review.v1"
     assert plan["cache_state"] == "MISSING"
+    assert plan["received_state"] == "LOCAL_MEDIA_BYTES_OBSERVED"
+    assert plan["verified_state"] == "SIGNED_ASSET_VERIFIED"
+    assert plan["staged_state"] == "NOT_OBSERVED"
+    assert plan["installed_state"] == "NOT_OBSERVED"
+    assert plan["active_state"] == "NOT_OBSERVED"
     assert plan["b1_generation"] == 0
     assert plan["b1_revision_floor"] == 0
     assert plan["signed_release_verified"] is True
@@ -124,6 +129,11 @@ def test_one_use_safe_approved_cache_does_not_install_or_activate(context):
     assert args["store"].history() == []
     observed = preview_signed_seed_cache(**args)
     assert observed["cache_state"] == "CACHED_VERIFIED"
+    assert observed["received_state"] == "LOCAL_MEDIA_BYTES_OBSERVED"
+    assert observed["verified_state"] == "SIGNED_ASSET_VERIFIED"
+    assert observed["staged_state"] == "NOT_OBSERVED"
+    assert observed["installed_state"] == "NOT_OBSERVED"
+    assert observed["active_state"] == "NOT_OBSERVED"
     assert observed["installed"] is None
     assert observed["active"] is None
     with pytest.raises(PermissionError):
