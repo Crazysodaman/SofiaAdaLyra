@@ -186,20 +186,41 @@ fn run() -> io::Result<ExitCode> {
     let mut session = DisplaySession::default();
     let _ = session.refresh(&mut OfflineReader, std::time::Instant::now());
     if args.iter().any(|arg| arg == "--help" || arg == "-h") {
-        println!("aegis-tui [--plain | --help | --status | --library-status]");
+        println!("aegis-tui [--plain | --help | --status | --library-status | --library-json]");
         println!("This read-only shell does not perform management operations.");
         return Ok(ExitCode::SUCCESS);
     }
     if args.len() > 1
         || args
             .first()
-            .is_some_and(|arg| arg != "--plain" && arg != "--status" && arg != "--library-status")
+            .is_some_and(|arg| arg != "--plain" && arg != "--status" && arg != "--library-status" && arg != "--library-json")
     {
         eprintln!("Unknown option. Use --help.");
         return Ok(ExitCode::from(2));
     }
     if args.first().is_some_and(|arg| arg == "--status") {
         println!("status=UNAVAILABLE source=UNVERIFIED");
+        return Ok(ExitCode::from(3));
+    }
+    if args.first().is_some_and(|arg| arg == "--library-json") {
+        // UI-only OFFLINE status, not Team A's management/library wire schema.
+        // Null means NOT OBSERVED. Closing this tool never affects Platform.
+        let offline = serde_json::json!({
+            "schema": "aegis.ui.library.offline-status.v1",
+            "library": "UNAVAILABLE",
+            "source": "UNVERIFIED",
+            "catalog": null,
+            "downloaded": null,
+            "verified": null,
+            "staged": null,
+            "installed": null,
+            "active": null,
+            "received_bytes": null,
+            "verified_bytes": null,
+            "internet_fallback": "DISABLED",
+            "actions_enabled": false
+        });
+        println!("{offline}");
         return Ok(ExitCode::from(3));
     }
     if args.first().is_some_and(|arg| arg == "--library-status") {
@@ -272,6 +293,7 @@ mod tests {
     fn all_denial_modes_are_visible_and_no_ansi_in_plain_mode() {
         for (link, label) in [
             (LinkState::Revoked, "REVOKED"),
+            (LinkState::Stopped, "STOP_ACTIVE"),
             (LinkState::AccessDenied, "ACCESS_DENIED"),
             (LinkState::Stale, "STALE"),
             (LinkState::Restarting, "RESTARTING"),

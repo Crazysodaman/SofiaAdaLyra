@@ -68,3 +68,20 @@ def test_native_tui_library_status_is_unknown_not_empty_or_verified():
     assert "internet_fallback=DISABLED" in observed.stdout
     assert "actions=DISABLED" in observed.stdout
     assert "\x1b" not in observed.stdout
+
+
+def test_native_tui_library_json_is_unknown_not_empty_or_installed():
+    import json
+
+    result = _run("--library-json")
+    assert result.returncode == 3
+    data = json.loads(result.stdout)
+    assert data["schema"] == "aegis.ui.library.offline-status.v1"
+    assert data["library"] == "UNAVAILABLE"
+    assert data["source"] == "UNVERIFIED"
+    for field in ("catalog", "downloaded", "verified", "staged",
+                  "installed", "active", "received_bytes", "verified_bytes"):
+        assert data[field] is None
+    assert data["internet_fallback"] == "DISABLED"
+    assert data["actions_enabled"] is False
+    assert "\x1b" not in result.stdout

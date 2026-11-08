@@ -77,3 +77,23 @@ def test_d028_06_library_navigation_is_read_only_without_a_service_source():
     assert "ACTIVE: UNKNOWN" in tui
     assert "download" in gui.lower()
     assert "Enabled = $true" not in gui
+
+
+def test_c003_stop_denial_mapping_matches_canonical_a_management_codes():
+    session = SESSION.read_text(encoding="utf-8")
+    state = RUST.read_text(encoding="utf-8")
+    for code in ("NOT_PERMITTED", "REVOKED", "STOPPED",
+                 "STALE_GENERATION", "EXPIRED", "UNAVAILABLE"):
+        assert '"' + code + '"' in session
+    assert 'LinkState::Stopped => "SAFE_STOP_ACTIVE"' in state
+    assert 'ReadFailure::Stopped' in session
+
+
+def test_c003_headless_json_is_offline_display_not_ipc_contract():
+    tui = TUI.read_text(encoding="utf-8")
+    assert "--library-json" in tui
+    assert "aegis.ui.library.offline-status.v1" in tui
+    assert '"installed": null' in tui
+    assert '"active": null' in tui
+    assert '"actions_enabled": false' in tui
+    assert "OfflineReader" in tui
