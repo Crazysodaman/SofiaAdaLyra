@@ -15,6 +15,8 @@ import re
 import stat
 from typing import Callable
 
+from sofia.platform.state.private_file import assert_no_redirected_components
+
 _DIGEST = re.compile(r"[0-9a-f]{64}\Z")
 _MAX_CHUNK = 1024 * 1024
 _MAX_TOTAL = 2**53 - 1
@@ -84,6 +86,8 @@ class ChunkedArtifactReceiver:
 
     @staticmethod
     def _check_dir(path: Path, *, create: bool = False) -> None:
+        # Check every ancestor BEFORE creating any file, not only the leaf.
+        assert_no_redirected_components(path, include_leaf=True)
         if create:
             path.mkdir(mode=0o700, parents=False, exist_ok=True)
         before = path.lstat()
@@ -113,6 +117,7 @@ class ChunkedArtifactReceiver:
 
     @staticmethod
     def _existing_file(path: Path) -> int:
+        assert_no_redirected_components(path, include_leaf=True)
         try:
             meta = path.lstat()
         except FileNotFoundError:
