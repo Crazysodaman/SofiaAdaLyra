@@ -110,3 +110,80 @@ Parallel work is permitted only where the stable interfaces are not guessed.
 No independent "Hub admin" permission, implicit WAN download, automatic
 Core activation, second local state writer, production deployment or main
 merge is authorized.
+
+
+## B-003 continuation: stock-OS media preflight + SAFE-fenced cache (2026-11-08)
+
+**P1, clean-host prerequisite now available, NOT complete installation:**
+Existing `packaging/installers/install-aegis.sh` and
+`packaging/installers/Install-Aegis.ps1` accept, respectively:
+
+```bash
+bash packaging/installers/install-aegis.sh \
+  --verify-seed /media/OWNER/aegis-offline-seed.zip \
+  --trusted-seed-sha256 <independently-pinned-64-hex-digest> --json
+```
+
+```powershell
+& .\packaging\installers\Install-Aegis.ps1 `
+  -VerifySeed 'D:\reviewed\aegis-offline-seed.zip' `
+  -TrustedSeedSha256 '<independently-pinned-64-hex-digest>' -Json
+```
+
+Uses stock Debian 12 `sha256sum/realpath/stat` and Windows PowerShell
+5.1 `Get-FileHash`, WITHOUT any installed project Python, Git, Cargo,
+Ollama, Core or network. Refuses missing/incorrect hash, redirected
+media, oversized/unavailable file and combining seed mode with protected
+operations. **`HASH_MATCH_ONLY` is not a verified Ed25519 publisher signature,
+approval, extraction or installation.** The hash must come from a reviewed
+independent signed release provenance, never merely from the seed volume.
+The packaged, independently verifiable self-contained native bootstrap is
+still a required unimplemented P1 deliverable.
+
+**P2, native enrollment:** Team A's one broker, current operator enrollment,
+owner SAFE/STOP and revocation are NOT signed off. The systemd driver now
+demands a dedicated non-root noninteractive `aegis` account and service-owned
+private executable/runtime/identity/state paths before writing a native unit.
+Runtime directory name is reserved as `/run/aegis-platform` with **0700**
+private mode; do not broaden to proposed 0750/operator-group/0660 until
+Team A authenticates exact enrolled UID/GID and Team E tests Linux external
+client access. Windows LocalService file DACL and enrolled one-SID pipe access
+still require a signed native provisioning/host proof. The shell launchers
+remain protected-operation DENY (exit 3); stock media check cannot grant access.
+
+**P3, signed native service:** B1 code install, existing one-use SAFE
+proof, signed native SCM/systemd code registration/update/repair/rollback/
+unregister primitives and `OUTCOME_UNKNOWN` journal exist in this draft.
+They have NOT been joined to a fully governed signed host bootstrap with
+independent native health/start/reboot/service ownership evidence; no
+disposable-host PASS. Protected Platform UUID retention is unit/mock-test
+only; actual reinstall proof remains required.
+
+**P4, D028-02:** `platform_library_admission` reuses the exact
+`OfflineArtifactCache` byte store and B1 installation receipts.
+It independently verifies the signed Core-free release before selecting
+a SHA-bound asset for local cache; a separate one-time existing SAFE grant
+and B1 generation/floor recheck are mandatory for the INTERNAL
+`platform.library.cache_admit_verified_seed` candidate operation. This
+candidate is NOT on the Team A public wire and MUST be reconciled with
+D028-00 before activation. Read-only inventory distinguishes
+`CACHED_VERIFIED` from `installed: null` and `active: null`.
+A Hub's claim cannot become a local installed/active receipt.
+
+**P5, D028-05:** read-only cache/storage review reports verified object bytes,
+quota, physical free bytes/inodes, signed B1 historical-receipt retention
+and unknown pins. **No garbage collection or Hub transfer listener is enabled.**
+All deletion is denied until Team D supplies the full
+ACTIVE/STAGED/INSTALLED_DISABLED_DEPENDENCY/ROLLBACK_RETAINED/
+IN_FLIGHT_VERIFICATION/OPERATOR_PIN graph and Team A supplies separately
+approved one-use retention authority with atomic revision fencing. Keep the
+one intended Sofía VM primary Library separate from Core private state and
+the live deployment strictly unperformed.
+
+**Evidence limitation:** New stock-OS CLI and internal SAFE/cache tests are
+part of exact-head GitHub CI; unit and runner tests do not prove a clean-host
+signed release, a real Windows SCM/Debian systemd service or LIB acceptance.
+Team E must independently verify actual signed artifacts and four-host
+installed-service receipts. The original 38 acceptance rows and LIB-01..16
+are still unaccepted. No main edit, production deployment, automatic Core or
+Hub activation, independent signing root, second installer or writer.
