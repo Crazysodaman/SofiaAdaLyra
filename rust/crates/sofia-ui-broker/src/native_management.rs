@@ -397,14 +397,58 @@ pub mod linux {
         }
 
         #[test]
-        fn wrong_pinned_uid_and_socket_mode_are_rejected() {
+        fn wrong_pinned_uid_and_gid_are_rejected_before_request() {
+            for uid in [true, false] {
+                let (_home, mut pins, thread) = fake_service("EOF");
+                if uid {
+                    pins.service_uid = pins.service_uid.checked_add(1).unwrap();
+                } else {
+                    pins.service_gid = pins.service_gid.checked_add(1).unwrap();
+                }
+                let mut client = NativeLinuxManagementReader::new(pins);
+                assert_eq!(client.next().err(), Some(ReadFailure::Unverified));
+                // The native listener did not accept any verified request.
+                let _ = UnixStream::connect(&client.pins.socket_path);
+                thread.join().unwrap();
+            }
+        }
+
+        #[test]
+        fn mismatched_pid_and_world_access_never_yield_live_status() {
             let (_home, mut pins, thread) = fake_service("EOF");
-            pins.service_uid = pins.service_uid.checked_add(1).unwrap();
+            pins.service_pid = Some(i32::try_from(std::process::id()).unwrap() + 1);
             let mut client = NativeLinuxManagementReader::new(pins);
             assert_eq!(client.next().err(), Some(ReadFailure::Unverified));
-            // The test listener has no connection and would block; drop it
-            // by ending the thread after a local connection to the socket.
+            thread.join().unwrap();
+
+            let (_home, pins, thread) = fake_service("EOF");
+            fs::set_permissions(
+                &pins.socket_path,
+                fs::Permissions::from_mode(0o666),
+            ).unwrap();
+            let mut client = NativeLinuxManagementReader::new(pins);
+            assert_eq!(client.next().err(), Some(ReadFailure::Unverified));
             let _ = UnixStream::connect(&client.pins.socket_path);
+            thread.join().unwrap();
+        }
+
+        #[test]
+        fn symlink_and_missing_service_fail_closed() {
+            let (_home, mut pins, thread) = fake_service("EOF");
+            let original = pins.socket_path.clone();
+            pins.socket_path = original.with_file_name("alias.sock");
+            std::os::unix::fs::symlink(&original, &pins.socket_path).unwrap();
+            let mut client = NativeLinuxManagementReader::new(pins);
+            assert_eq!(client.next().err(), Some(ReadFailure::Unverified));
+            let _ = UnixStream::connect(&original);
+            thread.join().unwrap();
+
+            let (_home, mut pins, thread) = fake_service("EOF");
+            let original = pins.socket_path.clone();
+            pins.socket_path = original.with_file_name("missing.sock");
+            let mut client = NativeLinuxManagementReader::new(pins);
+            assert_eq!(client.next().err(), Some(ReadFailure::Offline));
+            let _ = UnixStream::connect(&original);
             thread.join().unwrap();
         }
     }
