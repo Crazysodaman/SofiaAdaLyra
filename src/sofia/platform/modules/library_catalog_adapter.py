@@ -244,4 +244,11 @@ def review_selected_library_catalog_module(
     if not report.compatible:
         raise ModuleRecipientRejected("signed module incompatible or dependency missing: "
                                       + "; ".join(report.reasons))
+    # Final current admission is distinct from content verification. A's SAFE
+    # and B's publisher revocation may change while the files are read.
+    # A verified candidate is not an authorization to stage/install/activate.
+    if current_host_scope_admit(data, row) is not True:
+        raise ModuleRecipientRejected("canonical SAFE/STOP revoked during module verification")
+    if publisher_current(manifest.trust_ref) is not True:
+        raise ModuleRecipientRejected("publisher revoked during module verification")
     return verified
