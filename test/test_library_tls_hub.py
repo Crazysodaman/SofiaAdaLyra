@@ -121,3 +121,26 @@ def test_hub_denies_role_revoked_before_bind(tmp_path):
     )
     with pytest.raises(ChunkTransferRejected, match="revoked"):
         hub.open()
+
+
+def test_bounded_hub_loop_rechecks_owner_role_between_sessions():
+    # No listener is opened or network used in this control-loop regression.
+    hub = object.__new__(ApprovedLibraryHub)
+    hub._listener = object()
+    calls = []
+    decisions = iter((True, True, False))
+    hub._owner_enabled = lambda: next(decisions)
+    def serve():
+        calls.append(True)
+        return 123
+    hub.serve_once = serve
+    with pytest.raises(ChunkTransferRejected, match="revoked"):
+        hub.serve_bounded(max_connections=3)
+    assert len(calls) == 2
+
+
+def test_bounded_hub_loop_rejects_invalid_budget():
+    hub = object.__new__(ApprovedLibraryHub)
+    for count in (0, -1, True, 10001):
+        with pytest.raises(ChunkTransferRejected, match="budget"):
+            hub.serve_bounded(max_connections=count)
