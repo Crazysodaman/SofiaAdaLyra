@@ -73,6 +73,7 @@ def review_selected_library_catalog_module(
     profile: OperationProfileKind,
     verified_dependencies: tuple[VerifiedModulePackage, ...] = (),
     dependency_receipt_admit: Callable[[VerifiedModulePackage], bool] | None = None,
+    current_request_admit: Callable[[str, int, int], bool],
     signed_index_admit: Callable[[Mapping[str, object]], bool],
     signed_content_admit: Callable[[Mapping[str, object], Path], bool],
     current_host_scope_admit: Callable[[Mapping[str, object], Mapping[str, object]], bool],
@@ -109,11 +110,17 @@ def review_selected_library_catalog_module(
             or any(not isinstance(p, VerifiedModulePackage) for p in verified_dependencies)
             or not isinstance(now, datetime) or now.utcoffset() is None):
         raise ModuleRecipientRejected("exact selected identity, host and revision required")
-    for gate in (signed_index_admit, signed_content_admit, current_host_scope_admit,
+    for gate in (current_request_admit, signed_index_admit, signed_content_admit, current_host_scope_admit,
                  license_policy_admit, signer_binding_admit, os_sdk_abi_admit,
                  catalog_admit, publisher_key_lookup, publisher_current):
         if not callable(gate):
             raise ModuleRecipientRejected("current canonical trust gate missing")
+    # Require Team A's current enrolled service/SAFE approval before even
+    # invoking index verification, which may need a signing-key read.
+    # Untrusted client JSON or Hub metadata can NEVER supply this authority.
+    if current_request_admit(bound_platform_id, expected_catalog_generation,
+                             minimum_catalog_revision) is not True:
+        raise ModuleRecipientRejected("canonical SAFE/STOP request admission denied")
     data = _exact(catalog_data, _DATA)
     revision = data["catalog_revision"]
     if (data["target_platform_id"] != bound_platform_id
@@ -181,7 +188,7 @@ def review_selected_library_catalog_module(
         raise ModuleRecipientRejected("owner-reviewed license policy denied")
     if source["kind"] in {"OWNER_SELECTED_HUB", "AUTHORIZED_PEER", "OFFICIAL_REMOTE"}:
         if row["distribution_allowed"] is not True:
-            raise ModuleRecipientRejected("signed catalog forbids this remote offer")
+            raise ModuleRecipientRejected("signed catalog license/distribution forbids this remote offer")
         if remote_source_preflight is None or remote_source_preflight(row) is not True:
             raise ModuleRecipientRejected("enrolled source not currently authorized")
     if os_sdk_abi_admit(row, target) is not True:
