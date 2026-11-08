@@ -628,7 +628,6 @@ def activate_installed_release(destination, *, store, state_path, verifier, runt
         health = runtime.start()
     except BaseException as error:
         with suppress(Exception):
-            with suppress(Exception):
             runtime.close()
         with closing(sqlite3.connect(store.path)) as db, db:
             db.execute('BEGIN IMMEDIATE')
@@ -646,7 +645,8 @@ def activate_installed_release(destination, *, store, state_path, verifier, runt
             or health.get('platform_id') != runtime.expected_platform_id
             or health.get('public_key_sha256') != runtime.expected_public_key_sha256
             or health.get('core_started') is not False):
-        runtime.close()
+        with suppress(Exception):
+            runtime.close()
         with closing(sqlite3.connect(store.path)) as db, db:
             db.execute('BEGIN IMMEDIATE')
             db.execute(
