@@ -140,3 +140,33 @@ def test_remote_client_displays_cached_or_unconfirmed_not_false_freshness():
     stale = client.display()
     assert stale["status"] == "CACHED" and stale["revision"] == 4
     assert not hasattr(client, "core_rename")
+
+
+def test_same_revision_with_distinct_valid_signed_content_is_not_a_refresh():
+    """Even a signer with the right key cannot silently mutate state at one revision."""
+    key, der, pin = _fixture()
+    mode = ["first"]
+
+    def transport(req):
+        original = _reply(key, req["nonce"])
+        if mode[0] == "changed":
+            changed = dict(original["snapshot"])
+            changed["name"] = "Venus"
+            changed["display"] = "Venus"
+            return _reply(key, req["nonce"], snapshot=changed)
+        return original
+
+    client = RemoteCallsignReadClient(
+        authority_id=AUTH, platform_id=PLATFORM,
+        authority_public_key_der=der, expected_key_sha256=pin,
+        transport=transport, clock=lambda: NOW + timedelta(seconds=1),
+    )
+    initial = client.display()
+    assert initial["name"] == "Artemis"
+    mode[0] = "changed"
+    refused = client.display()
+    assert refused["status"] == "CACHED"
+    assert refused["name"] == "Artemis"
+    assert refused["revision"] == initial["revision"]
+    mode[0] = "first"
+    assert client.display()["status"] == "VERIFIED"
