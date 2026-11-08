@@ -251,3 +251,33 @@ def test_unpaired_surrogates_refused_like_rust_strict_json(escaped):
     wire = wire.replace(b"PLACEHOLDER", escaped.encode("ascii"))
     with pytest.raises(ValueError, match="surrogate"):
         UntrustedManagementResponse.parse(wire, expected=req, now=NOW)
+
+
+def test_shared_29_case_rust_python_management_wire_corpus():
+    """Both languages consume exactly the same raw bytes and expected verdict."""
+    corpus = json.loads(
+        (ROOT / "management-response-parity-corpus-v1.json").read_text("utf-8")
+    )
+    assert corpus["schema"] == "aegis.platform.management.parity-v1"
+    assert len(corpus["cases"]) == 29
+    moment = datetime.fromisoformat(corpus["at"].replace("Z", "+00:00"))
+    for vector in corpus["cases"]:
+        filename = (
+            "management-read-valid-v1.json"
+            if vector["request"] == "status"
+            else "management-read-settings-valid-v1.json"
+        )
+        expected = UntrustedManagementRead.parse(
+            (ROOT / filename).read_bytes(), now=moment,
+        )
+        wire = vector["wire"].encode("utf-8")
+        if vector["accepted"]:
+            got = UntrustedManagementResponse.parse(
+                wire, expected=expected, now=moment,
+            )
+            assert got.outcome in {"OK", "DENIED"}, vector["name"]
+        else:
+            with pytest.raises((ValueError, PermissionError), match=".+"):
+                UntrustedManagementResponse.parse(
+                    wire, expected=expected, now=moment,
+                )
