@@ -103,28 +103,31 @@ class PlatformManagementReadDispatcher:
         current_peer_grant: Callable[[object, UntrustedManagementRead], object],
         live_status: Callable[[], object],
         providers: Mapping[str, Callable[[], object]],
+        clock: Callable[[], datetime],
     ):
         if (not callable(current_peer_grant) or not callable(live_status)
                 or not isinstance(providers, Mapping)
                 or not set(providers).issubset(_ALLOWED_PROVIDERS)
-                or any(not callable(provider) for provider in providers.values())):
+                or any(not callable(provider) for provider in providers.values())
+                or not callable(clock)):
             raise TypeError("reviewed live peer verifier and read-only providers required")
         self._peer_grant = current_peer_grant
         self._live_status = live_status
         self._providers = dict(providers)
+        self._clock = clock
 
-    def handle(self, raw: bytes, *, transport_peer: object,
-               now: datetime) -> bytes:
+    def handle(self, raw: bytes, *, transport_peer: object) -> bytes:
         """Return bounded JSON only after before/after revalidation.
 
         No mutation capability is accepted. A failed request never calls a
         provider. On midflight peer revocation/STOP state loss/generation
         change, the observed payload is discarded before any bytes are sent.
         """
-        if (not isinstance(now, datetime) or now.tzinfo is None
-                or now.utcoffset() is None):
+        instant = self._clock()
+        if (not isinstance(instant, datetime) or instant.tzinfo is None
+                or instant.utcoffset() is None):
             raise ValueError("service clock must be timezone aware")
-        moment = now.astimezone(timezone.utc)
+        moment = instant.astimezone(timezone.utc)
         request = UntrustedManagementRead.parse(raw, now=moment)
         # Recheck current principal enrollment/revocation using OS peer data
         # before observing canonical state or touching any provider.
@@ -141,9 +144,19 @@ class PlatformManagementReadDispatcher:
                 raise ManagementReadDenied("reviewed provider not installed")
             observed = provider()
         # A provider can block: never return values under stale authorization.
+        next_instant = self._clock()
+        if (not isinstance(next_instant, datetime)
+                or next_instant.tzinfo is None
+                or next_instant.utcoffset() is None):
+            raise ManagementReadDenied("current service clock unavailable")
+        next_moment = next_instant.astimezone(timezone.utc)
+        if next_moment < moment:
+            raise ManagementReadDenied("service clock moved backwards")
+        # Never release an observation obtained while a request expired.
+        UntrustedManagementRead.parse(raw, now=next_moment)
         new_grant = self._peer_grant(transport_peer, request)
         after = _verified_live(self._live_status(), request)
-        _verify_grant(new_grant, request, after, moment)
+        _verify_grant(new_grant, request, after, next_moment)
         # STOP is observable, never an authorization grant. This read-only
         # handler deliberately exposes no side-effect operation while stopped.
         result = {
