@@ -110,3 +110,18 @@ def test_oversized_and_future_receiver_clock_denied():
             json.dumps(doc).encode(), request=req,
             now=NOW.replace(tzinfo=None)
         )
+
+
+def test_invalid_rfc3339_and_terminal_escape_rejected():
+    req, doc = fixture()
+    doc["observed_at"] = "2026-11-08 04:00:00+00:00"
+    with pytest.raises(ValueError, match="RFC3339"):
+        UntrustedManagementReply.parse(
+            json.dumps(doc).encode(), request=req, now=NOW
+        )
+    _, doc = fixture()
+    doc["payload"]["message"] = "danger\x1b[31m"
+    with pytest.raises(ValueError, match="control characters"):
+        UntrustedManagementReply.parse(
+            json.dumps(doc).encode(), request=req, now=NOW
+        )
