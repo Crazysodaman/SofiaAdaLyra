@@ -171,10 +171,10 @@ def build_reviewed_offline_capsule(
     index_lines = ["aegis.delivery-index.v1"]
     for filename, data in members:
         if (not filename.isascii()
-                or any(c in filename for c in ("\\t", "\\n", "\\r"))):
+                or any(c in filename for c in ("\t", "\n", "\r"))):
             raise PlatformReleaseRejected("unsafe offline delivery inventory path")
-        index_lines.append(f"{sha256(data).hexdigest()}\\t{len(data)}\\t{filename}")
-    index_bytes = ("\\n".join(index_lines) + "\\n").encode("ascii")
+        index_lines.append(f"{sha256(data).hexdigest()}\t{len(data)}\t{filename}")
+    index_bytes = ("\n".join(index_lines) + "\n").encode("ascii")
     if len(index_bytes) > 131072 or len(index_lines) > 130:
         raise PlatformReleaseRejected("offline delivery index outside fixed bounds")
     index_name = "aegis/delivery-index.v1"
