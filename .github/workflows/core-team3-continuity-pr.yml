@@ -15,7 +15,7 @@ jobs:
   continuity:
     name: t3-disposable (${{ matrix.os }}, Python 3.12)
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -30,7 +30,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Assert source checkout matches exact PR HEAD
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python -c "import os,subprocess; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); expected=os.environ['EXPECTED_HEAD_SHA']; print('CORE-003 checkout',actual); assert actual==expected, (actual,expected)"
       - name: Install isolated test dependencies
         run: python -m pip install -e . pytest
-      - name: Run only synthetic Team 3 restart contracts
-        run: python -m pytest -q test/test_core_team3_disposable_continuity.py
+      - name: Run synthetic source and whole-application restart contracts
+        run: >-
+          python -m pytest -q
+          test/test_core_team3_disposable_continuity.py
+          test/test_application_restart_continuity.py
+          test/test_memory_reviewed_corrections.py
+          test/test_memory_review_source_revalidation.py
+          test/test_state_atomic_file.py
+          test/test_memory_deletion_restore.py
