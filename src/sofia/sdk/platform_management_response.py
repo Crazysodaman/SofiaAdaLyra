@@ -82,8 +82,8 @@ def _safe_data(value: object, depth: int = 0) -> None:
         for member in value:
             _safe_data(member, depth + 1)
     elif isinstance(value, str):
-        if any(unicodedata.category(char) == "Cc" for char in value):
-            raise ValueError("control characters in management response")
+        if any(unicodedata.category(char) in {"Cc", "Cs"} for char in value):
+            raise ValueError("control or surrogate characters in management response")
     elif type(value) is float:
         if not math.isfinite(value) or abs(value) > (2**53 - 1):
             raise ValueError("nonportable management number")
