@@ -210,7 +210,13 @@ class DebianSystemdNativeService:
         # executable is insufficient: a parent runtime/python directory may
         # still be root-owned 0700, yielding a real ExecStart EACCES.
         release_root = spec.executable.parent.parent
-        paths = {release_root, spec.identity_home, spec.local_state}
+        # ProtectSystem=strict otherwise makes SQLite/WAL/lease writes fail
+        # even when B1 code and the executable are correctly owned. The
+        # narrow ReadWritePaths below is only safe for an already-provisioned
+        # private, service-owned state directory, never an arbitrary parent.
+        state_directory = spec.local_state.parent
+        paths = {release_root, spec.identity_home, spec.local_state,
+                 state_directory}
         for executable in (spec.executable, spec.python_executable):
             path = executable
             while True:
@@ -237,6 +243,10 @@ class DebianSystemdNativeService:
                 if not stat.S_ISDIR(details.st_mode) or not (details.st_mode & stat.S_IXUSR):
                     raise PlatformInstallationDenied(
                         "signed release parent directory is not owner-traversable"
+                    )
+                if node == state_directory and not (details.st_mode & stat.S_IWUSR):
+                    raise PlatformInstallationDenied(
+                        "Platform SQLite state directory must be owner-writable"
                     )
         for node in (spec.executable, spec.python_executable):
             details = node.stat(follow_symlinks=False)
@@ -269,6 +279,11 @@ class DebianSystemdNativeService:
             "TimeoutStartSec=15\nTimeoutStopSec=20\n"
             "KillMode=mixed\nNoNewPrivileges=true\n"
             "PrivateTmp=false\nProtectSystem=strict\nProtectHome=true\n"
+            # Scope the only writable filesystem carve-out to the exact
+            # B1-provisioned Platform SQLite/WAL/lease parent. This grants no
+            # access to foreign or unowned paths: registration separately
+            # verifies service UID, private mode and owner-write permission.
+            "ReadWritePaths=" + str(spec.local_state.parent) + "\n"
             "RuntimeDirectory=aegis-platform\nRuntimeDirectoryMode=0700\n"
             "RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6\n"
             "[Install]\nWantedBy=multi-user.target\n"
