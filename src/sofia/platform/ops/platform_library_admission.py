@@ -12,6 +12,7 @@ owner approval but NEVER grants B1 install, Core activation or model loading.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from hashlib import sha256
 from pathlib import Path
 import os
 import re
@@ -26,7 +27,7 @@ from sofia.platform.ops.platform_installation import (
 from sofia.platform.ops.platform_installer_offline_seed import (
     review_core_free_offline_seed,
 )
-from sofia.platform.ops.platform_installer_bundle import host_release_target
+from sofia.platform.ops.platform_installer_bundle import host_release_target, _bounded_file
 from sofia.platform.ops.platform_release import (
     PlatformReleaseRejected, PlatformReleaseVerifier,
 )
@@ -141,10 +142,13 @@ def preview_signed_seed_cache(
     row = store.receipt_for_release(manifest.release_id)
     if row is not None and row["manifest_sha256"] == manifest.digest:
         # Never accept a Hub catalog row or a self-asserted receipt as install.
+        trusted_bytes = _bounded_file(Path(trusted_public_key).absolute(), 16384)
+        if sha256(trusted_bytes).hexdigest() != trusted_key_sha256:
+            raise PlatformReleaseRejected("publisher key rotated after seed verification")
         verified = verify_installed(
             row["destination"], store=store,
             verifier=PlatformReleaseVerifier({
-                trusted_signer_key_id: Path(trusted_public_key).read_bytes(),
+                trusted_signer_key_id: trusted_bytes,
             }),
         )
         installed = bool(verified["manifest_sha256"] == manifest.digest)
