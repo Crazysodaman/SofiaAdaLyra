@@ -178,8 +178,15 @@ def native_service_operation_request(
         if registered != _public_spec(prev):
             raise PlatformInstallationDenied("previous native service release identity mismatch")
     checkpoint = store.checkpoint()
+    # Native target is a protected approval parameter, not a caller chosen
+    # arbitrary service name or service-unit path.
+    native_target = (
+        "AegisPlatform" if expected_target is PlatformReleaseTarget.WINDOWS_X86_64
+        else "/etc/systemd/system/aegis-platform.service"
+    )
     params = {
         "operation": operation,
+        "native_target": native_target,
         "candidate": _public_spec(current),
         "previous": _public_spec(prev) if prev is not None else None,
         "identity_home": str(Path(identity_home).absolute()),
@@ -234,6 +241,9 @@ def apply_owner_approved_native_service(
                        else DebianSystemdNativeService)
     if type(backend) is not expected_driver:
         raise PlatformInstallationDenied("native driver and signed OS target differ")
+    if (type(backend) is DebianSystemdNativeService
+            and backend.unit_path != Path("/etc/systemd/system/aegis-platform.service")):
+        raise PlatformInstallationDenied("unapproved systemd unit target refused")
     moment = now or datetime.now(timezone.utc)
     if moment.tzinfo is None or moment.utcoffset() is None:
         raise ValueError("timezone aware authorization time required")
