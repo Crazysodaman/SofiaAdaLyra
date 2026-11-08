@@ -376,3 +376,65 @@ def test_d028_no_artifact_bytes_is_incomplete_not_receipt_ready(
     assert "signed-artifacts.json:NO_ARTIFACT_BYTES" in result["evidence_invalid"]
     assert result["byte_digests_verified_only"] == []
     assert result["release_accepted"] is False
+
+
+def _ig001_source_manifest() -> dict:
+    path = (
+        Path(__file__).resolve().parents[1]
+        / "docs" / "development"
+        / "PLATFORM_1_0_TEAM_E_IG001_REPRODUCIBLE_SOURCE_MANIFEST_2026-11-08.json"
+    )
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_ig001_manifest_sources_pinned_and_no_authorization() -> None:
+    """An unassembled QA source manifest never masquerades as installed release."""
+    import re
+    m = _ig001_source_manifest()
+    assert m["schema"] == "aegis.platform.ig001.reproducible-integration-manifest.v1"
+    assert m["milestone"] == "IG-001"
+    assert m["source_snapshot_only"] is True
+    assert m["integrated_tree_built"] is False
+    assert m["integration_branch_created"] is False
+    assert m["release_accepted"] is False
+    assert m["production_authorized"] is False
+    assert m["real_core_activation"] is False
+    assert m["owner_hub_deployed"] is False
+    assert m["qa_branch"] == "chatgpt/team-e-release-qa-20261108"
+    assert re.fullmatch("[0-9a-f]{40}", m["reference_main_sha"])
+    sources = m["dependency_sources"]
+    assert {p["pr"] for p in sources} == {241, 244, 243, 251, 247, 249, 255, 245, 248}
+    assert all(re.fullmatch("[0-9a-f]{40}", p["head"]) for p in sources)
+    assert all(re.fullmatch("[0-9a-f]{40}", p["base"]) for p in sources)
+    assert all(p["integrated"] is False for p in sources)
+    assert m["acceptance"] == {
+        "platform_total": 38, "platform_pass": 0,
+        "platform_fail": 7, "platform_not_tested": 31,
+        "library_total": 16, "library_pass": 0,
+        "library_not_tested": 16,
+        "ig001_functional_status": "NOT_EXECUTED",
+        "milestone_ci": "NOT_COMPLETE", "go": "NO",
+    }
+
+
+def test_ig001_manifest_conflicts_and_execution_gates_fail_closed() -> None:
+    m = _ig001_source_manifest()
+    conflicts = {entry["path"]: entry for entry in m["overlapping_files"]}
+    assert len(conflicts) == len(m["overlapping_files"]) == 8
+    assert set(conflicts[".github/workflows/aegis-debian12-vm.yml"]["contributors"]) == {241, 245}
+    service = conflicts["rust/crates/sofia-platform-lifecycle/src/bin/platform_service.rs"]
+    assert set(service["contributors"]) == {241, 249, 255}
+    assert "DO NOT cherry-pick" in service["resolution"]
+    assert set(conflicts["test/conftest.py"]["contributors"]) == {251, 236, 239}
+    assert all(c["status"] != "RESOLVED" for c in m["overlapping_files"])
+    assert {item["state"] for item in m["semantic_boundaries"]} == {"HOLD"}
+    phases = m["execution_phases"]
+    assert len(phases) == 6
+    assert all(p["status"] != "PASS" for p in phases)
+    assert any(p["id"] == "G4_LIVE_STATUS_AND_DENIALS" and
+               p["status"] == "BLOCKED_AUTHORITY_AND_UI" for p in phases)
+    assert m["local_author_environment"]["cargo"] is False
+    assert m["local_author_environment"]["qemu"] is False
+    assert m["proposed_disposable_environment"]["required_os"] == "Debian GNU/Linux 12 x86_64"
+    assert m["proposed_disposable_environment"]["personal_core"] is False
+    assert "STOP before and midrequest" in m["security_negatives_must_preserve"]
