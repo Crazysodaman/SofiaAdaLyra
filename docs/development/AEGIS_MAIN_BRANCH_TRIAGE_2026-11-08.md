@@ -180,3 +180,27 @@ D028-07 LIB-01–LIB-16 independent Windows/Debian installed-host verification: 
 2. Older R2/R3/CI forks remain historical and require semantic comparison before applying old snapshots.
 3. Deliver canonical authenticated publisher-index and owner enrollment contract, then Hub/peer service integration and actual end-to-end signed package transfer.
 4. Run exact-main Rust/Python CI, disposable Windows and Debian 12 service tests, plus independent LIB-01–LIB-16 acceptance. No synthetic PASS.
+
+
+## Exact blob audit after main consolidation (2026-11-08)
+
+**Verified workflow:** [read-only main-only branch blob triage](https://github.com/Crazysodaman/SofiaAdaLyra/actions/runs/42530305184) at `37534701542835a6cd37159237efdc44ff795c25`. The machine-readable 141-ref result is stored as the workflow artifact `aegis-main-only-branch-triage` (no branches deleted, force-pushed or merged by the workflow). The audit compares changed-file **blob hashes** against current main, not merely branch age or commit counts.
+
+| Class | Count | Current decision |
+|---|---:|---|
+| IN_MAIN_ANCESTOR | 50 | Usable work is already historically incorporated; do not merge again |
+| IN_MAIN_BY_BLOB_CONTENT | 12 | Identical changed-file bytes already in main; keep historical refs, do not replay |
+| REVIEW_ADDITIVE | 3 | Actual new files exist; evaluate security/overlap before selective import |
+| REVIEW_TEST_OR_DOCS | 1 | Constitution v2 proposal is documentation only; not approved as release behavior |
+| REVIEW_COLLISION | 75 | Existing main files differ; HOLD whole-branch merges pending semantic/security tests |
+
+**Adjudicated additive candidates (explicit byte/path review):**
+
+1. `chatgpt/module-rationalization-batch01`: distinct `src/sofia/modules/integrations/portainer_projection.py`, matching read-only test and AG-D027 roadmap document. **PRESERVE / OPTIONAL SELECTIVE PORT** after module ownership review. Not required to operate D028; do not enable Portainer or copy protected host data.
+2. `chatgpt/platform-read-management-dispatch-20261108`: distinct historical `src/sofia/platform/application/management_read_service.py` plus its tests/workflow, but main already owns a different canonical `src/sofia/platform/run/management_read.py`. **HOLD AS SUPERSEDED API ALTERNATIVE**, no second management authority; evaluate individual tests only.
+3. `chatgpt/platform-win-gui-shell-20261108`: distinct older `packaging/ui/Start-AegisControlCenter.ps1` shell while main already has `packaging/gui/Start-AegisControlCenter.ps1`. **HOLD AS SUPERSEDED UI ENTRYPOINT**, no duplicate launcher; evaluate isolated tests if current coverage lacks them.
+4. `codex/constitution-v2-proposal`: docs-only, **OWNER DECISION PENDING**, not a Core personality migration permission.
+
+**Known collision priorities:** AG-D026 and AG-D027 module branches modify existing Portainer, cognition and SAFE code; `opencode/b1-install-lifecycle` contains an older installer/permission variant. **DO NOT WHOLE-MERGE** those forks over the signed B1, STOP/SAFE or current Platform baseline. Extract only independently testable non-duplicate fixes, or preserve as historical evidence after source review.
+
+**Use this interpretation:** IN_MAIN_BY_BLOB_CONTENT is a verified file-level result, not necessarily full ancestry. REVIEW_COLLISION is a review queue, NOT proof that a branch is bad or that all its unique ideas are integrated. Archive the source history, do not discard it. The latest D028 Hub/mTLS code is additive, requires canonical installed owner enrollment/publisher verification, and does not grant installed-host acceptance.
