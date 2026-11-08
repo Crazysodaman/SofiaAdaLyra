@@ -26,7 +26,8 @@ def request(operation="platform.status", generation=3):
 
 
 def service(operation="platform.status"):
-    state = {"principal": True, "generation": 3, "stop": False, "revoked": False}
+    state = {"principal": True, "generation": 3, "stop": False,
+             "revoked": False, "allow_core": False}
     visited = []
 
     def verify(peer, incoming):
@@ -36,7 +37,8 @@ def service(operation="platform.status"):
         return VerifiedReadPeer(
             principal_id="principal:owner", platform_id="platform:alpha",
             generation=state["generation"],
-            operations=frozenset({"platform.status", "settings.inspect"}),
+            operations=frozenset({"platform.status", "settings.inspect"} |
+                                 ({"core.list"} if state["allow_core"] else set())),
             valid_until=NOW + timedelta(seconds=30),
         )
 
@@ -136,6 +138,9 @@ def test_old_generation_and_missing_provider_fail_closed():
         dispatcher.handle(
             request(generation=2), transport_peer="OS:LOCAL", now=NOW,
         )
+    # Grant this read explicitly so the missing-provider refusal is tested
+    # after authorization, not confused with an earlier scope denial.
+    _state["allow_core"] = True
     with pytest.raises(ManagementReadDenied, match="provider not installed"):
         dispatcher.handle(
             request("core.list"), transport_peer="OS:LOCAL", now=NOW,
