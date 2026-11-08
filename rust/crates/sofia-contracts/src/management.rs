@@ -541,6 +541,62 @@ mod tests {
     }
 
     #[test]
+    fn management_portable_numbers_and_missing_optional_keys_are_refused() {
+        let request_json = include_str!(
+            "../../../../contracts/platform/management-read-settings-valid-v1.json"
+        );
+        let response_json = include_str!(
+            "../../../../contracts/platform/management-read-response-valid-v1.json"
+        );
+        let start = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:00Z")
+            .expect("start");
+        let now = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:01Z")
+            .expect("now");
+        let request = UntrustedManagementRead::parse(request_json.as_bytes(), start)
+            .expect("settings fixture");
+        let mut reply: Value = serde_json::from_str(response_json).expect("fixture");
+        reply["operation"] = json!("settings.inspect");
+        for numeric in [
+            json!(9_007_199_254_740_992_u64),
+            json!(-9_007_199_254_740_992_i64),
+            json!(18_446_744_073_709_551_616_u128),
+            json!(1.0e300_f64),
+        ] {
+            reply["data"] = json!({"revision": numeric});
+            assert!(
+                UntrustedManagementResponse::parse(
+                    reply.to_string().as_bytes(), &request, now
+                )
+                .is_err(),
+                "out of portable range must fail closed"
+            );
+        }
+        let mut ok: Value = serde_json::from_str(response_json).expect("fixture");
+        let req = UntrustedManagementRead::parse(
+            include_str!("../../../../contracts/platform/management-read-valid-v1.json").as_bytes(),
+            start,
+        )
+        .expect("status");
+        ok.as_object_mut().expect("object").remove("denial");
+        assert!(UntrustedManagementResponse::parse(
+            ok.to_string().as_bytes(), &req, now
+        ).is_err());
+        let mut missing: Value = serde_json::from_str(response_json).expect("fixture");
+        missing.as_object_mut().expect("object").remove("data");
+        assert!(UntrustedManagementResponse::parse(
+            missing.to_string().as_bytes(), &req, now
+        ).is_err());
+
+        let mut too_large: Value = serde_json::from_str(
+            include_str!("../../../../contracts/platform/management-read-valid-v1.json")
+        ).expect("request");
+        too_large["expected_generation"] = json!(9_007_199_254_740_992_u64);
+        assert!(UntrustedManagementRead::parse(
+            too_large.to_string().as_bytes(), start
+        ).is_err());
+    }
+
+    #[test]
     fn shared_denial_and_unicode_c1_parity_corpus() {
         let request_json =
             include_str!("../../../../contracts/platform/management-read-valid-v1.json");
