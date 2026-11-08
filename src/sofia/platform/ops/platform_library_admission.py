@@ -14,6 +14,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 import os
+import re
+import stat
 
 from sofia.platform.ops.platform_install import (
     OfflineArtifactCache, PlatformArtifact, PlatformKind,
@@ -269,4 +271,78 @@ def admit_signed_seed_asset_with_owner_proof(
         "install_executed": False,
         "active": None,
         "core_activated": False,
+    }
+
+
+def preview_signed_cache_retention(
+    *, bundle_root: Path | str,
+    cache: OfflineArtifactCache, store: PlatformInstallationStore,
+    trusted_public_key: Path | str, trusted_key_sha256: str,
+    trusted_signer_key_id: str, expected_source_sha: str,
+    expected_target: PlatformReleaseTarget, minimum_revision: int,
+    requested_asset_sha256: str, require_local_host: bool = True,
+) -> dict[str, object]:
+    """Read-only D028-05 storage, verified-space and conservative pin review.
+
+    There is no safe GC without Team A's one-use retention authority AND
+    Team D's full dependency/active/rollback graph. All deletion is blocked.
+    Never mistake an unrecognized byte blob or leftover partial for a
+    verified and unpinned CAS object.
+    """
+    review = preview_signed_seed_cache(
+        bundle_root=bundle_root, cache=cache, store=store,
+        trusted_public_key=trusted_public_key,
+        trusted_key_sha256=trusted_key_sha256,
+        trusted_signer_key_id=trusted_signer_key_id,
+        expected_source_sha=expected_source_sha,
+        expected_target=expected_target,
+        minimum_revision=minimum_revision,
+        requested_asset_sha256=requested_asset_sha256,
+        require_local_host=require_local_host,
+    )
+    cache._check_root()
+    bytes_used = 0
+    count = 0
+    unknown = False
+    for entry in cache.root.iterdir():
+        assert_no_redirected_components(entry, include_leaf=True)
+        metadata = entry.stat(follow_symlinks=False)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise PermissionError("offline cache contains non-regular object")
+        if (not re.fullmatch(r"[0-9a-f]{64}", entry.name)
+                or metadata.st_nlink != 1
+                or metadata.st_size > 512 * 1024**2):
+            unknown = True
+            continue
+        if cache.digest(entry) != entry.name:
+            raise PlatformReleaseRejected("signed local cache contains changed object bytes")
+        bytes_used += metadata.st_size
+        count += 1
+        if count > 4096:
+            raise PermissionError("offline cache exceeds bounded object inventory")
+    if bytes_used > cache.max_bytes:
+        raise PermissionError("offline cache used space exceeds configured quota")
+    historical = any(
+        item["manifest_sha256"] == review["manifest_sha256"]
+        and item["result"] == "SUCCEEDED" for item in store.history()
+    )
+    return {
+        "schema": "aegis.platform.library.retention-review.v1",
+        "source": "EXISTING_OFFLINE_ARTIFACT_CACHE",
+        "max_bytes": cache.max_bytes,
+        "verified_object_count": count,
+        "verified_bytes_used": bytes_used,
+        "quota_bytes_remaining": cache.max_bytes - bytes_used,
+        "unrecognized_cache_entry": unknown,
+        "asset_cached_verified": review["cache_state"] == "CACHED_VERIFIED",
+        "installed": review["installed"],
+        "active": None,
+        "historical_signed_install_reference": historical,
+        "pin_policy": (
+            "PRESERVE_B1_HISTORY" if historical else "UNKNOWN_DEPENDENCY_GRAPH"
+        ),
+        "gc_permitted": False,
+        "gc_denial": "OWNER_RETENTION_AUTHORITY_AND_PIN_GRAPH_UNFROZEN",
+        "deletion_executed": False,
+        "owner_approved": False,
     }
