@@ -166,7 +166,7 @@ verify_seed_bytes() {
   # Debian 12 coreutils realpath rejects symlink/junction-like path components.
   local original actual size observed
   original="$(realpath -ms -- "$SEED_ARCHIVE")" || return 3
-  actual="$(realpath -es -- "$SEED_ARCHIVE")" || return 3
+  actual="$(realpath -e -- "$SEED_ARCHIVE")" || return 3
   if [[ "$original" != "$actual" ]]; then
     printf '%s\n' 'Seed path contains filesystem redirection' >&2; return 3
   fi
