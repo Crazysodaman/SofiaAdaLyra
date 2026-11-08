@@ -16,6 +16,8 @@ on:
       - "test/test_ops_platform_installer_native_update.py"
       - "test/test_ops_platform_installer_d028_seed.py"
       - "test/test_ui_aegis_installer_seed_hash.py"
+      - "test/test_ui_aegis_installer_publisher.py"
+      - "test/test_ui_aegis_installer_authenticode.py"
       - "test/test_ops_platform_library_admission.py"
       - "src/sofia/platform/ops/platform_library_admission.py"
       - "src/sofia/platform/ops/platform_installation.py"
@@ -53,12 +55,25 @@ jobs:
       - name: Install test harness
         run: python -m pip install -e . pytest
       - name: Test read-only installer and theme fallbacks
-        run: python -m pytest -q test/test_ui_aegis_installer_entrypoints.py test/test_ui_aegis_installer_lifecycle_contract.py test/test_ops_platform_installer_bundle.py test/test_ops_platform_installer_lifecycle.py test/test_ops_platform_installer_code_install.py test/test_ops_platform_installer_native_preflight.py test/test_ops_platform_installer_native_transaction.py test/test_ops_platform_installer_native_service.py test/test_ops_platform_installer_native_update.py test/test_ops_platform_installer_d028_seed.py test/test_ui_aegis_installer_seed_hash.py test/test_ops_platform_library_admission.py
+        run: python -m pytest -q test/test_ui_aegis_installer_entrypoints.py test/test_ui_aegis_installer_lifecycle_contract.py test/test_ops_platform_installer_bundle.py test/test_ops_platform_installer_lifecycle.py test/test_ops_platform_installer_code_install.py test/test_ops_platform_installer_native_preflight.py test/test_ops_platform_installer_native_transaction.py test/test_ops_platform_installer_native_service.py test/test_ops_platform_installer_native_update.py test/test_ops_platform_installer_d028_seed.py test/test_ui_aegis_installer_seed_hash.py test/test_ui_aegis_installer_publisher.py test/test_ui_aegis_installer_authenticode.py test/test_ops_platform_library_admission.py
       - name: Compile canonical installer Python integration
         run: python -m compileall -q src/sofia/platform/ops/platform_installer_bundle.py src/sofia/platform/ops/platform_installer_lifecycle.py src/sofia/platform/ops/platform_installer_preview.py src/sofia/platform/ops/platform_installer_code_install.py src/sofia/platform/ops/platform_installer_native_preflight.py src/sofia/platform/ops/platform_installer_native_service.py src/sofia/platform/ops/platform_installer_native_transaction.py src/sofia/platform/ops/platform_installer_offline_seed.py src/sofia/platform/ops/platform_library_admission.py src/sofia/platform/ops/platform_installation.py
       - name: Check Bash syntax
         if: runner.os == 'Linux'
         run: bash -n packaging/installers/install-aegis.sh
+      - name: Parse native PowerShell installer with strict PS5.1 parser
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path ./packaging/installers/Install-Aegis.ps1).Path,
+            [ref]$tokens, [ref]$parseErrors) | Out-Null
+          if ($parseErrors.Count -ne 0) {
+            $parseErrors | ForEach-Object { Write-Error $_.Message }
+            throw 'Native installer PowerShell syntax is not valid'
+          }
       - name: Confirm noninteractive Windows PowerShell preflight
         if: runner.os == 'Windows'
         shell: powershell
