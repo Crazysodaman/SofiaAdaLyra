@@ -131,6 +131,44 @@ def _own_sid(k, a):
         k.CloseHandle(token)
 
 
+def _require_individual_user_sid(k, a, sid: str) -> None:
+    """Verify resolved Windows SID type. SID syntax alone cannot reject groups.
+
+    Domain Users and Domain Admins can share the S-1-5-21 RID shape.
+    An offline or unverifiable account is refused before a pipe ACL is created.
+    """
+    import ctypes.wintypes as wt
+    a.ConvertStringSidToSidW.argtypes = [wt.LPCWSTR, ctypes.POINTER(ctypes.c_void_p)]
+    a.ConvertStringSidToSidW.restype = wt.BOOL
+    a.LookupAccountSidW.argtypes = [
+        wt.LPCWSTR, ctypes.c_void_p, wt.LPWSTR, ctypes.POINTER(wt.DWORD),
+        wt.LPWSTR, ctypes.POINTER(wt.DWORD), ctypes.POINTER(wt.DWORD),
+    ]
+    a.LookupAccountSidW.restype = wt.BOOL
+    pointer = ctypes.c_void_p()
+    if not a.ConvertStringSidToSidW(sid, ctypes.byref(pointer)):
+        raise PermissionError("enrolled Windows user SID cannot be resolved")
+    try:
+        name_len = wt.DWORD()
+        domain_len = wt.DWORD()
+        sid_type = wt.DWORD()
+        a.LookupAccountSidW(
+            None, pointer, None, ctypes.byref(name_len),
+            None, ctypes.byref(domain_len), ctypes.byref(sid_type),
+        )
+        if not (0 < name_len.value <= 512 and domain_len.value <= 512):
+            raise PermissionError("Windows SID account lookup unavailable")
+        name = ctypes.create_unicode_buffer(name_len.value)
+        domain = ctypes.create_unicode_buffer(domain_len.value)
+        if not a.LookupAccountSidW(
+            None, pointer, name, ctypes.byref(name_len),
+            domain, ctypes.byref(domain_len), ctypes.byref(sid_type),
+        ) or sid_type.value != 1:  # SidTypeUser, never SidTypeGroup/Alias.
+            raise PermissionError("enrolled operator is not a verified user SID")
+    finally:
+        k.LocalFree(pointer)
+
+
 def require_windows_pipe_peer(handle) -> str:
     """Impersonate the *connected* client's kernel token; never trust JSON."""
     k, a = _api()
@@ -176,6 +214,8 @@ class ManagementWindowsPipeListener:
         import ctypes.wintypes as wt
         sid = _own_sid(k, a)
         sddl = "D:P(A;;GA;;;SY)(A;;GA;;;" + sid + ")"
+        if self._enrolled_operator_sid is not None:
+            _require_individual_user_sid(k, a, self._enrolled_operator_sid)
         if self._enrolled_operator_sid is not None and self._enrolled_operator_sid != sid:
             # GRGW (read/write) only, no generic-all ACL for an external
             # operator, and NEVER a group/Everyone/Administrators SID.
