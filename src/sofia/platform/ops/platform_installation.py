@@ -652,8 +652,10 @@ def activate_installed_release(destination, *, store, state_path, verifier, runt
     now = now or datetime.now().astimezone()
     destination = Path(destination).absolute()
     state_path = Path(state_path).absolute()
-    if not callable(getattr(runtime, 'start', None)) or not callable(getattr(runtime, 'close', None)):
-        raise TypeError('real service runtime launcher with close required')
+    if (not callable(getattr(runtime, 'start', None))
+            or not callable(getattr(runtime, 'close', None))
+            or not callable(getattr(runtime, 'observed_child_alive', None))):
+        raise TypeError('real service runtime launcher with live process proof required')
     receipt = store.receipt_for_destination(destination)
     if receipt is None or receipt['result'] != SUCCEEDED:
         raise PlatformInstallationDenied('only fully installed releases can activate')
@@ -682,11 +684,21 @@ def activate_installed_release(destination, *, store, state_path, verifier, runt
                  receipt['revision'], receipt['manifest_sha256'], now.isoformat()))
             db.commit()
         raise
+    try:
+        live_process = (isinstance(health, dict)
+                        and runtime.observed_child_alive(health)
+                        and not OperatorStopStore(state_path).current().active)
+    except BaseException:
+        with suppress(Exception):
+            runtime.close()
+        raise
     if (not isinstance(health, dict) or health.get('schema') != SERVICE_SCHEMA
             or health.get('phase') != 'ready'
             or health.get('platform_id') != runtime.expected_platform_id
             or health.get('public_key_sha256') != runtime.expected_public_key_sha256
-            or health.get('core_started') is not False):
+            or health.get('core_started') is not False
+            or health.get('operator_stop') is not False
+            or not live_process):
         with suppress(Exception):
             runtime.close()
         with closing(sqlite3.connect(store.path)) as db, db:
@@ -781,13 +793,32 @@ class PythonPlatformServiceLauncher:
         try:
             line = _bounded_readline(self._child.stdout, timeout)
             if not line:
-                error = self._child.stderr.read(4096)
-                raise RuntimeError('service adapter exited before readiness: ' + error)
+                # Reading stderr synchronously can hang if a child closes stdout
+                # while keeping stderr open. Close it via the bounded owner path.
+                raise RuntimeError('service adapter closed stdout before readiness')
             health = loads_strict_model_json(line)
         except BaseException:
             self.close()
             raise
         return health
+
+    def observed_child_alive(self, health):
+        """Bind an identity claim to this owner's actual running OS child.
+
+        A JSON readiness line alone cannot establish service lifetime. The
+        adapter's PID, parent PID, and nonzero generation must match an owned
+        process that has not already exited.
+        """
+        child = self._child
+        return (isinstance(health, dict)
+                and child is not None
+                and child.poll() is None
+                and type(health.get('pid')) is int
+                and health['pid'] == child.pid
+                and type(health.get('supervisor_pid')) is int
+                and health['supervisor_pid'] == os.getpid()
+                and type(health.get('generation')) is int
+                and health['generation'] > 0)
 
     def close(self):
         child = self._child
