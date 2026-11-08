@@ -183,7 +183,8 @@ def _catalog(data: Mapping[str, object], request: "UntrustedLibraryRequest", now
     source = _object(data["source"], frozenset({
         "kind", "source_id", "last_observed_at", "status",
     }))
-    if source["kind"] not in _SOURCES or source["status"] not in _STATUSES:
+    if (type(source["kind"]) is not str or source["kind"] not in _SOURCES
+            or type(source["status"]) is not str or source["status"] not in _STATUSES):
         raise ValueError("unsupported Library source projection")
     _id(source["source_id"])
     last = _time(source["last_observed_at"])
@@ -199,7 +200,7 @@ def _catalog(data: Mapping[str, object], request: "UntrustedLibraryRequest", now
         raise ValueError("unbounded Library catalog page")
     for item in data["items"]:
         _object(item, _ITEM)
-        if item["kind"] not in _KINDS:
+        if type(item["kind"]) is not str or item["kind"] not in _KINDS:
             raise ValueError("unsupported artifact type")
         for name in (
             "artifact_id", "version", "publisher", "signer_key_id",
@@ -211,10 +212,13 @@ def _catalog(data: Mapping[str, object], request: "UntrustedLibraryRequest", now
                 raise ValueError("invalid signed content digest syntax")
         _int(item["revision"], 1)
         _int(item["size_bytes"], 1)
-        if (item["signature_scheme"] not in {"ed25519", "ecdsa-p256"}
+        if (type(item["signature_scheme"]) is not str
+                or item["signature_scheme"] not in {"ed25519", "ecdsa-p256"}
+                or type(item["license_distribution"]) is not str
                 or item["license_distribution"] not in {
                     "permitted", "restricted", "non_redistributable", "unknown"
-                } or item["data_class"] not in {"public", "protected", "private"}
+                } or type(item["data_class"]) is not str
+                or item["data_class"] not in {"public", "protected", "private"}
                 or type(item["distribution_allowed"]) is not bool):
             raise ValueError("invalid artifact provenance or distribution metadata")
         if (item["license_distribution"] != "permitted"
@@ -228,7 +232,7 @@ def _transfer(data: Mapping[str, object], request: "UntrustedLibraryRequest", no
         _id(data[field])
     if data["target_platform_id"] != request.target_platform_id:
         raise PermissionError("transfer status target differs from request")
-    if data["source_kind"] not in _SOURCES:
+    if type(data["source_kind"]) is not str or data["source_kind"] not in _SOURCES:
         raise ValueError("unknown transfer source")
     if not isinstance(data["artifact_content_digest"], str) or _SHA256.fullmatch(
         data["artifact_content_digest"]
@@ -239,13 +243,14 @@ def _transfer(data: Mapping[str, object], request: "UntrustedLibraryRequest", no
     verified = _int(data["verified_bytes"])
     if received > total or verified > received:
         raise ValueError("inconsistent transfer progress")
-    if data["state"] not in _JOB_STATES:
+    if type(data["state"]) is not str or data["state"] not in _JOB_STATES:
         raise ValueError("unsupported transfer state")
     if data["state"] == "COMPLETE" and verified != total:
         raise ValueError("transfer completion is not independent verification")
-    if data["failure"] is not None and data["failure"] not in {
+    if (data["failure"] is not None and (type(data["failure"]) is not str
+            or data["failure"] not in {
         "CONFLICT", "QUOTA_EXCEEDED", "REJECTED", "UNAVAILABLE", "INTERRUPTED",
-    }:
+    })):
         raise ValueError("unreviewed transfer failure")
     if _time(data["last_observed_at"]) > now:
         raise PermissionError("transfer observation from future")
@@ -297,9 +302,9 @@ class UntrustedLibraryRequest:
                 _id(params["cursor"])
             if type(params["kinds"]) is not list or len(params["kinds"]) > 8:
                 raise ValueError("catalog kinds exceed bound")
-            if len(set(params["kinds"])) != len(params["kinds"]) or any(
-                kind not in _KINDS for kind in params["kinds"]
-            ):
+            if (any(type(kind) is not str for kind in params["kinds"])
+                    or len(set(params["kinds"])) != len(params["kinds"])
+                    or any(kind not in _KINDS for kind in params["kinds"])):
                 raise ValueError("unsupported catalog filter")
         elif doc["operation"] == "library.transfer.status.v1":
             _object(params, frozenset({"job_id"}))
@@ -359,6 +364,7 @@ class UntrustedLibraryResponse:
             if (doc["data"] is not None
                     or type(doc["denial"]) is not dict
                     or set(doc["denial"]) != {"code"}
+                    or type(doc["denial"]["code"]) is not str
                     or doc["denial"]["code"] not in _DENIALS):
                 raise ValueError("invalid scoped Library denial")
             code = doc["denial"]["code"]
