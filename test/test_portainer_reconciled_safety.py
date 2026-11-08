@@ -112,15 +112,26 @@ def test_both_registered_stack_tools_require_capability_system_authorization(tmp
             capability=item.capability, parameters=parameter,
             requested_scope=None, rationale="synthetic authorized read",
         )
+        # Previous loop iterations may have made authorized GET requests.
+        # A denial must introduce *zero new* HTTP calls at this boundary.
+        prior_calls = tuple(port.http.calls)
         denied = CapabilitySystem(lambda _: False)
         denied.register(item.capability, item.handler)
-        assert denied.execute(request).kind is CapabilityResultKind.UNAUTHORIZED
-        assert port.http.calls == []
+        denied_result = denied.execute(request)
+        assert denied_result.kind is CapabilityResultKind.UNAUTHORIZED
+        assert denied_result.evidence is None
+        assert tuple(port.http.calls) == prior_calls
         permitted = CapabilitySystem(lambda _: True)
         permitted.register(item.capability, item.handler)
         result = permitted.execute(request)
         assert result.kind is CapabilityResultKind.SUCCESS
         assert SECRET not in json.dumps(result.evidence)
+        # Exactly one approved GET, never a POST/PUT/DELETE or a cross-endpoint read.
+        assert len(port.http.calls) == len(prior_calls) + 1
+        expected_path = "/api/stacks" if name.endswith(".stacks") else "/api/stacks/23"
+        method, path, kwargs = port.http.calls[-1]
+        assert (method, path) == ("GET", expected_path)
+        assert kwargs == ({"query": {"endpointId": 7}} if name.endswith(".stacks") else {})
     assert {method for method, _, _ in port.http.calls} == {"GET"}
     assert capability_permission_policy(
         "portainer.container.restart"
