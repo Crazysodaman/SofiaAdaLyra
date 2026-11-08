@@ -139,6 +139,15 @@ def main() -> int:
         args.output.write_text(text, encoding="utf-8")
     else:
         sys.stdout.write(text)
+    for item in results:
+        if item["classification"] in {
+            "REVIEW_ADDITIVE", "REVIEW_TEST_OR_DOCS", "IN_MAIN_BY_BLOB_CONTENT",
+        }:
+            print(
+                item["classification"] + " | " + item["ref"]
+                + " | additions=" + ",".join(item["additions"][:8]),
+                file=sys.stderr,
+            )
     print(
         f"Audited {len(results)} remote refs against {main_sha[:12]}: "
         + ", ".join(f"{name}={count}" for name, count in counts.items()),
