@@ -1,8 +1,9 @@
 """Bounded, allowlisted Portainer stack projections for MOD-IT-CONTAINERS.
 
 Read-only schema adapter: never exposes raw Portainer response objects, Compose
-files, environment values, provider tokens, Git credentials or arbitrary
-metadata to a Core. No Portainer API calls, SDK registration, state writes,
+files, environment values, Git authentication fields or arbitrary
+metadata to a Core. Stack names remain untrusted and need privacy review
+before exposure to a model. No Portainer API calls, SDK registration, state writes,
 signature verification, permissions or deployment authority exist here.
 """
 from __future__ import annotations
@@ -72,7 +73,7 @@ def project_portainer_stacks(
         "endpoint_id": endpoint_id,
         "observed_at": observed_at.astimezone(timezone.utc).isoformat(),
         "source_verified": False,
-        "secret_fields_present": False,
+        "secret_fields_exposed": False,
         "effect": "none",
         "stacks": projected,
     }
