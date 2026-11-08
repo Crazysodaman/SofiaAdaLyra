@@ -278,3 +278,53 @@ def test_provider_outage_does_not_trigger_quality_repair_or_fake_chat(
     assert "llama-server" not in str(failed.value)
     assert "disposable" not in str(failed.value)
 
+
+
+def test_missing_model_error_then_recovery_without_canned_replies():
+    """Simulated missing-model error and recovery; NOT a live-host test."""
+    from ollama import ResponseError
+    from sofia.platform.config.model import ProviderConfiguration
+
+    class MissingThenAvailableClient:
+        def __init__(self):
+            self.calls = 0
+
+        def chat(self, **kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                raise ResponseError("model not found in synthetic fixture", status_code=404)
+            return SimpleNamespace(message=SimpleNamespace(
+                content="A circuit breaker interrupts overloads to protect wiring.",
+                tool_calls=(),
+            ))
+
+    request = CognitiveRequest(messages=(), allow_tools=False)
+    for provider_class in (GenericOllamaProvider, OllamaProvider):
+        client = MissingThenAvailableClient()
+        provider = provider_class(
+            ProviderConfiguration(provider="ollama", model="missing:disposable"),
+            client=client,
+        )
+        with pytest.raises(LLMProviderError) as fail:
+            provider.respond(request)
+        assert isinstance(fail.value.__cause__, ResponseError)
+        assert client.calls == 1, "The provider must not invent a model retry"
+        success = provider.respond(request)
+        assert success.content == "A circuit breaker interrupts overloads to protect wiring."
+        assert client.calls == 2
+
+
+def test_nonstreamed_connection_reset_is_not_assistant_text():
+    """Current production chat is non-streaming; this is a transport reset."""
+
+    class ResetClient:
+        def chat(self, **kwargs):
+            raise ConnectionResetError("synthetic mid-response connection loss")
+
+    provider = GenericOllamaProvider(
+        create_default_configuration().provider, client=ResetClient(),
+    )
+    with pytest.raises(LLMProviderError) as error:
+        provider.respond(CognitiveRequest(messages=(), allow_tools=False))
+    assert isinstance(error.value.__cause__, ConnectionResetError)
+    assert "mid-response" not in str(error.value)

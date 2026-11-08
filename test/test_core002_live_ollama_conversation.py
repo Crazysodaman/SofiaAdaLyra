@@ -6,6 +6,8 @@ or production-state access. An integration skip NEVER counts as a PASS.
 from hashlib import sha256
 import json
 import os
+from datetime import datetime, timezone
+from uuid import uuid4
 import platform
 import subprocess
 from pathlib import Path
@@ -14,6 +16,12 @@ from time import monotonic
 import pytest
 
 from sofia.core.cognition.providers.ollama_provider import OllamaProvider
+from sofia.core.cognition.repetition_guard import (
+    naturalize_embodied_semantics, trim_generic_assistant_closer,
+)
+from sofia.core.cognition.model import (
+    CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole,
+)
 from sofia.core.cognition.reply_origin import ReplyModelOriginStore
 from sofia.core.identity.store import IdentityStore
 from sofia.core.conversation.model import ConversationRole
@@ -34,6 +42,100 @@ CONSTITUTION_HASH = ROOT / "src/sofia/core/constitution/constitution.sha256"
 AVATAR = ROOT / "src/sofia/core/embodiment/avatar.json"
 
 
+
+
+def _seed_disposable_v1_memories(state_path, *, owner):
+    """Owner-reviewed and deliberately legacy-unattested synthetic memories.
+
+    The original messages live in a separate private, temporary session; none
+    of the later model prompts include either value. No protected state is read.
+    """
+    from sofia.core.conversation.model import ConversationMessage, ConversationRole
+    from sofia.core.conversation.store import ConversationStore
+    from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
+    from sofia.core.social.store import SocialSessionStore
+    from sofia.platform.application.memory_review import MemoryReviewService
+
+    approved_value = "violet-quartz-731"
+    legacy_value = "scarlet-fuse-932"
+    conversations = ConversationStore(state_path)
+    candidates = DurableMemoryCandidateStore(state_path)
+    try:
+        session = conversations.create_session()
+        SocialSessionStore(state_path).bind(session_id=session.id, principal=owner)
+        now = datetime.now(timezone.utc)
+        reviewer = MemoryReviewService(
+            conversation_store=conversations, candidate_store=candidates,
+            state_path=state_path,
+        )
+        approved_original = ConversationMessage(
+            id=str(uuid4()), session_id=session.id, role=ConversationRole.USER,
+            content="My owner-reviewed synthetic calibration marker is "
+                    + approved_value + ".",
+            created_at=now,
+        )
+        conversations.save(approved_original)
+        reviewed = reviewer.propose(
+            session_id=session.id, message_ids=(approved_original.id,),
+            content="The owner's approved synthetic calibration marker is "
+                    + approved_value + ".",
+            created_at=now,
+        )
+        reviewer.promote(reviewed.candidate_id, approved_by=owner)
+        legacy_original = ConversationMessage(
+            id=str(uuid4()), session_id=session.id, role=ConversationRole.USER,
+            content="Old synthetic calibration marker " + legacy_value + ".",
+            created_at=now,
+        )
+        conversations.save(legacy_original)
+        unattested = reviewer.propose(
+            session_id=session.id, message_ids=(legacy_original.id,),
+            content="The unreviewed synthetic calibration marker is "
+                    + legacy_value + ".",
+            created_at=now,
+        )
+        # Legacy compatibility fixture ONLY, on fresh disposable state.
+        # This is not authenticated owner review and must remain ineligible.
+        candidates.promote(unattested.candidate_id)
+        return {
+            "reviewed_id": reviewed.candidate_id,
+            "legacy_id": unattested.candidate_id,
+            "approved_value": approved_value,
+            "legacy_value": legacy_value,
+            "original_session": session.id,
+        }
+    finally:
+        candidates.close()
+        conversations.close()
+
+
+def _model_derived_hashes(
+    request: CognitiveRequest, candidate: CognitiveResponse,
+) -> frozenset[str]:
+    """Only raw model output or two audited pure normalizers are model-derived.
+
+    Never include deterministic grounded_quality_fallback in these digests.
+    """
+    normalized = trim_generic_assistant_closer(
+        request, naturalize_embodied_semantics(request, candidate)
+    )
+    return frozenset(
+        sha256(text.encode("utf-8")).hexdigest()
+        for text in (candidate.content, normalized.content)
+    )
+
+
+def test_model_derived_hashes_refuse_unrelated_canned_fallback():
+    """Deterministic hash contract only; DOES NOT claim real model inference."""
+    request = CognitiveRequest(messages=(CognitiveMessage(
+        role=CognitiveRole.USER, content="What does a circuit breaker do?",
+    ),))
+    candidate = CognitiveResponse(content="A circuit breaker interrupts overloads.")
+    allowed = _model_derived_hashes(request, candidate)
+    assert sha256(candidate.content.encode("utf-8")).hexdigest() in allowed
+    assert sha256(b"Hey, Sparks. I'm listening.").hexdigest() not in allowed
+
+
 @pytest.mark.integration
 def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
     if os.getenv("SOFIA_CORE002_LIVE") != "1":
@@ -50,6 +152,7 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
     assert observed_sha == expected_sha, (
         "Refusing to misattribute genuine inference to a different source SHA"
     )
+    memory_v1 = os.getenv("SOFIA_CORE002_MEMORY_V1", "0") == "1"
     model = os.getenv("SOFIA_OLLAMA_MODEL", "").strip()
     if not model:
         pytest.fail("SOFIA_OLLAMA_MODEL must specify an already installed model")
@@ -70,6 +173,11 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
         "communication_style": "Answer carefully and conversationally.",
     }), encoding="utf-8")
     state_path = bootstrap_canonical_sqlite(tmp_path / "core002-disposable.db")
+    principal = local_sparks_principal()
+    memory_fixture = (
+        _seed_disposable_v1_memories(state_path, owner=principal)
+        if memory_v1 else None
+    )
     provider_cfg = ProviderConfiguration(
         provider="ollama", model=model, temperature=0.0,
         context_size=4096, max_output_tokens=256,
@@ -118,8 +226,23 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
             message.content for message in request.messages
             if message.role.value == "system"
         )
+        lower_trust_data = "\n".join(
+            message.content for message in request.messages
+            if message.role is not CognitiveRole.SYSTEM
+            and "UNTRUSTED REVIEWED MEMORY" in message.content
+        )
         receipt = {
             "provider": "ollama",
+            "reviewed_memory_visible": (
+                memory_fixture is not None
+                and memory_fixture["approved_value"] in lower_trust_data
+            ),
+            "legacy_memory_visible": (
+                memory_fixture is not None
+                and memory_fixture["legacy_value"] in "\n".join(
+                    message.content for message in request.messages
+                )
+            ),
             "model": self.configuration.model,
             "endpoint": self.endpoint,
             "real_client_path": True,
@@ -142,6 +265,9 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
             receipt["generated_sha256"] = sha256(
                 generated.content.encode("utf-8")
             ).hexdigest()
+            receipt["model_derived_sha256"] = sorted(
+                _model_derived_hashes(request, generated)
+            )
             receipt["generated_characters"] = len(generated.content)
             receipt["tool_candidates"] = len(generated.tool_calls)
             return generated
@@ -158,15 +284,45 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
     monkeypatch.setattr(OllamaProvider, "_respond_once", observe_real_call)
 
     app = SofiaApplication(configuration)
-    principal = local_sparks_principal()
+    if memory_fixture is not None:
+        # Team 3 V1 fixture must be present in Team 5's isolated integration
+        # tree. Missing fixture is a FAIL, never fallback to legacy policy.
+        from test.core_team3_policy_fixture import attach_disposable_memory_policy_v1
+        eligibility = attach_disposable_memory_policy_v1(
+            app, disposable_root=tmp_path, approved_by=principal,
+        )
+        assert eligibility.allows(memory_fixture["reviewed_id"])
+        assert not eligibility.allows(memory_fixture["legacy_id"])
+        recalled = app._runtime.memory_system.recall_relevant(
+            "owner approved synthetic calibration marker", principal=principal,
+        )
+        assert any(
+            memory_fixture["approved_value"] in entry.content for entry in recalled
+        ), "Owner-approved memory not eligible before inference"
+        assert all(
+            memory_fixture["legacy_value"] not in entry.content
+            for entry in recalled
+        ), "Legacy memory passed strict V1 eligibility"
     label = "cobalt-otter-472"
-    prompts = (
-        f"For this temporary chat, please remember the label {label}. "
-        "Acknowledge it briefly.",
-        "What is the exact label I gave you in my preceding message?",
-        "Switch topics: explain what a circuit breaker does in one sentence.",
-        "Return to the temporary label from earlier. Repeat it exactly.",
-    )
+    if memory_fixture is None:
+        prompts = (
+            f"For this temporary chat, please remember the label {label}. "
+            "Acknowledge it briefly.",
+            "What is the exact label I gave you in my preceding message?",
+            "Switch topics: explain what a circuit breaker does in one sentence.",
+            "Return to the temporary label from earlier. Repeat it exactly.",
+        )
+    else:
+        prompts = (
+            "Write one original sentence for a fictional test log using my "
+            "owner-reviewed synthetic calibration marker. Include its exact "
+            "value and explain why the label matters in the scene.",
+            "Switch topics: explain what a circuit breaker does in one sentence.",
+            "Return to the approved synthetic calibration marker from my "
+            "reviewed notes. Write a new sentence including its exact value.",
+            "After the circuit-breaker detour, write a different fictional "
+            "test-log sentence including the exact approved calibration marker.",
+        )
     turns = []
     overall_start = monotonic()
     started = False
@@ -214,15 +370,27 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
                 "Authoritative identity/personality were not observed in the "
                 "actual provider request; a correct-looking answer is not proof"
             )
+            if memory_fixture is not None:
+                assert not any(
+                    c["legacy_memory_visible"] for c in new_calls
+                ), "Legacy memory leaked into genuine model request"
+                if index in (0, 2, 3):
+                    assert any(
+                        c["reviewed_memory_visible"] for c in new_calls
+                    ), "Owner-reviewed V1 memory absent from Ollama model context"
+                    assert memory_fixture["approved_value"] in result.content, (
+                        "Real Ollama-generated answer did not use approved memory"
+                    )
             assert result.content.strip(), "Blank response was falsely accepted"
             assert result.content != "Test cognitive response."
             final_digest = sha256(result.content.encode("utf-8")).hexdigest()
-            assert final_digest in {
-                call.get("generated_sha256") for call in new_calls
-                if call["status"] == "generated"
-            }, (
-                "Saved reply is not a directly observed generated candidate; "
-                "post-generation canned repair is NOT an inference PASS"
+            assert any(
+                final_digest in call.get("model_derived_sha256", ())
+                for call in new_calls if call["status"] == "generated"
+            ), (
+                "Saved reply is neither raw model text nor an authorized pure "
+                "normalization of a genuine Ollama response; canned fallback "
+                "cannot count as genuine inference"
             )
 
             saved = app.conversation.messages()
@@ -273,11 +441,25 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
         second = [m.content for m in app.conversation.messages()
                   if m.role is ConversationRole.ASSISTANT]
         assert len(turns) == 4
-        assert label in second[-3].casefold(), "Short-term label was lost"
-        assert label in second[-1].casefold(), "Topic switch lost label"
+        if memory_fixture is None:
+            assert label in second[-3].casefold(), "Short-term label was lost"
+            assert label in second[-1].casefold(), "Topic switch lost label"
+        else:
+            assert memory_fixture["approved_value"] in second[-1], (
+                "Approved V1 memory was not retained through topic switch"
+            )
     finally:
         print("CORE002_LIVE_RECEIPT=" + json.dumps({
             "source_sha": observed_sha,
+            "disposable_memory_v1": memory_fixture is not None,
+            "reviewed_memory_id": (
+                None if memory_fixture is None
+                else str(memory_fixture["reviewed_id"])
+            ),
+            "legacy_memory_id": (
+                None if memory_fixture is None
+                else str(memory_fixture["legacy_id"])
+            ),
             "model": model,
             "model_digest": model_digest,
             "provider": "ollama",
