@@ -120,3 +120,90 @@ def test_signed_worker_hot_unplug_fences_cached_old_handler_and_new_key(tmp_path
         new.stop()
     assert system.capability_names() == ()
     assert new._process is None and new._secret is None
+
+
+def test_actual_safe_stop_allows_owner_approved_pause_but_denies_resume(
+    canonical_state_path, tmp_path,
+):
+    """Real canonical SAFE approval + STOP, not the test-only callback above."""
+    from datetime import timedelta
+
+    from sofia.platform.capability import Capability
+    from sofia.platform.modules import ModuleLifecycle, OperationProfileKind
+    from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
+    from sofia.platform.safe.operator_stop import OperatorStopStore
+    from test.test_module_lifecycle_v1 import compatibility
+    from test.test_platform_module_command_service import authorize, service
+
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    pkg = verified_custom(
+        tmp_path, directory="signed-stop-module",
+        capabilities=("research.search",),
+    )
+    command = service(canonical_state_path, tmp_path)
+    found = command.discover(pkg, now=now)
+    approve_id, _ = authorize(
+        canonical_state_path, operation="approve", record=found,
+        target=ModuleLifecycle.APPROVED, now=now,
+    )
+    approved = command.approve(
+        found.module_id, expected_revision=found.revision,
+        approval_id=approve_id, now=now,
+    )
+    stage_id, _ = authorize(
+        canonical_state_path, operation="stage", record=approved,
+        target=ModuleLifecycle.STAGED, now=now,
+    )
+    staged = command.stage(
+        pkg, expected_revision=approved.revision,
+        approval_id=stage_id, now=now,
+    )
+    activate_id, _ = authorize(
+        canonical_state_path, operation="activate", record=staged,
+        target=ModuleLifecycle.ACTIVE, profile=OperationProfileKind.OBSERVE,
+        now=now,
+    )
+    active = command.activate(
+        pkg, expected_revision=staged.revision,
+        approval_id=activate_id, now=now,
+        profile=OperationProfileKind.OBSERVE,
+        compatibility=compatibility(pkg),
+        registrations=((Capability("research.search", "search"), lambda _: None),),
+    )
+    assert active.lifecycle is ModuleLifecycle.ACTIVE
+    assert command.manager.capability_system.capability_names() == ("research.search",)
+
+    OperatorStopStore(canonical_state_path).set(
+        active=True, updated_by="Sparks", reason="synthetic worker STOP test",
+        at=now + timedelta(seconds=1),
+    )
+    pause_id, _ = authorize(
+        canonical_state_path, operation="pause", record=active,
+        target=ModuleLifecycle.PAUSED, now=now + timedelta(seconds=2),
+    )
+    paused = command.pause(
+        active.module_id, expected_revision=active.revision,
+        approval_id=pause_id, now=now + timedelta(seconds=2),
+    )
+    assert paused.lifecycle is ModuleLifecycle.PAUSED
+    assert command.manager.capability_system.capability_names() == ()
+
+    resume_time = now + timedelta(seconds=3)
+    resume_id, resume_parameters = authorize(
+        canonical_state_path, operation="resume", record=paused,
+        target=ModuleLifecycle.ACTIVE, profile=OperationProfileKind.OBSERVE,
+        now=resume_time,
+    )
+    with pytest.raises(PermissionError, match="not authorized"):
+        command.resume(
+            pkg, expected_revision=paused.revision,
+            profile=OperationProfileKind.OBSERVE,
+            compatibility=compatibility(pkg),
+            registrations=((Capability("research.search", "search"), lambda _: None),),
+            approval_id=resume_id, now=resume_time,
+        )
+    assert command.describe(paused.module_id) == paused
+    assert ExecutionApprovalVerifier(canonical_state_path).matches_unconsumed(
+        approval_id=resume_id, capability="module.resume",
+        parameters=resume_parameters, now=resume_time,
+    )
