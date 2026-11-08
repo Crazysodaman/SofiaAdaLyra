@@ -334,6 +334,14 @@ def test_d028_cli_can_plan_but_never_greenlight_supplied_host_receipts(
 
     for name in D028_EVIDENCE_FILES:
         (tmp_path / name).write_text(json.dumps({"source_sha": exact}), encoding="utf-8")
+    payload = tmp_path / "synthetic-reviewed-bytes.bin"
+    payload.write_bytes(b"synthetic source bytes, NOT a signed native installer")
+    (tmp_path / "signed-artifacts.json").write_text(json.dumps({
+        "source_sha": exact,
+        "artifacts": [{"path": "synthetic-reviewed-bytes.bin",
+                       "sha256": sha256(payload.read_bytes()).hexdigest()}],
+        "signature_valid": True,  # Still just a self-reported string.
+    }), encoding="utf-8")
     for case in LIB_ROWS:
         (tmp_path / (case + ".json")).write_text(json.dumps({
             "source_sha": exact, "scenario_id": case, "status": "PASS",
@@ -342,6 +350,24 @@ def test_d028_cli_can_plan_but_never_greenlight_supplied_host_receipts(
     untrusted = json.loads(capsys.readouterr().out)
     assert untrusted["d028_four_host"]["evidence_missing"] == []
     assert untrusted["d028_four_host"]["evidence_invalid"] == []
+    assert len(untrusted["d028_four_host"]["byte_digests_verified_only"]) == 1
     assert untrusted["d028_four_host"]["release_accepted"] is False
     assert all(entry["acceptance"] == "NOT_CLAIMED"
                for entry in untrusted["d028_four_host"]["scenarios"])
+
+
+def test_d028_no_artifact_bytes_is_incomplete_not_receipt_ready(
+    tmp_path: Path,
+) -> None:
+    exact = "1" * 40
+    (tmp_path / "signed-artifacts.json").write_text(json.dumps({
+        "source_sha": exact,
+        "artifacts": [],
+        "signature_valid": True,
+    }), encoding="utf-8")
+    result = make_d028_four_host_preflight(
+        exact, topology=_d028_plan(), evidence_dir=tmp_path,
+    )
+    assert "signed-artifacts.json:NO_ARTIFACT_BYTES" in result["evidence_invalid"]
+    assert result["byte_digests_verified_only"] == []
+    assert result["release_accepted"] is False
