@@ -38,7 +38,7 @@ On an **authorized disposable Ubuntu 24.04 runner** with local Docker and QEMU T
 ```bash
 set -euo pipefail
 git rev-parse HEAD                  # MUST equal the exact tested draft SHA
-git status --porcelain             # MUST be empty
+test -z "$(git status --porcelain --untracked-files=no)" # CLEAN tracked source
 python -m pip install -e . pytest
 python -m pytest -q \
   test/test_aegis_debian_vm_runner.py \
@@ -49,11 +49,12 @@ test ! -e "$out"                    # runner refuses reused output
 python -m tools.aegis_debian_vm \
   --checkout "$PWD" --output "$out" \
   --toolchain "$(rustc --print sysroot)" --disposable-vm
+export AEGIS_D006_EVIDENCE_OUT="$out"
 python - <<'PY'
 from pathlib import Path
 import json
-p=Path("/tmp/aegis-guest-d006-PLACEHOLDER")
-# Replace PLACEHOLDER with the inspected exact HEAD prefix.
+import os
+p=Path(os.environ["AEGIS_D006_EVIDENCE_OUT"])
 first=json.loads((p/"receipt-1.json").read_text())
 second=json.loads((p/"receipt-2.json").read_text())
 summary=json.loads((p/"summary.json").read_text())
@@ -68,7 +69,7 @@ print("D006 guest receipts: verified disposable comparison only")
 PY
 ```
 
-The final Python snippet should read `out` via an explicit exported `AEGIS_D006_EVIDENCE_OUT` path; never run or inspect arbitrary production state. **Do not run** this runner against a real Sofía VM, production Portainer, owner Core or non-disposable Docker socket. The lab guest itself refuses missing `aegis.disposable_vm=1` kernel marker.
+The final Python snippet reads only the exact disposable runner output from the exported `AEGIS_D006_EVIDENCE_OUT` path; never run or inspect arbitrary production state. **Do not run** this runner against a real Sofía VM, production Portainer, owner Core or non-disposable Docker socket. The lab guest itself refuses missing `aegis.disposable_vm=1` kernel marker.
 
 For GitHub Actions workflows the pinned exact-head commands are `gh run view 42497808698` and `gh run view 42497808689`; queued or missing is not PASS. Re-run milestone CI only on the finalized integration SHA, not after every development commit.
 
