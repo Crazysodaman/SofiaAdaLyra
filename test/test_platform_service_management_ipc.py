@@ -245,3 +245,25 @@ def test_actual_software_approval_rotation_revokes_live_platform_permission(tmp_
     assert authority(peer, "platform.status") is None
     with pytest.raises(PermissionError):
         software.authenticate("11" * 32, action_fingerprint=fp)
+
+
+@pytest.mark.skipif(not LINUX, reason="Linux systemd runtime boundary only")
+def test_external_socket_never_uses_arbitrary_runtime_directory(tmp_path, monkeypatch):
+    identity, current, state = provision(tmp_path)
+    directory = tmp_path / "world"
+    directory.mkdir(mode=0o777)
+    directory.chmod(0o777)
+    monkeypatch.setenv("RUNTIME_DIRECTORY", str(directory))
+    with pytest.raises(PermissionError, match="unreviewed"):
+        PlatformServiceSession(
+            identity.home, state, current.identity.canonical_uuid,
+            current.public_key_sha256,
+        )
+    assert not list(directory.iterdir())
+    # A rejected runtime directory must release the process lease/lock.
+    monkeypatch.delenv("RUNTIME_DIRECTORY")
+    with PlatformServiceSession(
+        identity.home, state, current.identity.canonical_uuid,
+        current.public_key_sha256,
+    ) as session:
+        assert session.status()["core_started"] is False
