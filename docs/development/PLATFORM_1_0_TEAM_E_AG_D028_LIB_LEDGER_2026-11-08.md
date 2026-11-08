@@ -54,7 +54,7 @@ For **each** LIB case, record one independently reviewable, secret-free receipt 
 - Source selection/written allowlist; exact Hub or peer authenticated endpoint; no unwanted Internet connections; source and target digest independently recomputed; chunk index/offset/limit and partial/restart bytes observed from the wire, not guessed.
 - Separate **acquisition**, **verification**, **governed installation**, **activation** and **pin/GC** approval/receipt references. None of these permissions implies the others. Preserve `OUTCOME_UNKNOWN` when effects cannot be proven.
 - Negative evidence for unknown/expired/revoked peer, STOP before/during operation, spoofed sender, wrong signer/OS/ABI/license, forged index, stale generation, attack archives, missing chunk, over quota, pinned rollback GC, second writer and secret/private-state transfer attempts.
-- Independant Team E reviewer, time, observed result and limitations. Include source host and recipient receipts, binary inventory, local Platform state/absence checks and redacted network deny observations.
+- Independent Team E reviewer, time, observed result and limitations. Include source host and recipient receipts, binary inventory, local Platform state/absence checks and redacted network deny observations.
   
 **No authorized source?** `OFFLINE`/`UNAVAILABLE` not silent Internet fallback. **Bytes downloaded?** Not installed/active. **Hash matches?** Not publisher authenticity. **Valid test-signature?** Not owner-granted execution. **Client says healthy?** Not service proof. **Incomplete/revoked/uncertain transfer?** Never retry execution blindly.
 
