@@ -567,13 +567,15 @@ def verify_installed(destination, *, store, verifier, minimum_revision=0):
             raise PlatformInstallationDenied(
                 'activation receipt conflicts with installed release;'
                 ' operator reconciliation required')
-    verify_staged_release_candidate(row['staging_path'], verifier=verifier,
-        minimum_revision=max(1, int(minimum_revision), int(row['revision'])))
+    # Installed release trust comes from its own signed manifest and bytes.
+    # Staging may be deleted after installation; it must not be a dependency.
     installed_manifest = _verify_release_bytes(
         destination, verifier=verifier,
         minimum_revision=max(1, int(minimum_revision), int(row['revision'])),
         expected_source_sha=None)
-    if installed_manifest.digest != row['manifest_sha256']:
+    if (installed_manifest.digest != row['manifest_sha256']
+            or installed_manifest.release_id != row['release_id']
+            or installed_manifest.revision != row['revision']):
         raise PlatformInstallationDenied('installed manifest drifted from durable state')
     for item in sorted(destination.rglob('*')):
         if item.is_file():
