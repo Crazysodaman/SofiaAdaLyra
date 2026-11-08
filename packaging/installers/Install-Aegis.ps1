@@ -11,6 +11,8 @@ param(
     [switch]$LineMode,
     [switch]$Json,
     [switch]$DryRun,
+    [string]$VerifySeed,
+    [string]$TrustedSeedSha256,
     [ValidateSet('status','doctor','install','update','repair','rollback','uninstall','purge')]
     [string]$Operation
 )
@@ -18,6 +20,11 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 if ($Check -and $Operation) {
     [Console]::Error.WriteLine('-Check cannot be combined with -Operation.')
+    exit 2
+}
+if (($VerifySeed -and ($Check -or $Operation -or $DryRun)) -or
+    (($null -ne $TrustedSeedSha256 -and $TrustedSeedSha256.Length -gt 0) -and -not $VerifySeed)) {
+    [Console]::Error.WriteLine('Ambiguous seed preflight flags.')
     exit 2
 }
 
@@ -121,6 +128,138 @@ function Write-AegisResult {
     Write-Output 'BLOCKED: signed OS executor and current SAFE/STOP owner approval not connected.'
 }
 
+function Test-AegisOfflineSeedHash {
+    param([string]$Path, [string]$ExternalSha256)
+    # Stock PowerShell 5.1/.NET. This only checks pinned *bytes*: the signed
+    # PlatformReleaseVerifier and SAFE owner approval are distinct later gates.
+    if ($ExternalSha256 -cnotmatch '^[0-9a-f]{64}
+    exit 0
+}
+if ($Operation) {
+    if ($Operation -in @('status','doctor')) {
+        Write-AegisResult NO_CHANGES_MADE
+        exit 0
+    }
+    Write-AegisResult BLOCKED
+    exit 3
+}
+if ($Json -or $DryRun) {
+    [Console]::Error.WriteLine('-Json and -DryRun require -Check or -Operation.')
+    exit 2
+}
+
+try {
+    if ([Console]::IsInputRedirected -or [Console]::IsOutputRedirected) {
+        [Console]::Error.WriteLine(
+            'Interactive installer requires a console; use -Check for preflight.'
+        )
+        exit 2
+    }
+} catch {
+    [Console]::Error.WriteLine(
+        'No interactive console available; use -Check for preflight.'
+    )
+    exit 2
+}
+
+$narrow = $false
+try { $narrow = ([Console]::WindowWidth -lt 64) } catch { $narrow = $false }
+while ($true) {
+    if ($narrow) {
+        Write-AegisText 'AEGIS PLATFORM INSTALLER' primary
+        Write-AegisText 'PREVIEW ONLY / NO INSTALL AUTHORITY' warning
+    } else {
+        Write-AegisText '+------------------------------------------------------------+' primary
+        Write-AegisText '|                 AEGIS PLATFORM INSTALLER                   |' primary
+        Write-AegisText '|           PREVIEW ONLY / NO INSTALL AUTHORITY              |' warning
+        Write-AegisText '+------------------------------------------------------------+' primary
+    }
+    Write-AegisText '[1] Install Platform (blocked)' accent
+    Write-AegisText '[2] Update Platform (blocked)' accent
+    Write-AegisText '[3] Repair Platform (blocked)' accent
+    Write-AegisText '[4] Uninstall Platform (blocked)' accent
+    Write-AegisText '[5] Diagnostics (read-only)' accent
+    Write-AegisText '[6] Rollback (blocked)' accent
+    Write-AegisText '[7] Status (unverified)' accent
+    Write-AegisText '[0] Exit' accent
+    Write-Host '[?] Help | [B] Back | [C] Cancel'
+    $choice = Read-Host 'Select [0-7]'
+    switch ($choice) {
+        { $_ -in '0','B','b','C','c' } { exit 0 }
+        { $_ -in '5','7' } { Show-AegisPreflight; break }
+        { $_ -in '1','2','3','4','6' } {
+            Write-AegisText 'BLOCKED: signed release, native executor and SAFE/STOP approval not connected.' warning
+            break
+        }
+        '?' {
+            Write-Host 'Choose 5 or 7 for read-only checks. Lifecycle changes require a certified signed installer.'
+            break
+        }
+        default { Write-Host 'Invalid selection; no operation performed.' }
+    }
+}
+) {
+        [Console]::Error.WriteLine('Independently pinned lowercase SHA-256 is required.')
+        exit 2
+    }
+    try {
+        $absolute = [IO.Path]::GetFullPath($Path)
+        if ($absolute.StartsWith('\\')) { throw 'UNC seed is not offline local media' }
+        $cursor = $absolute
+        while ($null -ne $cursor -and $cursor.Length -gt 0) {
+            $entry = Get-Item -LiteralPath $cursor -Force -ErrorAction Stop
+            if (($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                throw 'Offline seed path contains a reparse point'
+            }
+            $parent = [IO.Directory]::GetParent($cursor)
+            if ($null -eq $parent) { break }
+            $cursor = $parent.FullName
+        }
+        $file = Get-Item -LiteralPath $absolute -Force -ErrorAction Stop
+        if (-not ($file -is [IO.FileInfo]) -or $file.Length -lt 1 -or
+            $file.Length -gt 1073741824) {
+            throw 'Offline seed is not a bounded ordinary file'
+        }
+        $observed = (Get-FileHash -LiteralPath $absolute -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant()
+        $matched = ($observed -ceq $ExternalSha256)
+        if ($Json) {
+            $record = [ordered]@{
+                schema = 'aegis.installer.seed-byte-check.v1'
+                result = $(if ($matched) { 'HASH_MATCH_ONLY' } else { 'REJECTED' })
+                byte_digest_match = $matched
+                sha256 = $observed
+                size_bytes = $file.Length
+                signature_verified = $false
+                owner_approved = $false
+                executed = $false
+                core_activated = $false
+            }
+            Write-Output (ConvertTo-Json -InputObject $record -Compress)
+        } elseif ($matched) {
+            Write-Output 'RESULT=HASH_MATCH_ONLY'
+            Write-Output ('SHA256=' + $observed)
+            Write-Output ('SIZE_BYTES=' + $file.Length)
+            Write-Output 'SIGNED_RELEASE=NOT_VERIFIED'
+            Write-Output 'PUBLISHER_SIGNATURE=NOT_VERIFIED'
+            Write-Output 'INSTALL_AUTHORITY=NOT_CONNECTED'
+            Write-Output 'NO_CHANGES_MADE=TRUE'
+        } else {
+            Write-Output 'RESULT=REJECTED'
+            Write-Output 'SIGNED_RELEASE=NOT_VERIFIED'
+            Write-Output 'NO_CHANGES_MADE=TRUE'
+        }
+        if ($matched) { exit 0 }
+        exit 3
+    } catch {
+        [Console]::Error.WriteLine('Offline seed inaccessible, redirected, or outside bounded policy.')
+        exit 3
+    }
+}
+
+if ($VerifySeed) {
+    Test-AegisOfflineSeedHash -Path $VerifySeed -ExternalSha256 $TrustedSeedSha256
+    exit 3
+}
 if ($Check) {
     Write-AegisResult NO_CHANGES_MADE
     exit 0
