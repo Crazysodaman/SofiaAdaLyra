@@ -154,3 +154,90 @@ and visible result lineage.
 **Team 5 acceptance remains NO** without physical installed-host evidence.
 No production startup, Core writer migration, canonical state copying,
 merges or G8 acceptance promotion are permitted by this plan.
+
+
+## C-006 Team 1 development-first update (not release acceptance)
+
+Core Team 1 revised PR #256 with:
+- `src/sofia/platform/core_worker/provider_deadline.py`:
+  synchronous Platform-owned provider is run in a daemon worker thread and
+  parent Core IPC waits no later than its existing absolute monotonic worker
+  response deadline. An expired call never forwards a late result into Core
+  IPC. The still-running provider network thread is **not** claimed cancelled;
+  process/lease/generation must be fenced, and its uncertain external outcome
+  must be reported as UNKNOWN, not a verified abort.
+- `src/sofia/platform/core_worker/process.py`: forwards the outer deadline
+  into the provider bridge, enforces a final wall-clock check before accepting
+  Core response payload, checks operator STOP at admission and after model
+  result, rechecks active RUN lease and Core generation before acceptance.
+  STOP during a model call is not equivalent to a native model cancellation.
+- `test/test_core_worker_provider_deadline.py`: no wait on blocked synchronous
+  provider; expired start, forced late response, success, typed failure and
+  invalid deadline bounds.
+- `test/test_core_worker_process.py`: STOP-before-dispatch and blocked
+  provider timeout → quarantined worker/no late accepted reply.
+- `test/test_core001_disposable_writer_restart.py`: actual operating-system
+  process lock and disposable SQLite transaction, duplicate launch, SIGTERM,
+  restart, WAL rollback and integrity check. This local single-host proof is
+  not cross-host writer consensus and must be independently executed.
+- Full-checkout workflow includes these new regression groups.
+
+**Actual local executed evidence** (not full checkout):
+1. Two exact GitHub source blobs `release_process.py` and `runtime_child.py`
+   in independent disposable dependency doubles; subprocess + mocked parent
+   + heartbeat helper tests: **28/28 PASS**, Debian 13 Linux, Python 3.13.5.
+   The source blob hashes were checked against the captured HEAD.
+2. Exact source blob `provider_deadline.py`, in an otherwise minimal
+   Python package namespace with original test file:
+   **8/8 PASS** on the same Linux Python 3.13.5 container.
+3. The full repository requires dependencies and GitHub checkout unavailable
+   in this isolated container (GitHub DNS lookup fails); **NOT RUN**.
+4. Installed Windows SCM, Debian12 systemd, authentic SQLite Core owner
+   writer exclusion, genuine Ollama, Team4 Core Link, Team3 memory and
+   signed Platform A/D admission: **NOT RUN**.
+
+### Team 5 IG-001 executable commands
+
+After fetching *one* SHA-pinned IG-001 integration branch, run from its
+freshly installed disposable checkout with Python 3.12+:
+
+```bash
+python -m pip install -e . pytest
+python -m pytest -q \
+  test/test_run_release_process.py \
+  test/test_run_runtime_child.py \
+  test/test_run_runtime_authority.py \
+  test/test_run_host.py \
+  test/test_run_supervisor.py \
+  test/test_ui_tray_lifecycle.py \
+  test/test_core_worker_provider_deadline.py \
+  test/test_core001_disposable_writer_restart.py \
+  test/test_core_worker_process.py
+```
+
+Record `git rev-parse HEAD`, host/OS/Python, command, junit/log, start/end
+PIDs, expected and observed active writer count, SQLite PRAGMA integrity_check
+and source SHA + test file hashes. Never claim local source-mirror tests
+as integrated Core execution.
+
+### Required negative and full-host evidence
+
+- Ready document + fake/stale PID, different launch token, wrong state path,
+  stale/revoked epoch, missing lease and persisted STOP all fail closed.
+- Parent process must release resources after failure; abort/unverifiable kill
+  must retain UNKNOWN and prevent restart as a second writer.
+- Simultaneous service-hosted child starts: second denied on OS lock.
+  Same-host desktop + service and independent second-host attempts require
+  **additional canonical writer authority** from Team A/D; local RUN lock
+  is not cross-host proof.
+- Provider call blocked longer than worker budget must return boundedly,
+  quarantine generation, reject post-deadline response. Despite a possible
+  lingering provider daemon thread, no accepted Core result may emerge.
+- Team2: 45 seconds is an HTTP **per-I/O** bound, not whole-turn.
+  Team4: 30s client timeout must yield durable OUTCOME_UNKNOWN with preserved
+  idempotency and authenticated result lookup, not blind retry. The
+  120s worker and 180s TTL remain the hard upper limits.
+- Platform A and D: SAFE/STOP, generation, signed artifact, operator and
+  exact one canonical writer remain separate enrollment/activation proofs.
+
+**NOT CERTIFIED. No protected state, service activation, merge or GO.**
