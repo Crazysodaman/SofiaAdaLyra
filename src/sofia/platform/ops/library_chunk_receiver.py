@@ -207,6 +207,9 @@ class ChunkedArtifactReceiver:
                 raise ChunkTransferRejected("incoming object mutated during verification")
         finally:
             os.close(fd)
+        # The published file must be the *same inode* whose bytes passed SHA-256.
+        # A same-size replacement after hash verification is still untrusted.
+        verified_identity = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
         if digest.hexdigest() != transfer.content_sha256:
             raise ChunkTransferRejected("final content digest mismatch")
         self._approve(transfer, authorize)
@@ -221,6 +224,8 @@ class ChunkedArtifactReceiver:
             if (not stat.S_ISREG(published.st_mode)
                     or (published.st_dev, published.st_ino) != (previous.st_dev, previous.st_ino)
                     or published.st_size != transfer.size_bytes
+                    or (published.st_dev, published.st_ino, published.st_size,
+                        published.st_mtime_ns) != verified_identity
                     or published.st_nlink != 2):
                 raise ChunkTransferRejected("published object failed identity check")
             part.unlink()
