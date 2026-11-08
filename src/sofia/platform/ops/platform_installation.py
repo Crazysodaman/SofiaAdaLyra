@@ -368,6 +368,11 @@ def _verify_release_bytes(directory, *, verifier, minimum_revision, expected_sou
     manifest_payload = _decode_private_json(directory / 'release-manifest.json')
     signature_document = _decode_private_json(directory / 'release-signature.json')
     scope = manifest_payload.get('target')
+    # This only binds an Ed25519-signed manifest's own predecessor field.
+    # It does NOT authorize an update or establish that predecessor as the
+    # currently installed release. B1/native generation-fenced callers must
+    # separately compare that digest against their durable predecessor.
+    signed_parent = manifest_payload.get('parent_manifest_sha256')
     return verifier.verify(
         manifest_payload, assets_root=directory / 'assets',
         signature_b64=signature_document.get('signature_b64'),
@@ -375,7 +380,8 @@ def _verify_release_bytes(directory, *, verifier, minimum_revision, expected_sou
         expected_source_sha=expected_source_sha
         if expected_source_sha is not None else manifest_payload.get('source_sha'),
         expected_target=verifier_target(scope),
-        minimum_revision=int(minimum_revision))
+        minimum_revision=int(minimum_revision),
+        expected_parent_manifest_sha256=signed_parent)
 
 
 def verify_staged_release_candidate(staging_path, *, verifier, minimum_revision=0):
