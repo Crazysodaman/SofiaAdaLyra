@@ -68,7 +68,7 @@ def access() -> CoreLinkClientAccess:
         ),
         protocol_version=ProtocolVersion(1, 0),
         enrolled_at=NOW,
-        expires_at=NOW + timedelta(days=30),
+        expires_at=NOW + timedelta(days=3650),
     )
 
 
