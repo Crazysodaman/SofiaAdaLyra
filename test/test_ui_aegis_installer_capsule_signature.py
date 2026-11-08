@@ -50,7 +50,7 @@ def sealed_capsule(tmp_path):
     return capsule, signature, trusted, sha256(public).hexdigest()
 
 
-def invoke(scope, *extra):
+def invoke(scope, *extra, signer=SIGNER):
     capsule, signature, trusted, pin = scope
     return subprocess.run(
         ["bash", str(SCRIPT),
@@ -58,7 +58,7 @@ def invoke(scope, *extra):
          "--signature", str(signature),
          "--publisher-key", str(trusted),
          "--publisher-sha256", pin,
-         "--publisher-signer", SIGNER, *extra],
+         "--publisher-signer", signer, *extra],
         capture_output=True, text=True, timeout=15,
         env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL": "C"},
     )
@@ -95,6 +95,7 @@ def test_stock_shell_capsule_signature_refuses_hostile_input(
     capsule, signature, public, pin = sealed_capsule
     override = (capsule, signature, public, pin)
     extra = ()
+    signer = SIGNER
     if defect == "changed-capsule":
         with capsule.open("ab") as file:
             file.write(b"modified after signing")
@@ -105,7 +106,7 @@ def test_stock_shell_capsule_signature_refuses_hostile_input(
         )
         public.write_bytes(second)
     elif defect == "wrong-signer":
-        extra = ("--publisher-signer", "forged")
+        signer = "forged"
     elif defect == "missing-key-pin":
         override = (capsule, signature, public, "")
     elif defect == "bad-key-pin":
@@ -124,7 +125,7 @@ def test_stock_shell_capsule_signature_refuses_hostile_input(
         override = (link, signature, public, pin)
     else:
         extra = ("--install",)
-    outcome = invoke(override, *extra)
+    outcome = invoke(override, *extra, signer=signer)
     assert outcome.returncode in (2, 3), (defect, outcome.stdout, outcome.stderr)
     assert "SIGNED_CAPSULE_BYTES_ONLY" not in outcome.stdout
 
