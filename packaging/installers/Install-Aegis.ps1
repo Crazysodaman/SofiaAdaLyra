@@ -17,7 +17,10 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+$repoRoot = $PSScriptRoot
+if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'contracts\ui\aegis-theme-v1.json') -PathType Leaf)) {
+    $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+}
 $themePath = Join-Path $repoRoot 'contracts\ui\aegis-theme-v1.json'
 $useColor = (-not $NoColor) -and (-not $LineMode) -and (-not $Json) -and (-not (Test-Path Env:NO_COLOR)) -and
     ($Host.Name -eq 'ConsoleHost')
