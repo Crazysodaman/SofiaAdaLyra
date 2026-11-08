@@ -1,0 +1,37 @@
+name: Aegis Module Worker Hot Swap Negative Tests
+
+on:
+  pull_request:
+    paths:
+      - 'test/test_platform_module_hotswap_safety.py'
+      - 'src/sofia/platform/modules/**'
+      - 'test/test_platform_module_process_worker.py'
+      - '.github/workflows/aegis-module-worker-negative.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  negative:
+    name: Synthetic isolated worker
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install tests
+        run: python -m pip install -e . pytest
+      - name: Verify tests
+        run: >-
+          python -m pytest -q
+          test/test_platform_module_hotswap_safety.py
+          test/test_platform_module_process_worker.py
+          test/test_platform_module_operations.py
+          test/test_module_lifecycle_v1.py
+          test/test_package_grouping.py
