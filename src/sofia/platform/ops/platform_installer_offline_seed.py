@@ -13,6 +13,8 @@ from email.parser import BytesParser
 from io import BytesIO
 from pathlib import Path
 import re
+import stat
+import unicodedata
 import zipfile
 
 from sofia.platform.ops.platform_installer_bundle import (
@@ -22,6 +24,7 @@ from sofia.platform.ops.platform_release import PlatformReleaseRejected
 from sofia.platform.state.artifact_file import read_artifact_file
 from sofia.platform.state.private_file import assert_no_redirected_components
 from sofia.sdk.cognition_json import loads_strict_model_json
+from sofia.sdk.artifact import validate_artifact_path
 from sofia.sdk.platform_release import PlatformReleaseManifest, PlatformReleaseTarget
 
 _FORBIDDEN_DEPENDENCIES = frozenset((
@@ -48,8 +51,21 @@ def _inspect_dependency_wheel(path: Path, expected_sha: str, expected_size: int)
                         if item.filename.endswith(".dist-info/METADATA")]
             if len(metadata) != 1 or metadata[0].file_size > 262144:
                 raise PlatformReleaseRejected("offline dependency metadata missing or oversized")
+            # Dependency metadata is signed via the existing manifest but
+            # must also meet archive extraction/path policy BEFORE native
+            # installation. A trusted signer does not make path traversal safe.
+            if sum(item.file_size for item in entries) > 256 * 1024**2:
+                raise PlatformReleaseRejected("offline dependency expansion exceeds bound")
+            names = set()
             for item in entries:
-                normalized = item.filename.replace("\\", "/").casefold()
+                name = item.filename.rstrip("/")
+                if item.orig_filename != item.filename:
+                    raise PlatformReleaseRejected("ambiguous dependency ZIP entry")
+                validate_artifact_path(name)
+                normalized = unicodedata.normalize("NFKC", name).casefold()
+                if normalized in names or stat.S_ISLNK(item.external_attr >> 16):
+                    raise PlatformReleaseRejected("duplicate or redirected dependency entry")
+                names.add(normalized)
                 if (normalized.startswith(("sofia/core/", "sofia/modules/", "ollama/"))
                         or any(piece in normalized for piece in
                                ("/sofia/core/", "/sofia/modules/", "/ollama/"))):
