@@ -54,7 +54,12 @@ def _run_disposable(
     monkeypatch.setattr(
         runtime_child, "create_production_configuration", lambda **kw: object(),
     )
-    monkeypatch.setattr(runtime_child, "ApplicationHeartbeatStore", lambda p: store)
+    def require_fake_authority(state_path, *, expected_epoch):
+        if expected_epoch != store.current_generation():
+            raise PermissionError("generation changed; denying stale runtime")
+    monkeypatch.setattr(
+        runtime_child, "require_local_runtime_authority", require_fake_authority,
+    )
     monkeypatch.setattr(
         runtime_child, "atomic_write_text",
         lambda path, content: emitted.append(json.loads(content)),
@@ -130,16 +135,16 @@ def test_core001_child_refuses_invalid_launch_tokens(tmp_path, token):
         )
 
 
-def test_core001_child_bootstrap_without_epoch_reports_unknown_generation(
+def test_core001_child_refuses_bootstrap_without_writer_generation(
     tmp_path, monkeypatch,
 ):
     app, receipts, args = _run_disposable(
         tmp_path, monkeypatch, actual_epochs=[], expected_epoch=None,
     )
-    runtime_child.run_child(**args)
-    assert app.started and app.stopped
-    assert receipts[0]["generation_epoch"] is None
-    assert receipts[0]["start_token"] == TOKEN
+    with pytest.raises(PermissionError, match="positive generation"):
+        runtime_child.run_child(**args)
+    assert not app.started
+    assert not receipts
 
 
 def test_core001_bootstrap_monitor_reports_crash_without_false_running():
@@ -155,3 +160,20 @@ def test_core001_both_service_loops_check_child_alive():
     source = inspect.getsource(runtime_service)
     assert 'assert_runtime_child_alive(child, phase="active")' in source
     assert 'assert_runtime_child_alive(child, phase="bootstrap")' in source
+
+def test_core001_duplicate_child_process_lock_denied_before_start(
+    tmp_path, monkeypatch,
+):
+    from sofia.platform.run.process_lock import StateProcessLock
+
+    app, receipts, args = _run_disposable(
+        tmp_path, monkeypatch, actual_epochs=[7],
+    )
+    with StateProcessLock(
+        args["state_path"], resource="core-runtime",
+        owner_label="Core runtime child",
+    ):
+        with pytest.raises(RuntimeError, match="already owns this state"):
+            runtime_child.run_child(**args)
+    assert not app.started
+    assert not receipts
