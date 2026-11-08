@@ -5,12 +5,16 @@ on:
     paths:
       - 'src/sofia/platform/run/local_peer.py'
       - 'test/test_run_local_peer_kernel.py'
+      - 'test/test_run_management_unix_listener.py'
+      - 'src/sofia/platform/run/management_unix_listener.py'
       - '.github/workflows/aegis-unix-kernel-peer.yml'
   push:
     branches: [main]
     paths:
       - 'src/sofia/platform/run/local_peer.py'
       - 'test/test_run_local_peer_kernel.py'
+      - 'test/test_run_management_unix_listener.py'
+      - 'src/sofia/platform/run/management_unix_listener.py'
       - '.github/workflows/aegis-unix-kernel-peer.yml'
 
 permissions:
@@ -35,4 +39,4 @@ jobs:
       - name: Install exact-source test dependencies
         run: python -m pip install -e . pytest
       - name: Test verified kernel peer provenance and bounded response
-        run: python -m pytest -q test/test_run_local_peer_kernel.py
+        run: python -m pytest -q test/test_run_local_peer_kernel.py test/test_run_management_unix_listener.py
