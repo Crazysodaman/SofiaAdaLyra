@@ -269,10 +269,12 @@ def test_d028_runnable_harness_rejects_changed_bytes_wrong_sha_and_links(
         "source_sha": exact, "artifacts": [
             {"path": "artifacts/payload.bin", "sha256": sha256(b"expected").hexdigest()},
             {"path": "../escape.bin", "sha256": "a" * 64},
+            {"path": "private-state.db", "sha256": sha256(b"private").hexdigest()},
         ],
     }), encoding="utf-8")
     (tmp_path / "artifacts").mkdir()
     (tmp_path / "artifacts" / "payload.bin").write_bytes(b"tampered")
+    (tmp_path / "private-state.db").write_bytes(b"private")
     (tmp_path / "LIB-02.json").write_text(json.dumps({
         "scenario_id": "LIB-02", "source_sha": "e" * 40, "status": "PASS",
     }), encoding="utf-8")
@@ -285,6 +287,7 @@ def test_d028_runnable_harness_rejects_changed_bytes_wrong_sha_and_links(
     )
     assert "artifact[0]:BYTE_INTEGRITY_FAILED" in report["evidence_invalid"]
     assert "artifact[1]:BYTE_INTEGRITY_FAILED" in report["evidence_invalid"]
+    assert "artifact[2]:BYTE_INTEGRITY_FAILED" in report["evidence_invalid"]
     assert "LIB-02.json:UNBOUND" in report["evidence_invalid"]
     assert report["byte_digests_verified_only"] == []
     assert report["scenarios"][1]["receipt_inspection"] == "REJECTED_UNBOUND_CASE_RECEIPT"
