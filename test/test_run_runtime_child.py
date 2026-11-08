@@ -32,7 +32,7 @@ class _FakeApplication:
 class _EpochStore:
     def __init__(self, sequence):
         self.sequence = list(sequence)
-        self.last = self.sequence[-1]
+        self.last = self.sequence[-1] if self.sequence else None
 
     def current_generation(self):
         if self.sequence:
