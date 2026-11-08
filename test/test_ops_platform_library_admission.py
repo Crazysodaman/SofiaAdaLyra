@@ -14,7 +14,7 @@ from sofia.platform.ops.platform_install import OfflineArtifactCache
 from sofia.platform.ops.platform_installation import PlatformInstallationStore
 from sofia.platform.ops.platform_library_admission import (
     LIBRARY_CACHE_ADMIT, preview_signed_seed_cache,
-    admit_signed_seed_asset_with_owner_proof,
+    preview_signed_cache_retention, admit_signed_seed_asset_with_owner_proof,
 )
 from sofia.platform.safe.execution_approval import (
     ExecutionApproval, ExecutionApprovalVerifier, execution_fingerprint,
@@ -158,3 +158,28 @@ def test_operator_stop_denies_artifact_cache_write(context, monkeypatch):
             **args, canonical_safe_state=state, approval_id="some-grant",
         )
     assert args["store"].history() == []
+
+def test_readonly_cas_quota_and_pin_preview_never_gc_without_authority(context):
+    args, state = context
+    before = preview_signed_cache_retention(**args)
+    assert before["max_bytes"] == args["cache"].max_bytes
+    assert before["verified_object_count"] == 0
+    assert before["verified_bytes_used"] == 0
+    assert before["quota_bytes_remaining"] == args["cache"].max_bytes
+    assert before["gc_permitted"] is False
+    assert before["deletion_executed"] is False
+    assert before["pin_policy"] == "UNKNOWN_DEPENDENCY_GRAPH"
+    assert before["installed"] is None
+    assert before["active"] is None
+
+
+def test_cache_gc_preview_refuses_unknown_or_corrupt_bytes(context):
+    args, state = context
+    root = args["cache"].root
+    (root / "untrusted.partial").write_bytes(b"partial download not admitted")
+    result = preview_signed_cache_retention(**args)
+    assert result["unrecognized_cache_entry"] is True
+    assert result["gc_permitted"] is False
+    (root / ("0" * 64)).write_bytes(b"bad")
+    with pytest.raises((PermissionError, PlatformReleaseRejected)):
+        preview_signed_cache_retention(**args)
