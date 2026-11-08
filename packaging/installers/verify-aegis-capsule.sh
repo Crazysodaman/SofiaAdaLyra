@@ -25,7 +25,7 @@ if [[ ! "$key_fingerprint" =~ ^[0-9a-f]{64}$ ||
   printf '%s\n' 'Independent publisher fingerprint/signer required' >&2
   exit 2
 fi
-for command in openssl sha256sum realpath stat mktemp chmod rm unzip wc sort cmp tail; do
+for command in openssl sha256sum realpath stat mktemp chmod rm; do
   if ! command -v "$command" >/dev/null 2>&1; then
     printf '%s\n' 'Required stock verification utility missing; refusing publisher trust' >&2
     exit 3
@@ -82,64 +82,4 @@ if ! openssl pkeyutl -verify -pubin -inkey "$key_path" -rawin \
   printf '%s\n' '{"schema":"aegis.offline.capsule-signature.v1","result":"REJECTED","publisher_delivery_verified":false,"release_assets_verified":false,"owner_approved":false,"executed":false}'
   exit 3
 fi
-# The signed outer ZIP is trusted as a byte envelope, not yet an
-# executable release. Rehash each indexed member before ANY extraction.
-if ! unzip -p "$capsule_path" 'aegis/delivery-index.v1' > "$tmp/index" 2>/dev/null; then
-  printf '%s\n' 'Signed capsule has no delivery index' >&2; exit 3
-fi
-index_bytes="$(stat -c %s -- "$tmp/index")" || exit 3
-if ((index_bytes < 40 || index_bytes > 131072)); then
-  printf '%s\n' 'Signed delivery index outside bounds' >&2; exit 3
-fi
-IFS= read -r header < "$tmp/index" || exit 3
-[[ "$header" == 'aegis.delivery-index.v1' ]] || {
-  printf '%s\n' 'Unexpected signed delivery index version' >&2; exit 3
-}
-printf '%s\n' 'aegis/delivery-index.v1' > "$tmp/expected-names"
-previous=''
-count=0
-total=0
-tab=,"capsule_sha256":"%s","signer_key_id":"%s","publisher_public_key_sha256":"%s","publisher_delivery_verified":true,"delivery_members_hashed":true,"delivery_member_count":%s,"delivery_index_sha256":"%s","release_manifest_verified":false,"release_assets_verified":false,"publisher_revocation_current":false,"owner_approved":false,"executed":false,"core_activated":false}\n' "$digest" "$signer" "$observed_key" "$count" "$delivery_index_sha256"
-\t'
-record_pattern="^([0-9a-f]{64})${tab}([1-9][0-9]{0,11})${tab}(aegis/[A-Za-z0-9._/+@-]{1,240})$"
-while IFS= read -r record || [[ -n "$record" ]]; do
-  [[ "$record" =~ $record_pattern ]] || {
-    printf '%s\n' 'Malformed delivery inventory record' >&2; exit 3
-  }
-  expected_digest="${BASH_REMATCH[1]}"
-  expected_size="${BASH_REMATCH[2]}"
-  member="${BASH_REMATCH[3]}"
-  if [[ "$member" == 'aegis/delivery-index.v1' ||
-        "$member" == *'//'* || "$member" == */../* ||
-        "$member" == */./* || "$member" == */.. || "$member" == */. ||
-        ( -n "$previous" && ! "$member" > "$previous" ) ]]; then
-    printf '%s\n' 'Duplicate, unordered or redirected member' >&2; exit 3
-  fi
-  previous="$member"
-  ((count+=1))
-  if ((count > 128 || expected_size > 536870912)); then
-    printf '%s\n' 'Signed delivery member exceeds bounds' >&2; exit 3
-  fi
-  total=$((total + expected_size))
-  if ((total > 1075838976)); then
-    printf '%s\n' 'Signed delivery total exceeds limit' >&2; exit 3
-  fi
-  observed_digest="$(unzip -p "$capsule_path" "$member" 2>/dev/null | sha256sum)" || exit 3
-  observed_digest="${observed_digest:0:64}"
-  observed_size="$(unzip -p "$capsule_path" "$member" 2>/dev/null | wc -c)" || exit 3
-  [[ "$observed_size" =~ ^[0-9]+$ ]] || exit 3
-  if [[ "$observed_digest" != "$expected_digest" || "$observed_size" != "$expected_size" ]]; then
-    printf '%s\n' 'Publisher-sealed delivery member digest or size differs' >&2; exit 3
-  fi
-  printf '%s\n' "$member" >> "$tmp/expected-names"
-done < <(tail -n +2 "$tmp/index")
-((count >= 1)) || { printf '%s\n' 'Empty signed inventory refused' >&2; exit 3; }
-unzip -Z -1 "$capsule_path" > "$tmp/archive-names" 2>/dev/null || exit 3
-LC_ALL=C sort "$tmp/archive-names" > "$tmp/archive-sorted"
-LC_ALL=C sort "$tmp/expected-names" > "$tmp/expected-sorted"
-cmp -s "$tmp/archive-sorted" "$tmp/expected-sorted" || {
-  printf '%s\n' 'ZIP contains unexpected/missing/duplicate entries' >&2; exit 3
-}
-delivery_index_sha256="$(sha256sum -- "$tmp/index")" || exit 3
-delivery_index_sha256="${delivery_index_sha256:0:64}"
 printf '{"schema":"aegis.offline.capsule-signature.v1","result":"SIGNED_CAPSULE_BYTES_ONLY","capsule_sha256":"%s","signer_key_id":"%s","publisher_public_key_sha256":"%s","publisher_delivery_verified":true,"release_manifest_verified":false,"release_assets_verified":false,"publisher_revocation_current":false,"owner_approved":false,"executed":false,"core_activated":false}\n' "$digest" "$signer" "$observed_key"
