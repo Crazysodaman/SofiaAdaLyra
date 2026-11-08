@@ -275,6 +275,15 @@ verify_publisher_manifest() {
   # Canonical signature envelope: exact two keys, one line, no trailing bytes
   # beyond permitted line ending. Unknown/duplicate JSON fields fail closed.
   envelope="$(cat -- "$envelope_file")" || return 3
+  # Command substitution strips trailing newlines and Bash discards NULs.
+  # Compare ORIGINAL byte size to prevent a noncanonical envelope being
+  # transformed into an apparently valid signer/signature claim.
+  local observed_envelope_bytes
+  observed_envelope_bytes="$(printf '%s' "$envelope" | wc -c)" || return 3
+  [[ "$observed_envelope_bytes" -eq "$envelope_size" ]] || {
+    printf '%s\\n' 'Signature envelope contains noncanonical trailing or binary bytes' >&2
+    return 3
+  }
   local envelope_re='^\{"signature_b64":"([A-Za-z0-9+/]{86}==)","signer_key_id":"([A-Za-z0-9_.-]{1,128})"\}
 if [[ "$MODE" == seed ]]; then verify_seed_bytes; exit $?; fi
 if [[ "$MODE" == check ]]; then readonly_preview; exit 0; fi
