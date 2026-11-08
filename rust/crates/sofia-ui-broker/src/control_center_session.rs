@@ -99,6 +99,7 @@ pub enum DisplayError {
     SettingsRegressed,
     InvalidRevisions,
     InvalidReceipt,
+    UnexpectedSafeState,
 }
 
 #[derive(Debug, Default)]
@@ -199,6 +200,16 @@ impl DisplaySession {
         {
             self.fail(ReadFailure::Stale);
             return Err(DisplayError::SettingsRegressed);
+        }
+        // Management v1 represents active STOP as a typed DENIED reply,
+        // never an OK platform.status snapshot. Reject unreviewed SAFE too.
+        if incoming.safe != SafeState::Clear {
+            self.fail(if incoming.safe == SafeState::StopActive {
+                ReadFailure::Stopped
+            } else {
+                ReadFailure::Unverified
+            });
+            return Err(DisplayError::UnexpectedSafeState);
         }
         if incoming.removal_receipt_verified && incoming.installation != InstallationState::Removed
         {
@@ -403,7 +414,11 @@ mod tests {
         let mut session = DisplaySession::default();
         let mut stopped = observed(1, 1);
         stopped.safe = SafeState::StopActive;
-        session.refresh(&mut Fixed(Ok(stopped)), t).unwrap();
+        assert_eq!(
+            session.refresh(&mut Fixed(Ok(stopped)), t),
+            Err(DisplayError::UnexpectedSafeState)
+        );
+        assert_eq!(session.view().service_label(), "STOP_ACTIVE");
         assert_eq!(
             session.view().action_hint(ProposedAction::SaveSettings),
             ActionHint::Blocked("SAFE_STOP_ACTIVE")

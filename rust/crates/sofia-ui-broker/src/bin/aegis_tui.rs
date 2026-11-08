@@ -3,7 +3,7 @@
 //! NEVER infer host health from a local launch, cached file or process ID.
 
 use serde_json::Value;
-use sofia_ui_broker::control_center::{ControlCenterView, LinkState};
+use sofia_ui_broker::control_center::{ControlCenterView, LinkState, SafeState};
 use sofia_ui_broker::control_center_session::{DisplaySession, OfflineReader};
 use std::env;
 use std::io::{self, IsTerminal, Write};
@@ -186,11 +186,39 @@ fn render_page(page: Page, colors: bool, state: &ControlCenterView) -> String {
 // This is a presentation of an already authenticated state, not a
 // verification of native OS service origin, owner enrollment, or SAFE.
 // The sole wired producer remains OfflineReader until Team A/B sign off.
+fn current_status(view: &ControlCenterView) -> bool {
+    view.link == LinkState::Observed
+        && view.platform_generation.is_some()
+        && view.safe == SafeState::Clear
+}
+
+fn status_name(view: &ControlCenterView) -> &'static str {
+    if view.link == LinkState::Observed && !current_status(view) {
+        if view.safe == SafeState::StopActive {
+            "STOP_ACTIVE"
+        } else {
+            "UNVERIFIED"
+        }
+    } else {
+        view.service_label()
+    }
+}
+
+fn status_source(view: &ControlCenterView) -> &'static str {
+    if current_status(view) {
+        "SERVICE_OBSERVED"
+    } else if view.link == LinkState::Observed {
+        "UNVERIFIED"
+    } else {
+        view.source_label()
+    }
+}
+
 fn status_line(view: &ControlCenterView) -> String {
     format!(
         "status={} source={} safe={} permission={} installation={}",
-        view.service_label(),
-        view.source_label(),
+        status_name(view),
+        status_source(view),
         view.safe_label(),
         view.permission_label(),
         view.installation_label()
@@ -198,14 +226,15 @@ fn status_line(view: &ControlCenterView) -> String {
 }
 
 fn status_json(view: &ControlCenterView) -> Value {
-    let current = view.link == LinkState::Observed && view.platform_generation.is_some();
+    let current = current_status(view);
+    let operator_stop = if current { Some(false) } else { None };
     serde_json::json!({
         "schema": "aegis.ui.platform.status-display.v1",
-        "status": view.service_label(),
-        "source": view.source_label(),
+        "status": status_name(view),
+        "source": status_source(view),
         "platform_generation": if current { view.platform_generation } else { None },
         "safe": view.safe_label(),
-        "operator_stop": if current { Some(view.safe == sofia_ui_broker::control_center::SafeState::StopActive) } else { None },
+        "operator_stop": operator_stop,
         "core_started": null,
         "permission": view.permission_label(),
         "installation": view.installation_label(),
@@ -214,7 +243,7 @@ fn status_json(view: &ControlCenterView) -> Value {
 }
 
 fn status_exit(view: &ControlCenterView) -> ExitCode {
-    if view.link == LinkState::Observed && view.platform_generation.is_some() {
+    if current_status(view) {
         ExitCode::SUCCESS
     } else {
         ExitCode::from(3)
@@ -228,7 +257,11 @@ fn run() -> io::Result<ExitCode> {
     let mut session = DisplaySession::default();
     let _ = session.refresh(&mut OfflineReader, std::time::Instant::now());
     if args.iter().any(|arg| arg == "--help" || arg == "-h") {
-        println!("aegis-tui [--plain | --help | --status | --status-json | --library-status | --library-json]");
+        const HELP: &str = concat!(
+            "aegis-tui [--plain | --help | --status | --status-json",
+            " | --library-status | --library-json]"
+        );
+        println!("{HELP}");
         println!("This read-only shell does not perform management operations.");
         return Ok(ExitCode::SUCCESS);
     }
@@ -440,6 +473,12 @@ mod tests {
         view.link = LinkState::Observed;
         assert_eq!(status_exit(&view), std::process::ExitCode::from(3));
         view.platform_generation = Some(8);
+        view.safe = SafeState::StopActive;
+        assert_eq!(status_exit(&view), std::process::ExitCode::from(3));
+        let denied = status_json(&view);
+        assert_eq!(denied["status"], "STOP_ACTIVE");
+        assert_eq!(denied["source"], "UNVERIFIED");
+        assert_eq!(denied["platform_generation"], serde_json::Value::Null);
         view.safe = SafeState::Clear;
         assert_eq!(status_exit(&view), std::process::ExitCode::SUCCESS);
         let data = status_json(&view);

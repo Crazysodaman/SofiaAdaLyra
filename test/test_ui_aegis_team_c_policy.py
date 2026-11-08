@@ -171,3 +171,15 @@ def test_c007_menu_never_freezes_a_future_live_status_as_offline():
     assert "view.source_label()" in source
     assert "session.expire_at(std::time::Instant::now())" in source
     assert "menu_reflects_observation_or_denial_instead_of_hardcoded_offline" in source
+
+
+def test_c007_stop_cannot_be_a_successful_platform_status_reply():
+    session = SESSION.read_text(encoding="utf-8")
+    tui = TUI.read_text(encoding="utf-8")
+    assert "DisplayError::UnexpectedSafeState" in session
+    assert "incoming.safe != SafeState::Clear" in session
+    assert "ReadFailure::Stopped" in session
+    assert "current_status(view)" in tui
+    assert 'denied["status"], "STOP_ACTIVE"' in tui
+    assert '"operator_stop": operator_stop' in tui
+    assert '"actions_enabled": false' in tui
