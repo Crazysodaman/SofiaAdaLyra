@@ -314,12 +314,14 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
         )
     else:
         prompts = (
-            "From my owner-reviewed synthetic memory, what is my approved "
-            "calibration marker? Give the exact value and do not guess.",
+            "Write one original sentence for a fictional test log using my "
+            "owner-reviewed synthetic calibration marker. Include its exact "
+            "value and explain why the label matters in the scene.",
             "Switch topics: explain what a circuit breaker does in one sentence.",
-            "Return to my owner-reviewed calibration marker. What is its value?",
-            "After the circuit-breaker detour, repeat my approved memory "
-            "calibration marker exactly.",
+            "Return to the approved synthetic calibration marker from my "
+            "reviewed notes. Write a new sentence including its exact value.",
+            "After the circuit-breaker detour, write a different fictional "
+            "test-log sentence including the exact approved calibration marker.",
         )
     turns = []
     overall_start = monotonic()
