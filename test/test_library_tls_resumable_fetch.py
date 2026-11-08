@@ -1,7 +1,6 @@
 """D028 disposable mTLS resume orchestration, not installed-host certification."""
 from __future__ import annotations
 
-from hashlib import sha256
 import os
 from threading import Thread
 
@@ -85,12 +84,12 @@ def test_revoked_publisher_does_not_fetch_or_write(tmp_path):
     def should_not_open():
         opened.append(True)
         raise AssertionError("must not dial revoked publisher")
-    # Invalid configuration is denied before network access.
-    with pytest.raises(ChunkTransferRejected, match="bounded chunk"):
+    # Current publisher revocation is denied before outbound network access.
+    with pytest.raises(ChunkTransferRejected, match="publisher trust"):
         fetch_resumable_chunks(
             transfer=transfer, receiver=receiver, open_enrolled_tls=should_not_open,
             authorize_peer=lambda *_: True, publisher_current=lambda _: False,
-            chunk_bytes=0,
+            chunk_bytes=1024,
         )
     assert opened == []
 
