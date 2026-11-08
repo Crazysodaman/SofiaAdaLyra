@@ -632,3 +632,74 @@ def test_activation_rejects_forged_pid_even_with_valid_owner_approval(
                    for row in store.history())
     finally:
         runtime.close()
+
+
+def test_installer_signed_plan_is_read_only_and_exact_target(tmp_path, builder):
+    from sofia.platform.ops.platform_installer_preview import (
+        preview_signed_platform_install,
+    )
+    staging, manifest, _ = builder.stage(revision=2)
+    store = PlatformInstallationStore(tmp_path / 'installation.db')
+    destination = tmp_path / 'not-installed'
+    before = store.checkpoint()
+    plan = preview_signed_platform_install(
+        staging_path=staging, destination=destination, store=store,
+        verifier=builder.verifier,
+        expected_target=PlatformReleaseTarget.DEBIAN12_X86_64,
+    )
+    assert plan['schema'] == 'aegis.platform.installer-plan.v1'
+    assert plan['manifest_sha256'] == manifest.digest
+    assert plan['revision'] == 2
+    assert plan['checkpoint_generation'] == 0
+    assert plan['owner_approved'] is False
+    assert plan['os_service_registered'] is False
+    assert plan['executed'] is False
+    assert plan['production_authorized'] is False
+    assert plan['core_required'] is False
+    assert not destination.exists()
+    assert store.checkpoint() == before
+    assert store.history() == []
+
+
+def test_installer_preview_rejects_wrong_os_and_existing_destination(
+        tmp_path, builder):
+    from sofia.platform.ops.platform_installer_preview import (
+        preview_signed_platform_install,
+    )
+    staging, _manifest, _ = builder.stage(revision=2)
+    store = PlatformInstallationStore(tmp_path / 'installation.db')
+    destination = tmp_path / 'installed'
+    with pytest.raises(PlatformInstallationDenied, match='target'):
+        preview_signed_platform_install(
+            staging_path=staging, destination=destination, store=store,
+            verifier=builder.verifier,
+            expected_target=PlatformReleaseTarget.WINDOWS_X86_64,
+        )
+    destination.mkdir()
+    with pytest.raises(FileExistsError, match='occupied'):
+        preview_signed_platform_install(
+            staging_path=staging, destination=destination, store=store,
+            verifier=builder.verifier,
+            expected_target=PlatformReleaseTarget.DEBIAN12_X86_64,
+        )
+
+
+def test_installer_preview_never_bypasses_durable_anti_rollback_floor(
+        tmp_path, builder):
+    from sofia.platform.ops.platform_installer_preview import (
+        preview_signed_platform_install,
+    )
+    stage_one, _manifest_one, _ = builder.stage(revision=1)
+    stage_two, _manifest_two, _ = builder.stage(revision=2)
+    store = PlatformInstallationStore(tmp_path / 'installation.db')
+    install_staged_release(
+        stage_two, tmp_path / 'newer',
+        store=store, verifier=builder.verifier,
+    )
+    with pytest.raises(Exception, match='revision|floor'):
+        preview_signed_platform_install(
+            staging_path=stage_one, destination=tmp_path / 'older',
+            store=store, verifier=builder.verifier,
+            expected_target=PlatformReleaseTarget.DEBIAN12_X86_64,
+        )
+    assert not (tmp_path / 'older').exists()
