@@ -113,14 +113,13 @@ impl ControlCenterView {
         match self.link {
             LinkState::Offline => "UNAVAILABLE",
             LinkState::Connecting => "CONNECTING",
-            LinkState::Unverified => "UNVERIFIED",
             LinkState::Stale => "STALE",
             LinkState::Restarting => "RESTARTING",
             LinkState::AccessDenied => "ACCESS_DENIED",
             LinkState::Revoked => "REVOKED",
             LinkState::UnknownGeneration => "UNKNOWN_GENERATION",
             LinkState::Observed if self.has_observed_generation() => "OBSERVED",
-            LinkState::Observed => "UNVERIFIED",
+            LinkState::Observed | LinkState::Unverified => "UNVERIFIED",
         }
     }
 
@@ -128,11 +127,9 @@ impl ControlCenterView {
     pub fn source_label(&self) -> &'static str {
         match self.link {
             LinkState::Observed if self.has_observed_generation() => "SERVICE_OBSERVED",
-            LinkState::Observed => "UNVERIFIED",
             LinkState::Stale => "STALE_OBSERVATION",
             LinkState::AccessDenied => "DENIED",
             LinkState::Revoked => "REVOKED",
-            LinkState::UnknownGeneration => "UNVERIFIED",
             _ => "UNVERIFIED",
         }
     }
@@ -189,7 +186,7 @@ impl ControlCenterView {
             || self.installation != opened.installation
     }
 
-    /// UI guidance only: even RecheckWithService is *not* permission to execute.
+    /// UI guidance only: even `RecheckWithService` is *not* permission to execute.
     #[must_use]
     pub fn action_hint(&self, action: ProposedAction) -> ActionHint {
         if self.link != LinkState::Observed {
