@@ -1083,6 +1083,8 @@ class CoreWorkerController:
         now = datetime.now(timezone.utc)
         if process is None or not self.generations.is_active(process.endpoint):
             raise CognitiveEngineError("Core worker generation is not active")
+        if OperatorStopStore(self.generations.lease_store.path).current().active:
+            raise CognitiveEngineError("Core worker operator STOP active")
         current_lease = self.generations.lease_store.current(now=now)
         if current_lease is None or (
             current_lease.owner_id != self.lease.owner_id
