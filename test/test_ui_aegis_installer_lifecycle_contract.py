@@ -77,6 +77,9 @@ def test_bash_mutation_fails_closed_without_authority(operation, tmp_path):
 @pytest.mark.parametrize("extra", [
     ["--authorize-all"], ["--operation", "bogus"],
     ["--operation"], ["--json"],
+    ["--check", "--operation", "install"],
+    ["--operation", "install", "--check"],
+    ["--operation", "install", "--operation", "doctor"],
 ])
 def test_bash_unknown_or_underspecified_requests_rejected(extra):
     result = subprocess.run(
@@ -197,3 +200,14 @@ def test_bash_interactive_pty_theme_modes(columns, color_mode):
         if slave >= 0:
             os.close(slave)
         os.close(master)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows PowerShell 5.1 runner only")
+def test_powershell_rejects_ambiguous_check_plus_operation():
+    result = subprocess.run(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-File",
+         str(POWERSHELL), "-Check", "-Operation", "install", "-Json"],
+        capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 2
+    assert "cannot be combined" in result.stderr
