@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from hashlib import sha256
+import os
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -65,6 +66,7 @@ def test_systemd_refuses_foreign_or_inconsistent_origin(tmp_path, defect):
     assert observed.executable_verified is False
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Windows symlink privileges differ")
 def test_systemd_refuses_redirected_unit_even_with_matching_contents(tmp_path):
     actual = tmp_path / "actual.service"
     actual.write_text("matching contents")
