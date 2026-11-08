@@ -78,6 +78,22 @@ impl UntrustedManagementRead {
                 "only reviewed read-only management queries are permitted",
             ));
         }
+        // Python datetime preserves microseconds, so refuse nanosecond
+        // precision rather than silently permitting cross-language rounding.
+        if request
+            .created_at
+            .split_once('.')
+            .is_some_and(|(_, suffix)| suffix.bytes().take_while(u8::is_ascii_digit).count() > 6)
+            || request
+                .deadline
+                .split_once('.')
+                .is_some_and(|(_, suffix)| suffix.bytes().take_while(u8::is_ascii_digit).count() > 6)
+        {
+            return Err(ContractError::new(
+                "invalid_management_read",
+                "request timestamp precision exceeds six fractional digits",
+            ));
+        }
         let created = DateTime::parse_from_rfc3339(&request.created_at)
             .map_err(|_| ContractError::new("invalid_management_read", "invalid creation time"))?;
         let deadline = DateTime::parse_from_rfc3339(&request.deadline)
@@ -512,6 +528,21 @@ mod tests {
         assert!(UntrustedManagementResponse::parse(
             allowed.to_string().as_bytes(), &settings, now,
         ).is_err());
+    }
+
+    #[test]
+    fn reject_request_nanoseconds_before_authorization() {
+        let raw = include_str!("../../../../contracts/platform/management-read-valid-v1.json");
+        let now = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:00Z")
+            .expect("known time");
+        let mut request: Value = serde_json::from_str(raw).expect("fixture");
+        request["created_at"] = json!("2026-11-08T03:59:59.123456789Z");
+        assert!(UntrustedManagementRead::parse(request.to_string().as_bytes(), now).is_err());
+        request["created_at"] = json!("2026-11-08T03:59:59.123456Z");
+        request["deadline"] = json!("2026-11-08T04:00:05.123456789Z");
+        assert!(UntrustedManagementRead::parse(request.to_string().as_bytes(), now).is_err());
+        request["deadline"] = json!("2026-11-08T04:00:05.123456Z");
+        assert!(UntrustedManagementRead::parse(request.to_string().as_bytes(), now).is_ok());
     }
 
 }

@@ -186,3 +186,19 @@ def test_shared_denial_and_escaped_c1_corpus_has_language_parity():
     value["data"] = {"nönascii": "safe"}
     with pytest.raises(ValueError, match="key"):
         parse(value, request=request)
+
+
+def test_request_timestamp_precision_matches_rust_no_nano_rounding():
+    doc = json.loads((ROOT / "management-read-valid-v1.json").read_text())
+    for field, time in (
+        ("created_at", "2026-11-08T03:59:59.123456789Z"),
+        ("deadline", "2026-11-08T04:00:05.123456789Z"),
+    ):
+        tampered = dict(doc, **{field: time})
+        with pytest.raises(ValueError, match="RFC3339"):
+            UntrustedManagementRead.parse(
+                json.dumps(tampered).encode("utf-8"), now=NOW,
+            )
+    doc["created_at"] = "2026-11-08T03:59:59.123456Z"
+    doc["deadline"] = "2026-11-08T04:00:05.123456Z"
+    assert UntrustedManagementRead.parse(json.dumps(doc).encode("utf-8"), now=NOW)

@@ -15,7 +15,7 @@ from typing import Mapping
 MANAGEMENT_READ_SCHEMA = "aegis.platform.management.read.v1"
 MANAGEMENT_READ_PROTOCOL = "1.0"
 _MAX_BYTES = 64 * 1024
-_RFC3339 = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$")
+_RFC3339 = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$")
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$")
 _READ_OPERATIONS = frozenset({
     "platform.status", "core.list", "module.list", "fleet.list",
