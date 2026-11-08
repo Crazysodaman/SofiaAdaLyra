@@ -418,3 +418,47 @@ def test_publisher_revoked_during_archive_refuses_before_key_lookup(tmp_path):
             publisher_key_lookup=lambda _: calls.append("publisher-key") or pub,
         )
     assert calls == ["publisher", "archive", "publisher"]
+
+
+
+@pytest.mark.parametrize("forged", ["signed", 1, {"authorized": True}])
+def test_forged_index_callback_truthy_result_denies_before_package_io(
+    tmp_path, forged,
+):
+    """A client-written 'approved' value is not a publisher signature."""
+    data, value, root, pub = fixture(tmp_path)
+    calls = []
+    with pytest.raises(ModuleRecipientRejected, match="index"):
+        review(
+            data, value, root / "missing", pub,
+            signed_index_admit=lambda _: calls.append("index") or forged,
+            signed_content_admit=lambda *_: calls.append("archive") or True,
+            publisher_key_lookup=lambda _: calls.append("key") or pub,
+        )
+    assert calls == ["index"]
+
+
+def test_stop_while_local_module_files_verified_denies_candidate(tmp_path):
+    data, value, root, pub = fixture(tmp_path)
+    calls = []
+
+    def scope(*_):
+        calls.append("safe")
+        return calls.count("safe") < 3
+
+    with pytest.raises(ModuleRecipientRejected, match="module verification"):
+        review(data, value, root, pub, current_host_scope_admit=scope)
+    assert calls == ["safe", "safe", "safe"]
+
+
+def test_publisher_revoke_during_file_digest_verification_denies_candidate(tmp_path):
+    data, value, root, pub = fixture(tmp_path)
+    calls = []
+
+    def trust(*_):
+        calls.append("publisher")
+        return calls.count("publisher") < 4
+
+    with pytest.raises(ModuleRecipientRejected, match="module verification"):
+        review(data, value, root, pub, publisher_current=trust)
+    assert calls == ["publisher", "publisher", "publisher", "publisher"]
