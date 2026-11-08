@@ -363,13 +363,13 @@ Design: dedicated test environment dashboard for Platform-only clean installs, s
 
 ### AG-D028 | Core-free install, selective component packages and LAN Artifact Library
 
-**Status:** OWNER-REQUESTED DISTRIBUTION DESIGN (2026-11-08), NOT IMPLEMENTED NETWORK HUB OR PRODUCTION CERTIFIED. **Detailed spec:** [AG-D028 Selective Installs and Artifact Library](AG_D028_AEGIS_FEDERATED_ARTIFACT_LIBRARY.md).
+**Status:** OWNER-APPROVED, PLATFORM 1.0 GO-BLOCKING REQUIREMENT (2026-11-08); not implemented or host-certified. **Architecture:** [AG-D028 Selective Installs and Artifact Library](AG_D028_AEGIS_FEDERATED_ARTIFACT_LIBRARY.md). **Release contract / 16 mandatory host scenarios:** [AG-D028 Platform 1.0 Release Specification](AG_D028_PLATFORM_1_0_RELEASE_SPEC.md).
 
 **Five requested capabilities:** install Aegis Platform + neutral SDK/runtime without personal Core/optional module/model downloads; fetch selected Core(s) independently; fetch single module or explicit dependency-aware group; reuse verified packages from authenticated Fleet peers instead of Internet; operate a server-side owner-controlled Artifact Library Hub with reviewed cache, quotas and source precedence.
 
 **Separation:** Central master **artifact bytes/catalog**, not shared writable canonical Core/Platform data. Each Platform independently authenticates, verifies signer+digest/revocation and obtains exact owner approval for installation/activation. A Core may propose downloads or SDK changes through authorized DEV tools, but cannot mint grants, overwrite peer protected state, auto-install, or distribute licensed models/private identities without consent.
 
-**Implementation priority:** Phase A minimal signed Platform-only/offline installer remains existing mandatory AG-D011 / #201 Team B release scope. Later phases: PLAT-02/05/08 signed component catalog and content store, PLAT-07 enrolled peer transfer, Team C UI/TUI, Team E exact-SHA host tests. LAN Hub/P2P distribution must not become an unapproved new Platform 1.0 blocker. Existing `OfflineArtifactCache` provides only local source foundation, **not** current authenticated network transfer.
+**Owner's updated GO decision:** Platform 1.0 **MUST** ship not only minimal signed Platform-only/offline installation (AG-D011) but also selective one/multi-Core and module acquisition, owner-hosted LAN Hub, verified transfer from an enrolled peer, no-Internet/default-local source selection, quota/retention/recovery, large artifact handling and GUI/TUI/CLI management. Team A/B/C/D/E deliver batches D028-00–07. Team E executes LIB-01–LIB-16 with exact SHA and signed disposable Windows/Debian hosts. These **refine existing 38 #201 rows**, not a row 39. `OfflineArtifactCache` is a reusable local foundation, **not** current hub/peer transfer. The former later-phase/non-blocker sentence is superseded.
 
 ## Questions to decide before promoting UX concepts
 
