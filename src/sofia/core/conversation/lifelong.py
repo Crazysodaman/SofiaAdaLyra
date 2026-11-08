@@ -391,7 +391,7 @@ class LifelongThreadStore:
                         principal.principal_id, principal.audience_id,
                         principal.audience_kind.value,
                     )
-                    or "conversation.send" not in client["scopes"].split("\\n")
+                    or "conversation.send" not in client["scopes"].split("\n")
                 ):
                     raise PermissionError("Core Link enrollment is not current at turn admission")
                 stop = db.execute(
