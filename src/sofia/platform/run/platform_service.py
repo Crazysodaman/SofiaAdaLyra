@@ -37,6 +37,36 @@ from sofia.sdk.cognition_json import loads_strict_model_json
 SCHEMA = 'aegis.platform.service-control.v1'
 
 
+def systemd_management_operator_group(
+    runtime: str, parent, *, service_uid: int, service_gid: int,
+) -> int | None:
+    """Interpret *installer-created* runtime mode without changing its ACL.
+
+    Team B's present Debian unit is owner-private 0700. External sharing is
+    gated on a separate 0750 directory and exact dedicated aegis-mgmt group.
+    This policy never chmods, chowns, enrolls or authorizes any caller.
+    """
+    if runtime not in {"/run/aegis", "/run/aegis-platform"}:
+        raise PermissionError("unreviewed systemd runtime directory")
+    if (not stat.S_ISDIR(parent.st_mode)
+            or parent.st_uid != service_uid
+            or parent.st_gid != service_gid):
+        raise PermissionError("systemd runtime directory not governed")
+    mode = stat.S_IMODE(parent.st_mode)
+    if mode == 0o700:
+        return None
+    if runtime == "/run/aegis-platform" and mode == 0o750:
+        import grp
+        try:
+            gid = grp.getgrnam("aegis-mgmt").gr_gid
+        except KeyError as exc:
+            raise PermissionError("dedicated management group missing") from exc
+        if gid != service_gid:
+            raise PermissionError("installed management group differs")
+        return gid
+    raise PermissionError("unexpected systemd runtime directory mode")
+
+
 class PlatformServiceSession:
     """Hold existing local RUN authority plus an OS lifetime lock, never a Core lease."""
 
@@ -111,36 +141,13 @@ class PlatformServiceSession:
                 # Trust only the exact, signed-systemd configured runtime
                 # directory. Never adopt /tmp, HOME, colon lists or a caller's
                 # arbitrary environment path as an external IPC endpoint.
-                if runtime not in {"/run/aegis", "/run/aegis-platform"}:
-                    raise PermissionError("unreviewed systemd runtime directory")
                 home = Path(runtime)
                 assert_no_redirected_components(home, include_leaf=True)
                 parent = home.stat(follow_symlinks=False)
-                if (not stat.S_ISDIR(parent.st_mode)
-                        or parent.st_uid != os.geteuid()
-                        or parent.st_gid != os.getegid()):
-                    raise PermissionError("systemd runtime directory not governed")
-                mode = stat.S_IMODE(parent.st_mode)
-                # Current Team B signed native provisioner reserves
-                # /run/aegis-platform mode 0700; accept it as owner-only.
-                # Never mistake an owner-private installation for an enrolled
-                # external operator. Existing /run/aegis also remains 0700.
-                if mode == 0o700:
-                    group_gid = None
-                elif runtime == "/run/aegis-platform" and mode == 0o750:
-                    # Only a separately signed/provisioned dedicated group
-                    # can make this socket reachable by external operators.
-                    # Current SAFE grant checks are still mandatory per read.
-                    import grp
-                    try:
-                        enrolled_group_gid = grp.getgrnam("aegis-mgmt").gr_gid
-                    except KeyError as exc:
-                        raise PermissionError("dedicated management group missing") from exc
-                    if enrolled_group_gid != os.getegid():
-                        raise PermissionError("installed management group differs")
-                    group_gid = enrolled_group_gid
-                else:
-                    raise PermissionError("unexpected systemd runtime directory mode")
+                group_gid = systemd_management_operator_group(
+                    runtime, parent,
+                    service_uid=os.geteuid(), service_gid=os.getegid(),
+                )
                 # Epoch-fenced path avoids adopting a socket abandoned by a
                 # forced kill; old paths stay non-authoritative and offline.
                 socket_path = home / ("mgmt-" + str(self.lease.epoch) + ".sock")
