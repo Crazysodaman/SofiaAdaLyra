@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import zipfile
@@ -196,6 +197,16 @@ def test_install_records_durable_receipt_and_advances_checkpoint(installed_relea
     assert not list(destination.rglob('sofia.db'))
     verify_installed(destination, store=store, verifier=_builder.verifier)
     assert len(store.history()) == 1
+
+
+def test_installed_release_verifies_after_staging_directory_removed(installed_release):
+    """Installed Platform verification must not require retained staging bytes."""
+    builder, store, destination = installed_release
+    receipt = store.receipt_for_release('disposable-vm-release')
+    shutil.rmtree(Path(receipt['staging_path']))
+    observed = verify_installed(destination, store=store, verifier=builder.verifier)
+    assert observed['release_id'] == 'disposable-vm-release'
+    assert observed['destination'] == str(destination)
 
 
 def test_downgrade_after_reboot_refused_until_attested_rollback(tmp_path, builder):
