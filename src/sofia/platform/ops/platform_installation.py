@@ -25,7 +25,7 @@ GPU is required.
 """
 from __future__ import annotations
 
-from contextlib import closing
+from contextlib import closing, suppress
 from dataclasses import dataclass
 from datetime import datetime
 from hashlib import sha256
@@ -551,6 +551,22 @@ def verify_installed(destination, *, store, verifier, minimum_revision=0):
         raise PlatformInstallationDenied(
             'installation receipt disagrees with durable state; operator repair'
             ' judgment is required before anything else touches this target')
+    if bool(row['activated']):
+        try:
+            activation = _decode_private_json(destination / 'activation-receipt.json')
+        except (OSError, ValueError, UnicodeError) as error:
+            raise PlatformInstallationDenied(
+                'active release lacks valid activation receipt;'
+                ' operator reconciliation required') from error
+        if (activation.get('schema') != ACTIVATION_SCHEMA
+                or activation.get('result') != 'PLATFORM_RELEASE_ACTIVATED'
+                or activation.get('installation_id') != row['receipt_id']
+                or activation.get('release_id') != row['release_id']
+                or activation.get('manifest_sha256') != row['manifest_sha256']
+                or activation.get('service_health_verified') is not True):
+            raise PlatformInstallationDenied(
+                'activation receipt conflicts with installed release;'
+                ' operator reconciliation required')
     verify_staged_release_candidate(row['staging_path'], verifier=verifier,
         minimum_revision=max(1, int(minimum_revision), int(row['revision'])))
     installed_manifest = _verify_release_bytes(
@@ -594,8 +610,8 @@ def activate_installed_release(destination, *, store, state_path, verifier, runt
     now = now or datetime.now().astimezone()
     destination = Path(destination).absolute()
     state_path = Path(state_path).absolute()
-    if not hasattr(runtime, 'start'):
-        raise TypeError('real service runtime launcher required')
+    if not callable(getattr(runtime, 'start', None)) or not callable(getattr(runtime, 'close', None)):
+        raise TypeError('real service runtime launcher with close required')
     receipt = store.receipt_for_destination(destination)
     if receipt is None or receipt['result'] != SUCCEEDED:
         raise PlatformInstallationDenied('only fully installed releases can activate')
@@ -611,6 +627,9 @@ def activate_installed_release(destination, *, store, state_path, verifier, runt
     try:
         health = runtime.start()
     except BaseException as error:
+        with suppress(Exception):
+            with suppress(Exception):
+            runtime.close()
         with closing(sqlite3.connect(store.path)) as db, db:
             db.execute('BEGIN IMMEDIATE')
             db.execute(
@@ -622,7 +641,8 @@ def activate_installed_release(destination, *, store, state_path, verifier, runt
                  receipt['revision'], receipt['manifest_sha256'], now.isoformat()))
             db.commit()
         raise
-    if (health.get('schema') != SERVICE_SCHEMA or health.get('phase') != 'ready'
+    if (not isinstance(health, dict) or health.get('schema') != SERVICE_SCHEMA
+            or health.get('phase') != 'ready'
             or health.get('platform_id') != runtime.expected_platform_id
             or health.get('public_key_sha256') != runtime.expected_public_key_sha256
             or health.get('core_started') is not False):
@@ -638,16 +658,22 @@ def activate_installed_release(destination, *, store, state_path, verifier, runt
                  receipt['manifest_sha256'], now.isoformat()))
             db.commit()
         raise RuntimeError('real service health verification failed')
-    generation = store.record_activated(receipt['receipt_id'], now=now)
-    runtime_handle = runtime
-    _write_new(destination / 'activation-receipt.json', _json(
-        dict(schema=ACTIVATION_SCHEMA, result='PLATFORM_RELEASE_ACTIVATED',
-             approval_id=approval_id, capability=ACTIVATION_CAPABILITY,
-             installation_id=receipt['receipt_id'], release_id=receipt['release_id'],
-             revision=receipt['revision'], manifest_sha256=receipt['manifest_sha256'],
-             activation_generation=generation, service_pid=health.get('pid'),
-             service_generation=health.get('generation'),
-             service_health_verified=True, activated_at=now.isoformat())))
+    try:
+        generation = store.record_activated(receipt['receipt_id'], now=now)
+        _write_new(destination / 'activation-receipt.json', _json(
+            dict(schema=ACTIVATION_SCHEMA, result='PLATFORM_RELEASE_ACTIVATED',
+                 approval_id=approval_id, capability=ACTIVATION_CAPABILITY,
+                 installation_id=receipt['receipt_id'], release_id=receipt['release_id'],
+                 revision=receipt['revision'], manifest_sha256=receipt['manifest_sha256'],
+                 activation_generation=generation, service_pid=health.get('pid'),
+                 service_generation=health.get('generation'),
+                 service_health_verified=True, activated_at=now.isoformat())))
+    except BaseException:
+        # Cross-store commit is not atomic. Close the started service and leave
+        # the incomplete activation explicitly subject to operator recovery.
+        with suppress(Exception):
+            runtime.close()
+        raise
     return dict(generation=generation, health=health)
 
 
