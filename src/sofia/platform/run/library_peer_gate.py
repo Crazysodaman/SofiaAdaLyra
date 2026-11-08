@@ -105,8 +105,6 @@ def admit_owner_enrolled_library_chunk(
         "catalog_revision": catalog_revision,
         "data_class": "public",
         "license_distribution": "permitted",
-        "max_chunk_bytes": length,
-        "max_total_bytes": total_bytes,
     }
 
     def checked() -> bool:
@@ -123,12 +121,21 @@ def admit_owner_enrolled_library_chunk(
         # version; a rotated secret, revoked grant or expired grant disappears.
         # The scope also binds one SOURCE peer and one TARGET Platform.
         for grant in permissions.grants(active_only=False):
-            if (grant.capability == CAPABILITY
-                    and isinstance(grant.scope, dict)
-                    and set(grant.scope) == _SCOPE
-                    and grant.matches(expected, now=moment)):
-                # A smaller chunk is permitted only if scope exactly matches;
-                # no broad wildcard or silent scope expansion is authorized.
+            scope = grant.scope
+            if (grant.capability != CAPABILITY
+                    or not isinstance(scope, dict)
+                    or set(scope) != _SCOPE):
+                continue
+            chunk_cap = scope.get("max_chunk_bytes")
+            total_cap = scope.get("max_total_bytes")
+            if (type(chunk_cap) is not int or not 1 <= chunk_cap <= _MAX_CHUNK
+                    or type(total_cap) is not int
+                    or not 1 <= total_cap <= _MAX_INTEGER
+                    or length > chunk_cap or total_bytes > total_cap):
+                continue
+            exact = {**expected, "max_chunk_bytes": chunk_cap,
+                     "max_total_bytes": total_cap}
+            if grant.matches(exact, now=moment):
                 return True
         return False
 
