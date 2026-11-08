@@ -170,6 +170,9 @@ class DebianSystemdNativeService:
     def _require_root() -> None:
         if os.name != "posix" or not hasattr(os, "geteuid") or os.geteuid() != 0:
             raise PermissionError("native systemd mutation requires reviewed root service executor")
+        from sofia.platform.ops.platform_installer_bundle import host_release_target
+        if host_release_target() is not PlatformReleaseTarget.DEBIAN12_X86_64:
+            raise PlatformInstallationDenied("native Linux installer requires exact Debian12 x86_64")
 
     def _unit(self, spec: NativeServiceSpecification) -> bytes:
         _check_spec(spec, PlatformReleaseTarget.DEBIAN12_X86_64)
