@@ -166,3 +166,36 @@ def test_diagnostic_preserves_supervisor_starting_and_failed_states():
         service_state="failed", attempts=1, retry_delay_seconds=0
     )
     assert failed.state is OllamaConnectionState.FAILED
+
+def test_generic_ollama_client_uses_explicit_bounded_io_timeout(monkeypatch):
+    from sofia.platform.core_worker.ollama_transport import (
+        GenericOllamaProvider, OLLAMA_IO_TIMEOUT_SECONDS,
+    )
+
+    observed = []
+
+    class CapturingClient:
+        def __init__(self, *, host, timeout):
+            observed.append((host, timeout))
+
+    monkeypatch.setattr("ollama.Client", CapturingClient)
+    provider = GenericOllamaProvider(
+        ProviderConfiguration(provider="ollama", model="disposable:exact"),
+        endpoint="http://127.0.0.1:11434",
+    )
+    assert provider.endpoint == "http://127.0.0.1:11434"
+    assert observed == [
+        ("http://127.0.0.1:11434", OLLAMA_IO_TIMEOUT_SECONDS)
+    ]
+    assert OLLAMA_IO_TIMEOUT_SECONDS == 45.0
+
+
+def test_default_core_worker_deadline_leaves_nominal_ollama_retry_headroom():
+    from sofia.platform.core_worker.ollama_transport import OLLAMA_IO_TIMEOUT_SECONDS
+    from sofia.platform.config.model import CoreWorkerConfiguration
+
+    worker = CoreWorkerConfiguration()
+    assert 2 * OLLAMA_IO_TIMEOUT_SECONDS < worker.response_timeout_seconds
+    # A per-I/O httpx timeout is NOT a whole-turn wall-clock guarantee;
+    # worker generation/lease fencing remains authoritative.
+
