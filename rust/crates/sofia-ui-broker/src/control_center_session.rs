@@ -101,6 +101,10 @@ impl DisplaySession {
 
     /// Caller must use ONLY a Team A approved authenticated reader. This
     /// projection cannot authenticate responses or authorize operations.
+    ///
+    /// # Errors
+    /// Rejects invalid identity, generation, sequence, revisions or receipt
+    /// presentation; no error can create an approval or perform a write.
     pub fn refresh(
         &mut self,
         source: &mut impl DisplayReadSource,
@@ -168,7 +172,9 @@ impl DisplaySession {
             self.fail(ReadFailure::Stale);
             return Err(DisplayError::SettingsRegressed);
         }
-        if incoming.removal_receipt_verified && incoming.installation != InstallationState::Removed {
+        if incoming.removal_receipt_verified
+            && incoming.installation != InstallationState::Removed
+        {
             self.fail(ReadFailure::Unverified);
             return Err(DisplayError::InvalidReceipt);
         }
