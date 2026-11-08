@@ -448,14 +448,23 @@ def _publish_verified_tree(candidate, destination, *, verifier, operation, now,
         digest, data = read_artifact_file(source, size, include_data=True)
         if digest != reference.sha256:
             raise PlatformReleaseRejected('staged source changed before installation')
-        _write_new(assets.joinpath(*reference.path.split('/')), data)
+        target_asset = assets.joinpath(*reference.path.split('/'))
+        _write_new(target_asset, data)
+        if asset.kind == 'service' and os.name != 'nt':
+            # Native systemd ExecStart must be executable. This only changes
+            # POSIX owner mode (0600 -> 0700), never the signed ELF bytes.
+            # Parent directories remain private and are never world-readable.
+            assert_no_redirected_components(target_asset, include_leaf=True)
+            os.chmod(target_asset, 0o700, follow_symlinks=False)
+            assert_owner_private_path(target_asset, directory=False)
     signature_document = _decode_private_json(
         candidate.staging_path / 'release-signature.json')
     verifier.verify(manifest.to_payload(), assets_root=assets,
         signature_b64=signature_document.get('signature_b64'),
         signer_key_id=candidate.signer_key_id,
         expected_source_sha=candidate.source_sha, expected_target=manifest.target,
-        minimum_revision=candidate.revision)
+        minimum_revision=candidate.revision,
+        expected_parent_manifest_sha256=manifest.parent_manifest_sha256)
     runtime = next(asset.reference for asset in manifest.assets
                    if asset.kind == 'python-runtime')
     materialize_python_runtime(assets.joinpath(*runtime.path.split('/')),
