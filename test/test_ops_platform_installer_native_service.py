@@ -379,3 +379,55 @@ def test_systemd_rejects_runtime_parent_without_owner_traverse(
     with pytest.raises(PlatformInstallationDenied, match="owner-traversable"):
         driver.register(native_spec)
     assert not driver.unit_path.exists()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX kernel UID/GID/file-mode assumptions")
+@pytest.mark.parametrize("failure", ("wrong-uid", "not-writable"))
+def test_systemd_refuses_nonwritable_or_foreign_sqlite_parent(
+        native_spec, tmp_path, monkeypatch, failure):
+    """Never write a systemd unit when the B1 WAL directory cannot be used."""
+    import grp
+    import pwd
+    import stat
+    from types import SimpleNamespace
+    import sofia.platform.ops.platform_installer_native_service as mod
+
+    service = DebianSystemdNativeService(
+        unit_path=tmp_path / "aegis-platform.service",
+    )
+    monkeypatch.setattr(service, "_require_root", lambda: None)
+    monkeypatch.setattr(mod, "_check_spec", lambda *args: None)
+    monkeypatch.setattr(
+        pwd, "getpwnam", lambda name: SimpleNamespace(
+            pw_uid=40411, pw_gid=40412, pw_shell="/usr/sbin/nologin",
+        ),
+    )
+    monkeypatch.setattr(
+        grp, "getgrnam", lambda name: SimpleNamespace(gr_gid=40412),
+    )
+    release_root = native_spec.executable.parent.parent
+    state_directory = native_spec.local_state.parent
+    original_stat = Path.stat
+
+    def synthetic_stat(path, *, follow_symlinks=True):
+        actual = original_stat(path, follow_symlinks=follow_symlinks)
+        if (path == release_root or release_root in path.parents
+                or path == native_spec.identity_home
+                or path == native_spec.local_state
+                or path == state_directory):
+            file = path in (
+                native_spec.executable, native_spec.python_executable,
+                native_spec.local_state,
+            )
+            owner_uid = 0 if path == state_directory and failure == "wrong-uid" else 40411
+            mode = (stat.S_IFREG if file else stat.S_IFDIR) | 0o700
+            if path == state_directory and failure == "not-writable":
+                mode = stat.S_IFDIR | 0o500
+            return SimpleNamespace(st_uid=owner_uid, st_mode=mode)
+        return actual
+
+    monkeypatch.setattr(Path, "stat", synthetic_stat)
+    expected = "wrong service UID" if failure == "wrong-uid" else "owner-writable"
+    with pytest.raises(PlatformInstallationDenied, match=expected):
+        service.register(native_spec)
+    assert not service.unit_path.exists()
