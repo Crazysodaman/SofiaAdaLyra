@@ -33,6 +33,12 @@ from sofia.platform.config.inference_endpoint import (
 
 # Provider-supplied JSON is not an authority grant. Bound resource use at the
 # adapter before its tool candidates reach the governed dispatcher.
+# This is the HTTP client's per-I/O timeout, not an overall turn deadline.
+# With one permitted personal quality retry, nominal 2 x 45s is below the
+# default 120s Core worker response deadline; Team 1 owns final lease fencing.
+# Custom shorter worker deadlines still require explicit compatibility QA.
+OLLAMA_IO_TIMEOUT_SECONDS = 45.0
+
 _MAX_TOOL_CALLS = 16
 _MAX_TOOL_ARGUMENT_BYTES = 64 * 1024
 _MAX_TOOL_ARGUMENT_NODES = 4096
@@ -106,7 +112,7 @@ class GenericOllamaProvider(LLMProvider):
     def _new_client(endpoint: str):
         from ollama import Client
 
-        return Client(host=endpoint)
+        return Client(host=endpoint, timeout=OLLAMA_IO_TIMEOUT_SECONDS)
 
     def respond(self, request: CognitiveRequest) -> CognitiveResponse:
         return self._respond_once(request)
@@ -258,6 +264,12 @@ class GenericOllamaProvider(LLMProvider):
         if len(raw_tool_calls) > _MAX_TOOL_CALLS:
             raise LLMProviderError("Ollama returned too many tool calls.")
         tool_calls = tuple(cls._tool_call_from_ollama(call) for call in raw_tool_calls)
+        # A response with neither usable text nor a tool proposal is not a
+        # generated assistant turn. In particular, a blank or thinking-only
+        # completion must not enter personal quality repair, which could turn
+        # a failed provider call into a canned-looking conversation.
+        if not content.strip() and not tool_calls:
+            raise LLMProviderError("Ollama returned an empty cognitive response.")
         return CognitiveResponse(content=content, tool_calls=tool_calls)
 
     @staticmethod

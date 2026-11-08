@@ -1,0 +1,52 @@
+name: CORE-005 IG-001 disposable Python preflight
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  focused-negative-contracts:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      SOFIA_CORE002_LIVE: "0"
+      SOFIA_CORE004_REAL_INFERENCE: "0"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Pin checkout SHA and ensure no synthetic inference is misreported
+        shell: bash
+        run: |
+          git rev-parse HEAD
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+      - name: Install isolated dependencies
+        run: python -m pip install -e . pytest
+      - run: python -m pip check
+      - name: Run integrated focus suites on disposable state only
+        run: >
+          python -m pytest -q -m "not integration"
+          test/test_run_release_process.py
+          test/test_run_runtime_child.py
+          test/test_run_supervisor.py
+          test/test_core_worker_process.py
+          test/test_ollama_malformed_response_boundary.py
+          test/test_ollama_endpoint_and_diagnostics.py
+          test/test_ollama_provider.py
+          test/test_core_team3_disposable_continuity.py
+          test/test_core004_wire_security.py
+          test/test_core004_admission_fence.py
+          test/test_core_link_conversation.py
+          test/test_core_link_binding.py
+          test/test_core_link_desktop.py
+          test/test_distributed_revocation_races.py

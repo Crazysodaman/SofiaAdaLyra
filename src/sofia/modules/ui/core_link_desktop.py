@@ -495,7 +495,7 @@ def run_core_link_desktop() -> int:
     history.pack(fill="both", expand=True, padx=10, pady=10)
     entry = ttk.Entry(root)
     entry.pack(fill="x", padx=10, pady=(0, 8))
-    status = ttk.Label(root, text="Connecting…")
+    status = ttk.Label(root, text="CONNECTING · no authenticated Core status yet")
     status.pack(fill="x", padx=10, pady=(0, 8))
     events: Queue[tuple[str, object]] = Queue()
     busy = {"value": False}
@@ -530,6 +530,10 @@ def run_core_link_desktop() -> int:
     button = ttk.Button(controls, text="Send", command=send)
     button.pack(side="left", padx=4)
     ttk.Button(
+        controls, text="Reconnect",
+        command=lambda: task("RECONNECTING", client.start),
+    ).pack(side="left", padx=4)
+    ttk.Button(
         controls, text="Settings",
         command=lambda: subprocess.Popen(
             [sys.executable, "-m", "sofia.platform.launcher", "settings"],
@@ -554,9 +558,11 @@ def run_core_link_desktop() -> int:
                     render(value)
                     entry.delete(0, "end")
                     entry.insert(0, client.draft)
-                    status.configure(text="Connected")
+                    # The v1 server status proves Core Link reachability, not
+                    # live provider inference. Never equate TLS with cognition.
+                    status.configure(text="DEGRADED · authenticated Core Link; inference unverified")
                 else:
-                    status.configure(text=f"Disconnected: {type(value).__name__}: {value}")
+                    status.configure(text=f"OFFLINE · {type(value).__name__}: {value}")
         except Empty:
             pass
         try:
