@@ -68,6 +68,7 @@ def run_child(
                         "ready_at": datetime.now(timezone.utc).isoformat(),
                         "state_path": str(state_path.resolve()),
                         "start_token": start_token,
+                        "phase": "PROCESS_READY",
                         "generation_epoch": expected_generation_epoch,
                     },
                     sort_keys=True,
