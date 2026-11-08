@@ -8,6 +8,12 @@ import subprocess
 import sys
 import time
 import traceback
+import errno
+import os
+import pwd
+import socket
+import stat
+from datetime import datetime, timedelta, timezone
 
 # Never power off or manage services outside the explicitly marked lab guest.
 if sys.platform!='linux' or 'aegis.disposable_vm=1' not in Path('/proc/cmdline').read_text().split():
@@ -17,6 +23,67 @@ if INPUTS.get('production_authorized') is not False or INPUTS.get('release_accep
     raise SystemExit('disposable-only VM input scope required')
 SOURCE=INPUTS['source_sha']
 UNIT='aegis-platform.service'
+
+# Executed only inside this explicitly kernel-marked disposable Debian guest.
+# A's canonical management listener, current SAFE authority and installer
+# remain untouched. Root has NO enrolled owner grant in this isolated fixture.
+def _native_management_socket(ready_row):
+    assert ready_row.get('management_listening') is True
+    assert type(ready_row.get('generation')) is int
+    runtime=Path('/run/aegis')
+    service=pwd.getpwnam('aegis')
+    parent=os.lstat(runtime)
+    assert stat.S_ISDIR(parent.st_mode)
+    assert parent.st_uid==service.pw_uid and parent.st_gid==service.pw_gid
+    assert stat.S_IMODE(parent.st_mode)==0o700
+    path=runtime/('mgmt-'+str(ready_row['generation'])+'.sock')
+    inode=os.lstat(path)
+    assert stat.S_ISSOCK(inode.st_mode) and inode.st_uid==service.pw_uid
+    assert inode.st_gid==service.pw_gid
+    assert stat.S_IMODE(inode.st_mode)==0o600
+    return path
+
+def _assert_unknown_operator_eof(ready_row):
+    path=_native_management_socket(ready_row)
+    # The test-only root observer is NOT the enrolled Platform operator.
+    # Even knowing the correct identity/epoch never grants the response.
+    assert os.geteuid()==0
+    now=datetime.now(timezone.utc)
+    req={
+        'schema':'aegis.platform.management.read.v1',
+        'protocol':'1.0',
+        'request_id':'req:debian-disposable-unknown-peer',
+        'target_platform_id':ready_row['platform_id'],
+        'expected_generation':ready_row['generation'],
+        'operation':'platform.status',
+        'created_at':(now-timedelta(seconds=1)).isoformat(),
+        'deadline':(now+timedelta(seconds=5)).isoformat(),
+    }
+    payload=json.dumps(req,separators=(',',':')).encode()+b'\n'
+    with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as peer:
+        peer.settimeout(3)
+        peer.connect(str(path))
+        peer.sendall(payload)
+        assert peer.recv(512)==b'', 'unenrolled kernel peer received management data'
+    return path
+
+def _assert_stale_management_socket_closed(path):
+    # A crash may leave a filesystem socket inode, not a live authority.
+    # Never remove it: only the service that owns its inode may unlink it.
+    try:
+        inode=os.lstat(path)
+    except FileNotFoundError:
+        return
+    assert stat.S_ISSOCK(inode.st_mode)
+    with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as old:
+        old.settimeout(2)
+        try:
+            old.connect(str(path))
+        except OSError as error:
+            assert error.errno in {errno.ENOENT,errno.ECONNREFUSED,errno.ECONNRESET}
+        else:
+            raise AssertionError('stale management generation is still listening')
+
 
 def command(*args):
     value=subprocess.run(args,check=True,capture_output=True,text=True,timeout=40)
@@ -118,6 +185,7 @@ try:
     public=json.loads(Path('/opt/aegis/identity-reference.json').read_text())
     assert Path(sys.base_prefix)==Path('/opt/aegis/staged-release/runtime/python')
     first=ready()
+    first_socket=_assert_unknown_operator_eof(first)
     assert Path('/proc',str(first['worker_pid']),'exe').resolve()==Path('/opt/aegis/staged-release/runtime/python/bin/python3.12')
     duplicate=subprocess.run(['runuser','-u','aegis','--','/opt/aegis/bin/aegis-platform-service',
         '--python','/opt/aegis/venv/bin/python','--identity-home','/var/lib/aegis/identity',
@@ -126,11 +194,19 @@ try:
     assert duplicate.returncode==2 and not duplicate.stdout
     assert ready()['supervisor_pid']==first['supervisor_pid']
     stop(first)
+    _assert_stale_management_socket_closed(first_socket)
     command('systemctl','start',UNIT)
     second=ready(first['supervisor_pid'])
+    second_socket=_assert_unknown_operator_eof(second)
+    assert second_socket != first_socket
+    _assert_stale_management_socket_closed(first_socket)
     command('systemctl','kill','--kill-whom=main','--signal=SIGKILL',UNIT)
     third=ready(second['supervisor_pid'])
+    third_socket=_assert_unknown_operator_eof(third)
+    assert third_socket not in (first_socket,second_socket)
+    _assert_stale_management_socket_closed(second_socket)
     stop(third)
+    _assert_stale_management_socket_closed(third_socket)
     assert first['generation']<second['generation']<third['generation']
     assert all(row['platform_id']==public['identity']['uuid'] for row in (first,second,third))
     restored=json.loads(command('runuser','-u','aegis','--','/usr/bin/env','LD_LIBRARY_PATH=/opt/aegis/staged-release/runtime/python/lib','/opt/aegis/venv/bin/python','-B','-I','-c',
