@@ -251,3 +251,28 @@ def test_group_runtime_denies_incorrect_permissions_or_foreign_gid(tmp_path):
             path / "bad-type.sock", dispatch=lambda *_a, **_k: {},
             operator_group_gid=True,
         )
+
+
+@pytest.mark.skipif(not LINUX, reason="Linux native runtime denial only")
+def test_run_lease_or_safe_unavailable_returns_eof_without_killing_listener(private):
+    """Unavailable canonical RUN/SAFE state is not a peer-visible traceback."""
+    state = {"lease_available": False}
+    calls = []
+
+    def dispatch(raw, *, authenticated_peer, now):
+        calls.append((raw, authenticated_peer))
+        if not state["lease_available"]:
+            raise RuntimeError("canonical Platform RUN lease unavailable")
+        return {"status": "alive"}
+
+    with ManagementUnixListener(private / "run-loss.sock", dispatch=dispatch) as listener:
+        result, outcomes = round_trip(listener, b'{"operation":"platform.status"}\n')
+        assert result == b"" and outcomes == [False]
+        assert len(calls) == 1
+        assert os.path.exists(listener.path)
+        # The one canonical service may recover the lease before the next
+        # request; no second listener, writer, or owner grant is created.
+        state["lease_available"] = True
+        result, outcomes = round_trip(listener, b'{"operation":"platform.status"}\n')
+        assert b'"alive"' in result and outcomes == [True]
+        assert len(calls) == 2
