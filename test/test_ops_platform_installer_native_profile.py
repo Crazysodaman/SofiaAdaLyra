@@ -7,10 +7,13 @@ remain separate required integration acceptance.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-import grp
 import os
 from pathlib import Path
-import pwd
+
+# Linux-only NSS interfaces must never break Windows test collection.
+if os.name == "posix":
+    import grp
+    import pwd
 import socket
 from types import SimpleNamespace
 

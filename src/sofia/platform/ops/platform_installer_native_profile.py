@@ -8,10 +8,13 @@ No shell/GUI/TUI can turn this preview into an authorization capability.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-import grp
 import os
 from pathlib import Path
-import pwd
+
+# Linux-only NSS interfaces must never break Windows test collection.
+if os.name == "posix":
+    import grp
+    import pwd
 import stat
 
 from sofia.platform.ops.platform_installation import (
