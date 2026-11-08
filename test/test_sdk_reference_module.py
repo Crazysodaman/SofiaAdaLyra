@@ -20,7 +20,7 @@ from examples.sdk_reference_module.reference import (
 )
 from sofia.platform.capability import CapabilitySystem
 from sofia.platform.capability.model import (
-    CapabilityRequest, CapabilityResultKind,
+    CapabilityDispatchContext, CapabilityRequest, CapabilityResultKind,
 )
 from sofia.platform.config.settings_authority import SettingsApplyState
 from sofia.platform.modules import (
@@ -272,3 +272,71 @@ def test_protocol_negotiation_and_rust_python_sdk_version_parity():
             supported,
             ProtocolVersionRange(ProtocolVersion(2, 0), ProtocolVersion(2, 1)),
         )
+
+
+def test_developer_playground_demonstrates_authorized_use_and_unplug():
+    """A runnable tutorial is intentionally less privileged than Platform."""
+    from examples.sdk_reference_module.try_it import run_demo
+
+    receipt = run_demo()
+    assert receipt["approved_request"] == "success"
+    assert receipt["unauthorized_request"] == "unauthorized"
+    assert receipt["after_unplug"] == "unavailable"
+    assert receipt["effect"] == "none"
+    assert receipt["production_authorization"] is False
+    assert receipt["response"]["nonce"] == "my-first-module"
+
+
+def test_two_synthetic_core_principals_have_independent_module_permissions():
+    """Two clients share the module; permission to use it never transfers.
+
+    The two principals here are synthetic request projections, NOT actual
+    independent Core processes or authenticated IPC channel proofs.
+    """
+    registrations = ReferenceModule().capability_registrations()
+    capability, _ = registrations[0]
+    grants = {
+        "core:sofia": {"audience:owner"},
+        "core:lab": set(),
+    }
+
+    def authorizer(request):
+        context = request.dispatch_context
+        return (
+            context is not None
+            and context.audience in grants.get(context.principal_id, set())
+        )
+
+    system = CapabilitySystem(authorization_checker=authorizer)
+    system.register_batch(registrations)
+
+    def request(core, audience):
+        return CapabilityRequest(
+            capability=capability,
+            parameters={"nonce": "multi-core-test"},
+            requested_scope=None,
+            rationale="synthetic Core permission test",
+            dispatch_context=CapabilityDispatchContext(
+                dispatch_id=f"dispatch:{core}",
+                goal_id="goal:module-reference",
+                capability=CAPABILITY_ID,
+                principal_id=core,
+                audience=audience,
+            ),
+        )
+
+    sofia = request("core:sofia", "audience:owner")
+    lab = request("core:lab", "audience:lab")
+    lab_wrong_audience = request("core:lab", "audience:owner")
+
+    assert system.execute(sofia).kind is CapabilityResultKind.SUCCESS
+    assert system.execute(lab).kind is CapabilityResultKind.UNAUTHORIZED
+    grants["core:lab"].add("audience:lab")
+    assert system.execute(lab).kind is CapabilityResultKind.SUCCESS
+    assert system.execute(lab_wrong_audience).kind is CapabilityResultKind.UNAUTHORIZED
+    grants["core:sofia"].clear()
+    assert system.execute(sofia).kind is CapabilityResultKind.UNAUTHORIZED
+    assert system.execute(lab).kind is CapabilityResultKind.SUCCESS
+    system.unregister_batch(registrations)
+    assert system.execute(sofia).kind is CapabilityResultKind.UNAVAILABLE
+    assert system.execute(lab).kind is CapabilityResultKind.UNAVAILABLE
