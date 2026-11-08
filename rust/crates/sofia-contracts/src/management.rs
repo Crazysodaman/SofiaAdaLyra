@@ -6,7 +6,9 @@
 
 use crate::{parse_strict, ContractError};
 use chrono::{DateTime, Duration, FixedOffset};
+use regex::Regex;
 use serde::Deserialize;
+use std::sync::OnceLock;
 
 pub const MANAGEMENT_READ_SCHEMA: &str = "aegis.platform.management.read.v1";
 pub const MANAGEMENT_READ_PROTOCOL: &str = "1.0";
@@ -33,6 +35,27 @@ fn valid_id(value: &str) -> bool {
         && bytes.iter().all(|b| {
             b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-' | b':' | b'@' | b'/')
         })
+}
+
+fn management_time(value: &str) -> Result<DateTime<FixedOffset>, ContractError> {
+    // Same exact grammar as Python _RFC3339, including case, offset and
+    // 0..6 fractional digits. chrono alone accepts more timestamp variants.
+    static FORMAT: OnceLock<Regex> = OnceLock::new();
+    let format = FORMAT.get_or_init(|| {
+        Regex::new(
+            r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$",
+        )
+        .expect("management RFC3339 format")
+    });
+    if !format.is_match(value) {
+        return Err(ContractError::new(
+            "invalid_management_timestamp",
+            "timestamp must use canonical RFC3339 with <= 6 digits",
+        ));
+    }
+    DateTime::parse_from_rfc3339(value).map_err(|_| {
+        ContractError::new("invalid_management_timestamp", "invalid timestamp")
+    })
 }
 
 impl UntrustedManagementRead {
@@ -95,10 +118,8 @@ impl UntrustedManagementRead {
                 "request timestamp precision exceeds six fractional digits",
             ));
         }
-        let created = DateTime::parse_from_rfc3339(&request.created_at)
-            .map_err(|_| ContractError::new("invalid_management_read", "invalid creation time"))?;
-        let deadline = DateTime::parse_from_rfc3339(&request.deadline)
-            .map_err(|_| ContractError::new("invalid_management_read", "invalid deadline"))?;
+        let created = management_time(&request.created_at)?;
+        let deadline = management_time(&request.deadline)?;
         if created > now
             || created < now - Duration::seconds(60)
             || deadline <= now
@@ -294,18 +315,9 @@ impl UntrustedManagementResponse {
                 "observation precision exceeds six fractional digits",
             ));
         }
-        let observed = DateTime::parse_from_rfc3339(&reply.observed_at).map_err(|_| {
-            ContractError::new("invalid_management_response", "invalid observation time")
-        })?;
-        let created = DateTime::parse_from_rfc3339(&expected.created_at).map_err(|_| {
-            ContractError::new(
-                "invalid_management_response",
-                "invalid request creation time",
-            )
-        })?;
-        let deadline = DateTime::parse_from_rfc3339(&expected.deadline).map_err(|_| {
-            ContractError::new("invalid_management_response", "invalid request deadline")
-        })?;
+        let observed = management_time(&reply.observed_at)?;
+        let created = management_time(&expected.created_at)?;
+        let deadline = management_time(&expected.deadline)?;
         if observed < created
             || observed > now
             || observed >= deadline
@@ -538,6 +550,26 @@ mod tests {
         assert!(
             UntrustedManagementResponse::parse(response_json.as_bytes(), &request, late).is_err()
         );
+    }
+
+    #[test]
+    fn timestamp_grammar_matches_python_six_digit_and_uppercase_contract() {
+        use super::management_time;
+        for allowed in [
+            "2026-11-08T04:00:00Z",
+            "2026-11-08T04:00:00.123456Z",
+            "2026-11-08T04:00:00+00:00",
+        ] {
+            assert!(management_time(allowed).is_ok(), "{allowed}");
+        }
+        for denied in [
+            "2026-11-08t04:00:00z",
+            "2026-11-08T04:00:00.1234567Z",
+            "2026-11-08T04:00:00",
+            "2026-11-08T04:00:00+0000",
+        ] {
+            assert!(management_time(denied).is_err(), "{denied}");
+        }
     }
 
     #[test]
