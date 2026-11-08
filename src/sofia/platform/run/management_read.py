@@ -46,11 +46,15 @@ class ManagementReadDispatcher:
         authorize: Callable[[str, str], frozenset[SettingsOwner] | None],
         read_settings: Callable[[frozenset[SettingsOwner]], Mapping[str, Any]],
         clock: Callable[[], datetime] | None = None,
+        enrolled_denial_responses: bool = False,
     ) -> None:
+        if type(enrolled_denial_responses) is not bool:
+            raise TypeError("explicit enrolled-denial policy must be bool")
         self._status = current_status
         self._authorize = authorize
         self._settings = read_settings
         self._clock = clock if clock is not None else lambda: datetime.now(timezone.utc)
+        self._enrolled_denials = enrolled_denial_responses
 
     def _check(
         self, request: UntrustedManagementRead, authenticated_peer: str
@@ -82,6 +86,35 @@ class ManagementReadDispatcher:
         self, raw: bytes, *, authenticated_peer: str, now: datetime
     ) -> dict[str, object]:
         request = UntrustedManagementRead.parse(raw, now=now)
+        if self._enrolled_denials:
+            # Typed STOP/STALE is visible ONLY after kernel/pipe peer identity
+            # and fresh exact owner enrollment are independently established.
+            # A revoked/unknown principal still receives EOF, never a hint.
+            if (not isinstance(authenticated_peer, str)
+                    or _ID.fullmatch(authenticated_peer) is None):
+                raise ManagementReadDenied("invalid authenticated peer")
+            enrolled = self._authorize(authenticated_peer, request.operation)
+            if not isinstance(enrolled, frozenset):
+                raise ManagementReadDenied("no current owner enrollment")
+            status = self._status()
+            if not isinstance(status, Mapping) or status.get("platform_id") != request.target_platform_id:
+                raise ManagementReadDenied("Platform identity unavailable")
+            reason = None
+            if status.get("operator_stop") is True:
+                reason = "STOPPED"
+            elif (type(status.get("generation")) is int
+                    and status["generation"] != request.expected_generation):
+                reason = "STALE_GENERATION"
+            if reason is not None:
+                if (self._authorize(authenticated_peer, request.operation) != enrolled
+                        or self._status() != status):
+                    raise ManagementReadDenied("management denial authority changed")
+                observed = self._clock()
+                if (not isinstance(observed, datetime)
+                        or observed.utcoffset() is None
+                        or observed >= datetime.fromisoformat(request.deadline.replace("Z", "+00:00"))):
+                    raise ManagementReadDenied("management denial expired")
+                return make_response(request, observed_at=observed, denial_code=reason)
         scopes = self._check(request, authenticated_peer)
         if request.operation not in {"platform.status", "settings.inspect"}:
             if self._check(request, authenticated_peer) != scopes:
