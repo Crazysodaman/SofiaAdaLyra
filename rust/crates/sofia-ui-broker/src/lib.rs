@@ -3,9 +3,9 @@
 
 use std::collections::BTreeMap;
 
+pub mod control_center;
 pub mod journal;
 pub mod platform_status;
-pub mod control_center;
 
 pub const DAILY_AUTONOMOUS_LIMIT: usize = 5;
 const MAX_APPEARANCE_ID_BYTES: usize = 256;

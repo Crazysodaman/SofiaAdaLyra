@@ -100,7 +100,9 @@ impl ControlCenterView {
 
     fn has_observed_generation(&self) -> bool {
         self.link == LinkState::Observed
-            && self.platform_generation.is_some_and(|generation| generation > 0)
+            && self
+                .platform_generation
+                .is_some_and(|generation| generation > 0)
     }
 
     /// Observed status never follows simply from launching a UI process.
@@ -217,7 +219,9 @@ impl ControlCenterView {
             ProposedAction::InstallModule if self.installation != InstallationState::Absent => {
                 ActionHint::Blocked("INSTALL_TARGET_NOT_VERIFIED_ABSENT")
             }
-            ProposedAction::UninstallModule if self.installation != InstallationState::Installed => {
+            ProposedAction::UninstallModule
+                if self.installation != InstallationState::Installed =>
+            {
                 ActionHint::Blocked("UNINSTALL_TARGET_NOT_VERIFIED_INSTALLED")
             }
             ProposedAction::ReinstallModule
@@ -281,8 +285,10 @@ mod tests {
         ] {
             view.link = link;
             assert_eq!(view.installation_label(), "NOT_CURRENTLY_VERIFIED");
-            assert_eq!(view.action_hint(ProposedAction::UninstallModule),
-                       ActionHint::Blocked(expected));
+            assert_eq!(
+                view.action_hint(ProposedAction::UninstallModule),
+                ActionHint::Blocked(expected)
+            );
         }
     }
 
