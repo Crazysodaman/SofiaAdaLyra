@@ -8,6 +8,7 @@ This same-UID developer test is NOT the external B1 installed-host receipt.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import json
 import os
 from pathlib import Path
 import socket
@@ -133,3 +134,19 @@ def test_real_platform_service_owner_approved_grant_stop_revoke_and_restart(
             _read(service, second["generation"])
         assert service.status()["core_started"] is False
         assert not list(tmp_path.rglob("sofia.db"))
+
+    # This intentionally attests a TEST fixture only. No real operator secret
+    # or production signed-service claim is printed or accepted.
+    print("AEGIS_A_IG001_SAFE_SERVICE_TEST_ONLY", json.dumps({
+        "test_only": True,
+        "platform_id": platform_id,
+        "request_id": accepted.request_id,
+        "generation_before_restart": first_generation,
+        "generation_after_restart": second["generation"],
+        "first_status": accepted.outcome,
+        "stop_result": stopped.denial_code,
+        "stale_result": stale.denial_code,
+        "revoked_peer_eof": True,
+        "external_operator_witnessed": False,
+        "release_accepted": False,
+    }, sort_keys=True), flush=True)
