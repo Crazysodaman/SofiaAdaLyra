@@ -535,3 +535,49 @@ def test_service_launcher_close_does_not_flush_closed_stdin():
         if child.poll() is None:
             child.kill()
             child.wait(timeout=5)
+
+
+def test_activation_rejects_forged_pid_even_with_valid_owner_approval(
+        tmp_path, builder, service_python, canonical_state_path, monkeypatch):
+    """A readiness JSON claim cannot impersonate the supervised child."""
+    identity, current, state = provision(tmp_path / 'host')
+    staging, _manifest, _signature = builder.stage(revision=1)
+    store = PlatformInstallationStore(tmp_path / 'installation.db')
+    destination = tmp_path / 'installed'
+    install_staged_release(staging, destination, store=store,
+                           verifier=builder.verifier)
+    request = platform_activation_request(destination, canonical_state_path,
+                                          store=store)
+    approvals = ExecutionApprovalVerifier(canonical_state_path)
+    approval = ExecutionApproval(
+        approval_id='approval:test-forged-process-identity',
+        capability=request['capability'],
+        request_fingerprint=request['fingerprint'],
+        approved_by='person:sparks',
+        approved_at=datetime.now(timezone.utc) - timedelta(seconds=1),
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10))
+    record_verified_owner_approval(approvals, approval)
+
+    runtime = PythonPlatformServiceLauncher(
+        service_python, identity.home, state,
+        current.identity.canonical_uuid, current.public_key_sha256)
+    actual_start = runtime.start
+
+    def forged_start():
+        ready = actual_start()
+        return {**ready, 'pid': ready['pid'] + 12345}
+
+    monkeypatch.setattr(runtime, 'start', forged_start)
+    try:
+        with pytest.raises(RuntimeError, match='real service health'):
+            activate_installed_release(
+                destination, store=store, state_path=canonical_state_path,
+                verifier=builder.verifier, runtime=runtime,
+                approval_id=approval.approval_id)
+        assert runtime._child is None
+        assert store.checkpoint().active_release_id is None
+        assert not (destination / 'activation-receipt.json').exists()
+        assert any(row['result'].startswith('FAILED:')
+                   for row in store.history())
+    finally:
+        runtime.close()
