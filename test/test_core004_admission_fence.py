@@ -140,3 +140,79 @@ def test_core004_admission_allows_current_enrollment_and_stop_clear(tmp_path):
         if gateway is not None:
             gateway.close()
         app.shutdown()
+
+
+@pytest.mark.parametrize("intervening_change", ["revocation", "operator_stop"])
+def test_core004_durable_answer_withheld_when_access_changes_before_delivery(
+    tmp_path, monkeypatch, intervening_change,
+):
+    """Admission may finish before STOP; a raw TLS caller must not get its text."""
+    state = tmp_path / "sofia.db"
+    bootstrap_canonical_sqlite(state)
+    app = SofiaApplication(configuration(tmp_path))
+    app.start()
+    gateway = None
+    try:
+        store = enrolled_store(state)
+        gateway = CoreLinkConversationGateway(
+            app, access_store=store,
+            remote_platform_id="platform:canonical",
+            remote_core_identity_id="core:sofia",
+            generation_provider=lambda: 7,
+            clock=lambda: NOW + timedelta(seconds=1),
+        )
+        service = gateway._service(access(), None)
+        event_key = "core004:post-response:" + intervening_change
+        event_id = gateway._event_id(access(), event_key)
+
+        class _TransitionAfterDurableResponse:
+            def respond(self, *args, **kwargs):
+                response = service.respond(*args, **kwargs)
+                if intervening_change == "revocation":
+                    approval = authorize(
+                        state, capability="core-link.revoke",
+                        parameters={
+                            "client_id": access().client_id,
+                            "expected_revision": 1,
+                        },
+                        now=NOW + timedelta(seconds=2),
+                    )
+                    store.revoke(
+                        access().client_id, expected_revision=1,
+                        approval_id=approval, now=NOW + timedelta(seconds=2),
+                    )
+                else:
+                    OperatorStopStore(state).set(
+                        active=True, updated_by="Sparks",
+                        reason="CORE-004 revoke delivery after canonical settle",
+                        at=NOW + timedelta(seconds=2),
+                    )
+                return response
+
+        monkeypatch.setattr(
+            gateway, "_service",
+            lambda _access, _session_id: _TransitionAfterDurableResponse(),
+        )
+        with pytest.raises(PermissionError, match="(actively enrolled|operator stop)"):
+            gateway.dispatch(
+                certificate_public_key_sha256="a" * 64,
+                request=request(
+                    "conversation.send",
+                    {
+                        "session_id": service.session_id,
+                        "content": "This response must be withheld after revocation",
+                        "client_created_at": NOW.isoformat(),
+                    },
+                    idempotency_key=event_key,
+                ),
+            )
+        # No duplicate inference on reconnection; the completed turn is
+        # durable but can only be queried again through CURRENT authority.
+        receipt = LifelongThreadStore(state).turn_status(
+            event_id=event_id, principal=access().principal,
+        )
+        assert receipt is not None and receipt.status == "completed"
+    finally:
+        if gateway is not None:
+            gateway.close()
+        app.shutdown()
