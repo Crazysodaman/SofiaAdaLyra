@@ -269,6 +269,8 @@ _REVERSIBLE = frozenset({
     "local.service.start",
     "local.service.stop",
     "local.service.restart",
+    # Local Platform read enrollment; requires exact current owner-approved scope.
+    "platform.management.read",
     "hyperv.vm.start",
     "hyperv.vm.stop",
     "storage.write_text",
