@@ -505,7 +505,10 @@ mod tests {
             .row("host:local", "module:one")
             .expect("row")
             .last_received_at;
-        model.expire_at(received - Duration::from_secs(1), Duration::from_secs(30));
+        let before = received
+            .checked_sub(Duration::from_secs(1))
+            .expect("test monotonic clock has at least one second of history");
+        model.expire_at(before, Duration::from_secs(30));
         assert_eq!(
             model
                 .row("host:local", "module:one")
