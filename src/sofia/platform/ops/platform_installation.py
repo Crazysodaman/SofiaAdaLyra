@@ -88,7 +88,8 @@ def _write_new(path, data):
 def _sync_directories(destination):
     if os.name == 'nt':
         return
-    directories = [item for item in destination.rglob('*') if item.is_dir()]
+    # Root entries must be durable too, not only nested asset directories.
+    directories = [destination, *(item for item in destination.rglob('*') if item.is_dir())]
     for path in sorted(directories, key=lambda item: len(item.parts), reverse=True):
         assert_no_redirected_components(path, include_leaf=True)
         descriptor = os.open(path, os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))
