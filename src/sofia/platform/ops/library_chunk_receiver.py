@@ -31,6 +31,11 @@ class PinnedChunkTransfer:
     content_sha256: str
     size_bytes: int
     generation: int
+    manifest_sha256: str
+    catalog_revision: int
+    artifact_kind: str
+    license_distribution: str
+    data_class: str
 
     def __post_init__(self) -> None:
         for identity in (self.source_platform_id, self.target_platform_id):
@@ -40,6 +45,18 @@ class PinnedChunkTransfer:
                 raise ValueError("pinned platform identities required")
         if type(self.content_sha256) is not str or _DIGEST.fullmatch(self.content_sha256) is None:
             raise ValueError("exact lowercase SHA-256 required")
+        if (type(self.manifest_sha256) is not str
+                or _DIGEST.fullmatch(self.manifest_sha256) is None):
+            raise ValueError("signed manifest SHA-256 pin required")
+        if type(self.catalog_revision) is not int or not 1 <= self.catalog_revision <= _MAX_TOTAL:
+            raise ValueError("positive signed catalog revision required")
+        if self.artifact_kind not in {
+            "platform_release", "sdk", "core_runtime", "core_definition",
+            "module", "model", "asset", "rollback",
+        }:
+            raise ValueError("reviewed artifact class required")
+        if self.license_distribution != "permitted" or self.data_class != "public":
+            raise ValueError("protected or non-distributable artifact must not transfer")
         if type(self.size_bytes) is not int or not 1 <= self.size_bytes <= _MAX_TOTAL:
             raise ValueError("positive bounded content size required")
         if type(self.generation) is not int or not 1 <= self.generation <= _MAX_TOTAL:

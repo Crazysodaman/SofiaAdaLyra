@@ -20,6 +20,7 @@ def _setup(tmp_path):
     data = b"alpha-beta-gamma" * 19
     transfer = PinnedChunkTransfer(
         "source-1", "target-1", hashlib.sha256(data).hexdigest(), len(data), 1,
+        hashlib.sha256(b"manifest").hexdigest(), 1, "module", "permitted", "public",
     )
     return data, transfer, ChunkedArtifactReceiver(tmp_path / "library", max_bytes=1024 * 1024)
 
@@ -104,6 +105,7 @@ def test_global_quota_blocks_unrelated_pending_bytes(tmp_path):
     other = b"y" * 19
     alternate = PinnedChunkTransfer(
         "source-2", "target-1", hashlib.sha256(other).hexdigest(), len(other), 1,
+        hashlib.sha256(b"manifest").hexdigest(), 1, "module", "permitted", "public",
     )
     receiver.max_bytes = len(data)
     receiver.append_chunk(
@@ -116,4 +118,17 @@ def test_global_quota_blocks_unrelated_pending_bytes(tmp_path):
             alternate, offset=0, chunk=other,
             chunk_sha256=hashlib.sha256(other).hexdigest(),
             authorize=lambda _: True,
+        )
+
+
+def test_non_distributable_and_private_content_is_denied():
+    with pytest.raises(ValueError):
+        PinnedChunkTransfer(
+            "source", "target", "0" * 64, 1, 1, "1" * 64, 1,
+            "module", "non_redistributable", "public",
+        )
+    with pytest.raises(ValueError):
+        PinnedChunkTransfer(
+            "source", "target", "0" * 64, 1, 1, "1" * 64, 1,
+            "module", "permitted", "private",
         )

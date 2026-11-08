@@ -21,6 +21,7 @@ def _source(tmp_path):
     path.write_bytes(data)
     pin = PinnedChunkTransfer(
         "origin-1", "target-1", sha256(data).hexdigest(), len(data), 1,
+        sha256(b"manifest").hexdigest(), 1, "module", "permitted", "public",
     )
     args = {
         "authorize": lambda _pin: True,
