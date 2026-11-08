@@ -16,6 +16,7 @@ from sofia.core.social.model import PrincipalContext
 def attach_disposable_memory_policy_v1(
     application: SofiaApplication, *, disposable_root: Path,
     approved_by: PrincipalContext,
+    expected_version: int | None = None,
 ) -> ReviewedMemoryEligibilityV1:
     """Bind V1 to the exact existing runtime MemorySystem before app.start().
 
@@ -40,7 +41,7 @@ def attach_disposable_memory_policy_v1(
     if getattr(memory_system, "_eligibility_policy", None) is not None:
         raise RuntimeError("memory system already has an eligibility policy")
     install_disposable_policy_v1(
-        state, approved_by=approved_by, expected_version=None,
+        state, approved_by=approved_by, expected_version=expected_version,
     )
     policy = ReviewedMemoryEligibilityV1(state)
     policy.assert_same_canonical_state(memory_system.candidate_store.database_path)
