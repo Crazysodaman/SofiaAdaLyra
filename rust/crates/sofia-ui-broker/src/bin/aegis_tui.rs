@@ -4,7 +4,9 @@
 
 use serde_json::Value;
 use sofia_ui_broker::control_center::{ControlCenterView, LinkState, SafeState};
-use sofia_ui_broker::control_center_session::{DisplaySession, OfflineReader};
+use sofia_ui_broker::control_center_session::{
+    DisplayReadSource, DisplaySession, OfflineReader,
+};
 use std::env;
 use std::io::{self, IsTerminal, Write};
 use std::process::ExitCode;
@@ -235,7 +237,9 @@ fn status_json(view: &ControlCenterView) -> Value {
         "platform_generation": if current { view.platform_generation } else { None },
         "safe": view.safe_label(),
         "operator_stop": operator_stop,
-        "core_started": null,
+        // Team A v1 strict OK requires core_started=false.
+        // Never show that value for an unverified observation or denial.
+        "core_started": if current { Some(false) } else { None },
         "permission": view.permission_label(),
         "installation": view.installation_label(),
         "actions_enabled": false
@@ -250,12 +254,11 @@ fn status_exit(view: &ControlCenterView) -> ExitCode {
     }
 }
 
-fn run() -> io::Result<ExitCode> {
+// Native Linux status implements the SAME reader. Only an independently
+// B1-verified installed profile may activate it, never untrusted CLI flags.
+fn run_with_source(source: &mut impl DisplayReadSource) -> io::Result<ExitCode> {
     let args: Vec<String> = env::args().skip(1).collect();
-    // Only the offline reader is wired until Team A's authenticated
-    // response contract and native OS transport are approved.
     let mut session = DisplaySession::default();
-    let _ = session.refresh(&mut OfflineReader, std::time::Instant::now());
     if args.iter().any(|arg| arg == "--help" || arg == "-h") {
         const HELP: &str = concat!(
             "aegis-tui [--plain | --help | --status | --status-json",
@@ -279,6 +282,7 @@ fn run() -> io::Result<ExitCode> {
         eprintln!("Unknown option. Use --help.");
         return Ok(ExitCode::from(2));
     }
+    let _ = session.refresh(source, std::time::Instant::now());
     if args.first().is_some_and(|arg| arg == "--status") {
         println!("{}", status_line(session.view()));
         return Ok(status_exit(session.view()));
@@ -325,6 +329,7 @@ fn run() -> io::Result<ExitCode> {
         return Ok(ExitCode::SUCCESS);
     }
     loop {
+        let _ = session.refresh(source, std::time::Instant::now());
         session.expire_at(std::time::Instant::now());
         println!("{}", render_menu(colors, session.view()));
         print!("Select [0-15]: ");
@@ -336,6 +341,7 @@ fn run() -> io::Result<ExitCode> {
         if selection.trim() == "0" {
             return Ok(ExitCode::SUCCESS);
         }
+        let _ = session.refresh(source, std::time::Instant::now());
         session.expire_at(std::time::Instant::now());
         if let Some(page) = select_page(&selection) {
             println!("{}\n", render_page(page, colors, session.view()));
@@ -343,6 +349,12 @@ fn run() -> io::Result<ExitCode> {
             println!("Not a valid menu number; no operation performed.\n");
         }
     }
+}
+
+fn run() -> io::Result<ExitCode> {
+    // No B1-signed external service pins or approved external operator
+    // entitlement are installed in this build. Fail closed by default.
+    run_with_source(&mut OfflineReader)
 }
 
 fn main() -> ExitCode {
@@ -486,7 +498,7 @@ mod tests {
         assert_eq!(data["source"], "SERVICE_OBSERVED");
         assert_eq!(data["platform_generation"], 8);
         assert_eq!(data["operator_stop"], false);
-        assert_eq!(data["core_started"], serde_json::Value::Null);
+        assert_eq!(data["core_started"], false);
         assert_eq!(data["actions_enabled"], false);
     }
 

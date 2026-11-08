@@ -158,7 +158,7 @@ def test_c007_status_cli_is_sourced_from_display_and_denials_fail_closed():
     assert "status_json(session.view())" in source
     assert "status_exit(session.view())" in source
     assert '"platform_generation": if current { view.platform_generation } else { None }' in source
-    assert '"core_started": null' in source
+    assert '"core_started": if current { Some(false) } else { None }' in source
     assert '"actions_enabled": false' in source
     assert "fn denied_stop_revoked_and_stale_status_never_expose_generation()" in source
     assert "session.refresh(&mut OfflineReader" in source
@@ -183,3 +183,22 @@ def test_c007_stop_cannot_be_a_successful_platform_status_reply():
     assert 'denied["status"], "STOP_ACTIVE"' in tui
     assert '"operator_stop": operator_stop' in tui
     assert '"actions_enabled": false' in tui
+
+
+def test_c008_native_reader_is_not_activated_from_untrusted_cli_configuration():
+    source = TUI.read_text(encoding="utf-8")
+    client = (ROOT / "rust/crates/sofia-ui-broker/src/native_management.rs").read_text(encoding="utf-8")
+    assert "fn run_with_source(source: &mut impl DisplayReadSource)" in source
+    assert "run_with_source(&mut OfflineReader)" in source
+    assert "self.local_sequence" in client
+    assert "UntrustedManagementResponse::parse" in client
+    assert "PeerCredentials" in client
+    assert "verify_os_peer" in client
+    assert "verify_endpoint(&self.pins)" in client
+    assert "getrandom::getrandom" in client
+    assert "from_verified_denial" in client
+    assert "NativeLinuxManagementReader" in client
+    for forbidden in ("--operator-uid", "--owner-grant", "--ignore-peer",
+                      "--auto-enroll", "--start-core", "curl"):
+        assert forbidden not in source
+        assert forbidden not in client
