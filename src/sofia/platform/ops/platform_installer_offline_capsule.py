@@ -110,6 +110,7 @@ def build_reviewed_offline_capsule(
         ("aegis/release-manifest.json", manifest_bytes),
         ("aegis/release-signature.json", signature_bytes),
     ]
+    exact_signed_assets = []
     for asset in manifest.assets:
         reference = asset.reference
         file = root / "assets" / reference.path
@@ -117,10 +118,26 @@ def build_reviewed_offline_capsule(
         if sha256(value).hexdigest() != reference.sha256:
             raise PlatformReleaseRejected("signed asset drifted during capsule build")
         members.append(("aegis/assets/" + reference.path, value))
+        exact_signed_assets.append({
+            "kind": asset.kind,
+            "path": reference.path,
+            "sha256": reference.sha256,
+            "size_bytes": reference.size_bytes,
+        })
+    independently_unsigned_delivery_assets = []
     for src, target in _STATIC:
         source = project.joinpath(*src.split("/"))
-        members.append((target, _read_expected(source, maximum=2 * 1024**2)))
+        data = _read_expected(source, maximum=2 * 1024**2)
+        members.append((target, data))
+        independently_unsigned_delivery_assets.append({
+            "path": target,
+            "sha256": sha256(data).hexdigest(),
+            "size_bytes": len(data),
+            "publisher_signature_verified": False,
+        })
     members.sort(key=lambda x: x[0])
+    if len({name.casefold() for name, _ in members}) != len(members):
+        raise PlatformReleaseRejected("offline capsule has ambiguous duplicate member paths")
     if sum(len(data) for _, data in members) > _MAX_MEDIA_BYTES:
         raise PlatformReleaseRejected("offline capsule exceeds reviewed media bound")
 
@@ -163,8 +180,14 @@ def build_reviewed_offline_capsule(
             "target": manifest.target.value,
             "signer_key_id": trusted_signer_key_id,
             "publisher_public_key_sha256": trusted_key_sha256,
+            "publisher_revocation_fresh": False,
+            "source_sha": manifest.source_sha,
+            "signed_parent_manifest_sha256": manifest.parent_manifest_sha256,
             "release_manifest_signature_verified": True,
             "release_assets_verified": True,
+            "verified_release_asset_count": len(exact_signed_assets),
+            "signed_release_assets": tuple(exact_signed_assets),
+            "unsigned_delivery_assets": tuple(independently_unsigned_delivery_assets),
             "launcher_publisher_signature_verified": False,
             "self_contained_native_installer_certified": False,
             "owner_authorized": False,
