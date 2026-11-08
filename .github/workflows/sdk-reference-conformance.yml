@@ -1,14 +1,18 @@
-name: SDK Reference Module Conformance
+name: SDK Core Platform Module Conformance
 
 on:
   pull_request:
     paths:
       - 'examples/sdk_reference_module/**'
+      - 'examples/sdk_reference_core/**'
+      - 'examples/sdk_reference_platform/**'
+      - 'examples/sdk_reference_system/**'
       - 'src/sofia/sdk/**'
       - 'src/sofia/platform/modules/**'
       - 'src/sofia/platform/capability/**'
       - 'rust/crates/sofia-contracts/**'
       - 'test/test_sdk_reference_module.py'
+      - 'test/test_sdk_reference_core_platform.py'
       - 'test/test_module_lifecycle_v1.py'
       - 'test/test_platform_module_settings.py'
       - '.github/workflows/sdk-reference-conformance.yml'
@@ -16,11 +20,15 @@ on:
     branches: [main]
     paths:
       - 'examples/sdk_reference_module/**'
+      - 'examples/sdk_reference_core/**'
+      - 'examples/sdk_reference_platform/**'
+      - 'examples/sdk_reference_system/**'
       - 'src/sofia/sdk/**'
       - 'src/sofia/platform/modules/**'
       - 'src/sofia/platform/capability/**'
       - 'rust/crates/sofia-contracts/**'
       - 'test/test_sdk_reference_module.py'
+      - 'test/test_sdk_reference_core_platform.py'
       - '.github/workflows/sdk-reference-conformance.yml'
   workflow_dispatch:
 
@@ -33,7 +41,7 @@ concurrency:
 
 jobs:
   python-sdk-reference:
-    name: Reference module (${{ matrix.os }}, Python 3.12)
+    name: Core Platform Module reference (${{ matrix.os }}, Python 3.12)
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -49,6 +57,6 @@ jobs:
       - name: Check installation
         run: python -m pip check
       - name: Compile reference and SDK tests
-        run: python -m compileall -q examples/sdk_reference_module src/sofia/sdk test/test_sdk_reference_module.py
+        run: python -m compileall -q examples/sdk_reference_module examples/sdk_reference_core examples/sdk_reference_platform examples/sdk_reference_system src/sofia/sdk test/test_sdk_reference_module.py test/test_sdk_reference_core_platform.py
       - name: Verify signed test fixture, SDK parity, lifecycle and settings
-        run: python -m pytest -q test/test_sdk_reference_module.py test/test_module_lifecycle_v1.py test/test_platform_module_settings.py
+        run: python -m pytest -q test/test_sdk_reference_module.py test/test_sdk_reference_core_platform.py test/test_module_lifecycle_v1.py test/test_platform_module_settings.py
