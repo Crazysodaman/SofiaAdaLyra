@@ -117,6 +117,17 @@ mod tests {
     }
 
     #[test]
+    fn shared_python_sdk_fixture_is_accepted_as_untrusted() {
+        let raw = include_str!("../../../../contracts/platform/management-read-valid-v1.json");
+        let now = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:00Z")
+            .expect("known fixture clock");
+        let request = UntrustedManagementRead::parse(raw.as_bytes(), now)
+            .expect("shared fixture obeys strict read contract");
+        assert_eq!(request.operation, "platform.status");
+        assert_eq!(request.expected_generation, 3);
+    }
+
+    #[test]
     fn accepts_bounded_read_only_query_as_untrusted() {
         let (value, now) = valid();
         let request = UntrustedManagementRead::parse(value.to_string().as_bytes(), now)
