@@ -291,55 +291,93 @@ class CoreLinkDesktopClient:
             return self.refresh_history()
 
     def refresh_history(self) -> tuple[RemoteUITextMessage, ...]:
+        """Load the newest 100 messages via bounded, authenticated page traversal.
+
+        A one-page read silently froze the desktop at the oldest 100 messages.
+        The v1 host API only supports forward cursors, so walk the pages but
+        retain only the newest window. Do not publish partial/unverified pages.
+        """
         if self._state.session_id is None:
             raise RuntimeError("Core Link Desktop has no selected conversation")
-        payload = self._require_completed(self._request(
-            "conversation.history",
-            {"session_id": self._state.session_id, "after": None, "limit": 100},
-        ), "conversation.history")
-        raw = payload.get("messages")
-        if (
-            payload.get("session_id") != self._state.session_id
-            or not isinstance(raw, list)
-            or len(raw) > 100
-        ):
-            raise RuntimeError("Core Link history payload is invalid")
+        cursor: dict[str, str] | None = None
         messages: list[RemoteUITextMessage] = []
         seen_ids: set[str] = set()
-        for item in raw:
-            if not isinstance(item, dict) or set(item) != {
-                "message_id", "role", "content", "created_at",
-            }:
-                raise RuntimeError("Core Link history item is invalid")
-            role = item["role"]
-            if role not in {"user", "assistant"}:
-                raise RuntimeError("Core Link history role is invalid")
-            identifier = item["message_id"]
-            content = item["content"]
-            stamp = item["created_at"]
+        previous_order: tuple[datetime, str] | None = None
+        page_limit = 100
+        # The v1 forward-only history API has no last-page seek. Bound the
+        # scan rather than silently returning a stale first page forever.
+        for _page in range(32):
+            payload = self._require_completed(self._request(
+                "conversation.history",
+                {"session_id": self._state.session_id, "after": cursor,
+                 "limit": page_limit},
+            ), "conversation.history")
+            raw = payload.get("messages")
             if (
-                not isinstance(identifier, str) or not identifier.strip()
-                or len(identifier) > 256 or identifier in seen_ids
-                or not isinstance(content, str) or len(content) > 64_000
-                or not isinstance(stamp, str) or len(stamp) > 80
+                payload.get("session_id") != self._state.session_id
+                or not isinstance(raw, list)
+                or len(raw) > page_limit
             ):
-                raise RuntimeError("Core Link history item is invalid")
-            try:
-                created_at = datetime.fromisoformat(stamp)
-            except ValueError as exc:
-                raise RuntimeError("Core Link history timestamp is invalid") from exc
-            if created_at.tzinfo is None or created_at.utcoffset() is None:
-                raise RuntimeError("Core Link history timestamp must have a timezone")
-            seen_ids.add(identifier)
-            messages.append(RemoteUITextMessage(
-                message_id=identifier,
-                session_id=self._state.session_id,
-                actor="user" if role == "user" else "sofia",
-                content=content,
-                created_at=created_at,
-            ))
-        self._messages = tuple(messages)
-        return self._messages
+                raise RuntimeError("Core Link history payload is invalid")
+            next_cursor = payload.get("next_cursor")
+            if not raw:
+                if next_cursor is not None:
+                    raise RuntimeError("Core Link history cursor is invalid")
+                self._messages = tuple(messages)
+                return self._messages
+            for item in raw:
+                if not isinstance(item, dict) or set(item) != {
+                    "message_id", "role", "content", "created_at",
+                }:
+                    raise RuntimeError("Core Link history item is invalid")
+                role = item["role"]
+                if role not in {"user", "assistant"}:
+                    raise RuntimeError("Core Link history role is invalid")
+                identifier = item["message_id"]
+                content = item["content"]
+                stamp = item["created_at"]
+                if (
+                    not isinstance(identifier, str) or not identifier.strip()
+                    or len(identifier) > 256 or identifier in seen_ids
+                    or not isinstance(content, str) or len(content) > 64_000
+                    or not isinstance(stamp, str) or len(stamp) > 80
+                ):
+                    raise RuntimeError("Core Link history item is invalid")
+                try:
+                    created_at = datetime.fromisoformat(stamp)
+                except ValueError as exc:
+                    raise RuntimeError("Core Link history timestamp is invalid") from exc
+                if created_at.tzinfo is None or created_at.utcoffset() is None:
+                    raise RuntimeError("Core Link history timestamp must have a timezone")
+                order = (created_at, identifier)
+                if previous_order is not None and order <= previous_order:
+                    raise RuntimeError("Core Link history ordering/replay is invalid")
+                previous_order = order
+                seen_ids.add(identifier)
+                messages.append(RemoteUITextMessage(
+                    message_id=identifier,
+                    session_id=self._state.session_id,
+                    actor="user" if role == "user" else "sofia",
+                    content=content,
+                    created_at=created_at,
+                ))
+                if len(messages) > page_limit:
+                    messages.pop(0)
+            # A short last page is complete, even though v1 emits a cursor
+            # for each nonempty response. Exactly-full pages need a next probe.
+            if len(raw) < page_limit:
+                self._messages = tuple(messages)
+                return self._messages
+            expected = {
+                "created_at": raw[-1]["created_at"],
+                "message_id": raw[-1]["message_id"],
+            }
+            if next_cursor != expected:
+                raise RuntimeError("Core Link history cursor is invalid")
+            cursor = expected
+        raise RuntimeError(
+            "Core Link history exceeds bounded v1 scan; newest-page SDK support required"
+        )
 
     def save_draft(self, content: str) -> None:
         if not isinstance(content, str) or len(content) > 64_000:
