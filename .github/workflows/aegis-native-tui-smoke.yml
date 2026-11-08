@@ -1,0 +1,45 @@
+name: Aegis Native Rust TUI Smoke
+
+on:
+  pull_request:
+    paths:
+      - "rust/crates/sofia-ui-broker/src/bin/aegis_tui.rs"
+      - "contracts/ui/aegis-theme-v1.json"
+      - "test/test_ui_aegis_tui_binary_smoke.py"
+      - ".github/workflows/aegis-native-tui-smoke.yml"
+  push:
+    branches: [main]
+    paths:
+      - "rust/crates/sofia-ui-broker/src/bin/aegis_tui.rs"
+      - "test/test_ui_aegis_tui_binary_smoke.py"
+      - ".github/workflows/aegis-native-tui-smoke.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  native-binary:
+    name: Rust TUI / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.88.0
+      - uses: Swatinem/rust-cache@v2
+      - name: Build Core-free native terminal binary
+        run: cargo build --locked -p sofia-ui-broker --bin aegis_tui
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install narrow test harness
+        run: python -m pip install pytest
+      - name: Exercise headless, denied mutation, plain output and help
+        run: python -m pytest -q test/test_ui_aegis_tui_binary_smoke.py
