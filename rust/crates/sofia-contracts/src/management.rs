@@ -541,6 +541,45 @@ mod tests {
     }
 
     #[test]
+    fn shared_29_case_rust_python_management_wire_corpus() {
+        let corpus: Value = serde_json::from_str(include_str!(
+            "../../../../contracts/platform/management-response-parity-corpus-v1.json"
+        ))
+        .expect("shared versioned corpus");
+        assert_eq!(corpus["schema"], "aegis.platform.management.parity-v1");
+        let vectors = corpus["cases"].as_array().expect("corpus cases");
+        assert_eq!(vectors.len(), 29);
+        let moment = chrono::DateTime::parse_from_rfc3339(
+            corpus["at"].as_str().expect("trusted fixture time"),
+        )
+        .expect("trusted fixture time");
+        let status = UntrustedManagementRead::parse(
+            include_str!("../../../../contracts/platform/management-read-valid-v1.json")
+                .as_bytes(),
+            moment,
+        )
+        .expect("shared status request");
+        let settings = UntrustedManagementRead::parse(
+            include_str!("../../../../contracts/platform/management-read-settings-valid-v1.json")
+                .as_bytes(),
+            moment,
+        )
+        .expect("shared settings request");
+        for vector in vectors {
+            let name = vector["name"].as_str().expect("vector label");
+            let request = match vector["request"].as_str().expect("vector request") {
+                "status" => &status,
+                "settings" => &settings,
+                _ => panic!("unsupported corpus request class: {name}"),
+            };
+            let raw = vector["wire"].as_str().expect("raw JSON wire");
+            let accepted = vector["accepted"].as_bool().expect("expected verdict");
+            let result = UntrustedManagementResponse::parse(raw.as_bytes(), request, moment);
+            assert_eq!(result.is_ok(), accepted, "parity vector: {name}");
+        }
+    }
+
+    #[test]
     fn management_portable_numbers_and_missing_optional_keys_are_refused() {
         let request_json = include_str!(
             "../../../../contracts/platform/management-read-settings-valid-v1.json"
