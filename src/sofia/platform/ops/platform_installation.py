@@ -35,6 +35,8 @@ from pathlib import Path
 import shutil
 import sqlite3
 import subprocess
+from queue import Empty, Queue
+from threading import Thread
 from uuid import uuid4
 
 from sofia.platform.ops.platform_release import PlatformReleaseRejected, PlatformReleaseVerifier
@@ -717,6 +719,33 @@ def activate_installed_release(destination, *, store, state_path, verifier, runt
     return dict(generation=generation, health=health)
 
 
+def _bounded_readline(stream, timeout):
+    """Read one child readiness line with a real wall-clock deadline.
+
+    Windows anonymous pipes do not support POSIX selectors. The background
+    reader is daemonized and the caller must terminate/close the child on a
+    deadline failure so the pipe reader can finish.
+    """
+    if not isinstance(timeout, (int, float)) or not (0 < timeout <= 300):
+        raise ValueError('service readiness timeout must be between 0 and 300 seconds')
+    result = Queue(maxsize=1)
+
+    def read_line():
+        try:
+            result.put((True, stream.readline()))
+        except BaseException as error:
+            result.put((False, error))
+
+    Thread(target=read_line, daemon=True, name='aegis-readiness').start()
+    try:
+        success, payload = result.get(timeout=timeout)
+    except Empty as error:
+        raise TimeoutError('service readiness deadline expired') from error
+    if not success:
+        raise payload
+    return payload
+
+
 class PythonPlatformServiceLauncher:
     """Start the real installed Platform state adapter as a supervised child."""
 
@@ -750,7 +779,7 @@ class PythonPlatformServiceLauncher:
             text=True, env=environment,
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0)
         try:
-            line = self._child.stdout.readline()
+            line = _bounded_readline(self._child.stdout, timeout)
             if not line:
                 error = self._child.stderr.read(4096)
                 raise RuntimeError('service adapter exited before readiness: ' + error)
