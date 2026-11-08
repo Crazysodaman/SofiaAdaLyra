@@ -42,7 +42,7 @@ if ($Check) {
     Write-Output 'STATE_WRITES=NONE'
     exit 0
 }
-if (-not $IsWindows -and $PSVersionTable.PSVersion.Major -ge 6) {
+if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
     throw 'Aegis WinForms control center supports Windows only'
 }
 if ([Threading.Thread]::CurrentThread.GetApartmentState() -ne 'STA') {
