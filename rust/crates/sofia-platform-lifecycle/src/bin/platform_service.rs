@@ -81,6 +81,10 @@ struct Reply {
     sequence: Option<u64>,
     pid: Option<u32>,
     supervisor_pid: Option<u32>,
+    #[serde(default)]
+    management_listening: bool,
+    #[serde(default)]
+    management_endpoint: Option<String>,
 }
 
 struct Worker {
@@ -90,6 +94,7 @@ struct Worker {
     generation: u64,
     sequence: u64,
     operator_stop: bool,
+    management_endpoint: String,
     config: Configuration,
 }
 impl Worker {
@@ -151,11 +156,19 @@ impl Worker {
             generation: 0,
             sequence: 0,
             operator_stop: false,
+            management_endpoint: String::new(),
             config: config.clone(),
         };
         let ready = worker.receive()?;
         worker.generation = ready.generation;
         worker.operator_stop = ready.operator_stop;
+        worker.management_endpoint = ready.management_endpoint.clone().unwrap_or_default();
+        if !ready.management_listening
+            || worker.management_endpoint.is_empty()
+            || worker.management_endpoint.len() > 256
+        {
+            return Err("authenticated management listener not ready".into());
+        }
         if ready.phase != "ready"
             || ready.sequence.is_some()
             || ready.pid.map(u64::from) != Some(u64::from(worker.child.id()))
@@ -196,6 +209,8 @@ impl Worker {
             || value.pid.is_some()
             || value.supervisor_pid.is_some()
             || value.generation != self.generation
+            || !value.management_listening
+            || value.management_endpoint.as_deref() != Some(self.management_endpoint.as_str())
             || value.phase
                 != if operation == "shutdown" {
                     "stopped"
@@ -285,7 +300,7 @@ fn console(config: &Configuration) -> Result<(), Failure> {
             notify("READY=1\nSTATUS=Core-free Platform authority active")?;
             println!(
                 "{}",
-                json!({"schema": SCHEMA, "phase":"ready", "supervisor_pid": std::process::id(), "platform_id":config.platform_id, "worker_pid":worker.child.id(), "generation":worker.generation, "operator_stop":worker.operator_stop})
+                json!({"schema": SCHEMA, "phase":"ready", "supervisor_pid": std::process::id(), "platform_id":config.platform_id, "worker_pid":worker.child.id(), "generation":worker.generation, "operator_stop":worker.operator_stop, "management_listening": true})
             );
             Ok(())
         },
