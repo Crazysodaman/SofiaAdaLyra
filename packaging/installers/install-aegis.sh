@@ -281,67 +281,10 @@ verify_publisher_manifest() {
   local observed_envelope_bytes
   observed_envelope_bytes="$(printf '%s' "$envelope" | wc -c)" || return 3
   [[ "$observed_envelope_bytes" -eq "$envelope_size" ]] || {
-    printf '%s\\n' 'Signature envelope contains noncanonical trailing or binary bytes' >&2
+    printf '%s\n' 'Signature envelope contains noncanonical trailing or binary bytes' >&2
     return 3
   }
-  local envelope_re='^\{"signature_b64":"([A-Za-z0-9+/]{86}==)","signer_key_id":"([A-Za-z0-9_.-]{1,128})"\}
-if [[ "$MODE" == seed ]]; then verify_seed_bytes; exit $?; fi
-if [[ "$MODE" == check ]]; then readonly_preview; exit 0; fi
-if [[ "$MODE" == operation ]]; then
-  case "$OPERATION" in
-    status|doctor) readonly_preview; exit 0 ;;
-    *) blocked; exit 3 ;;
-  esac
-fi
-if [[ "$JSON_MODE" -eq 1 || "$DRY_RUN" -eq 1 ]]; then
-  printf '%s\n' '--json/--dry-run require --check or --operation' >&2
-  exit 2
-fi
-if [[ ! -t 0 || ! -t 1 ]]; then
-  printf '%s\n' 'Interactive setup requires a terminal. Use --check for read-only preflight.' >&2
-  exit 2
-fi
-
-while :; do
-  if [[ "$narrow" -eq 1 ]]; then
-    printf '%s\n' 'AEGIS PLATFORM INSTALLER' 'PREVIEW ONLY / NO INSTALL AUTHORITY'
-  else
-    paint primary '+------------------------------------------------------------+'
-    printf '\n'
-    paint primary '|                AEGIS PLATFORM INSTALLER                    |'
-    printf '\n'
-    paint warning '|        PREVIEW ONLY / NO INSTALL AUTHORITY                 |'
-    printf '\n'
-    paint primary '+------------------------------------------------------------+'
-    printf '\n'
-  fi
-  paint accent '[1]'; printf ' Install Platform (blocked)\n'
-  paint accent '[2]'; printf ' Update Platform (blocked)\n'
-  paint accent '[3]'; printf ' Repair Platform (blocked)\n'
-  paint accent '[4]'; printf ' Uninstall Platform (blocked)\n'
-  paint accent '[5]'; printf ' Diagnostics (read-only)\n'
-  paint accent '[6]'; printf ' Rollback (blocked)\n'
-  paint accent '[7]'; printf ' Status (unverified)\n'
-  paint accent '[0]'; printf ' Exit\n'
-  printf '%s\n' '[?] Help | [B] Back | [C] Cancel'
-  printf 'Select [0-7]: '
-  if ! IFS= read -r choice; then exit 0; fi
-  case "$choice" in
-    0|b|B|c|C) exit 0 ;;
-    5|7) preflight ;;
-    1|2|3|4|6)
-      case "$choice" in
-        1) OPERATION=install ;; 2) OPERATION=update ;;
-        3) OPERATION=repair ;; 4) OPERATION=uninstall ;;
-        6) OPERATION=rollback ;;
-      esac
-      blocked || : ;;
-    '?') usage ;;
-    *) printf '%s\n' 'Invalid selection; no operation performed.' ;;
-  esac
-  printf '\n'
-done
-
+  local envelope_re='^\{"signature_b64":"([A-Za-z0-9+/]{86}==)","signer_key_id":"([A-Za-z0-9_.-]{1,128})"\}$'
   if [[ ! "$envelope" =~ $envelope_re ]]; then
     printf '%s\n' 'Publisher signature envelope not canonical' >&2
     return 3
@@ -377,7 +320,6 @@ done
   fi
   return 0
 }
-
 if [[ "$MODE" == help ]]; then usage; exit 0; fi
 if [[ "$MODE" == publisher ]]; then verify_publisher_manifest; exit $?; fi
 if [[ "$MODE" == seed ]]; then verify_seed_bytes; exit $?; fi
