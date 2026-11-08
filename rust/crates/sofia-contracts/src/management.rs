@@ -227,6 +227,23 @@ impl UntrustedManagementResponse {
             ));
         }
         let value = parse_strict(raw)?;
+        // Serde's Option<T> permits *missing* fields by default; Python's
+        // canonical v1 parser requires all eleven envelope keys, including
+        // explicit null for the unused data or denial side. Fence that here.
+        let keys = value.as_object().ok_or_else(|| {
+            ContractError::new("invalid_management_response", "response must be an object")
+        })?;
+        const REQUIRED: [&str; 11] = [
+            "schema", "protocol", "request_id", "platform_id",
+            "platform_generation", "operation", "source", "observed_at",
+            "outcome", "data", "denial",
+        ];
+        if keys.len() != REQUIRED.len() || REQUIRED.iter().any(|key| !keys.contains_key(*key)) {
+            return Err(ContractError::new(
+                "invalid_management_response",
+                "response envelope must include every versioned field",
+            ));
+        }
         let reply: Self = serde_json::from_value(value).map_err(|_| {
             ContractError::new("invalid_management_response", "response fields invalid")
         })?;
@@ -472,6 +489,17 @@ mod tests {
                 .is_err()
         );
 
+        // Absent Option<T> is NOT equivalent to explicit null in v1.
+        let mut omitted: Value = serde_json::from_str(response_json).expect("response");
+        omitted.as_object_mut().expect("object").remove("denial");
+        assert!(UntrustedManagementResponse::parse(
+            omitted.to_string().as_bytes(), &request, now
+        ).is_err());
+        let mut omitted_data: Value = serde_json::from_str(response_json).expect("response");
+        omitted_data.as_object_mut().expect("object").remove("data");
+        assert!(UntrustedManagementResponse::parse(
+            omitted_data.to_string().as_bytes(), &request, now
+        ).is_err());
         let mut forged: Value = serde_json::from_str(response_json).expect("response");
         forged["platform_generation"] = json!(4);
         assert!(
