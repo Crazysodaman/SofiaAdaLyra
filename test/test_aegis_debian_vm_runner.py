@@ -193,3 +193,14 @@ def test_failed_vm_diagnostics_are_bounded_and_do_not_follow_redirects(tmp_path,
         (tmp_path/'boot-1.log').symlink_to(hidden)
         failure_diagnostics(tmp_path)
         assert 'synthetic-unselected-content' not in capsys.readouterr().err
+
+def test_vm_receipt_artifact_is_named_for_exact_checkout_head():
+    """PR receipt name must identify tested source, not GitHub's merge ref."""
+    workflow = (
+        Path(__file__).resolve().parents[1]
+        / '.github/workflows/aegis-debian12-vm.yml'
+    ).read_text(encoding='utf-8')
+    exact = '${{ github.event.pull_request.head.sha || github.sha }}'
+    assert f'ref: {exact}' in workflow
+    assert f'name: debian12-offline-vm-{exact}' in workflow
+    assert 'name: debian12-offline-vm-${{ github.sha }}' not in workflow
