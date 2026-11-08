@@ -3,6 +3,7 @@
 Fake callbacks stand in for A's signed-index service and B's independent
 publisher/archive verification. They are NOT host or publisher authentication.
 """
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 
@@ -305,3 +306,50 @@ def test_invalid_source_license_or_data_class_denies_before_archive(
             publisher_key_lookup=lambda _: calls.append("key") or pub,
         )
     assert calls == []
+
+
+
+def test_signed_dependency_requires_current_host_receipt_and_exact_version(tmp_path):
+    from test.test_module_lifecycle_v1 import verified_custom
+
+    dependency_range = DependencyRequirement("org.sofia.other", "1.0.0", "2.0.0")
+    data, value, root, pub = fixture(
+        tmp_path, dependencies=(dependency_range,),
+    )
+    dep = verified_custom(
+        tmp_path, directory="signed-other", module_id="org.sofia.other",
+        version="1.5.0", capabilities=("research.search",),
+    )
+    with pytest.raises(ModuleRecipientRejected, match="dependency receipt"):
+        review(data, value, root, pub, verified_dependencies=(dep,))
+    with pytest.raises(ModuleRecipientRejected, match="dependency receipt"):
+        review(
+            data, value, root, pub,
+            verified_dependencies=(dep,),
+            dependency_receipt_admit=lambda _: False,
+        )
+    forged = replace(dep, package_digest="f" * 64)
+    with pytest.raises(ModuleRecipientRejected, match="unverified"):
+        review(
+            data, value, root, pub,
+            verified_dependencies=(forged,),
+            dependency_receipt_admit=lambda _: True,
+        )
+    accepted = review(
+        data, value, root, pub,
+        verified_dependencies=(dep,),
+        dependency_receipt_admit=lambda d: d.package_digest == dep.package_digest,
+    )
+    assert accepted.manifest.dependencies == (dependency_range,)
+    assert not hasattr(accepted, "activate")
+
+    out_of_range = verified_custom(
+        tmp_path, directory="signed-other-incompatible", module_id="org.sofia.other",
+        version="2.0.0", capabilities=("research.search",),
+    )
+    with pytest.raises(ModuleRecipientRejected, match="dependency"):
+        review(
+            data, value, root, pub,
+            verified_dependencies=(out_of_range,),
+            dependency_receipt_admit=lambda _: True,
+        )
