@@ -207,3 +207,91 @@ def test_actual_safe_stop_allows_owner_approved_pause_but_denies_resume(
         approval_id=resume_id, capability="module.resume",
         parameters=resume_parameters, now=resume_time,
     )
+
+
+@pytest.mark.parametrize("blocked_operation", ["update", "rollback"])
+def test_safe_stop_fences_signed_package_change_and_preserves_prior_revision(
+    canonical_state_path, tmp_path, blocked_operation,
+):
+    """Never spend approval or switch a signed pointer while STOP is active."""
+    from datetime import timedelta
+
+    from sofia.platform.modules import ModuleLifecycle, OperationProfileKind
+    from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
+    from sofia.platform.safe.operator_stop import OperatorStopStore
+    from test.test_module_lifecycle_v1 import compatibility
+    from test.test_platform_module_command_service import authorize, service
+
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    original = verified_custom(
+        tmp_path, directory="stop-original", capabilities=(RESEARCH_CAPABILITY_ID,),
+    )
+    replacement = verified_custom(
+        tmp_path, directory="stop-updated", version="9.1.0",
+        content="MODULE = 'reviewed update'\n",
+        capabilities=(RESEARCH_CAPABILITY_ID,),
+    )
+    assert original.package_digest != replacement.package_digest
+    command = service(canonical_state_path, tmp_path)
+    found = command.discover(original, now=now)
+    approve_id, _ = authorize(
+        canonical_state_path, operation="approve", record=found,
+        target=ModuleLifecycle.APPROVED, now=now,
+    )
+    approved = command.approve(
+        found.module_id, expected_revision=found.revision,
+        approval_id=approve_id, now=now,
+    )
+    stage_id, _ = authorize(
+        canonical_state_path, operation="stage", record=approved,
+        target=ModuleLifecycle.STAGED, now=now,
+    )
+    current = command.stage(
+        original, expected_revision=approved.revision,
+        approval_id=stage_id, now=now,
+    )
+    if blocked_operation == "rollback":
+        update_id, _ = authorize(
+            canonical_state_path, operation="update", record=current,
+            target=ModuleLifecycle.STAGED, profile=OperationProfileKind.OBSERVE,
+            now=now,
+            overrides={"version": replacement.manifest.version,
+                       "package_digest": replacement.package_digest},
+        )
+        current = command.update(
+            replacement, expected_revision=current.revision,
+            profile=OperationProfileKind.OBSERVE,
+            compatibility=compatibility(replacement),
+            approval_id=update_id, now=now,
+        )
+        candidate = original
+    else:
+        candidate = replacement
+
+    approved_at = now + timedelta(seconds=2)
+    change_id, change_parameters = authorize(
+        canonical_state_path, operation=blocked_operation, record=current,
+        target=ModuleLifecycle.STAGED, profile=OperationProfileKind.OBSERVE,
+        now=approved_at,
+        overrides={"version": candidate.manifest.version,
+                   "package_digest": candidate.package_digest},
+    )
+    OperatorStopStore(canonical_state_path).set(
+        active=True, updated_by="Sparks",
+        reason="signed module STOP pointer fence",
+        at=now + timedelta(seconds=1),
+    )
+    operation = getattr(command, blocked_operation)
+    with pytest.raises(PermissionError, match="not authorized"):
+        operation(
+            candidate, expected_revision=current.revision,
+            profile=OperationProfileKind.OBSERVE,
+            compatibility=compatibility(candidate),
+            approval_id=change_id, now=approved_at,
+        )
+    assert command.describe(current.module_id) == current
+    assert command.manager.capability_system.capability_names() == ()
+    assert ExecutionApprovalVerifier(canonical_state_path).matches_unconsumed(
+        approval_id=change_id, capability="module." + blocked_operation,
+        parameters=change_parameters, now=approved_at,
+    )
