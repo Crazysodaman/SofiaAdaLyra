@@ -170,3 +170,18 @@ def test_source_is_never_a_permission_or_publisher_signature(tmp_path):
     )
     with pytest.raises(ModuleRecipientRejected, match="key pin"):
         review(pin, value, root, attacker_key)
+
+
+
+def test_expiry_at_exact_catalog_deadline_denies_before_any_file_or_key_read(tmp_path):
+    pin, value, root, public = fixture(tmp_path)
+    calls = []
+    with pytest.raises(ModuleRecipientRejected, match="expired"):
+        review(
+            pin, value, root / "absent", public,
+            now=pin.metadata_fresh_until,
+            catalog_admit=lambda _: calls.append("catalog") or True,
+            publisher_current=lambda _: calls.append("publisher") or True,
+            publisher_key_lookup=lambda _: calls.append("key") or public,
+        )
+    assert calls == []
