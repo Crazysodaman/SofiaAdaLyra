@@ -1,0 +1,88 @@
+"""D028 receiver tests on a disposable local private store only."""
+import hashlib
+import os
+from pathlib import Path
+
+import pytest
+
+from sofia.platform.ops.library_chunk_receiver import (
+    ChunkedArtifactReceiver, ChunkTransferRejected, PinnedChunkTransfer,
+)
+
+pytestmark = [
+    pytest.mark.pkg_ops,
+    pytest.mark.pkg_safe,
+    pytest.mark.skipif(os.name != "posix", reason="strict Unix owner-private file modes"),
+]
+
+
+def _setup(tmp_path):
+    data = b"alpha-beta-gamma" * 19
+    transfer = PinnedChunkTransfer(
+        "source-1", "target-1", hashlib.sha256(data).hexdigest(), len(data), 1,
+    )
+    return data, transfer, ChunkedArtifactReceiver(tmp_path / "library", max_bytes=1024 * 1024)
+
+
+def test_resume_verify_and_publish(tmp_path):
+    data, pin, receiver = _setup(tmp_path)
+    approve = lambda _pin: True
+    n = receiver.append_chunk(
+        pin, offset=0, chunk=data[:25],
+        chunk_sha256=hashlib.sha256(data[:25]).hexdigest(), authorize=approve,
+    )
+    assert receiver.received_bytes(pin, authorize=approve) == n == 25
+    restarted = ChunkedArtifactReceiver(tmp_path / "library", max_bytes=1024 * 1024)
+    assert restarted.append_chunk(
+        pin, offset=n, chunk=data[n:],
+        chunk_sha256=hashlib.sha256(data[n:]).hexdigest(), authorize=approve,
+    ) == len(data)
+    assert restarted.finalize(pin, authorize=approve).read_bytes() == data
+
+
+def test_revoked_grant_denies_before_write(tmp_path):
+    data, pin, receiver = _setup(tmp_path)
+    with pytest.raises(ChunkTransferRejected):
+        receiver.append_chunk(
+            pin, offset=0, chunk=data,
+            chunk_sha256=hashlib.sha256(data).hexdigest(),
+            authorize=lambda _pin: False,
+        )
+    assert not list(receiver.incoming.iterdir())
+
+
+def test_corrupt_chunk_and_wrong_resume_cursor_deny(tmp_path):
+    data, pin, receiver = _setup(tmp_path)
+    with pytest.raises(ChunkTransferRejected):
+        receiver.append_chunk(
+            pin, offset=0, chunk=data, chunk_sha256="0" * 64,
+            authorize=lambda _pin: True,
+        )
+    with pytest.raises(ChunkTransferRejected):
+        receiver.append_chunk(
+            pin, offset=1, chunk=data,
+            chunk_sha256=hashlib.sha256(data).hexdigest(),
+            authorize=lambda _pin: True,
+        )
+
+
+def test_full_size_wrong_final_digest_denied(tmp_path):
+    data, pin, receiver = _setup(tmp_path)
+    bad = b"x" * len(data)
+    receiver.append_chunk(
+        pin, offset=0, chunk=bad,
+        chunk_sha256=hashlib.sha256(bad).hexdigest(),
+        authorize=lambda _pin: True,
+    )
+    with pytest.raises(ChunkTransferRejected):
+        receiver.finalize(pin, authorize=lambda _pin: True)
+    assert not list(receiver.completed.iterdir())
+
+
+def test_symlinked_incoming_data_is_rejected(tmp_path):
+    _data, pin, receiver = _setup(tmp_path)
+    external = tmp_path / "other"
+    external.write_bytes(b"bad")
+    (receiver.incoming / (pin.content_sha256 + ".part")).symlink_to(external)
+    with pytest.raises(ChunkTransferRejected):
+        receiver.received_bytes(pin, authorize=lambda _pin: True)
