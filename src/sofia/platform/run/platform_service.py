@@ -96,7 +96,10 @@ class PlatformServiceSession:
         )
         if os.name == "nt":
             name = "AegisPlatform-" + platform_id.replace("-", "") + "-" + str(self.lease.epoch)
-            listener = ManagementWindowsPipeListener(name, dispatch=dispatcher.dispatch)
+            listener = ManagementWindowsPipeListener(
+                name, dispatch=dispatcher.dispatch,
+                enrolled_operator_sid=current_peer.enrolled_windows_operator_sid(),
+            )
             self._management_endpoint = listener.name
         elif sys.platform == "linux":
             # Each RUN epoch uses a *new* private socket directory. Abrupt OS
