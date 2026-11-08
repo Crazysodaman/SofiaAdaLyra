@@ -96,6 +96,10 @@ pub mod linux {
     pub struct NativeLinuxManagementReader {
         pins: InstalledNativeServicePins,
         local_sequence: u64,
+        // Bind each current installed epoch to the same actual socket inode.
+        // A replaced endpoint requires a NEW B-verified profile, not silent
+        // rediscovery from an old signed installation identity.
+        verified_endpoint: Option<(u64, u64)>,
     }
 
     impl NativeLinuxManagementReader {
@@ -104,12 +108,16 @@ pub mod linux {
             Self {
                 pins,
                 local_sequence: 0,
+                verified_endpoint: None,
             }
         }
 
         fn status(&mut self) -> Result<DisplaySnapshot, ReadFailure> {
             // The exact native instance and its filesystem inode must agree.
             let inode = verify_endpoint(&self.pins)?;
+            if self.verified_endpoint.is_some_and(|old| old != inode) {
+                return Err(ReadFailure::Unverified);
+            }
             let now = Utc::now().fixed_offset();
             let mut random = [0_u8; 16];
             getrandom::getrandom(&mut random).map_err(|_| ReadFailure::Unverified)?;
@@ -177,6 +185,9 @@ pub mod linux {
             if response.outcome != "OK" {
                 return Err(ReadFailure::Unverified);
             }
+            // A current correlated OK is the first point at which this
+            // installer-derived endpoint can be pinned for future reads.
+            self.verified_endpoint = Some(inode);
             // A's canonical parser just required exact status fields,
             // operator_stop=false, core_started=false and correlation.
             // This sequence counts locally validated unique random requests,
@@ -410,6 +421,23 @@ pub mod linux {
                 assert_eq!(client.next().err(), Some(expected), "{case}");
                 thread.join().unwrap();
             }
+        }
+
+        #[test]
+        fn replaced_socket_inode_requires_a_new_verified_installation_epoch() {
+            let (home, pins, thread) = fake_service("OK");
+            let original = pins.socket_path.clone();
+            let mut client = NativeLinuxManagementReader::new(pins);
+            assert!(client.next().is_ok());
+            thread.join().unwrap();
+            let old_inode = fs::metadata(&original).unwrap().ino();
+            fs::rename(&original, home.path().join("old-socket")).unwrap();
+            let _new_listener = UnixListener::bind(&original).unwrap();
+            fs::set_permissions(&original, fs::Permissions::from_mode(0o600))
+                .unwrap();
+            assert_ne!(old_inode, fs::metadata(&original).unwrap().ino());
+            assert_eq!(client.next().err(), Some(ReadFailure::Unverified));
+            assert_eq!(client.local_sequence, 1);
         }
 
         #[test]
