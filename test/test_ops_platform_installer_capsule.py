@@ -143,3 +143,20 @@ def test_capsule_does_not_accept_root_redirection(reviewed, tmp_path):
             **{**capsule_args(reviewed, tmp_path / "capsule.zip"),
                "staged_release": alias},
         )
+
+
+@pytest.mark.parametrize("asset_kind", (
+    "sdk", "platform", "service", "python-runtime",
+    "dependency-lock", "sbom", "provenance",
+))
+def test_capsule_refuses_tamper_to_each_mandatory_signed_asset(
+        reviewed, tmp_path, asset_kind):
+    builder, staging, manifest, params = reviewed
+    target = next(item.reference for item in manifest.assets if item.kind == asset_kind)
+    member = staging / "assets" / target.path
+    with member.open("ab") as output:
+        output.write(b"tampered-after-signature")
+    capsule = tmp_path / "unsigned-drift.zip"
+    with pytest.raises((PlatformReleaseRejected, ValueError)):
+        build_reviewed_offline_capsule(**capsule_args(reviewed, capsule))
+    assert not capsule.exists()
