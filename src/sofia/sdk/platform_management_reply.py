@@ -4,12 +4,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
+import re
 from typing import Mapping
 
 from sofia.sdk.platform_management import UntrustedManagementRead
 
 REPLY_SCHEMA = "aegis.platform.management.response.v1"
 _MAX_REPLY = 32 * 1024
+_RFC3339 = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$")
 _REPLY_FIELDS = frozenset({
     "schema", "request_id", "platform_id", "generation",
     "observed_at", "operation", "payload",
@@ -46,7 +48,10 @@ def _deny_sensitive_payload(value: object, depth: int = 0) -> None:
             raise ValueError("unbounded management response list")
         for member in value:
             _deny_sensitive_payload(member, depth + 1)
-    elif value is None or type(value) in (str, int, float, bool):
+    elif isinstance(value, str):
+        if any(ord(c) < 32 or ord(c) == 127 for c in value):
+            raise ValueError("control characters in management response")
+    elif value is None or type(value) in (int, float, bool):
         return
     else:
         raise ValueError("unsupported management response data")
@@ -92,8 +97,8 @@ class UntrustedManagementReply:
                 or doc["operation"] != request.operation):
             raise PermissionError("management response does not match request")
         stamp = doc["observed_at"]
-        if not isinstance(stamp, str):
-            raise ValueError("management response timestamp missing")
+        if not isinstance(stamp, str) or _RFC3339.fullmatch(stamp) is None:
+            raise ValueError("management response RFC3339 timestamp required")
         try:
             observed = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
             created = datetime.fromisoformat(request.created_at.replace("Z", "+00:00"))
