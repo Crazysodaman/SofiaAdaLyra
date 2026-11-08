@@ -63,3 +63,10 @@ def test_absent_git_metadata_is_unknown_not_assumed_editor():
 def test_nonmapping_payload_is_rejected():
     with pytest.raises(ValueError):
         project_portainer_stack_metadata([], stack_id=7, endpoint_id=3)
+
+
+def test_empty_git_configuration_does_not_prove_git_management():
+    data = _stack()
+    data["GitConfig"] = {}
+    result = project_portainer_stack_metadata(data, stack_id=7, endpoint_id=3)
+    assert result["source_hint"] == "unknown"
