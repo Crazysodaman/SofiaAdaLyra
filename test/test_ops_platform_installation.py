@@ -387,3 +387,78 @@ def test_activation_health_failure_records_failed_history(tmp_path, builder,
     assert any(value.startswith('FAILED:') for value in outcomes)
     assert store.checkpoint().active_release_id is None
     assert (destination / 'activation-receipt.json').exists() is False
+
+
+
+def test_activation_state_write_failure_stops_started_service(
+        tmp_path, installed_release, service_python, canonical_state_path, monkeypatch):
+    """An activation DB error cannot leave a live unowned service child."""
+    builder, store, destination = installed_release
+    identity, current, state = provision(tmp_path / 'host')
+    request = platform_activation_request(destination, canonical_state_path, store=store)
+    approvals = ExecutionApprovalVerifier(canonical_state_path)
+    approval = ExecutionApproval(
+        approval_id='approval:test-install-state-failure',
+        capability=request['capability'],
+        request_fingerprint=request['fingerprint'],
+        approved_by='person:sparks',
+        approved_at=datetime.now(timezone.utc) - timedelta(seconds=1),
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10))
+    record_verified_owner_approval(approvals, approval)
+    runtime = PythonPlatformServiceLauncher(service_python, identity.home, state,
+        current.identity.canonical_uuid, current.public_key_sha256)
+
+    def fail_state_write(*_args, **_kwargs):
+        raise RuntimeError('simulated activation DB failure')
+
+    monkeypatch.setattr(store, 'record_activated', fail_state_write)
+    try:
+        with pytest.raises(RuntimeError, match='activation DB failure'):
+            activate_installed_release(destination, store=store,
+                state_path=canonical_state_path, verifier=builder.verifier,
+                runtime=runtime, approval_id=approval.approval_id)
+        assert runtime._child is None
+        assert store.checkpoint().active_release_id is None
+    finally:
+        runtime.close()
+
+
+def test_activation_receipt_write_failure_requires_reconciliation(
+        tmp_path, installed_release, service_python, canonical_state_path, monkeypatch):
+    """DB success without an activation file must not be reported healthy."""
+    import sofia.platform.ops.platform_installation as installation
+
+    builder, store, destination = installed_release
+    identity, current, state = provision(tmp_path / 'host')
+    request = platform_activation_request(destination, canonical_state_path, store=store)
+    approvals = ExecutionApprovalVerifier(canonical_state_path)
+    approval = ExecutionApproval(
+        approval_id='approval:test-install-receipt-failure',
+        capability=request['capability'],
+        request_fingerprint=request['fingerprint'],
+        approved_by='person:sparks',
+        approved_at=datetime.now(timezone.utc) - timedelta(seconds=1),
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10))
+    record_verified_owner_approval(approvals, approval)
+    runtime = PythonPlatformServiceLauncher(service_python, identity.home, state,
+        current.identity.canonical_uuid, current.public_key_sha256)
+
+    original_write = installation._write_new
+
+    def fail_activation_receipt(path, data):
+        if Path(path).name == 'activation-receipt.json':
+            raise OSError('simulated activation receipt failure')
+        return original_write(path, data)
+
+    monkeypatch.setattr(installation, '_write_new', fail_activation_receipt)
+    try:
+        with pytest.raises(OSError, match='activation receipt failure'):
+            activate_installed_release(destination, store=store,
+                state_path=canonical_state_path, verifier=builder.verifier,
+                runtime=runtime, approval_id=approval.approval_id)
+        assert runtime._child is None
+        assert store.checkpoint().active_release_id == 'disposable-vm-release'
+        with pytest.raises(PlatformInstallationDenied, match='activation receipt'):
+            verify_installed(destination, store=store, verifier=builder.verifier)
+    finally:
+        runtime.close()
