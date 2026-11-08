@@ -105,3 +105,44 @@ def test_offline_seed_requires_independent_root_and_exact_signed_source(reviewed
     altered = dict(params, expected_source_sha="0" * 40)
     with pytest.raises(PlatformReleaseRejected):
         review_core_free_offline_seed(root, **altered)
+
+
+@pytest.mark.parametrize("defect", ("traversal", "case-duplicate", "core-nested", "symlink"))
+def test_signed_offline_seed_rejects_malicious_dependency_archive(
+    reviewed, tmp_path, defect,
+):
+    import stat
+    builder, root, manifest, params = reviewed
+    target = tmp_path / ("malicious-dependency-" + defect)
+    shutil.copytree(root, target)
+    name = "neutral_extra-1.0.0-py3-none-any.whl"
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr("neutral_extra-1.0.0.dist-info/METADATA",
+                         "Metadata-Version: 2.1\nName: neutral-extra\nVersion: 1.0.0\n")
+        if defect == "traversal":
+            archive.writestr("../sofia.db", "forbidden")
+        elif defect == "case-duplicate":
+            archive.writestr("Neutral/Config", "a")
+            archive.writestr("neutral/config", "b")
+        elif defect == "core-nested":
+            archive.writestr("vendor/sofia/core/private.py", "forbidden")
+        else:
+            link = zipfile.ZipInfo("package/redirect")
+            link.create_system = 3
+            link.external_attr = (stat.S_IFLNK | 0o777) << 16
+            archive.writestr(link, "../private")
+    raw = buffer.getvalue()
+    (target / "assets" / name).write_bytes(raw)
+    extra = PlatformReleaseAsset(
+        "dependency", ArtifactReference(name, sha256(raw).hexdigest(), len(raw)),
+    )
+    signed = replace(manifest, assets=manifest.assets + (extra,))
+    signature = b64encode(builder._key.sign(signed.digest.encode("ascii"))).decode("ascii")
+    (target / "release-manifest.json").write_bytes(signed.canonical_bytes)
+    (target / "release-signature.json").write_text(json.dumps({
+        "signer_key_id": builder.signer_key_id,
+        "signature_b64": signature,
+    }))
+    with pytest.raises(PlatformReleaseRejected):
+        review_core_free_offline_seed(target, **params)
