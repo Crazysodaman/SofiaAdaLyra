@@ -71,6 +71,7 @@ def review(data, value, root, pub, **changes):
         expected_catalog_generation=5, minimum_catalog_revision=22,
         manifest=value, package_root=root, now=NOW,
         target=target(), profile=OperationProfileKind.OBSERVE,
+        current_request_admit=lambda *_: True,
         signed_index_admit=lambda _: True, signed_content_admit=lambda *_: True,
         current_host_scope_admit=lambda *_: True,
         license_policy_admit=lambda _: True,
@@ -353,3 +354,30 @@ def test_signed_dependency_requires_current_host_receipt_and_exact_version(tmp_p
             verified_dependencies=(out_of_range,),
             dependency_receipt_admit=lambda _: True,
         )
+
+
+
+@pytest.mark.parametrize("deny", [False, None, "APPROVED", 1])
+def test_current_authority_refusal_prevents_even_index_key_or_file_reads(
+    tmp_path, deny,
+):
+    """No untrusted, truthy or missing A service admission can read signer/index."""
+    data, value, root, pub = fixture(tmp_path)
+    calls = []
+    with pytest.raises(ModuleRecipientRejected, match="SAFE/STOP"):
+        review(
+            data, value, root / "missing", pub,
+            current_request_admit=lambda *_: calls.append("safe") or deny,
+            signed_index_admit=lambda _: calls.append("index") or True,
+            signed_content_admit=lambda *_: calls.append("archive") or True,
+            publisher_key_lookup=lambda _: calls.append("key") or pub,
+        )
+    assert calls == ["safe"]
+
+
+def test_absent_current_authority_callback_cannot_be_forged_by_catalog(tmp_path):
+    data, value, root, pub = fixture(tmp_path)
+    # Even a perfectly-shaped, independently signed item has no authority
+    # when Team A's current, enrolled request admission is not supplied.
+    with pytest.raises(ModuleRecipientRejected, match="gate"):
+        review(data, value, root, pub, current_request_admit=None)
