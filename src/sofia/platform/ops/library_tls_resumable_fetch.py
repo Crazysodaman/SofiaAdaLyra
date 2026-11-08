@@ -30,11 +30,15 @@ def fetch_resumable_chunks(
     publisher_current: Callable[[PinnedChunkTransfer], bool],
     chunk_bytes: int = MAX_CHUNK,
     max_chunks: int = 128,
+    start_offset: int = 0,
 ) -> int:
     """Fetch at most max_chunks, returning the durable offset after progress.
 
     Each chunk gets a fresh, service-managed mTLS session. Resume is an explicit
     subsequent call with the SAME independently trusted transfer descriptor.
+    The service supplies an explicit expected durable offset; receiver state
+    must match it before any bytes are requested. For a resumed call, use the
+    last successful offset or a separately authorized local cursor read.
     No network URL, disk path, grant, or publisher identity is accepted from
     the remote peer. A new certificate within one call is refused, even if its
     CA is otherwise trusted; the service must deliberately restart the plan.
@@ -49,9 +53,12 @@ def fetch_resumable_chunks(
         raise ChunkTransferRejected("bounded chunk size required")
     if type(max_chunks) is not int or not 1 <= max_chunks <= 10000:
         raise ChunkTransferRejected("bounded chunk budget required")
+    if (type(start_offset) is not int or start_offset < 0
+            or start_offset > transfer.size_bytes):
+        raise ChunkTransferRejected("bounded expected resume cursor required")
 
     first_fingerprint: str | None = None
-    offset = -1
+    offset = start_offset
     for _ in range(max_chunks):
         # Refuse an already revoked manifest before opening a new connection.
         # The post-handshake check below remains mandatory against races.
@@ -69,18 +76,21 @@ def fetch_resumable_chunks(
             if first_fingerprint is not None and fingerprint != first_fingerprint:
                 raise ChunkTransferRejected("enrolled peer certificate changed mid-transfer")
             first_fingerprint = fingerprint
-            def current(t: PinnedChunkTransfer) -> bool:
-                return _approved(authorize_peer, session, fingerprint, t, 0, 0)
+            length = min(chunk_bytes, transfer.size_bytes - offset)
 
-            # The preflight check is only a status read; receive_one_chunk
-            # rechecks current authorization for the actual byte range.
+            def current(t: PinnedChunkTransfer) -> bool:
+                # The grant must cover the exact intended resumed byte range.
+                # A synthetic zero-length grant is not sufficient.
+                return _approved(authorize_peer, session, fingerprint, t, offset, length)
+
             if publisher_current(transfer) is not True:
                 raise ChunkTransferRejected("publisher trust revoked or unavailable")
             current(transfer)
-            offset = receiver.received_bytes(transfer, authorize=current)
+            observed = receiver.received_bytes(transfer, authorize=current)
+            if observed != offset:
+                raise ChunkTransferRejected("local resume cursor differs from expected offset")
             if offset == transfer.size_bytes:
                 return offset
-            length = min(chunk_bytes, transfer.size_bytes - offset)
             next_offset = receive_one_chunk(
                 session, transfer=transfer, offset=offset, length=length,
                 receiver=receiver, authorize_peer=authorize_peer,
