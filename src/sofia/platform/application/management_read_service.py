@@ -64,10 +64,11 @@ def _no_secret_keys(value: object, depth: int = 0) -> None:
             if not isinstance(key, str):
                 raise ManagementReadDenied("non-text projection key")
             normalized = key.lower()
-            if any(part in normalized for part in (
-                "secret", "password", "access_token", "private_key",
-                "credential", "refresh_token", "api_key",
-            )):
+            if (normalized in {"__proto__", "constructor", "prototype"}
+                    or any(part in normalized for part in (
+                        "secret", "password", "access_token", "private_key",
+                        "credential", "refresh_token", "api_key",
+                    ))):
                 raise ManagementReadDenied("sensitive field in read projection")
             _no_secret_keys(item, depth + 1)
     elif isinstance(value, (list, tuple)):
@@ -114,13 +115,13 @@ class PlatformManagementReadDispatcher:
         self._clock = clock
 
     def _authorize(self, peer: object, request: UntrustedManagementRead) -> None:
-        if peer is None or not self._authorize_peer(peer, request.operation):
+        if peer is None or self._authorize_peer(peer, request.operation) is not True:
             raise ManagementReadDenied("current peer authorization denied")
         platform_id, generation = self._current_identity()
         if (platform_id != request.target_platform_id
                 or type(generation) is not int
                 or generation != request.expected_generation
-                or self._operator_stop_active()):
+                or self._operator_stop_active() is not False):
             raise ManagementReadDenied("Platform generation, identity or STOP mismatch")
 
     def read(self, raw: bytes, *, peer: object) -> ManagementReadResult:
@@ -136,14 +137,27 @@ class PlatformManagementReadDispatcher:
         projected = provider()
         if not isinstance(projected, dict):
             raise ManagementReadDenied("provider returned unscoped projection")
-        _no_secret_keys(projected)
+        # Clone exactly once. A provider may own a mutable dict and change it
+        # after return; never authorize one object and later serialize another.
+        try:
+            serialized = json.dumps(
+                projected, sort_keys=True, separators=(",", ":"),
+                ensure_ascii=False, allow_nan=False,
+            ).encode("utf-8")
+            if len(serialized) > MAX_RESULT_BYTES:
+                raise ManagementReadDenied("management read result exceeds limit")
+            bounded_snapshot = json.loads(serialized)
+        except (ValueError, TypeError, OverflowError, RecursionError) as error:
+            raise ManagementReadDenied("unserializable read projection") from error
+        _no_secret_keys(bounded_snapshot)
         observed_at = self._clock()
         if observed_at.tzinfo is None or observed_at.utcoffset() is None:
             raise ManagementReadDenied("authoritative wall clock unavailable")
         # Re-evaluate active principal/revocation/STOP/generation after the
         # potentially slow provider. Never deliver data that outlived authority.
         self._authorize(peer, request)
-        if observed_at > datetime.fromisoformat(request.deadline.replace("Z", "+00:00")):
+        if (observed_at < timestamp or observed_at >= datetime.fromisoformat(
+                request.deadline.replace("Z", "+00:00"))):
             raise ManagementReadDenied("provider result exceeded request deadline")
         result = ManagementReadResult(
             request_id=request.request_id,
@@ -151,7 +165,7 @@ class PlatformManagementReadDispatcher:
             generation=request.expected_generation,
             observed_at=observed_at.astimezone(timezone.utc).isoformat(),
             operation=request.operation,
-            payload=projected,
+            payload=bounded_snapshot,
         )
         try:
             encoded = result.to_json()
