@@ -122,3 +122,55 @@ def test_library_map_preserves_specific_d028_signed_and_revocation_rows() -> Non
     assert {10, 11, 12, 19, 22, 29, 37}.issubset(LIB_ROWS["LIB-13"])
     assert LIB_ROWS["LIB-14"] == tuple(range(30, 39))
     assert LIB_ROWS["LIB-16"] == (29, 30, 32, 33, 34, 35, 36, 37, 38)
+
+
+def test_d028_four_host_plan_is_inert_and_single_primary() -> None:
+    plan_path = Path(__file__).resolve().parent / "fixtures" / "aegis_d028" / "qa_four_host_topology.json"
+    plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    assert plan["schema"] == "aegis.qa.d028.disposable-four-host-plan.v1"
+    assert plan["state"] == "PLAN_ONLY"
+    assert plan["release_accepted"] is False
+    assert plan["production_authorized"] is False
+    assert plan["signed_os_installed_host_evidence"] == "NOT_COLLECTED"
+    assert plan["actual_host_ids"] == []
+    assert plan["live_production_targets"] == []
+    assert plan["acceptance_claim"] == "NOT_CLAIMED"
+    assert plan["required_completed_lib_cases"] == len(LIB_ROWS) == 16
+    assert plan["original_acceptance_rows"] == COUNT == 38
+    hosts = {row["id"]: row for row in plan["hosts"]}
+    assert set(hosts) == {"W-EMPTY", "D-HUB", "D-CLIENT", "W-PEER"}
+    assert all(row["platform_id"] == "OBSERVE_AFTER_INSTALL" for row in hosts.values())
+    assert all(row["service_binary_sha256"] == "OBSERVE_AFTER_INSTALL"
+               for row in hosts.values())
+    assert hosts["D-HUB"]["role"] == "SOLE_PRIMARY_HUB"
+    assert all(row["role"] != "SOLE_PRIMARY_HUB" for k, row in hosts.items()
+               if k != "D-HUB")
+    logical = plan["logical_library"]
+    assert logical["primary_count"] == 1
+    assert logical["primary_test_host"] == "D-HUB"
+    assert logical["read_replica_test_hosts_initially"] == []
+    assert plan["proposed_real_primary_placement"]["target_is_not_a_test_host"]
+    assert plan["proposed_real_primary_placement"]["deployment_authorized"] is False
+
+
+def test_d028_four_host_network_backup_and_approvals_fail_closed() -> None:
+    path = Path(__file__).resolve().parent / "fixtures" / "aegis_d028" / "qa_four_host_topology.json"
+    plan = json.loads(path.read_text(encoding="utf-8"))
+    network = plan["network_isolation"]
+    assert network["wan"].startswith("DENY_BY_DEFAULT")
+    assert network["user_production_lan"] == "DENY"
+    assert network["real_host_dns_and_discovery"] == "DISABLED"
+    assert network["no_real_addresses_or_hostnames_embedded"] is True
+    assert "EXTERNAL_INDEPENDENT_TRUST_ROOT" == plan["logical_library"]["publisher_signing_authority"]
+    assert plan["logical_library"]["owner_authority"] == "SAME_CANONICAL_PLATFORM_SAFE_STOP"
+    assert plan["backup_retention"]["deleted_pinned_artifacts_allowed"] is False
+    assert plan["backup_retention"]["independent_physical_fault_domain_required_for_real_continuity_claim"]
+    assert "sofia.db" in plan["backup_retention"]["must_exclude"]
+    phase_ids = {p["id"] for p in plan["phase_sequence"]}
+    assert "REPLICA_AND_RECOVERY" in phase_ids
+    assert "COEXISTENCE_AND_RETENTION" in phase_ids
+    assert all(p["status"] == "NOT_EXECUTED" for p in plan["phase_sequence"])
+    combined = "\\n".join("|".join(p["require"]) for p in plan["phase_sequence"])
+    assert "manual_promotion_only_after_old_primary_fence_and_independent_witness" in combined
+    assert "recipient_reverifies_trusted_signature" in combined
+    assert "restore_verified_off_primary_backup_no_core_state" in combined
