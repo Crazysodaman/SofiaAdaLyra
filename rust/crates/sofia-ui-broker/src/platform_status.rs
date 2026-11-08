@@ -245,13 +245,9 @@ impl ModuleStatusModel {
     /// its verified health. This never changes installed lifecycle.
     pub fn expire_at(&mut self, now: Instant, max_age: Duration) {
         for row in self.rows.values_mut() {
-            if row
-                .last_received_at
-                .checked_duration_since(now)
-                .is_some()
-                || now
-                    .checked_duration_since(row.last_received_at)
-                    .is_none_or(|age| age > max_age)
+            if now
+                .checked_duration_since(row.last_received_at)
+                .is_none_or(|age| age > max_age)
             {
                 row.freshness = ObservationFreshness::Stale;
             }
