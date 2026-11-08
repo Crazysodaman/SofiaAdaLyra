@@ -1,0 +1,15 @@
+{
+  "schema": "aegis.platform.management.read-response.v1",
+  "protocol": "1.0",
+  "request_id": "req:read:1",
+  "platform_id": "platform:alpha",
+  "platform_generation": 3,
+  "operation": "platform.status",
+  "source": "PLATFORM_SESSION",
+  "data": {
+    "platform_id": "platform:alpha",
+    "generation": 3,
+    "operator_stop": false,
+    "core_started": false
+  }
+}
