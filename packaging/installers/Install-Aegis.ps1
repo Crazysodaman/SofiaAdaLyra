@@ -13,6 +13,9 @@ param(
     [switch]$DryRun,
     [string]$VerifySeed,
     [string]$TrustedSeedSha256,
+    [string]$VerifyPublisherBootstrap,
+    [string]$TrustedPublisherThumbprint,
+    [string]$TrustedBootstrapSha256,
     [ValidateSet('status','doctor','install','update','repair','rollback','uninstall','purge')]
     [string]$Operation
 )
@@ -22,9 +25,16 @@ if ($Check -and $Operation) {
     [Console]::Error.WriteLine('-Check cannot be combined with -Operation.')
     exit 2
 }
-if (($VerifySeed -and ($Check -or $Operation -or $DryRun)) -or
+if (($VerifySeed -and ($Check -or $Operation -or $DryRun -or $VerifyPublisherBootstrap)) -or
     (($null -ne $TrustedSeedSha256 -and $TrustedSeedSha256.Length -gt 0) -and -not $VerifySeed)) {
     [Console]::Error.WriteLine('Ambiguous seed preflight flags.')
+    exit 2
+}
+if (($VerifyPublisherBootstrap -and ($Check -or $Operation -or $DryRun -or $VerifySeed)) -or
+    (([string]::IsNullOrEmpty($VerifyPublisherBootstrap)) -and
+      (-not [string]::IsNullOrEmpty($TrustedPublisherThumbprint) -or
+       -not [string]::IsNullOrEmpty($TrustedBootstrapSha256)))) {
+    [Console]::Error.WriteLine('Publisher trust check cannot be combined with protected operations.')
     exit 2
 }
 
@@ -254,6 +264,248 @@ while ($true) {
         [Console]::Error.WriteLine('Offline seed inaccessible, redirected, or outside bounded policy.')
         exit 3
     }
+}
+
+function Test-AegisPublisherSignedBootstrap {
+    param(
+        [string]$Path,
+        [string]$PublisherThumbprint,
+        [string]$IndependentSha256
+    )
+    # Windows' native Authenticode trust validation is distinct from
+    # SHA256 integrity and from Platform's canonical Ed25519 release proof.
+    # A trusted *publisher-signed* native verifier must still separately
+    # validate the Ed25519 manifest and exact assets before any install.
+    if ($PublisherThumbprint -cnotmatch '^[0-9A-Fa-f]{40} -Path $VerifySeed -ExternalSha256 $TrustedSeedSha256
+    exit 3
+}
+if ($Check) {
+    Write-AegisResult NO_CHANGES_MADE
+    exit 0
+}
+if ($Operation) {
+    if ($Operation -in @('status','doctor')) {
+        Write-AegisResult NO_CHANGES_MADE
+        exit 0
+    }
+    Write-AegisResult BLOCKED
+    exit 3
+}
+if ($Json -or $DryRun) {
+    [Console]::Error.WriteLine('-Json and -DryRun require -Check or -Operation.')
+    exit 2
+}
+
+try {
+    if ([Console]::IsInputRedirected -or [Console]::IsOutputRedirected) {
+        [Console]::Error.WriteLine(
+            'Interactive installer requires a console; use -Check for preflight.'
+        )
+        exit 2
+    }
+} catch {
+    [Console]::Error.WriteLine(
+        'No interactive console available; use -Check for preflight.'
+    )
+    exit 2
+}
+
+$narrow = $false
+try { $narrow = ([Console]::WindowWidth -lt 64) } catch { $narrow = $false }
+while ($true) {
+    if ($narrow) {
+        Write-AegisText 'AEGIS PLATFORM INSTALLER' primary
+        Write-AegisText 'PREVIEW ONLY / NO INSTALL AUTHORITY' warning
+    } else {
+        Write-AegisText '+------------------------------------------------------------+' primary
+        Write-AegisText '|                 AEGIS PLATFORM INSTALLER                   |' primary
+        Write-AegisText '|           PREVIEW ONLY / NO INSTALL AUTHORITY              |' warning
+        Write-AegisText '+------------------------------------------------------------+' primary
+    }
+    Write-AegisText '[1] Install Platform (blocked)' accent
+    Write-AegisText '[2] Update Platform (blocked)' accent
+    Write-AegisText '[3] Repair Platform (blocked)' accent
+    Write-AegisText '[4] Uninstall Platform (blocked)' accent
+    Write-AegisText '[5] Diagnostics (read-only)' accent
+    Write-AegisText '[6] Rollback (blocked)' accent
+    Write-AegisText '[7] Status (unverified)' accent
+    Write-AegisText '[0] Exit' accent
+    Write-Host '[?] Help | [B] Back | [C] Cancel'
+    $choice = Read-Host 'Select [0-7]'
+    switch ($choice) {
+        { $_ -in '0','B','b','C','c' } { exit 0 }
+        { $_ -in '5','7' } { Show-AegisPreflight; break }
+        { $_ -in '1','2','3','4','6' } {
+            Write-AegisText 'BLOCKED: signed release, native executor and SAFE/STOP approval not connected.' warning
+            break
+        }
+        '?' {
+            Write-Host 'Choose 5 or 7 for read-only checks. Lifecycle changes require a certified signed installer.'
+            break
+        }
+        default { Write-Host 'Invalid selection; no operation performed.' }
+    }
+}
+ -or
+        $IndependentSha256 -cnotmatch '^[0-9a-f]{64} -Path $VerifySeed -ExternalSha256 $TrustedSeedSha256
+    exit 3
+}
+if ($Check) {
+    Write-AegisResult NO_CHANGES_MADE
+    exit 0
+}
+if ($Operation) {
+    if ($Operation -in @('status','doctor')) {
+        Write-AegisResult NO_CHANGES_MADE
+        exit 0
+    }
+    Write-AegisResult BLOCKED
+    exit 3
+}
+if ($Json -or $DryRun) {
+    [Console]::Error.WriteLine('-Json and -DryRun require -Check or -Operation.')
+    exit 2
+}
+
+try {
+    if ([Console]::IsInputRedirected -or [Console]::IsOutputRedirected) {
+        [Console]::Error.WriteLine(
+            'Interactive installer requires a console; use -Check for preflight.'
+        )
+        exit 2
+    }
+} catch {
+    [Console]::Error.WriteLine(
+        'No interactive console available; use -Check for preflight.'
+    )
+    exit 2
+}
+
+$narrow = $false
+try { $narrow = ([Console]::WindowWidth -lt 64) } catch { $narrow = $false }
+while ($true) {
+    if ($narrow) {
+        Write-AegisText 'AEGIS PLATFORM INSTALLER' primary
+        Write-AegisText 'PREVIEW ONLY / NO INSTALL AUTHORITY' warning
+    } else {
+        Write-AegisText '+------------------------------------------------------------+' primary
+        Write-AegisText '|                 AEGIS PLATFORM INSTALLER                   |' primary
+        Write-AegisText '|           PREVIEW ONLY / NO INSTALL AUTHORITY              |' warning
+        Write-AegisText '+------------------------------------------------------------+' primary
+    }
+    Write-AegisText '[1] Install Platform (blocked)' accent
+    Write-AegisText '[2] Update Platform (blocked)' accent
+    Write-AegisText '[3] Repair Platform (blocked)' accent
+    Write-AegisText '[4] Uninstall Platform (blocked)' accent
+    Write-AegisText '[5] Diagnostics (read-only)' accent
+    Write-AegisText '[6] Rollback (blocked)' accent
+    Write-AegisText '[7] Status (unverified)' accent
+    Write-AegisText '[0] Exit' accent
+    Write-Host '[?] Help | [B] Back | [C] Cancel'
+    $choice = Read-Host 'Select [0-7]'
+    switch ($choice) {
+        { $_ -in '0','B','b','C','c' } { exit 0 }
+        { $_ -in '5','7' } { Show-AegisPreflight; break }
+        { $_ -in '1','2','3','4','6' } {
+            Write-AegisText 'BLOCKED: signed release, native executor and SAFE/STOP approval not connected.' warning
+            break
+        }
+        '?' {
+            Write-Host 'Choose 5 or 7 for read-only checks. Lifecycle changes require a certified signed installer.'
+            break
+        }
+        default { Write-Host 'Invalid selection; no operation performed.' }
+    }
+}
+) {
+        [Console]::Error.WriteLine('Externally pinned code-signing cert and release digest are mandatory.')
+        exit 2
+    }
+    try {
+        $absolute = [IO.Path]::GetFullPath($Path)
+        if ($absolute.StartsWith('\\') -or
+            [IO.Path]::GetExtension($absolute).ToLowerInvariant() -ne '.exe') {
+            throw 'Native local signed executable required'
+        }
+        $cursor = $absolute
+        while ($cursor -and $cursor.Length -gt 0) {
+            $entry = Get-Item -LiteralPath $cursor -Force -ErrorAction Stop
+            if (($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                throw 'Publisher executable path contains reparse point'
+            }
+            $parent = [IO.Directory]::GetParent($cursor)
+            if ($null -eq $parent) { break }
+            $cursor = $parent.FullName
+        }
+        $item = Get-Item -LiteralPath $absolute -Force -ErrorAction Stop
+        if (-not ($item -is [IO.FileInfo]) -or
+            $item.Length -lt 1 -or $item.Length -gt 67108864) {
+            throw 'Publisher executable outside bounded size'
+        }
+        $digest = (Get-FileHash -LiteralPath $absolute -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant()
+        if ($digest -cne $IndependentSha256) {
+            throw 'Pinned executable bytes changed'
+        }
+        $signature = Get-AuthenticodeSignature -LiteralPath $absolute -ErrorAction Stop
+        if ($signature.Status -ne 'Valid' -or
+            $null -eq $signature.SignerCertificate) {
+            throw 'Unsigned or untrusted native installer'
+        }
+        $certificate = $signature.SignerCertificate
+        if ($certificate.Thumbprint.ToUpperInvariant() -cne
+            $PublisherThumbprint.ToUpperInvariant()) {
+            throw 'Code signer differs from independently pinned publisher'
+        }
+        $utc = [DateTime]::UtcNow
+        if ($certificate.NotBefore.ToUniversalTime() -gt $utc -or
+            $certificate.NotAfter.ToUniversalTime() -lt $utc) {
+            throw 'Code signing certificate outside validity'
+        }
+        $eku = $certificate.Extensions | Where-Object {
+            $_.Oid.Value -eq '2.5.29.37'
+        }
+        if ($null -eq $eku) {
+            throw 'Missing code signing key usage'
+        }
+        $codeSigning = ($eku | ForEach-Object {
+            $_.EnhancedKeyUsages | Where-Object { $_.Value -eq '1.3.6.1.5.5.7.3.3' }
+        })
+        if ($null -eq $codeSigning) {
+            throw 'No code signing extended key usage'
+        }
+        if ($Json) {
+            $result = [ordered]@{
+                schema = 'aegis.installer.publisher-bootstrap-check.v1'
+                result = 'AUTHENTICODE_BINARY_ONLY'
+                publisher_certificate_thumbprint = $certificate.Thumbprint.ToLowerInvariant()
+                executable_sha256 = $digest
+                publisher_authenticode_verified = $true
+                release_ed25519_verified = $false
+                release_assets_verified = $false
+                owner_approved = $false
+                executed = $false
+                core_activated = $false
+            }
+            Write-Output (ConvertTo-Json -InputObject $result -Compress)
+        } else {
+            Write-Output 'RESULT=AUTHENTICODE_BINARY_ONLY'
+            Write-Output ('BOOTSTRAP_SHA256=' + $digest)
+            Write-Output 'PUBLISHER_SIGNATURE=AUTHENTICODE_VALID'
+            Write-Output 'ED25519_RELEASE=NOT_VERIFIED'
+            Write-Output 'ASSETS_VERIFIED=FALSE'
+            Write-Output 'INSTALL_AUTHORITY=NOT_CONNECTED'
+            Write-Output 'NO_CHANGES_MADE=TRUE'
+        }
+        exit 0
+    } catch {
+        [Console]::Error.WriteLine('Publisher signature or independently pinned executable rejected.')
+        exit 3
+    }
+}
+
+if ($VerifyPublisherBootstrap) {
+    Test-AegisPublisherSignedBootstrap -Path $VerifyPublisherBootstrap -PublisherThumbprint $TrustedPublisherThumbprint -IndependentSha256 $TrustedBootstrapSha256
+    exit 3
 }
 
 if ($VerifySeed) {
