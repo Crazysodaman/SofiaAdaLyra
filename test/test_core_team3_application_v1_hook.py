@@ -5,6 +5,8 @@ providing its own genuine provider. This regression does not prove inference.
 """
 from datetime import datetime, timezone
 
+import pytest
+
 from sofia.core.memory.provenance import CandidateStatus
 from sofia.core.social.principals import local_sparks_principal
 from test.core_team3_policy_fixture import (
@@ -163,3 +165,24 @@ def test_v1_reviewed_correction_reaches_application_memory_after_two_restarts(tm
         assert all("sapphire" not in record.content for record in memories)
     finally:
         third.shutdown()
+
+
+@pytest.mark.parametrize(
+    "missing_authority",
+    ("identity.json", "constitution.sha256", "personality.json"),
+)
+def test_disposable_application_restart_never_regenerates_authority(
+    tmp_path, missing_authority,
+):
+    """If prior authority is missing, refuse restart rather than bootstrap."""
+    app = create_disposable_core_application(tmp_path)
+    app.start()
+    try:
+        assert app._runtime.identity is not None
+        assert app._runtime.personality is not None
+    finally:
+        app.shutdown()
+    (tmp_path / missing_authority).unlink()
+    with pytest.raises(FileNotFoundError, match="complete existing authority"):
+        create_disposable_core_application(tmp_path)
+    assert not (tmp_path / missing_authority).exists()
