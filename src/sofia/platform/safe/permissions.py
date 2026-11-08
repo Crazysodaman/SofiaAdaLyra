@@ -301,6 +301,8 @@ _PROTECTED = frozenset({
     "workshop.guest.bootstrap",
     "ops.migration.execute",
     "release.rollout.execute",
+    "platform.activate_release",
+    "platform.rollback_release",
     "ops.restore.replace_protected",
     "home_assistant.service.call",
     "github.pull_request.merge",
