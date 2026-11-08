@@ -172,8 +172,7 @@ impl DisplaySession {
             self.fail(ReadFailure::Stale);
             return Err(DisplayError::SettingsRegressed);
         }
-        if incoming.removal_receipt_verified
-            && incoming.installation != InstallationState::Removed
+        if incoming.removal_receipt_verified && incoming.installation != InstallationState::Removed
         {
             self.fail(ReadFailure::Unverified);
             return Err(DisplayError::InvalidReceipt);
@@ -199,9 +198,9 @@ impl DisplaySession {
 fn valid_id(value: &str) -> bool {
     !value.is_empty()
         && value.len() <= 160
-        && value.bytes().all(|byte| {
-            byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b':')
-        })
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b':'))
 }
 
 fn valid_revisions(saved: Option<u64>, applied: Option<u64>) -> bool {
@@ -264,7 +263,10 @@ mod tests {
         let old_editor = session.view().clone();
         session.fail(ReadFailure::Offline);
         assert_eq!(session.view().installation, InstallationState::Installed);
-        assert_eq!(session.view().installation_label(), "NOT_CURRENTLY_VERIFIED");
+        assert_eq!(
+            session.view().installation_label(),
+            "NOT_CURRENTLY_VERIFIED"
+        );
         assert!(session.view().editor_needs_review(&old_editor));
         session
             .refresh(&mut Fixed(Ok(observed(1, 2))), t + Duration::from_secs(1))
