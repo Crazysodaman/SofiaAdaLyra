@@ -1,10 +1,10 @@
 # AG-D022 | Aegis Terminal Control Center (headless ASCII TUI)
 
-**Status:** OWNER-DESIRED DESIGN (2026-11-07); CAPTURED, NOT IMPLEMENTED or SCHEDULED.
+**Status:** OWNER-APPROVED FOR PLATFORM 1.0 EXPANDED SHAKEDOWN (2026-11-08); implementation and installed-host acceptance pending.
 **Purpose:** A complete, optional-screen Aegis management experience for headless Windows and Linux computers, local consoles and SSH sessions.
 **Primary entrypoint (PROPOSED, NOT A CERTIFIED COMMAND):** `aegis` when attached to an interactive terminal; explicit `aegis tui`, `aegis status`, `aegis settings` and `aegis --help`.
 **Related designs:** AG-D007 Control Center GUI, AG-D011 one-script ASCII Platform installer, AG-D003 Core CLI, AG-D012 Fleet Manager, AG-D013 Security Center, AG-D020 Jobs, AG-D023 governed Core self-configuration.
-**Release fence:** Does not change the Platform-only acceptance tracker #201 or authorize agent execution, shipping a GUI, production Fleet enrollment, real Core activation, owner credential changes, or G8.
+**Release fence:** Owner decision on 2026-11-08 adds TUI acceptance rows 31–38 to Platform-only #201, but does not authorize production Fleet enrollment, real Core activation, owner credential changes, host deployment, or G8.
 
 ## 1. Owner decision and product promise
 
@@ -169,4 +169,4 @@ Every settings row must carry where applicable:
 4. **TUI-3:** Managed Core, Fleet, module and approved job views; local/remote controls only when their own host/service acceptance has passed.
 5. **TUI-4:** Signed and reproducible installer integration with AG-D011, executable tests on disposable Windows/Linux, upgrade and rollback, non-privileged operation, crash/TTY exit and host reboot acceptance.
 
-Never claim that existing CLI scripts, Settings GUI or Rust broker policy constitute a working full TUI. Do not merge these user-experience milestones into #201 as new release blockers without a separate owner decision.
+Never claim that existing CLI scripts, Settings GUI or Rust broker policy constitute a working full TUI. The owner's 2026-11-08 decision explicitly promotes rows 31–38 into #201; no row may pass without exact-SHA CI and disposable-host receipts.
