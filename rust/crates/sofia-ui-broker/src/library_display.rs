@@ -6,6 +6,7 @@
 
 use crate::control_center::{LinkState, SafeState};
 use crate::control_center_session::ReadFailure;
+use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
 pub const LIBRARY_DISPLAY_MAX_AGE: Duration = Duration::from_secs(5);
@@ -326,6 +327,7 @@ fn valid_digest(digest: &str) -> bool {
 }
 
 fn stage_receipts_match(artifact: &ArtifactStages, platform_id: &str) -> bool {
+    let mut seen = HashSet::new();
     [
         &artifact.downloaded,
         &artifact.verified,
@@ -338,6 +340,7 @@ fn stage_receipts_match(artifact: &ArtifactStages, platform_id: &str) -> bool {
     .flatten()
     .all(|receipt| {
         valid_id(&receipt.reference)
+            && seen.insert(receipt.reference.as_str())
             && receipt.target_platform_id == platform_id
             && receipt.content_sha256 == artifact.content_sha256
     })
@@ -362,9 +365,9 @@ mod tests {
         }
     }
 
-    fn receipt(artifact: &str) -> DisplayReceipt {
+    fn receipt(stage: &str, artifact: &str) -> DisplayReceipt {
         DisplayReceipt {
-            reference: "receipt:installed:1".into(),
+            reference: format!("receipt:{stage}:1"),
             target_platform_id: "platform:alpha".into(),
             content_sha256: artifact.into(),
         }
@@ -385,7 +388,7 @@ mod tests {
             }),
             artifact: Some(ArtifactStages {
                 content_sha256: "b".repeat(64),
-                downloaded: Some(receipt(&"b".repeat(64))),
+                downloaded: Some(receipt("downloaded", &"b".repeat(64))),
                 verified: None,
                 staged: None,
                 installed: None,
@@ -429,10 +432,10 @@ mod tests {
         let mut ui = LibraryDisplaySession::default();
         let mut valid = snapshot(3, 7, 1);
         let artifact = valid.artifact.as_mut().unwrap();
-        artifact.verified = Some(receipt(&"b".repeat(64)));
-        artifact.staged = Some(receipt(&"b".repeat(64)));
-        artifact.installed = Some(receipt(&"b".repeat(64)));
-        artifact.active = Some(receipt(&"b".repeat(64)));
+        artifact.verified = Some(receipt("verified", &"b".repeat(64)));
+        artifact.staged = Some(receipt("staged", &"b".repeat(64)));
+        artifact.installed = Some(receipt("installed", &"b".repeat(64)));
+        artifact.active = Some(receipt("active", &"b".repeat(64)));
         ui.refresh(&mut Stub(Ok(valid)), t).unwrap();
         assert_eq!(ui.stage_label("verified"), "OBSERVED_WITH_VERIFIED_SERVICE_RECEIPT");
         assert_eq!(ui.stage_label("active"), "OBSERVED_WITH_VERIFIED_SERVICE_RECEIPT");
@@ -440,7 +443,7 @@ mod tests {
         let artifact = forged.artifact.as_mut().unwrap();
         artifact.installed = Some(DisplayReceipt {
             target_platform_id: "platform:other".into(),
-            ..receipt(&"b".repeat(64))
+            ..receipt("installed", &"b".repeat(64))
         });
         assert_eq!(
             ui.refresh(&mut Stub(Ok(forged)), t),
@@ -448,6 +451,13 @@ mod tests {
         );
         assert_eq!(ui.status_label(), "UNVERIFIED");
         assert_eq!(ui.stage_label("installed"), "NOT_CURRENTLY_VERIFIED");
+        let mut duplicate = snapshot(3, 9, 3);
+        duplicate.artifact.as_mut().unwrap().verified =
+            Some(receipt("downloaded", &"b".repeat(64)));
+        assert_eq!(
+            ui.refresh(&mut Stub(Ok(duplicate)), t),
+            Err(LibraryDisplayError::InvalidStageReceipt)
+        );
     }
 
     #[test]
@@ -524,7 +534,8 @@ mod tests {
             Err(LibraryDisplayError::InvalidTransfer)
         );
         let mut invalid_stage = snapshot(2, 3, 1);
-        invalid_stage.artifact.as_mut().unwrap().active = Some(receipt(&"b".repeat(64)));
+        invalid_stage.artifact.as_mut().unwrap().active =
+            Some(receipt("active", &"b".repeat(64)));
         assert_eq!(
             ui.refresh(&mut Stub(Ok(invalid_stage)), t),
             Err(LibraryDisplayError::InvalidStageReceipt)
