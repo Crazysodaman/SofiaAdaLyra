@@ -36,9 +36,9 @@ def test_view_distinguishes_saved_from_applied_and_omits_secret():
     view = project_settings_snapshot(scoped_snapshot())
     lines = "\n".join(render_settings_lines(view))
     assert view.revision == 2 and view.effective_revision == 1
-    assert all(item.requires_apply for item in view.rows)
+    assert all(item.requires_apply is None for item in view.rows)
     assert "SOURCE TRUST: UNVERIFIED" in lines
-    assert "PENDING" in lines
+    assert "APPLY UNKNOWN" in lines
     assert "[REDACTED]" in lines
     assert "private-identifier" not in lines
     assert "Workshop" in lines
@@ -75,6 +75,14 @@ def test_unknown_owner_and_unknown_apply_class_denied():
     snapshot["contracts"]["location_label"]["apply_class"] = "auto-grant"
     with pytest.raises(ValueError, match="settings contract"):
         project_settings_snapshot(snapshot)
+
+
+def test_fully_effective_snapshot_does_not_claim_any_pending_field():
+    snapshot = scoped_snapshot()
+    snapshot["effective_revision"] = snapshot["revision"]
+    view = project_settings_snapshot(snapshot)
+    assert all(item.requires_apply is False for item in view.rows)
+    assert "APPLY UNKNOWN" not in "\\n".join(render_settings_lines(view))
 
 
 def test_untrusted_snapshot_cannot_certify_live_settings_draft():
