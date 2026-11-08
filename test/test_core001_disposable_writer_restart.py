@@ -39,6 +39,7 @@ def _writer(state_text: str, acquired, hold, observations, *, crash=False):
                 con = sqlite3.connect(path, isolation_level=None, timeout=2)
                 con.execute("BEGIN IMMEDIATE")
                 con.execute("INSERT INTO writer_journal(writer) VALUES('uncommitted')")
+                observations.put(("uncommitted", multiprocessing.current_process().name))
                 hold.wait(timeout=10)
             else:
                 hold.wait(timeout=10)
@@ -116,6 +117,7 @@ def test_core001_crash_releases_lock_and_recovers_uncommitted_sqlite(tmp_path):
     try:
         assert first_ready.wait(timeout=5)
         assert first_events.get(timeout=3)[0] == "acquired"
+        assert first_events.get(timeout=3)[0] == "uncommitted"
         # Terminate only this disposable synthetic process, never real services.
         first.terminate()
         first.join(timeout=5)
