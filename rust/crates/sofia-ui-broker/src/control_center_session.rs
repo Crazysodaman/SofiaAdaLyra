@@ -18,6 +18,7 @@ pub enum ReadFailure {
     Stale,
     Restarting,
     Revoked,
+    Stopped,
     Denied,
     UnknownGeneration,
 }
@@ -31,6 +32,7 @@ impl ReadFailure {
             Self::Stale => LinkState::Stale,
             Self::Restarting => LinkState::Restarting,
             Self::Revoked => LinkState::Revoked,
+            Self::Stopped => LinkState::Stopped,
             Self::Denied => LinkState::AccessDenied,
             Self::UnknownGeneration => LinkState::UnknownGeneration,
         }
@@ -50,6 +52,22 @@ pub struct DisplaySnapshot {
     pub saved_revision: Option<u64>,
     pub applied_revision: Option<u64>,
     pub removal_receipt_verified: bool,
+}
+
+/// Map canonical management v1 denial codes after independent authenticated
+/// transport, response correlation, generation and freshness validation.
+/// This method does not parse JSON or confer owner/service permission.
+#[must_use]
+pub fn from_verified_denial(code: &str) -> Option<ReadFailure> {
+    match code {
+        "NOT_PERMITTED" => Some(ReadFailure::Denied),
+        "REVOKED" => Some(ReadFailure::Revoked),
+        "STOPPED" => Some(ReadFailure::Stopped),
+        "STALE_GENERATION" => Some(ReadFailure::UnknownGeneration),
+        "EXPIRED" => Some(ReadFailure::Stale),
+        "UNAVAILABLE" => Some(ReadFailure::Offline),
+        _ => None,
+    }
 }
 
 /// Injection seam for a future *approved* authenticated Platform client.
@@ -126,7 +144,13 @@ impl DisplaySession {
     pub fn fail(&mut self, failure: ReadFailure) {
         self.view.link = failure.link();
         self.view.permission = PermissionState::Unknown;
-        self.view.safe = SafeState::Unknown;
+        // STOPPED is a separately OS-authenticated, correlated Team A denial.
+        // A display reason is not owner approval or a lifecycle receipt.
+        self.view.safe = if failure == ReadFailure::Stopped {
+            SafeState::StopActive
+        } else {
+            SafeState::Unknown
+        };
         self.view.removal_receipt_verified = false;
         self.last_observed = None;
     }
@@ -218,8 +242,8 @@ fn valid_revisions(saved: Option<u64>, applied: Option<u64>) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        DisplayError, DisplayReadSource, DisplaySession, DisplaySnapshot, OfflineReader,
-        ReadFailure, MAX_DISPLAY_AGE,
+        from_verified_denial, DisplayError, DisplayReadSource, DisplaySession, DisplaySnapshot,
+        OfflineReader, ReadFailure, MAX_DISPLAY_AGE,
     };
     use crate::control_center::{
         ActionHint, InstallationState, LinkState, PermissionState, ProposedAction, SafeState,
@@ -246,6 +270,37 @@ mod tests {
             applied_revision: Some(4),
             removal_receipt_verified: false,
         }
+    }
+
+    #[test]
+    fn canonical_v1_denial_codes_map_only_after_trust_check() {
+        for (wire, state) in [
+            ("NOT_PERMITTED", ReadFailure::Denied),
+            ("REVOKED", ReadFailure::Revoked),
+            ("STOPPED", ReadFailure::Stopped),
+            ("STALE_GENERATION", ReadFailure::UnknownGeneration),
+            ("EXPIRED", ReadFailure::Stale),
+            ("UNAVAILABLE", ReadFailure::Offline),
+        ] {
+            assert_eq!(from_verified_denial(wire), Some(state));
+        }
+        for invalid in ["", "STOP", "stopped", "OWNER_APPROVED", "HEALTHY"] {
+            assert_eq!(from_verified_denial(invalid), None);
+        }
+    }
+
+    #[test]
+    fn authenticated_stopped_denial_is_visible_and_blocks_actions() {
+        let mut session = DisplaySession::default();
+        session.fail(ReadFailure::Stopped);
+        assert_eq!(session.view().service_label(), "STOP_ACTIVE");
+        assert_eq!(session.view().safe_label(), "STOP_ACTIVE");
+        assert_eq!(session.view().installation_label(), "NOT_CURRENTLY_VERIFIED");
+        assert_eq!(session.view().permission_label(), "UNKNOWN");
+        assert_eq!(
+            session.view().action_hint(ProposedAction::InstallModule),
+            ActionHint::Blocked("SAFE_STOP_ACTIVE")
+        );
     }
 
     #[test]
@@ -355,6 +410,7 @@ mod tests {
         );
         for state in [
             ReadFailure::Revoked,
+            ReadFailure::Stopped,
             ReadFailure::Denied,
             ReadFailure::Stale,
             ReadFailure::UnknownGeneration,

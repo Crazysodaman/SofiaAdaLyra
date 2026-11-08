@@ -11,6 +11,7 @@ pub enum LinkState {
     Restarting,
     AccessDenied,
     Revoked,
+    Stopped,
     UnknownGeneration,
     Observed,
 }
@@ -117,6 +118,7 @@ impl ControlCenterView {
             LinkState::Restarting => "RESTARTING",
             LinkState::AccessDenied => "ACCESS_DENIED",
             LinkState::Revoked => "REVOKED",
+            LinkState::Stopped => "STOP_ACTIVE",
             LinkState::UnknownGeneration => "UNKNOWN_GENERATION",
             LinkState::Observed if self.has_observed_generation() => "OBSERVED",
             LinkState::Observed | LinkState::Unverified => "UNVERIFIED",
@@ -130,6 +132,7 @@ impl ControlCenterView {
             LinkState::Stale => "STALE_OBSERVATION",
             LinkState::AccessDenied => "DENIED",
             LinkState::Revoked => "REVOKED",
+            LinkState::Stopped => "DENIED",
             _ => "UNVERIFIED",
         }
     }
@@ -154,6 +157,9 @@ impl ControlCenterView {
     /// Service-reported SAFE observation, not an approval.
     #[must_use]
     pub fn safe_label(&self) -> &'static str {
+        if self.link == LinkState::Stopped {
+            return "STOP_ACTIVE";
+        }
         if !self.has_observed_generation() {
             return "UNKNOWN";
         }
@@ -224,6 +230,7 @@ impl ControlCenterView {
                 LinkState::Restarting => "SERVICE_RESTARTING",
                 LinkState::AccessDenied => "ACCESS_DENIED",
                 LinkState::Revoked => "OWNER_REVOKED",
+                LinkState::Stopped => "SAFE_STOP_ACTIVE",
                 LinkState::UnknownGeneration => "GENERATION_NOT_OBSERVED",
                 LinkState::Observed => unreachable!(),
             });
@@ -316,6 +323,7 @@ mod tests {
             (LinkState::Unverified, "SOURCE_UNVERIFIED"),
             (LinkState::Connecting, "AUTHENTICATION_PENDING"),
             (LinkState::Revoked, "OWNER_REVOKED"),
+            (LinkState::Stopped, "SAFE_STOP_ACTIVE"),
             (LinkState::UnknownGeneration, "GENERATION_NOT_OBSERVED"),
         ] {
             view.link = link;
