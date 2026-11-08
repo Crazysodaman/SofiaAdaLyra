@@ -169,3 +169,17 @@ def test_update_rejects_wrong_signed_predecessor_before_os_effect(signed_version
             verifier=builder.verifier,
         )
     assert not (tmp / "bad-release").exists()
+
+
+def test_native_first_registration_never_bypasses_b1_revision_floor(signed_versions):
+    builder, old_manifest, old_release, base, tmp = signed_versions
+    staging, _signed = _successor(builder, old_manifest.digest)
+    install_staged_release(
+        staging, tmp / "release-v6",
+        store=base["store"], verifier=builder.verifier,
+    )
+    assert base["store"].revision_floor() == 6
+    request = dict(base, operation="register", destination=old_release)
+    with pytest.raises(PlatformInstallationDenied, match="revision floor"):
+        native_service_operation_request(**request)
+    assert not (base["store"].path.parent / "native-service-transaction.json").exists()
