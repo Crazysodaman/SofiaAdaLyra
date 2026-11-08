@@ -133,6 +133,22 @@ The host names above are **fixture labels**, not DNS addresses, Aegis trust iden
 - Then every claim matches observed service, actual received/staged/installed artifacts, authentic signer/host evidence and GUI/TUI/CLI screens. Installer/menu share Aegis palette with monochrome ASCII fallback; user receives clear failed-state recovery steps.
 - Negative: operator can stop safely at every step and nothing is silently activated.
 
+## Owner's first topology: single Hub co-located with Core, replicas later
+
+**Primary deployment plan:** [Sofía VM: one logical Library, exactly one primary and no replicas initially](AG_D028_SOFIA_VM_PRIMARY_LIBRARY_DEPLOYMENT.md). These **extend the existing LIB-01–LIB-16**, not a seventeenth scenario. Use **test-only synthetic Core workers and disposable Platform guests**; neither personal Sofía state nor real owner secrets are test inputs.
+
+| Within scenario | Additional test | Independent expected evidence |
+| --- | --- | --- |
+| **LIB-02** | VM preflight rejects unsupported guest Debian release/ABI and too-small quota/unmounted library volume before approved install. Check real Core-free Platform startup regardless of a running Core. | Actual observed guest distro/release, signed OS target, disk/memory report, denial receipts and untouched existing service/state |
+| **LIB-03** | Configure one logical Library on D-HUB with `PRIMARY` and **zero replicas**; start an independently managed synthetic Core on the same guest, then stop/restart Core while a signed content fetch is active. | Hub keeps same Platform ID, catalog epoch and correct transfer state; Core stop doesn't stop Hub; CAS contains no Core secrets or private identity |
+| **LIB-07/14** | Add an **enrolled read-only replica** to the same logical Library in a separate disposable host after all single-Hub tests, then fetch an exact digest from it while primary is healthy; let primary add a new signed artifact without replica updating yet. | Replica reports `LAGGING` and last verified generation; can serve already independently verified exact bytes when currently permitted; cannot overwrite primary catalog |
+| **LIB-08/13** | Attempt wrong Library ID, unauthorized/expired replica join, stale epoch, two proposed primary promotions, split-brain network partition and return of previously fenced primary. | Every second-primary/catalog-write attempt is rejected; no false leadership or new package signing authority; service refuses restart of stale promoted writer |
+| **LIB-10/12** | Inject quota pressure, unavailable/mis-mounted CAS volume, partial download and Core-owned storage pressure on co-located guest; test external backup snapshot and owner-governed restore to new disposable Platform ID. | No Core DB corruption, no fallback to wrong filesystem, no missing rollback refs, no restore of personal Core state, independent signed index/blob digest proof |
+| **LIB-15** | Primary Hub stops or VM is offline while clients retain verified local cache and Core worker has previously installed capabilities. | Clients report `OFFLINE/STALE`; existing Core/Platform use persists if host remains up, no forced Internet fallback or hard dependency on Hub |
+| **LIB-16** | Show Setup as `ONE PRIMARY / ZERO REPLICAS`, then separately show enroll read-only replica, inspect its lag, deny promotion without fence and record explicit owner-approved **manual** promotion after fencing the old primary. | Same GUI/TUI/CLI status, verified source/host identities, fresh epoch/cursor, one writer, original owner-managed library namespace retained |
+
+**Initial owner environment is not this test cluster.** One real Library on Sofía VM is the desired future deployment. A second live production replica is not requested today, and multi-primary/automatic failover remain excluded. The optional replica *capability* still needs independent disposable-host negative certification before Platform 1.0 GO as specified by the owner's redundant-ready requirement.
+
 ## Evidence ledger template (use for EACH case, no aggregate green shortcut)
 
 ```yaml
