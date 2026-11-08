@@ -138,7 +138,10 @@ $content.Dock = [System.Windows.Forms.DockStyle]::Fill
 $content.Padding = New-Object System.Windows.Forms.Padding(28)
 $content.BackColor = Get-AegisColor 'background'
 $form.Controls.Add($content)
-$content.BringToFront()
+# Dock the sidebar ahead of the fill panel so the 255px navigation area is
+# reserved instead of being painted over by DockStyle.Fill.
+$form.Controls.SetChildIndex($sidebar, 0)
+$sidebar.BringToFront()
 
 $heading = New-AegisLabel 'Platform Overview' 28 40 685 50 'primary' 21 -Bold
 $heading.Anchor = 'Top,Left,Right'
