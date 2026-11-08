@@ -6,6 +6,11 @@ on:
       - "rust/crates/sofia-ui-broker/src/bin/aegis_tui.rs"
       - "rust/crates/sofia-ui-broker/src/control_center_session.rs"
       - "rust/crates/sofia-ui-broker/src/library_display.rs"
+      - "rust/crates/sofia-ui-broker/src/native_management.rs"
+      - "rust/crates/sofia-ui-broker/Cargo.toml"
+      - "rust/crates/sofia-contracts/src/management.rs"
+      - "contracts/platform/management-response-parity-corpus-v1.json"
+      - "Cargo.lock"
       - "contracts/ui/aegis-theme-v1.json"
       - "test/test_ui_aegis_tui_binary_smoke.py"
       - "test/capture_aegis_tui_evidence.py"
@@ -16,6 +21,11 @@ on:
       - "rust/crates/sofia-ui-broker/src/bin/aegis_tui.rs"
       - "rust/crates/sofia-ui-broker/src/control_center_session.rs"
       - "rust/crates/sofia-ui-broker/src/library_display.rs"
+      - "rust/crates/sofia-ui-broker/src/native_management.rs"
+      - "rust/crates/sofia-ui-broker/Cargo.toml"
+      - "rust/crates/sofia-contracts/src/management.rs"
+      - "contracts/platform/management-response-parity-corpus-v1.json"
+      - "Cargo.lock"
       - "test/test_ui_aegis_tui_binary_smoke.py"
       - "test/capture_aegis_tui_evidence.py"
       - ".github/workflows/aegis-native-tui-smoke.yml"
@@ -57,7 +67,9 @@ jobs:
         run: cargo fmt --all --check
       - name: Rust Clippy check
         run: cargo clippy --locked -p sofia-ui-broker --all-targets -- -D warnings
-      - name: Verify Core-free UI display state policies
+      - name: Verify exact Team A management response 29-vector Rust corpus
+        run: cargo test --locked -p sofia-contracts shared_29_case_rust_python_management_wire_corpus -- --nocapture
+      - name: Verify Core-free UI display state policies and native OS client
         run: cargo test --locked -p sofia-ui-broker
       - name: Build Core-free native terminal binary
         run: cargo build --locked -p sofia-ui-broker --bin aegis_tui
