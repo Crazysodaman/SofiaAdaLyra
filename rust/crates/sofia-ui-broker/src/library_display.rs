@@ -95,7 +95,7 @@ pub enum LibraryDisplayError {
     InvalidTransfer,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct LibraryDisplaySession {
     pinned_platform_id: Option<String>,
     generation: u64,
@@ -104,6 +104,20 @@ pub struct LibraryDisplaySession {
     last_observed: Option<Instant>,
     link: LinkState,
     last_snapshot: Option<LibraryObservation>,
+}
+
+impl Default for LibraryDisplaySession {
+    fn default() -> Self {
+        Self {
+            pinned_platform_id: None,
+            generation: 0,
+            revision: 0,
+            sequence: 0,
+            last_observed: None,
+            link: LinkState::Offline,
+            last_snapshot: None,
+        }
+    }
 }
 
 impl LibraryDisplaySession {
@@ -168,7 +182,7 @@ impl LibraryDisplaySession {
         let Some(current) = self.current() else {
             return "NOT_CURRENTLY_VERIFIED";
         };
-        match current.transfer {
+        match current.transfer.as_ref() {
             Some(_) => "BYTES_OBSERVED_NOT_INSTALL_OR_SIGNATURE_PROOF",
             None => "NOT_OBSERVED",
         }
