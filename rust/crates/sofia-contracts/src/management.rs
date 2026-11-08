@@ -97,7 +97,6 @@ impl UntrustedManagementRead {
     }
 }
 
-
 pub const MANAGEMENT_RESPONSE_SCHEMA: &str = "aegis.platform.management.read-response.v1";
 pub const MAX_MANAGEMENT_RESPONSE_BYTES: usize = 32 * 1024;
 
@@ -247,7 +246,10 @@ impl UntrustedManagementResponse {
             ContractError::new("invalid_management_response", "invalid observation time")
         })?;
         let created = DateTime::parse_from_rfc3339(&expected.created_at).map_err(|_| {
-            ContractError::new("invalid_management_response", "invalid request creation time")
+            ContractError::new(
+                "invalid_management_response",
+                "invalid request creation time",
+            )
         })?;
         let deadline = DateTime::parse_from_rfc3339(&expected.deadline).map_err(|_| {
             ContractError::new("invalid_management_response", "invalid request deadline")
@@ -277,19 +279,20 @@ impl UntrustedManagementResponse {
                         "successful observation requires an object",
                     ));
                 };
-                safe_management_projection(
-                    &serde_json::Value::Object(data.clone()),
-                    0,
-                )?;
+                safe_management_projection(&serde_json::Value::Object(data.clone()), 0)?;
                 if reply.operation == "platform.status"
                     && (data.len() != 4
                         || data.get("platform_id").and_then(serde_json::Value::as_str)
                             != Some(expected.target_platform_id.as_str())
                         || data.get("generation").and_then(serde_json::Value::as_u64)
                             != Some(expected.expected_generation)
-                        || data.get("core_started").and_then(serde_json::Value::as_bool)
+                        || data
+                            .get("core_started")
+                            .and_then(serde_json::Value::as_bool)
                             != Some(false)
-                        || data.get("operator_stop").and_then(serde_json::Value::as_bool)
+                        || data
+                            .get("operator_stop")
+                            .and_then(serde_json::Value::as_bool)
                             != Some(false))
                 {
                     return Err(ContractError::new(
@@ -423,12 +426,12 @@ mod tests {
             include_str!("../../../../contracts/platform/management-read-valid-v1.json");
         let response_json =
             include_str!("../../../../contracts/platform/management-read-response-valid-v1.json");
-        let start = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:00Z")
-            .expect("known start");
+        let start =
+            chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:00Z").expect("known start");
         let now = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:01Z")
             .expect("known receiver time");
-        let request = UntrustedManagementRead::parse(request_json.as_bytes(), start)
-            .expect("shared request");
+        let request =
+            UntrustedManagementRead::parse(request_json.as_bytes(), start).expect("shared request");
         let response = UntrustedManagementResponse::parse(response_json.as_bytes(), &request, now)
             .expect("correlated read observation");
         assert_eq!(response.outcome, "OK");
@@ -438,30 +441,40 @@ mod tests {
         value["outcome"] = json!("DENIED");
         value["data"] = Value::Null;
         value["denial"] = json!({"code":"NOT_PERMITTED"});
-        assert!(UntrustedManagementResponse::parse(value.to_string().as_bytes(), &request, now)
-            .is_ok());
+        assert!(
+            UntrustedManagementResponse::parse(value.to_string().as_bytes(), &request, now).is_ok()
+        );
         value["denial"] = json!({"code":"UNREVIEWED"});
-        assert!(UntrustedManagementResponse::parse(value.to_string().as_bytes(), &request, now)
-            .is_err());
+        assert!(
+            UntrustedManagementResponse::parse(value.to_string().as_bytes(), &request, now)
+                .is_err()
+        );
         value["denial"] = json!({"code":"NOT_PERMITTED"});
         value["data"] = json!({});
-        assert!(UntrustedManagementResponse::parse(value.to_string().as_bytes(), &request, now)
-            .is_err());
+        assert!(
+            UntrustedManagementResponse::parse(value.to_string().as_bytes(), &request, now)
+                .is_err()
+        );
 
         let mut forged: Value = serde_json::from_str(response_json).expect("response");
         forged["platform_generation"] = json!(4);
-        assert!(UntrustedManagementResponse::parse(forged.to_string().as_bytes(), &request, now)
-            .is_err());
+        assert!(
+            UntrustedManagementResponse::parse(forged.to_string().as_bytes(), &request, now)
+                .is_err()
+        );
         forged["platform_generation"] = json!(3);
         forged["data"]["owner_secret"] = json!("leak");
-        assert!(UntrustedManagementResponse::parse(forged.to_string().as_bytes(), &request, now)
-            .is_err());
+        assert!(
+            UntrustedManagementResponse::parse(forged.to_string().as_bytes(), &request, now)
+                .is_err()
+        );
         let duplicate = response_json.replacen('{', r#"{"schema":"forged","#, 1);
         assert!(UntrustedManagementResponse::parse(duplicate.as_bytes(), &request, now).is_err());
-        let late = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:06Z")
-            .expect("known late time");
-        assert!(UntrustedManagementResponse::parse(response_json.as_bytes(), &request, late)
-            .is_err());
+        let late =
+            chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:06Z").expect("known late time");
+        assert!(
+            UntrustedManagementResponse::parse(response_json.as_bytes(), &request, late).is_err()
+        );
     }
 
     #[test]
