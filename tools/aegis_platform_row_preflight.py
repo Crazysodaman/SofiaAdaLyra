@@ -21,7 +21,7 @@ COUNT = 38
 # These are *narrow* unit/process/contract probes. A listed file is not
 # evidence that the complete release-level acceptance requirement is met.
 PROBES: dict[int, tuple[str, ...]] = {
-    1: ("test_ops_platform_install.py", "test_ops_platform_release_staging.py"),
+    1: ("test_ops_platform_install.py", "test_ops_platform_release_staging.py", "test_ops_platform_installation.py"),
     2: ("test_platform_optional_dependencies.py", "test_platform_import_isolation.py"),
     3: ("test_platform_optional_dependencies.py", "test_platform_import_isolation.py"),
     4: ("test_platform_installation_identity.py",),
@@ -37,7 +37,7 @@ PROBES: dict[int, tuple[str, ...]] = {
     16: ("test_fleet_stale_trust_regression.py",),
     17: ("test_module_lifecycle_v1.py",),
     18: ("test_module_lifecycle_v1.py",),
-    19: ("test_ops_platform_install.py", "test_ops_platform_cache_security.py"),
+    19: ("test_ops_platform_install.py", "test_ops_platform_cache_security.py", "test_ops_platform_installation.py"),
     20: ("test_platform_installation_identity.py",),
     21: ("test_signed_core_definitions.py", "test_core_definition_path_security.py"),
     25: ("test_platform_release_contract.py",),
