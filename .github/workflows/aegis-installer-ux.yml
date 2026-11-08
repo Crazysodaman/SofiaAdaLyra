@@ -6,6 +6,7 @@ on:
       - "packaging/installers/**"
       - "contracts/ui/aegis-theme-v1.json"
       - "test/test_ui_aegis_installer_entrypoints.py"
+      - "test/test_ui_aegis_installer_lifecycle_contract.py"
       - ".github/workflows/aegis-installer-ux.yml"
   push:
     branches: [main]
@@ -37,7 +38,7 @@ jobs:
       - name: Install test harness
         run: python -m pip install -e . pytest
       - name: Test read-only installer and theme fallbacks
-        run: python -m pytest -q test/test_ui_aegis_installer_entrypoints.py
+        run: python -m pytest -q test/test_ui_aegis_installer_entrypoints.py test/test_ui_aegis_installer_lifecycle_contract.py
       - name: Check Bash syntax
         if: runner.os == 'Linux'
         run: bash -n packaging/installers/install-aegis.sh
