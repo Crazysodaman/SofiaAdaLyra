@@ -212,6 +212,15 @@ def test_v1_rejects_legacy_policy_downgrade_or_missing_restored_state(tmp_path):
         source.backup(target)
     with pytest.raises(MemoryEligibilityVersionError):
         ReviewedMemoryEligibilityV1(old_backup).require_current()
+    from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
+    old_store = DurableMemoryCandidateStore(old_backup)
+    try:
+        with pytest.raises(MemoryEligibilityVersionError):
+            MemorySystem(
+                old_store, eligibility_policy=ReviewedMemoryEligibilityV1(old_backup),
+            ).recall_relevant("synthetic sensor", principal=before["owner"])
+    finally:
+        old_store.close()
 
     policy = _install(before)
     policy.require_current()
@@ -249,12 +258,18 @@ def test_policy_install_requires_owner_and_one_expected_generation(tmp_path):
     with pytest.raises(PermissionError):
         install_disposable_policy_v1(
             before["state"],
-            approved_by=local_sparks_principal("system:nope") if False else None,
+            approved_by=None,
         )
     _install(before)
     assert install_disposable_policy_v1(
         before["state"], approved_by=before["owner"], expected_version=1,
     ) == 1
+    with pytest.raises(PermissionError):
+        install_disposable_policy_v1(
+            before["state"],
+            approved_by=local_sparks_principal("discord:dm:other"),
+            expected_version=1,
+        )
 
 
 def test_re_review_interrupted_attestation_transaction_rolls_back(tmp_path):
