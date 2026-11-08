@@ -331,13 +331,22 @@ pub mod linux {
                     },
                     "denial": null
                 });
-                if outcome == "STOPPED" || outcome == "REVOKED" {
+                if matches!(
+                    outcome,
+                    "STOPPED" | "REVOKED" | "NOT_PERMITTED" | "UNAVAILABLE" | "EXPIRED"
+                ) {
                     result["outcome"] = serde_json::json!("DENIED");
                     result["data"] = serde_json::Value::Null;
                     result["denial"] = serde_json::json!({"code": outcome});
                 }
                 if outcome == "STALE_GENERATION" {
                     result["platform_generation"] = serde_json::json!(2);
+                }
+                if outcome == "REPLAY" {
+                    result["request_id"] = serde_json::json!("req:old-attempt");
+                }
+                if outcome == "BAD_STOP_OK" {
+                    result["data"]["operator_stop"] = serde_json::json!(true);
                 }
                 if outcome == "DUPLICATE" {
                     connection.write_all(b"{\"schema\":1,\"schema\":2}\n").unwrap();
@@ -371,8 +380,13 @@ pub mod linux {
             for (case, expected) in [
                 ("STOPPED", ReadFailure::Stopped),
                 ("REVOKED", ReadFailure::Revoked),
+                ("NOT_PERMITTED", ReadFailure::Denied),
+                ("UNAVAILABLE", ReadFailure::Offline),
+                ("EXPIRED", ReadFailure::Stale),
                 ("EOF", ReadFailure::Offline),
                 ("STALE_GENERATION", ReadFailure::UnknownGeneration),
+                ("REPLAY", ReadFailure::UnknownGeneration),
+                ("BAD_STOP_OK", ReadFailure::Unverified),
                 ("DUPLICATE", ReadFailure::Unverified),
             ] {
                 let (_home, pins, thread) = fake_service(case);
