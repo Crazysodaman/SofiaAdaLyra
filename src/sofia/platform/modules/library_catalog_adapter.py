@@ -72,6 +72,7 @@ def review_selected_library_catalog_module(
     now: datetime,
     profile: OperationProfileKind,
     verified_dependencies: tuple[VerifiedModulePackage, ...] = (),
+    dependency_receipt_admit: Callable[[VerifiedModulePackage], bool] | None = None,
     signed_index_admit: Callable[[Mapping[str, object]], bool],
     signed_content_admit: Callable[[Mapping[str, object], Path], bool],
     current_host_scope_admit: Callable[[Mapping[str, object], Mapping[str, object]], bool],
@@ -216,6 +217,13 @@ def review_selected_library_catalog_module(
     )
     # Use the existing canonical compatibility evaluator, never an invented
     # ABI parser; B/A approve exact OS/ABI in the external signed policy gate.
+    if verified_dependencies:
+        if not callable(dependency_receipt_admit):
+            raise ModuleRecipientRejected("canonical dependency receipt required")
+        for dependency in verified_dependencies:
+            if (dependency.package_digest != dependency.manifest.package_identity_digest()
+                    or dependency_receipt_admit(dependency) is not True):
+                raise ModuleRecipientRejected("unverified or revoked dependency receipt")
     report = evaluate_module_compatibility(
         verified.manifest, profile=profile, target=target,
         installed_dependencies=tuple(p.manifest for p in verified_dependencies),
