@@ -8,7 +8,6 @@ A strictly parsed JSON response alone is NEVER a signed catalog index.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from dataclasses import replace
 from datetime import datetime
 from hashlib import sha256
 from pathlib import Path
@@ -75,6 +74,9 @@ def review_selected_library_catalog_module(
     verified_dependencies: tuple[VerifiedModulePackage, ...] = (),
     signed_index_admit: Callable[[Mapping[str, object]], bool],
     signed_content_admit: Callable[[Mapping[str, object], Path], bool],
+    current_host_scope_admit: Callable[[Mapping[str, object], Mapping[str, object]], bool],
+    license_policy_admit: Callable[[Mapping[str, object]], bool],
+    remote_source_preflight: Callable[[Mapping[str, object]], bool] | None = None,
     signer_binding_admit: Callable[[str, str], bool],
     os_sdk_abi_admit: Callable[[Mapping[str, object], ModulePlatformTarget], bool],
     catalog_admit: Callable[[ModuleRecipientPin], bool],
@@ -106,9 +108,9 @@ def review_selected_library_catalog_module(
             or any(not isinstance(p, VerifiedModulePackage) for p in verified_dependencies)
             or not isinstance(now, datetime) or now.utcoffset() is None):
         raise ModuleRecipientRejected("exact selected identity, host and revision required")
-    for gate in (signed_index_admit, signed_content_admit, signer_binding_admit,
-                 os_sdk_abi_admit, catalog_admit, publisher_key_lookup,
-                 publisher_current):
+    for gate in (signed_index_admit, signed_content_admit, current_host_scope_admit,
+                 license_policy_admit, signer_binding_admit, os_sdk_abi_admit,
+                 catalog_admit, publisher_key_lookup, publisher_current):
         if not callable(gate):
             raise ModuleRecipientRejected("current canonical trust gate missing")
     data = _exact(catalog_data, _DATA)
@@ -155,6 +157,16 @@ def review_selected_library_catalog_module(
     if (row["license_distribution"] != "permitted"
             or row["data_class"] != "public") and row["distribution_allowed"]:
         raise ModuleRecipientRejected("private or restricted artifact illegally offered")
+    # Authorization must fence package/archive/key access, even on a trusted index.
+    if current_host_scope_admit(data, row) is not True:
+        raise ModuleRecipientRejected("canonical host SAFE/STOP or generation denied")
+    if license_policy_admit(row) is not True:
+        raise ModuleRecipientRejected("owner-reviewed license policy denied")
+    if source["kind"] in {"OWNER_SELECTED_HUB", "AUTHORIZED_PEER", "OFFICIAL_REMOTE"}:
+        if row["distribution_allowed"] is not True:
+            raise ModuleRecipientRejected("signed catalog forbids this remote offer")
+        if remote_source_preflight is None or remote_source_preflight(row) is not True:
+            raise ModuleRecipientRejected("enrolled source not currently authorized")
     if os_sdk_abi_admit(row, target) is not True:
         raise ModuleRecipientRejected("OS, SDK or ABI target incompatible")
     if manifest.package_identity_digest() != selected_manifest_digest:
