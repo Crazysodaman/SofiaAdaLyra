@@ -128,3 +128,24 @@ def test_c005_library_projection_no_authentication_or_installer_backdoor():
                       "Invoke-RestMethod", "Start-Service", "sofia.db",
                       "OwnerSecretStore", "curl", "reqwest"):
         assert forbidden not in source
+
+
+def test_c006_receipt_evidence_is_not_issuer_or_installer_authority():
+    source = LIBRARY.read_text(encoding="utf-8")
+    for field in ("issuer_identity", "target_platform_id", "content_sha256",
+                  "evidence_generation", "evidence_revision",
+                  "evidence_observed_unix_ms"):
+        assert "pub " + field + ":" in source
+    for expected in (
+        "receipt.evidence_generation == observation.generation",
+        "receipt.evidence_revision == observation.state_revision",
+        "receipt.evidence_observed_unix_ms == observation.observed_unix_ms",
+        "valid_id(&receipt.issuer_identity)",
+        "LibraryDisplayError::TimeRegressed",
+        "seen.insert(receipt.reference.as_str())",
+        "RECEIPT_REFERENCE_NOT_AUTHORITY",
+        "forged_receipt_issuer_target_digest_generation_revision_and_time_are_denied",
+    ):
+        assert expected in source
+    assert "OBSERVED_WITH_VERIFIED_SERVICE_RECEIPT" not in source
+    assert "OfflineLibraryReader" in source
