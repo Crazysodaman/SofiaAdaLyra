@@ -7,6 +7,7 @@ on:
       - "rust/crates/sofia-ui-broker/src/control_center_session.rs"
       - "contracts/ui/aegis-theme-v1.json"
       - "test/test_ui_aegis_tui_binary_smoke.py"
+      - "test/capture_aegis_tui_evidence.py"
       - ".github/workflows/aegis-native-tui-smoke.yml"
   push:
     branches: [main]
@@ -14,6 +15,7 @@ on:
       - "rust/crates/sofia-ui-broker/src/bin/aegis_tui.rs"
       - "rust/crates/sofia-ui-broker/src/control_center_session.rs"
       - "test/test_ui_aegis_tui_binary_smoke.py"
+      - "test/capture_aegis_tui_evidence.py"
       - ".github/workflows/aegis-native-tui-smoke.yml"
 
 permissions:
@@ -64,3 +66,14 @@ jobs:
         run: python -m pip install pytest
       - name: Exercise headless, denied mutation, plain output and help
         run: python -m pytest -q test/test_ui_aegis_tui_binary_smoke.py
+      - name: Capture native TUI read-only evidence
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python test/capture_aegis_tui_evidence.py
+      - name: Preserve exact-SHA TUI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aegis-tui-${{ matrix.os }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: aegis-native-tui-evidence.json
+          if-no-files-found: warn

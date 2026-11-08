@@ -50,3 +50,17 @@ jobs:
         run: python -m pip install -e . pytest
       - name: Verify GUI policy and native Windows construction
         run: python -m pytest -q test/test_ui_aegis_windows_gui_shell.py test/test_ui_aegis_team_c_policy.py
+      - name: Capture native WinForms control-tree evidence
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & powershell.exe -STA -NoProfile -NonInteractive -File packaging/gui/Start-AegisControlCenter.ps1 -UiProbe |
+            Tee-Object -FilePath aegis-native-winforms-probe.txt
+          if ($LASTEXITCODE -ne 0) { throw "Native WinForms probe failed" }
+      - name: Preserve exact-SHA native WinForms evidence
+        if: ${{ always() && runner.os == 'Windows' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: aegis-winforms-${{ github.event.pull_request.head.sha || github.sha }}
+          path: aegis-native-winforms-probe.txt
+          if-no-files-found: warn
