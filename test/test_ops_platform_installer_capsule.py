@@ -10,6 +10,7 @@ from hashlib import sha256
 import os
 from pathlib import Path
 import shutil
+import json
 import zipfile
 
 import pytest
@@ -72,6 +73,27 @@ def test_capsule_packages_exact_signed_assets_and_stock_launchers_without_core(
                      "personality.json", "memory.db")
         assert not any(part in path.lower() for path in names for part in forbidden)
     assert not (tmp_path / "sofia.db").exists()
+    # Optional CI evidence is explicitly test-only and traceable to one
+    # exact runner attempt. Never present this disposable signer as a
+    # production publisher trust root or installed-host receipt.
+    output_dir = os.environ.get("AEGIS_B004_TEST_CAPSULE_OUT")
+    if output_dir:
+        directory = Path(output_dir)
+        directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        (directory / "aegis-disposable-core-free-capsule.zip").write_bytes(one.read_bytes())
+        (directory / "disposable-test-publisher.pem").write_bytes(
+            Path(params["trusted_public_key"]).read_bytes()
+        )
+        fixture = {**report,
+            "source_kind": "SYNTHETIC_TEST_ONLY",
+            "production_publisher_root": False,
+            "publisher_trust_independently_provisioned": False,
+            "installed_host_evidence": False,
+            "do_not_deploy": True,
+        }
+        (directory / "test-only-capsule-evidence.json").write_text(
+            json.dumps(fixture, sort_keys=True, indent=2), encoding="utf-8",
+        )
 
 
 def test_capsule_refuses_wrong_signer_digest_and_unsigned_mutation(
