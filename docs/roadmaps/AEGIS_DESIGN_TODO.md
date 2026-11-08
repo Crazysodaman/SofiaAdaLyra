@@ -363,7 +363,7 @@ Design: dedicated test environment dashboard for Platform-only clean installs, s
 
 ### AG-D028 | Core-free install, selective component packages and LAN Artifact Library
 
-**Status:** OWNER-APPROVED, PLATFORM 1.0 GO-BLOCKING REQUIREMENT (2026-11-08); not implemented or host-certified. **Architecture:** [AG-D028 Selective Installs and Artifact Library](AG_D028_AEGIS_FEDERATED_ARTIFACT_LIBRARY.md). **Release contract / 16 mandatory host scenarios:** [AG-D028 Platform 1.0 Release Specification](AG_D028_PLATFORM_1_0_RELEASE_SPEC.md).
+**Status:** OWNER-APPROVED, PLATFORM 1.0 GO-BLOCKING REQUIREMENT (2026-11-08); not implemented or host-certified. **Initial deployment:** [one primary on Sofía VM co-located with separately governed Sofía Core; read-only redundancy later](AG_D028_SOFIA_VM_PRIMARY_LIBRARY_DEPLOYMENT.md). **Architecture:** [AG-D028 Selective Installs and Artifact Library](AG_D028_AEGIS_FEDERATED_ARTIFACT_LIBRARY.md). **Release contract / 16 mandatory host scenarios:** [AG-D028 Platform 1.0 Release Specification](AG_D028_PLATFORM_1_0_RELEASE_SPEC.md).
 
 **Five requested capabilities:** install Aegis Platform + neutral SDK/runtime without personal Core/optional module/model downloads; fetch selected Core(s) independently; fetch single module or explicit dependency-aware group; reuse verified packages from authenticated Fleet peers instead of Internet; operate a server-side owner-controlled Artifact Library Hub with reviewed cache, quotas and source precedence.
 
