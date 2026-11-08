@@ -86,3 +86,34 @@ def test_symlinked_incoming_data_is_rejected(tmp_path):
     (receiver.incoming / (pin.content_sha256 + ".part")).symlink_to(external)
     with pytest.raises(ChunkTransferRejected):
         receiver.received_bytes(pin, authorize=lambda _pin: True)
+
+def test_mid_write_revoke_truncates_unapproved_chunk(tmp_path):
+    data, pin, receiver = _setup(tmp_path)
+    outcomes = iter((True, True, False))
+    with pytest.raises(ChunkTransferRejected):
+        receiver.append_chunk(
+            pin, offset=0, chunk=data,
+            chunk_sha256=hashlib.sha256(data).hexdigest(),
+            authorize=lambda _: next(outcomes),
+        )
+    assert receiver.received_bytes(pin, authorize=lambda _: True) == 0
+
+
+def test_global_quota_blocks_unrelated_pending_bytes(tmp_path):
+    data, pin, receiver = _setup(tmp_path)
+    other = b"y" * 19
+    alternate = PinnedChunkTransfer(
+        "source-2", "target-1", hashlib.sha256(other).hexdigest(), len(other), 1,
+    )
+    receiver.max_bytes = len(data)
+    receiver.append_chunk(
+        pin, offset=0, chunk=data,
+        chunk_sha256=hashlib.sha256(data).hexdigest(),
+        authorize=lambda _: True,
+    )
+    with pytest.raises(ChunkTransferRejected):
+        receiver.append_chunk(
+            alternate, offset=0, chunk=other,
+            chunk_sha256=hashlib.sha256(other).hexdigest(),
+            authorize=lambda _: True,
+        )

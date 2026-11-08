@@ -74,8 +74,25 @@ class ChunkedArtifactReceiver:
             raise ChunkTransferRejected("artifact directory must be private and not redirected")
 
     def _check_roots(self) -> None:
+        for parent in (self.root, *self.root.parents):
+            if parent.is_symlink():
+                raise ChunkTransferRejected("artifact ancestor directory is redirected")
         for directory in (self.root, self.incoming, self.completed):
             self._check_dir(directory)
+
+    def _used_bytes(self) -> int:
+        """Count all incoming and completed bytes, not each transfer separately."""
+        total = 0
+        count = 0
+        for directory in (self.incoming, self.completed):
+            for path in directory.iterdir():
+                count += 1
+                if count > 10000:
+                    raise ChunkTransferRejected("too many store objects to review")
+                total += self._existing_file(path)
+                if total > self.max_bytes:
+                    raise ChunkTransferRejected("aggregate verified and incoming quota exceeded")
+        return total
 
     @staticmethod
     def _existing_file(path: Path) -> int:
@@ -117,6 +134,8 @@ class ChunkedArtifactReceiver:
         if offset + len(chunk) > transfer.size_bytes or transfer.size_bytes > self.max_bytes:
             raise ChunkTransferRejected("transfer exceeds pinned size or quota")
         self._check_roots()
+        if self._used_bytes() + len(chunk) > self.max_bytes:
+            raise ChunkTransferRejected("aggregate transfer quota exceeded")
         path = self.incoming / (transfer.content_sha256 + ".part")
         if self._existing_file(self.completed / transfer.content_sha256):
             raise ChunkTransferRejected("complete object already published")
@@ -139,6 +158,12 @@ class ChunkedArtifactReceiver:
             after = os.fstat(fd)
             if after.st_size != current + len(chunk):
                 raise ChunkTransferRejected("transfer size changed during write")
+            try:
+                self._approve(transfer, authorize)  # STOP/revoke during write denies chunk
+            except Exception:
+                os.ftruncate(fd, current)
+                os.fsync(fd)
+                raise
         finally:
             os.close(fd)
         return current + len(chunk)
