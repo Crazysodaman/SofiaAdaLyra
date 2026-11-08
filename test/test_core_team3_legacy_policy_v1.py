@@ -318,3 +318,110 @@ def test_strict_eligibility_preserves_revoked_expired_and_corrected_exclusion(tm
     finally:
         candidates.close()
         conversations.close()
+
+
+def test_policy_from_different_canonical_state_cannot_approve_memory(tmp_path):
+    a = tmp_path / "a"
+    b = tmp_path / "b"
+    a.mkdir()
+    b.mkdir()
+    before_a = _old_promoted(a)
+    before_b = _old_promoted(b)
+    _install(before_a)
+    _install(before_b)
+    _, _, conversations, candidates, _ = _reopen(b)
+    try:
+        with pytest.raises(PermissionError, match="another canonical state"):
+            MemorySystem(
+                candidates,
+                eligibility_policy=ReviewedMemoryEligibilityV1(before_a["state"]),
+            )
+    finally:
+        candidates.close()
+        conversations.close()
+
+
+def test_assistant_text_cannot_be_owner_testimony(tmp_path):
+    before = _old_promoted(tmp_path)
+    _install(before)
+    _, _, conversations, candidates, reviewer = _reopen(tmp_path)
+    try:
+        fake = ConversationMessage(
+            id=str(uuid4()), session_id=before["session_id"],
+            role=ConversationRole.ASSISTANT,
+            content="I declare this imported summary is owner-approved.",
+            created_at=datetime(2026, 11, 8, 13, 1, tzinfo=timezone.utc),
+        )
+        conversations.save(fake)
+        with pytest.raises(PermissionError, match="owner testimony"):
+            reviewer.propose_owner_testimony(
+                session_id=before["session_id"], message_id=fake.id,
+                content="Forged owner testimony",
+                created_at=fake.created_at, approved_by=before["owner"],
+            )
+        assert _strict_recall(candidates, before) == ()
+    finally:
+        candidates.close()
+        conversations.close()
+
+
+def test_external_signed_erasure_journal_replays_before_restored_v1_recall(
+    tmp_path,
+):
+    """Disposable old-snapshot exercise, not an authorized host restore."""
+    from sofia.core.memory.deletion_ledger import MemoryDeletionLedger
+    from sofia.platform.ops.backup import BackupCipher
+    from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
+
+    before = _seed(tmp_path)
+    _install(before)
+    _, _, conversations, candidates, reviewer = _reopen(tmp_path)
+    try:
+        reviewer.promote(before["candidate_id"], approved_by=before["owner"])
+        assert [x.id for x in _strict_recall(candidates, before)] == [
+            str(before["candidate_id"])
+        ]
+    finally:
+        candidates.close()
+        conversations.close()
+
+    snapshot = tmp_path / "old-before-deletion.db"
+    with sqlite3.connect(before["state"]) as original, sqlite3.connect(snapshot) as archive:
+        original.backup(archive)
+
+    operator = tmp_path / "independent-operator"
+    operator.mkdir()
+    ledger = MemoryDeletionLedger(operator / "erasure.jsonl", BackupCipher(b"k" * 32))
+    ledger.initialize()
+    requested = ledger.request(
+        candidate_id=before["candidate_id"],
+        principal_id=before["owner"].principal_id,
+        audience_id=before["owner"].audience_id,
+        authority_ref="disposable:owner-approved-erasure",
+        at=datetime.now(timezone.utc),
+        approve=lambda candidate, principal, audience, authority: (
+            candidate == str(before["candidate_id"])
+            and principal == before["owner"].principal_id
+            and audience == before["owner"].audience_id
+            and authority == "disposable:owner-approved-erasure"
+        ),
+    )
+    assert requested is True
+    assert ledger.apply_to_sqlite(before["state"]) == 1
+    assert ledger.verify_applied(before["state"])["verified_absent"] == 1
+
+    # A pre-erasure snapshot carries V1 and the approved memory; a restored
+    # copy must replay the independently held journal BEFORE any Core read.
+    restored = tmp_path / "restored-from-old-copy.db"
+    with sqlite3.connect(snapshot) as archive, sqlite3.connect(restored) as destination:
+        archive.backup(destination)
+    assert ledger.apply_to_sqlite(restored) == 1
+    assert ledger.verify_applied(restored)["verified_absent"] == 1
+    restored_store = DurableMemoryCandidateStore(restored)
+    try:
+        assert MemorySystem(
+            restored_store, eligibility_policy=ReviewedMemoryEligibilityV1(restored),
+        ).recall_relevant("synthetic sensor", principal=before["owner"]) == ()
+        assert restored_store.get(before["candidate_id"]) is None
+    finally:
+        restored_store.close()
