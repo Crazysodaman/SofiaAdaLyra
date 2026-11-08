@@ -136,7 +136,7 @@ def test_revoked_publisher_does_not_fetch_or_write(tmp_path):
 
 def test_reject_missing_canonical_tls_source(tmp_path):
     transfer = _transfer(b"valid")
-    with pytest.raises(ChunkTransferRejected, match="TLS"):
+    with pytest.raises(ChunkTransferRejected, match="canonical quarantine receiver"):
         fetch_resumable_chunks(
             transfer=transfer, receiver=object(),
             open_enrolled_tls=lambda: None, authorize_peer=lambda *_: True,
