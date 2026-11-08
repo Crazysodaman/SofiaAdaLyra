@@ -55,6 +55,7 @@ impl UntrustedManagementRead {
         if !valid_id(&request.request_id)
             || !valid_id(&request.target_platform_id)
             || request.expected_generation == 0
+            || request.expected_generation > 9_007_199_254_740_991
         {
             return Err(ContractError::new(
                 "invalid_management_read",
@@ -195,6 +196,24 @@ fn safe_management_projection(
             }
             for member in values {
                 safe_management_projection(member, depth + 1)?;
+            }
+        }
+        serde_json::Value::Number(number) => {
+            const MAX_EXACT_JSON_INTEGER: f64 = 9_007_199_254_740_991.0;
+            // If a huge integer token became f64 during serde parsing,
+            // reject it too. Never advertise cross-language exactness that
+            // Python, Rust and a GUI client cannot preserve identically.
+            let Some(value) = number.as_f64() else {
+                return Err(ContractError::new(
+                    "invalid_management_response",
+                    "unrepresentable management numeric value",
+                ));
+            };
+            if !value.is_finite() || value.abs() > MAX_EXACT_JSON_INTEGER {
+                return Err(ContractError::new(
+                    "invalid_management_response",
+                    "management numeric value exceeds portable JSON range",
+                ));
             }
         }
         serde_json::Value::String(value) => {
