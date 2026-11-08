@@ -82,6 +82,7 @@ def test_core001_child_emits_launch_and_generation_bound_readiness(
     assert app.started and app.stopped
     assert len(receipts) == 1
     assert receipts[0]["start_token"] == TOKEN
+    assert receipts[0]["phase"] == "PROCESS_READY"
     assert receipts[0]["generation_epoch"] == 7
     assert receipts[0]["state_path"] == str(args["state_path"].resolve())
     assert type(receipts[0]["pid"]) is int
