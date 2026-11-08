@@ -267,3 +267,74 @@ def test_external_socket_never_uses_arbitrary_runtime_directory(tmp_path, monkey
         current.public_key_sha256,
     ) as session:
         assert session.status()["core_started"] is False
+
+
+@pytest.mark.skipif(not LINUX, reason="Debian systemd runtime policy")
+def test_systemd_runtime_policy_preserves_b_private_0700_without_group_enrollment(monkeypatch):
+    import grp
+    import stat
+    from types import SimpleNamespace
+    from sofia.platform.run.platform_service import systemd_management_operator_group
+
+    uid, gid = os.geteuid(), os.getegid()
+    parent = lambda mode, owner=uid, group=gid: SimpleNamespace(
+        st_mode=stat.S_IFDIR | mode, st_uid=owner, st_gid=group,
+    )
+    # Team B's current /run/aegis-platform 0700 must not be rejected
+    # or silently widened into proposed cross-user group access.
+    monkeypatch.setattr(
+        grp, "getgrnam",
+        lambda *_: pytest.fail("private mode must not resolve operator group"),
+    )
+    for runtime in ("/run/aegis", "/run/aegis-platform"):
+        assert systemd_management_operator_group(
+            runtime, parent(0o700), service_uid=uid, service_gid=gid,
+        ) is None
+    with pytest.raises(PermissionError, match="unreviewed"):
+        systemd_management_operator_group(
+            "/tmp/aegis", parent(0o700), service_uid=uid, service_gid=gid,
+        )
+
+
+@pytest.mark.skipif(not LINUX, reason="Debian explicit operator GID policy")
+def test_systemd_external_group_requires_dedicated_identity_and_strict_mode(monkeypatch):
+    import grp
+    import stat
+    from types import SimpleNamespace
+    from sofia.platform.run.platform_service import systemd_management_operator_group
+
+    uid, gid = os.geteuid(), os.getegid()
+    parent = lambda mode, owner=uid, group=gid: SimpleNamespace(
+        st_mode=stat.S_IFDIR | mode, st_uid=owner, st_gid=group,
+    )
+    monkeypatch.setattr(
+        grp, "getgrnam",
+        lambda name: SimpleNamespace(gr_gid=gid) if name == "aegis-mgmt" else None,
+    )
+    assert systemd_management_operator_group(
+        "/run/aegis-platform", parent(0o750),
+        service_uid=uid, service_gid=gid,
+    ) == gid
+    for mode in (0o751, 0o755, 0o770, 0o777, 0o600):
+        with pytest.raises(PermissionError):
+            systemd_management_operator_group(
+                "/run/aegis-platform", parent(mode),
+                service_uid=uid, service_gid=gid,
+            )
+    with pytest.raises(PermissionError):
+        systemd_management_operator_group(
+            "/run/aegis", parent(0o750),
+            service_uid=uid, service_gid=gid,
+        )
+    for bad_parent in (parent(0o750, owner=uid+1), parent(0o750, group=gid+1)):
+        with pytest.raises(PermissionError, match="not governed"):
+            systemd_management_operator_group(
+                "/run/aegis-platform", bad_parent,
+                service_uid=uid, service_gid=gid,
+            )
+    monkeypatch.setattr(grp, "getgrnam", lambda _: SimpleNamespace(gr_gid=gid+1))
+    with pytest.raises(PermissionError, match="installed management group"):
+        systemd_management_operator_group(
+            "/run/aegis-platform", parent(0o750),
+            service_uid=uid, service_gid=gid,
+        )
