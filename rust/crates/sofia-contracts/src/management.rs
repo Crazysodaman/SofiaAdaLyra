@@ -242,11 +242,7 @@ mod tests {
         let mut extra = valid;
         extra["owner_approved"] = json!(true);
         assert!(UntrustedManagementStatus::parse(extra.to_string().as_bytes(), &request).is_err());
-        let dup = status_json.replacen(
-            "{",
-            "{\\\"source\\\":\\\"PLATFORM_SESSION\\\",",
-            1,
-        );
+        let dup = status_json.replacen("{", r#"{"source":"PLATFORM_SESSION","#, 1);
         assert!(UntrustedManagementStatus::parse(dup.as_bytes(), &request).is_err());
     }
 
