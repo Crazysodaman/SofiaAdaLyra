@@ -111,7 +111,21 @@ class PlatformServiceSession:
                 # Trust only the exact, signed-systemd configured runtime
                 # directory. Never adopt /tmp, HOME, colon lists or a caller's
                 # arbitrary environment path as an external IPC endpoint.
-                if runtime != "/run/aegis":
+                if runtime == "/run/aegis":
+                    # Legacy signed systemd unit remains private, never
+                    # reinterpreted as a shared external operator path.
+                    required_mode = 0o700
+                    group_gid = None
+                elif runtime == "/run/aegis-platform":
+                    # New Team B installer must explicitly provision this
+                    # *separate* dedicated group and mode. Not a wildcard
+                    # over the existing 'aegis' service group.
+                    import grp
+                    group_gid = grp.getgrnam("aegis-mgmt").gr_gid
+                    required_mode = 0o750
+                    if group_gid != os.getegid():
+                        raise PermissionError("installed management group differs")
+                else:
                     raise PermissionError("unreviewed systemd runtime directory")
                 home = Path(runtime)
                 assert_no_redirected_components(home, include_leaf=True)
@@ -119,17 +133,8 @@ class PlatformServiceSession:
                 if (not stat.S_ISDIR(parent.st_mode)
                         or parent.st_uid != os.geteuid()
                         or parent.st_gid != os.getegid()
-                        or stat.S_IMODE(parent.st_mode) not in {0o700, 0o750}):
+                        or stat.S_IMODE(parent.st_mode) != required_mode):
                     raise PermissionError("systemd runtime directory not governed")
-                # Existing reviewed unit is /run/aegis 0700, with no
-                # external operator access. A signed installer MAY explicitly
-                # upgrade directory to 0750 with a dedicated enrolled GID.
-                # Never broaden 0700 automatically.
-                group_gid = (
-                    os.getegid()
-                    if stat.S_IMODE(parent.st_mode) == 0o750
-                    else None
-                )
                 # Epoch-fenced path avoids adopting a socket abandoned by a
                 # forced kill; old paths stay non-authoritative and offline.
                 socket_path = home / ("mgmt-" + str(self.lease.epoch) + ".sock")
