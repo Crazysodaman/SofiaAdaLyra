@@ -3,23 +3,27 @@
 
 use chrono::{DateTime, Duration, Utc};
 use regex::Regex;
-use reqwest::blocking::Client;
-use reqwest::{Certificate, Identity, StatusCode, Url};
+use rustls::pki_types::{CertificateDer, ServerName};
+use rustls::version::{TLS12, TLS13};
+use rustls::RootCertStore;
 use serde::de::{self, Deserializer, MapAccess, SeqAccess, Visitor};
 use serde_json::{Map, Value};
-use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 use std::fmt;
-use std::io::Read;
-use std::time::Duration as StdDuration;
+use std::io::{Cursor, Read, Write};
+use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
+use std::time::{Duration as StdDuration, Instant};
 use thiserror::Error;
-use x509_parser::parse_x509_certificate;
+use url::{Host, Url};
 
 pub const PROTOCOL: &str = "1.0";
 pub const MAX_PAYLOAD_BYTES: usize = 64 * 1024;
 pub const MAX_WIRE_BYTES: usize = 72 * 1024;
 const REQUEST_SCHEMA: &str = "companion.platform.core_link_request.v1";
 const RESPONSE_SCHEMA: &str = "companion.platform.core_link_response.v1";
+const TLS_VERSIONS: [&'static rustls::SupportedProtocolVersion; 2] = [&TLS12, &TLS13];
+
+mod der;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -32,13 +36,21 @@ pub enum Error {
     #[error("Core Link deadline expired")]
     Deadline,
     #[error("Core Link authentication or connection failed")]
-    Connection(#[source] reqwest::Error),
+    Connection(#[source] Box<dyn std::error::Error + Send + Sync>),
     #[error("Core Link host returned HTTP {0}")]
-    Http(StatusCode),
+    Http(u16),
     #[error("Core Link response exceeds 72 KiB")]
     Oversized,
     #[error("Core Link response is malformed")]
     Malformed,
+}
+
+fn map_io(error: std::io::Error) -> Error {
+    Error::Connection(Box::new(error))
+}
+
+fn map_rustls(error: rustls::Error) -> Error {
+    Error::Connection(Box::new(error))
 }
 
 #[derive(Clone, Debug)]
@@ -50,11 +62,11 @@ pub struct EnrolledBinding {
     pub remote_core_generation: u64,
     pub endpoint: Url,
     pub protocol: String,
-    /// Lowercase SHA-256 of the enrolled host certificate public-key bits.
+    /// Lowercase SHA-256 of the enrolled host certificate subjectPublicKeyInfo.
     pub trust_anchor_sha256: String,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct TlsCredentials {
     /// PEM trust anchor and combined PEM client certificate/private key.
     /// Callers must resolve these from the Platform secret owner at use time.
@@ -62,7 +74,73 @@ pub struct TlsCredentials {
     pub client_identity_pem: Vec<u8>,
 }
 
-#[derive(Clone, Debug)]
+impl fmt::Debug for TlsCredentials {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("TlsCredentials { ca_pem: <redacted>, client_identity_pem: <redacted> }")
+    }
+}
+
+/// Exact structured history cursor used by the Python gateway:
+/// `{created_at, message_id}` with RFC 3339 timestamps.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HistoryCursor {
+    pub created_at: DateTime<Utc>,
+    pub message_id: String,
+}
+
+impl HistoryCursor {
+    /// Builds one bounded cursor element.
+    ///
+    /// # Errors
+    /// Returns an error when the message identifier is invalid.
+    pub fn new(created_at: DateTime<Utc>, message_id: impl Into<String>) -> Result<Self, Error> {
+        let message_id = message_id.into();
+        if !valid_id(&message_id) {
+            return Err(Error::Contract("invalid history cursor"));
+        }
+        Ok(Self {
+            created_at,
+            message_id,
+        })
+    }
+
+    /// The exact wire form: `{"created_at": "...", "message_id": "..."}`.
+    #[must_use]
+    pub fn to_value(&self) -> Value {
+        serde_json::json!({
+            "created_at": self.created_at.to_rfc3339(),
+            "message_id": self.message_id,
+        })
+    }
+
+    /// Parses a structured cursor issued by the host.
+    ///
+    /// # Errors
+    /// Returns an error for unexpected keys, invalid identifiers, or timestamps.
+    pub fn from_value(value: &Value) -> Result<Self, Error> {
+        let object = value.as_object().ok_or(Error::Contract("invalid history cursor"))?;
+        if object.len() != 2 {
+            return Err(Error::Contract("invalid history cursor"));
+        }
+        let created_at = object
+            .get("created_at")
+            .and_then(Value::as_str)
+            .ok_or(Error::Contract("invalid history cursor"))?
+            .parse::<DateTime<Utc>>()
+            .map_err(|_| Error::Contract("invalid history cursor"))?;
+        let message_id = object
+            .get("message_id")
+            .and_then(Value::as_str)
+            .filter(|value| valid_id(value))
+            .ok_or(Error::Contract("invalid history cursor"))?;
+        Ok(Self {
+            created_at,
+            message_id: message_id.to_owned(),
+        })
+    }
+}
+
+#[derive(Clone)]
 pub struct Request {
     pub request_id: String,
     pub idempotency_key: String,
@@ -76,12 +154,45 @@ pub struct Request {
     pub deadline: DateTime<Utc>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+impl fmt::Debug for Request {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Request")
+            .field("request_id", &self.request_id)
+            .field("idempotency_key", &self.idempotency_key)
+            .field("local_platform_id", &self.local_platform_id)
+            .field("remote_platform_id", &self.remote_platform_id)
+            .field(
+                "remote_core_identity_id",
+                &self.remote_core_identity_id,
+            )
+            .field("remote_core_generation", &self.remote_core_generation)
+            .field("operation", &self.operation)
+            .field("payload", &"<redacted>")
+            .field("created_at", &self.created_at.to_rfc3339())
+            .field("deadline", &self.deadline.to_rfc3339())
+            .finish()
+    }
+}
+
+#[derive(Clone, PartialEq)]
 pub struct Response {
     pub request_id: String,
     pub status: String,
     pub payload: Value,
     pub server_at: DateTime<Utc>,
+}
+
+impl fmt::Debug for Response {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Response")
+            .field("request_id", &self.request_id)
+            .field("status", &self.status)
+            .field("payload", &"<redacted>")
+            .field("server_at", &self.server_at.to_rfc3339())
+            .finish()
+    }
 }
 
 fn valid_id(value: &str) -> bool {
@@ -112,22 +223,26 @@ impl Request {
     /// Builds a bounded query for an existing authorized session.
     ///
     /// # Errors
-    /// Returns an error for an invalid session/cursor or limit.
+    /// Returns an error for an invalid session, cursor, or limit.
     pub fn history(
         binding: &EnrolledBinding,
         request_id: &str,
         session_id: &str,
-        after: Option<&str>,
+        after: Option<&HistoryCursor>,
         limit: u16,
         now: DateTime<Utc>,
     ) -> Result<Self, Error> {
-        if !valid_id(session_id)
-            || after.is_some_and(|value| !valid_id(value))
-            || !(1..=200).contains(&limit)
-        {
+        if !valid_id(session_id) || !(1..=200).contains(&limit) {
             return Err(Error::Contract("invalid history query"));
         }
-        let payload = serde_json::json!({"session_id": session_id, "after": after, "limit": limit});
+        let payload = if let Some(cursor) = after {
+            if cursor.message_id.is_empty() || !valid_id(&cursor.message_id) {
+                return Err(Error::Contract("invalid history query"));
+            }
+            serde_json::json!({"session_id": session_id, "after": cursor.to_value(), "limit": limit})
+        } else {
+            serde_json::json!({"session_id": session_id, "after": None::<Value>, "limit": limit})
+        };
         Ok(Self::new(
             binding,
             request_id,
@@ -206,7 +321,9 @@ impl Request {
 
 pub struct CoreLinkClient {
     binding: EnrolledBinding,
-    client: Client,
+    tls: std::sync::Arc<rustls::ClientConfig>,
+    server_name: ServerName<'static>,
+    timeout: StdDuration,
 }
 
 impl CoreLinkClient {
@@ -233,26 +350,134 @@ impl CoreLinkClient {
         {
             return Err(Error::Contract("invalid host public-key pin"));
         }
-        if binding.endpoint.scheme() != "https" || binding.endpoint.path() != "/v1/core-link" {
+        let host = binding
+            .endpoint
+            .host_str()
+            .ok_or(Error::Contract("endpoint must be the exact Core Link HTTPS path"))?;
+        if binding.endpoint.scheme() != "https"
+            || binding.endpoint.path() != "/v1/core-link"
+            || binding.endpoint.username() != ""
+            || binding.endpoint.password().is_some()
+            || binding.endpoint.query().is_some()
+            || binding.endpoint.fragment().is_some()
+            || binding
+                .endpoint
+                .port()
+                .is_some_and(|port| port == 0)
+        {
             return Err(Error::Contract(
                 "endpoint must be the exact Core Link HTTPS path",
             ));
         }
-        let ca = Certificate::from_pem(&credentials.ca_pem).map_err(Error::Connection)?;
-        let identity =
-            Identity::from_pem(&credentials.client_identity_pem).map_err(Error::Connection)?;
-        let client = Client::builder()
-            .tls_built_in_root_certs(false)
-            .add_root_certificate(ca)
-            .identity(identity)
-            .tls_info(true)
-            .https_only(true)
-            .redirect(reqwest::redirect::Policy::none())
-            .min_tls_version(reqwest::tls::Version::TLS_1_2)
-            .timeout(timeout)
-            .build()
-            .map_err(Error::Connection)?;
-        Ok(Self { binding, client })
+        let server_name =
+            ServerName::try_from(host.to_owned()).map_err(|_| Error::Contract(
+                "endpoint must be the exact Core Link HTTPS path",
+            ))?;
+        let mut roots = RootCertStore::empty();
+        for result in rustls_pemfile::certs(&mut Cursor::new(&credentials.ca_pem)) {
+            let certificate = result.map_err(map_io)?;
+            roots
+                .add(certificate)
+                .map_err(|_| Error::Contract("trust anchor is not a valid certificate"))?;
+        }
+        if roots.is_empty() {
+            return Err(Error::Connection(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Core Link trust anchor is required",
+            ))));
+        }
+        let chain: Vec<CertificateDer<'static>> =
+            rustls_pemfile::certs(&mut Cursor::new(&credentials.client_identity_pem))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(map_io)?;
+        let private_key = rustls_pemfile::private_key(&mut Cursor::new(
+            &credentials.client_identity_pem,
+        ))
+        .map_err(map_io)?
+        .ok_or(Error::Contract("client identity is not a certificate and key"))?;
+        if chain.is_empty() {
+            return Err(Error::Contract("client identity is not a certificate and key"));
+        }
+        let provider = std::sync::Arc::new(rustls::crypto::ring::default_provider());
+        let builder = rustls::ClientConfig::builder_with_provider(provider)
+            .with_protocol_versions(&TLS_VERSIONS)
+            .map_err(map_rustls)?
+            .with_root_certificates(roots)
+            .with_client_auth_cert(chain, private_key)
+            .map_err(map_rustls)?;
+        Ok(Self {
+            binding,
+            tls: std::sync::Arc::new(builder),
+            server_name,
+            timeout,
+        })
+    }
+
+    fn host_header(&self, endpoint: &Url) -> Result<String, Error> {
+        let server_host = match endpoint.host() {
+            Some(Host::Domain(domain)) => domain.to_owned(),
+            Some(Host::Ipv4(ipv4)) => ipv4.to_string(),
+            Some(Host::Ipv6(ipv6)) => format!("[{ipv6}]"),
+            None => return Err(Error::Contract("endpoint host is missing")),
+        };
+        Ok(match endpoint.port() {
+            Some(port) => format!("{server_host}:{port}"),
+            None => server_host,
+        })
+    }
+
+    fn resolve_host(&self, host: &str, port: u16) -> Result<Vec<SocketAddr>, Error> {
+        let addresses: Vec<SocketAddr> =
+            (host, port).to_socket_addrs().map_err(map_io)?.collect();
+        Ok(addresses)
+    }
+
+    fn establish(&self, started: Instant) -> Result<rustls::StreamOwned<rustls::ClientConnection, TcpStream>, Error> {
+        let endpoint = self.binding.endpoint.clone();
+        let host = endpoint.host_str().ok_or(Error::Contract("endpoint host is missing"))?;
+        let port = endpoint.port_or_known_default().unwrap_or(443);
+        let address = self
+            .resolve_host(host, port)?
+            .into_iter()
+            .next()
+            .ok_or(Error::Contract("endpoint host cannot be resolved"))?;
+        let mut socket = TcpStream::connect_timeout(&address, self.timeout).map_err(map_io)?;
+        socket
+            .set_nodelay(true)
+            .map_err(map_io)?;
+        self.apply_remaining_timeouts(&mut socket, started)?;
+        let mut connection = rustls::ClientConnection::new(self.tls.clone(), self.server_name.clone())
+            .map_err(map_rustls)?;
+        while connection.is_handshaking() {
+            connection
+                .complete_io(&mut socket)
+                .map_err(map_io)?;
+            if started.elapsed() >= self.timeout {
+                return Err(Error::Deadline);
+            }
+        }
+        let peers = connection.peer_certificates().map_or_else(
+            || Err(Error::Contract("host certificate unavailable")),
+            |certificates| {
+                certificates
+                    .first()
+                    .cloned()
+                    .ok_or(Error::Contract("host certificate unavailable"))
+            },
+        )?;
+        let observed = digest_hex(spki_digest(peers.as_ref())?);
+        if observed != self.binding.trust_anchor_sha256 {
+            return Err(Error::BindingMismatch);
+        }
+        self.apply_remaining_timeouts(&mut socket, started)?;
+        Ok(rustls::StreamOwned::new(connection, socket))
+    }
+
+    fn apply_remaining_timeouts(&self, socket: &TcpStream, started: Instant) -> Result<(), Error> {
+        let remaining = self.timeout.checked_sub(started.elapsed()).ok_or(Error::Deadline)?;
+        socket.set_read_timeout(Some(remaining)).map_err(map_io)?;
+        socket.set_write_timeout(Some(remaining)).map_err(map_io)?;
+        Ok(())
     }
 
     /// Executes exactly one read-only request without automatic retry.
@@ -278,41 +503,86 @@ impl CoreLinkClient {
         if body.len() > MAX_WIRE_BYTES {
             return Err(Error::Oversized);
         }
-        let http = self
-            .client
-            .post(self.binding.endpoint.clone())
-            .header("content-type", "application/json")
-            .header("accept", "application/json")
-            .body(body)
-            .send()
-            .map_err(Error::Connection)?;
-        let peer = http
-            .extensions()
-            .get::<reqwest::tls::TlsInfo>()
-            .and_then(reqwest::tls::TlsInfo::peer_certificate)
-            .ok_or(Error::Contract("host certificate unavailable"))?;
-        let (_, certificate) = parse_x509_certificate(peer)
-            .map_err(|_| Error::Contract("host certificate invalid"))?;
-        let observed = format!("{:x}", Sha256::digest(certificate.public_key().raw));
-        if observed != self.binding.trust_anchor_sha256 {
-            return Err(Error::BindingMismatch);
-        }
-        if !http.status().is_success() {
-            return Err(Error::Http(http.status()));
-        }
-        let mut raw = Vec::new();
-        http.take((MAX_WIRE_BYTES + 1) as u64)
-            .read_to_end(&mut raw)
-            .map_err(|_| Error::Malformed)?;
-        if raw.len() > MAX_WIRE_BYTES {
-            return Err(Error::Oversized);
-        }
+        let started = Instant::now();
+        let mut stream = self.establish(started)?;
+        let endpoint = self.binding.endpoint.clone();
+        let head = format!(
+            "POST {} HTTP/1.1\r\nhost: {}\r\ncontent-type: application/json\r\naccept: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n",
+            endpoint.path(),
+            self.host_header(&endpoint)?,
+            body.len(),
+        );
+        stream.write_all(head.as_bytes()).map_err(map_io)?;
+        stream.write_all(&body).map_err(map_io)?;
+        stream.flush().map_err(map_io)?;
+        let raw = self.read_response(&mut stream, started)?;
         let response = parse_response(&raw)?;
         if response.request_id != request.request_id {
             return Err(Error::BindingMismatch);
         }
         Ok(response)
     }
+
+    fn read_response(
+        &self,
+        stream: &mut impl Read,
+        started: Instant,
+    ) -> Result<Vec<u8>, Error> {
+        let mut header = Vec::new();
+        let mut byte = [0_u8; 1];
+        loop {
+            stream.read_exact(&mut byte).map_err(map_io)?;
+            header.push(byte[0]);
+            if header.ends_with(b"\r\n\r\n") {
+                break;
+            }
+            if header.len() > 16 * 1024 {
+                return Err(Error::Malformed);
+            }
+            if started.elapsed() >= self.timeout {
+                return Err(Error::Deadline);
+            }
+        }
+        let head = String::from_utf8_lossy(&header);
+        let status_line = head.lines().next().ok_or(Error::Malformed)?;
+        let parts = status_line.split(' ').collect::<Vec<_>>();
+        if parts.len() < 3 || !parts[0].starts_with("HTTP/") {
+            return Err(Error::Malformed);
+        }
+        let status = parts[1]
+            .parse::<u16>()
+            .map_err(|_| Error::Malformed)?;
+        if !matches!(status, 200..=599) {
+            return Err(Error::Malformed);
+        }
+        let content_length = head.lines().skip(1).find_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            let name = name.trim().to_ascii_lowercase();
+            if name == "content-length" {
+                value.trim().parse::<usize>().ok()
+            } else {
+                None
+            }
+        });
+        let length = content_length.ok_or(Error::Malformed)?;
+        if length == 0 || length > MAX_WIRE_BYTES {
+            return Err(Error::Oversized);
+        }
+        let mut body = vec![0_u8; length];
+        stream.read_exact(&mut body).map_err(map_io)?;
+        Ok(body)
+    }
+}
+
+fn digest_hex(digest: [u8; 32]) -> String {
+    digest
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>()
+}
+
+fn spki_digest(certificate: &[u8]) -> Result<[u8; 32], Error> {
+    crate::der::spki_sha256(certificate).ok_or(Error::Contract("host certificate invalid"))
 }
 
 /// Parses one bounded response using the strict Python-compatible field set.
@@ -445,10 +715,9 @@ impl<'de> de::DeserializeSeed<'de> for StrictSeed {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn rejects_mutation_and_malformed_response() {
-        let now = Utc::now();
-        let binding = EnrolledBinding {
+
+    fn binding() -> EnrolledBinding {
+        EnrolledBinding {
             active: true,
             local_platform_id: "p:local".into(),
             remote_platform_id: "p:remote".into(),
@@ -457,32 +726,65 @@ mod tests {
             endpoint: Url::parse("https://localhost/v1/core-link").unwrap(),
             protocol: PROTOCOL.into(),
             trust_anchor_sha256: "0".repeat(64),
-        };
-        let mut request = Request::status(&binding, "req:1", now);
+        }
+    }
+
+    #[test]
+    fn rejects_mutation_and_malformed_response() {
+        let now = Utc::now();
+        let mut request =
+            Request::status(&binding(), "req:1", now);
         request.operation = "conversation.send".into();
         assert!(request.to_value().is_err());
         assert!(parse_response(br#"{"schema":"wrong"}"#).is_err());
     }
+
     #[test]
-    fn history_is_exact_and_authority_free() {
+    fn history_accepts_structured_cursor_and_writes_none() {
         let now = Utc::now();
-        let binding = EnrolledBinding {
-            active: true,
-            local_platform_id: "p:local".into(),
-            remote_platform_id: "p:remote".into(),
-            remote_core_identity_id: "c:one".into(),
-            remote_core_generation: 2,
-            endpoint: Url::parse("https://localhost/v1/core-link").unwrap(),
-            protocol: PROTOCOL.into(),
-            trust_anchor_sha256: "0".repeat(64),
+        let cursor = HistoryCursor {
+            created_at: now,
+            message_id: "m:1".into(),
         };
-        let value = Request::history(&binding, "req:2", "session:1", None, 100, now)
-            .unwrap()
-            .to_value()
-            .unwrap();
+        let value = Request::history(
+            &binding(),
+            "req:2",
+            "session:1",
+            Some(&cursor),
+            100,
+            now,
+        )
+        .unwrap()
+        .to_value()
+        .unwrap();
         assert_eq!(value["operation"], "conversation.history");
+        assert_eq!(value["payload"]["after"]["message_id"], "m:1");
+        assert!(value["payload"]["after"].get("created_at").is_some());
         for forbidden in ["principal", "audience", "credential", "grant"] {
             assert!(value.get(forbidden).is_none());
         }
+        let none = Request::history(&binding(), "req:3", "session:1", None, 100, now)
+            .unwrap()
+            .to_value()
+            .unwrap();
+        assert!(none["payload"]["after"].is_null());
+    }
+
+    #[test]
+    fn history_rejects_invalid_cursor_and_debug_redacts() {
+        let now = Utc::now();
+        let cursor = HistoryCursor {
+            created_at: now,
+            message_id: String::new(),
+        };
+        assert!(Request::history(&binding(), "req:4", "s:1", Some(&cursor), 10, now).is_err());
+        let valid = HistoryCursor::new(now, "m:1").unwrap();
+        assert_eq!(
+            valid,
+            HistoryCursor {
+                created_at: now,
+                message_id: "m:1".to_owned(),
+            }
+        );
     }
 }

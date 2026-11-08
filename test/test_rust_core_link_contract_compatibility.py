@@ -21,7 +21,14 @@ from test_core_link_conversation import tls_material  # noqa: E402
 FIXTURES = Path(__file__).parents[1] / "contracts" / "core-link"
 
 
-@pytest.mark.parametrize("name", ["valid-status-request.json", "valid-history-request.json"])
+@pytest.mark.parametrize(
+    "name",
+    [
+        "valid-status-request.json",
+        "valid-history-request.json",
+        "valid-history-cursor-request.json",
+    ],
+)
 def test_python_accepts_r2_request_fixtures(name: str) -> None:
     CoreLinkRequest.from_payload(json.loads((FIXTURES / name).read_text(encoding="utf-8")))
 
@@ -49,16 +56,31 @@ def test_rust_read_only_client_uses_disposable_python_mtls_server(tmp_path: Path
     if not probe:
         pytest.skip("SOFIA_R2_PROBE is set by the R2 compatibility job")
     ca, (server_cert, server_key), (client_cert, client_key) = tls_material(tmp_path)
+    cursor = {"created_at": "2026-11-04T00:00:00+00:00", "message_id": "message:1"}
+    dispatches: list[dict[str, object]] = []
 
     class Gateway:
         def dispatch(self, *, certificate_public_key_sha256, request):
             assert certificate_public_key_sha256 == public_key_fingerprint_from_pem_certificate(client_cert)
             assert request.operation in {"status", "conversation.history"}
-            payload = (
-                {"ready": True, "generation": 7}
-                if request.operation == "status"
-                else {"session_id": "session:existing", "messages": [], "next_cursor": None}
-            )
+            if request.operation == "status":
+                dispatches.append({"operation": "status", "after": None})
+                payload = {"ready": True, "generation": 7}
+            elif "after" in request.payload:
+                assert request.payload["after"] == cursor
+                dispatches.append({"operation": request.operation, "after": cursor})
+                payload = {
+                    "session_id": request.payload["session_id"],
+                    "messages": [],
+                    "next_cursor": None,
+                }
+            else:
+                dispatches.append({"operation": request.operation, "after": None})
+                payload = {
+                    "session_id": request.payload["session_id"],
+                    "messages": [],
+                    "next_cursor": cursor,
+                }
             return CoreLinkResponse(
                 request.request_id,
                 CoreLinkResponseStatus.COMPLETED,
@@ -104,6 +126,15 @@ def test_rust_read_only_client_uses_disposable_python_mtls_server(tmp_path: Path
         )
         assert history.returncode == 0, history.stderr
         assert json.loads(history.stdout) == {
+            "messages": [], "next_cursor": cursor, "session_id": "session:existing"
+        }
+        paged = subprocess.run(
+            result.args
+            + ["session:existing", cursor["created_at"], cursor["message_id"]],
+            check=False, capture_output=True, text=True, timeout=10,
+        )
+        assert paged.returncode == 0, paged.stderr
+        assert json.loads(paged.stdout) == {
             "messages": [], "next_cursor": None, "session_id": "session:existing"
         }
         bad_pin_args = list(result.args)
@@ -113,6 +144,11 @@ def test_rust_read_only_client_uses_disposable_python_mtls_server(tmp_path: Path
         )
         assert rejected.returncode != 0
         assert "request does not match enrolled binding" in rejected.stderr
+        assert len(dispatches) == 3
+        assert [dispatch["operation"] for dispatch in dispatches] == [
+            "status", "conversation.history", "conversation.history",
+        ]
+        assert [dispatch["after"] for dispatch in dispatches] == [None, None, cursor]
     finally:
         server.close()
         thread.join(timeout=3)
