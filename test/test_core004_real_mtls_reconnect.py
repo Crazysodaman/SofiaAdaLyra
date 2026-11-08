@@ -22,7 +22,7 @@ from sofia.platform.core_link import (
 from sofia.platform.distributed.tls import (
     public_key_fingerprint_from_pem_certificate,
 )
-from sofia.sdk import CoreLinkResponse, CoreLinkResponseStatus, ProtocolVersion
+from sofia.sdk import CoreLinkRequest, CoreLinkResponse, CoreLinkResponseStatus, ProtocolVersion
 from test.test_core_link_conversation import tls_material
 
 
@@ -235,10 +235,20 @@ def test_core004_actual_mtls_lost_completed_reply_reconciles_without_resend(tmp_
                 ca, client_cert, client_key,
             ), timeout_seconds=5,
         )
+        wrong_pin_now = datetime.now(timezone.utc)
+        wrong_pin_request = CoreLinkRequest(
+            request_id="request:wrong-pin",
+            idempotency_key="status:wrong-pin",
+            local_platform_id=wrong_pin.local_platform_id,
+            remote_platform_id=wrong_pin.remote_platform_id,
+            remote_core_identity_id=wrong_pin.remote_core_identity_id,
+            remote_core_generation=wrong_pin.remote_core_generation,
+            operation="status", payload={}, created_at=wrong_pin_now,
+            deadline=wrong_pin_now + timedelta(seconds=30),
+            protocol=wrong_pin.protocol_version,
+        )
         with pytest.raises(CoreLinkTransportError, match="pin mismatch"):
-            bad_client.request(first_desktop._request(
-                "status", {},
-            ))
+            bad_client.request(wrong_pin_request)
         assert gateway.send_attempts == 1
     finally:
         server.close()
