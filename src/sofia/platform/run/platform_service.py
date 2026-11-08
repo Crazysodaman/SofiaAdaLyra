@@ -96,6 +96,7 @@ class PlatformServiceSession:
             read_settings=lambda _scopes: (_ for _ in ()).throw(
                 PermissionError("Platform-local settings reader not approved")
             ),
+            enrolled_denial_responses=True,
         )
         if os.name == "nt":
             name = "AegisPlatform-" + platform_id.replace("-", "") + "-" + str(self.lease.epoch)
