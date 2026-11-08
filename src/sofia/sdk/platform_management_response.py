@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 import json
 import math
 import re
+import unicodedata
 from typing import Mapping
 
 from sofia.sdk.platform_management import UntrustedManagementRead
@@ -67,7 +68,9 @@ def _safe_data(value: object, depth: int = 0) -> None:
         if len(value) > 256:
             raise ValueError("management response contains too many fields")
         for key, member in value.items():
-            if not isinstance(key, str) or not key or len(key) > 160:
+            if (not isinstance(key, str) or not key or len(key) > 160
+                    or not key.isascii()
+                    or any(unicodedata.category(char) == "Cc" for char in key)):
                 raise ValueError("invalid management response key")
             lower = key.lower()
             if lower in _FORBIDDEN or any(part in lower for part in _SENSITIVE):
@@ -79,7 +82,7 @@ def _safe_data(value: object, depth: int = 0) -> None:
         for member in value:
             _safe_data(member, depth + 1)
     elif isinstance(value, str):
-        if any(ord(char) < 32 or ord(char) == 127 for char in value):
+        if any(unicodedata.category(char) == "Cc" for char in value):
             raise ValueError("control characters in management response")
     elif type(value) is float:
         if not math.isfinite(value):
