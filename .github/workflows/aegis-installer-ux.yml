@@ -18,6 +18,7 @@ on:
       - "test/test_ui_aegis_installer_seed_hash.py"
       - "test/test_ui_aegis_installer_debian_prerequisites.py"
       - "test/test_ui_aegis_installer_capsule_signature.py"
+      - "test/test_ui_aegis_installer_debian_observer.py"
       - "test/test_ui_aegis_installer_publisher.py"
       - "test/test_ui_aegis_installer_authenticode.py"
       - "test/test_ops_platform_installer_capsule.py"
@@ -69,6 +70,7 @@ jobs:
           bash -n packaging/installers/install-aegis.sh
           bash -n packaging/installers/debian12-offline-prerequisites.sh
           bash -n packaging/installers/verify-aegis-capsule.sh
+          bash -n packaging/installers/observe-debian12-service.sh
       - name: Parse Windows PowerShell installer before any fixture tests
         if: runner.os == 'Windows'
         shell: powershell
@@ -90,7 +92,7 @@ jobs:
       - name: Test read-only installer and theme fallbacks
         env:
           AEGIS_B004_TEST_CAPSULE_OUT: ${{ runner.temp }}/aegis-b004-disposable-media
-        run: python -m pytest -q test/test_ui_aegis_installer_entrypoints.py test/test_ui_aegis_installer_lifecycle_contract.py test/test_ops_platform_installer_bundle.py test/test_ops_platform_installer_lifecycle.py test/test_ops_platform_installer_code_install.py test/test_ops_platform_installer_native_preflight.py test/test_ops_platform_installer_native_transaction.py test/test_ops_platform_installer_native_service.py test/test_ops_platform_installer_native_update.py test/test_ops_platform_installer_d028_seed.py test/test_ui_aegis_installer_seed_hash.py test/test_ui_aegis_installer_debian_prerequisites.py test/test_ui_aegis_installer_capsule_signature.py test/test_ui_aegis_installer_publisher.py test/test_ui_aegis_installer_authenticode.py test/test_ops_platform_library_admission.py test/test_ops_platform_installer_capsule.py
+        run: python -m pytest -q test/test_ui_aegis_installer_entrypoints.py test/test_ui_aegis_installer_lifecycle_contract.py test/test_ops_platform_installer_bundle.py test/test_ops_platform_installer_lifecycle.py test/test_ops_platform_installer_code_install.py test/test_ops_platform_installer_native_preflight.py test/test_ops_platform_installer_native_transaction.py test/test_ops_platform_installer_native_service.py test/test_ops_platform_installer_native_update.py test/test_ops_platform_installer_d028_seed.py test/test_ui_aegis_installer_seed_hash.py test/test_ui_aegis_installer_debian_prerequisites.py test/test_ui_aegis_installer_capsule_signature.py test/test_ui_aegis_installer_debian_observer.py test/test_ui_aegis_installer_publisher.py test/test_ui_aegis_installer_authenticode.py test/test_ops_platform_library_admission.py test/test_ops_platform_installer_capsule.py
       - name: Compile canonical installer Python integration
         run: python -m compileall -q src/sofia/platform/ops/platform_installer_bundle.py src/sofia/platform/ops/platform_installer_lifecycle.py src/sofia/platform/ops/platform_installer_preview.py src/sofia/platform/ops/platform_installer_code_install.py src/sofia/platform/ops/platform_installer_native_preflight.py src/sofia/platform/ops/platform_installer_native_service.py src/sofia/platform/ops/platform_installer_native_transaction.py src/sofia/platform/ops/platform_installer_offline_seed.py src/sofia/platform/ops/platform_library_admission.py src/sofia/platform/ops/platform_installer_offline_capsule.py src/sofia/platform/ops/platform_installation.py
       - name: Rehash exact synthetic publisher-signed capsule for independent QA
