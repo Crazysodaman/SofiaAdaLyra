@@ -301,5 +301,5 @@ def test_d028_peer_requires_actual_mutually_authenticated_tls_not_a_fake_identit
         admit_owner_enrolled_library_chunk(
             **{**arguments, "content_digest": "signed-by-hub-only"}
         )
-    with pytest.raises(ValueError, match="bounded"):
+    with pytest.raises(ValueError, match="declared bounds"):
         admit_owner_enrolled_library_chunk(**{**arguments, "length": 10 * 1024 * 1024})
