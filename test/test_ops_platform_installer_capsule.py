@@ -58,7 +58,7 @@ def test_capsule_packages_exact_signed_assets_and_stock_launchers_without_core(
     assert {item["path"] for item in report["signed_release_assets"]} == {
         asset.reference.path for asset in manifest.assets
     }
-    assert len(report["unsigned_delivery_assets"]) == 3
+    assert len(report["unsigned_delivery_assets"]) == 5
     assert all(item["publisher_signature_verified"] is False
                for item in report["unsigned_delivery_assets"])
     assert report["publisher_revocation_fresh"] is False
@@ -75,6 +75,8 @@ def test_capsule_packages_exact_signed_assets_and_stock_launchers_without_core(
         assert names == sorted(names)
         assert "aegis/install-aegis.sh" in names
         assert "aegis/Install-Aegis.ps1" in names
+        assert "aegis/debian12-offline-prerequisites.sh" in names
+        assert "aegis/verify-aegis-capsule.sh" in names
         assert "aegis/contracts/ui/aegis-theme-v1.json" in names
         assert archive.read("aegis/release-manifest.json") == manifest.canonical_bytes
         for asset in manifest.assets:
