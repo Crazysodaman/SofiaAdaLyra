@@ -15,6 +15,23 @@
 5. **Concurrency and Git discipline:** work in small reviewable batches; inspect latest `main` and active drafts before making changes, avoid files actively changing under OpenCode, never merge untested broad refactors into main. Platform-only #201 has priority over extra optional modules unless owner separately reprioritizes.
 6. **UI/TUI lifecycle:** both clients must show module connected/disconnected, installed/available/blocked, approval, settings and actual health automatically without restarting. Uninstalling any optional module never uninstalls the external service it connects to.
 
+## Hot-plug contract (owner clarification 2026-11-08)
+
+Aegis module lifecycle is intended to behave like **a removable capability card in a live service backplane**, not like installing a kernel extension that forces a host reboot. The underlying Platform and Core should remain running when an independently compatible signed optional module is installed, authorized, activated, paused, disabled, disconnected or removed.
+
+**Already present in source:** `src/sofia/platform/capability/system.py` supports atomic in-memory batch `register_batch` / exact `unregister_batch`; `platform/modules/lifecycle.py` enters ACTIVATING then publishes capabilities only after an adapter start is verified, withdraws capabilities before DRAINING/PAUSED, and reconciles stale active claims on host restart; `platform/modules/operations.py` owns independently observed process start/stop and uncertain-effect receipts. Existing `test/test_module_lifecycle_v1.py` and process-worker tests include activation, pause, resume, restart fail-closed and real process shutdown scenarios. **This is evidence of core hot-plug foundations, not certified whole-product hot-plugging for all 55.**
+
+**Still required for full owner experience:**
+- On compatible module activation and fresh health proof, update the native **Platform capability catalog** and all authorized Core tool projections (including newly composed integrations). Module loss/revocation must make capabilities unavailable immediately for new dispatch; in-flight effects must drain/cancel according to existing RUN contracts and preserve `OUTCOME_UNKNOWN` truth. Revalidate permissions at dispatch rather than relying on an old tool-menu snapshot.
+- GUI, TUI, CLI and module Settings refresh through authenticated event/cursor or bounded snapshot reconciliation without restarting their own processes; show lifecycle vs verified runtime connection as different axes. Do not silently remove retained settings when a module disconnects. Pair with [AG-D006 live module status](AG_D006_LIVE_MODULE_STATUS_AND_SETTINGS.md).
+- Separate **one module worker restart** for an incompatible setting/package/runtime update from **whole Platform/Core/OS restart**. No automatic reboot from a module's own preference; necessary service/SDK API migrations must be explicitly planned and operator approved.
+- A disabled/removed optional module must leave Core identity, conversation, unrelated modules, Platform SAFE/STOP, trust, Fleet and the target external service (e.g. Portainer stacks) untouched. Physical device/OS driver rebinds may require a hardware-specific restart and cannot be promised as universal zero-reboot.
+- Installed/removed does not itself mean runtime CONNECTED/HEALTHY; module activation waits for verified adapter identity/readiness. Unavailable connectors give explicit UNKNOWN/DISCONNECTED and bounded retry, not a green indicator.
+- Allow **module package install, compatible hot-activate, verified capability discovery, disable/pause, uninstall, owner block and later owner-approved reinstall** as distinct state/permission transitions; no automatic Core self-install, permission escalation or unblock.
+- Test dynamic add/remove with a live Core conversation, GUI and TUI open, on Windows and Debian, including SDK mismatch, revocation mid-flight, competing Core users, multi-host loss, adapter crash, repeated reconnect and service rollback. No report of fully hot-pluggable 55 modules until these independently installed tests pass.
+
+**Important current limitation:** legacy Core-configured integrations in `src/sofia/modules/integrations/capabilities.py` (including Portainer) read environment-based credentials and construct their tool registry at composition time. They **do not currently prove live hot enrollment**. Migration into separately signed Platform modules with versioned dynamic capability snapshots remains B02/B04 work.
+
 ## Ordered execution batches
 
 | Batch | Scope | Output and acceptance | Status |
