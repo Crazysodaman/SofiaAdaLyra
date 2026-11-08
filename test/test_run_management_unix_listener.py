@@ -192,3 +192,62 @@ def test_fresh_clock_sampled_after_request_complete(private):
         assert results == [True]
         assert b"true" in payload
         assert datetime.now(timezone.utc).timestamp() - observed[0].timestamp() < 3
+
+
+@pytest.mark.skipif(not LINUX, reason="Linux kernel-authenticated operator group only")
+def test_enrolled_group_transport_is_strict_0750_and_0660(tmp_path):
+    groupdir = tmp_path / "runtime"
+    groupdir.mkdir(mode=0o750)
+    groupdir.chmod(0o750)
+    gid = os.getegid()
+    seen = []
+    def dispatch(raw, *, authenticated_peer, now):
+        seen.append(authenticated_peer)
+        return {"status": "readonly"}
+    listener = ManagementUnixListener(
+        groupdir / "mgmt-3.sock",
+        dispatch=dispatch,
+        operator_group_gid=gid,
+    )
+    with listener:
+        assert os.stat(listener.path).st_mode & 0o777 == 0o660
+        assert os.stat(listener.path).st_gid == gid
+        payload, result = round_trip(listener, b"{}\n")
+        assert result == [True]
+        assert b"readonly" in payload
+        assert seen == [f"unix:uid:{os.getuid()}:gid:{os.getgid()}"]
+        # Widening access after bind is tampering, not permitted.
+        listener.path.chmod(0o666)
+        with pytest.raises(PermissionError, match="unsafe"):
+            listener.serve_once()
+        listener.path.chmod(0o660)
+        groupdir.chmod(0o755)
+        with pytest.raises(PermissionError, match="runtime ACL"):
+            listener.serve_once()
+        groupdir.chmod(0o750)
+    assert not listener.path.exists()
+
+
+@pytest.mark.skipif(not LINUX, reason="Linux operator group policy only")
+def test_group_runtime_denies_incorrect_permissions_or_foreign_gid(tmp_path):
+    path = tmp_path / "external"
+    path.mkdir(mode=0o750)
+    path.chmod(0o750)
+    for wrong_mode in (0o700, 0o770, 0o755, 0o777):
+        path.chmod(wrong_mode)
+        with pytest.raises(PermissionError, match="ownership/mode"):
+            ManagementUnixListener(
+                path / "test.sock", dispatch=lambda *_a, **_k: {},
+                operator_group_gid=os.getegid(),
+            ).open()
+    path.chmod(0o750)
+    with pytest.raises(PermissionError, match="ownership/mode"):
+        ManagementUnixListener(
+            path / "bad-gid.sock", dispatch=lambda *_a, **_k: {},
+            operator_group_gid=os.getegid() + 100000,
+        ).open()
+    with pytest.raises(ValueError):
+        ManagementUnixListener(
+            path / "bad-type.sock", dispatch=lambda *_a, **_k: {},
+            operator_group_gid=True,
+        )
