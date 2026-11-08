@@ -130,7 +130,7 @@ fi
 if [[ -z "$journal" ]]; then journal='UNAVAILABLE'; fi
 printf '{"schema":"aegis.debian12.native-service-observation.v1","result":"%s","service":"aegis-platform.service","boot_id":"%s","unit_sha256":"%s","unit_digest_matches_external_receipt":true,"active_state":"%s","sub_state":"%s","main_pid":%s,"exec_main_status":%s,"restart_count":%s,"journal_sample_sha256":"%s","os_process_running":%s,"runtime_directory_observed":%s,"runtime_directory_mode":"%s","epoch_socket_count":%s,"last_socket_mode":"%s","last_socket_owner_uid":%s,"last_socket_group_gid":%s,"operator_socket_authenticated":false,"platform_ready_authenticated":false,"platform_uuid_authenticated":false,"operator_enrollment_authenticated":false,"owner_approved":false,"core_activated":false,"service_mutated":false}\n' \
   "$([[ "$running" == true ]] && printf 'OS_RUNNING_NOT_PLATFORM_READY' || printf 'NOT_RUNNING')" \
-  "$boot" "$observed" "$active" "$sub" "$pid" "$exitcode" "$restarts" "$journal" "$running" \\
+  "$boot" "$observed" "$active" "$sub" "$pid" "$exitcode" "$restarts" "$journal" "$running" \
   "$runtime_present" "$runtime_mode" "$socket_count" "$socket_mode" "$socket_owner_uid" "$socket_group_gid"
 if [[ "$running" == true ]]; then exit 0; fi
 exit 3
