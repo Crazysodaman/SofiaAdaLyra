@@ -44,8 +44,8 @@ def sealed_capsule(tmp_path):
     }
     lines = ["aegis.delivery-index.v1"]
     for name, data in sorted(members.items()):
-        lines.append(f"{sha256(data).hexdigest()}\\t{len(data)}\\t{name}")
-    index = ("\\n".join(lines) + "\\n").encode("ascii")
+        lines.append(f"{sha256(data).hexdigest()}\t{len(data)}\t{name}")
+    index = ("\n".join(lines) + "\n").encode("ascii")
     with zipfile.ZipFile(capsule, mode="w", compression=zipfile.ZIP_STORED) as archive:
         for name, data in sorted({**members, "aegis/delivery-index.v1": index}.items()):
             archive.writestr(name, data)
