@@ -1,13 +1,15 @@
 """Portainer/Docker adapter using Portainer's Docker proxy."""
 from __future__ import annotations
 from typing import Any
+from datetime import datetime, timezone
 from .http import JsonHttpClient
-from .portainer_projection import project_portainer_stack_metadata
+from .portainer_projection import project_portainer_stack_metadata, project_portainer_stacks
 
 class PortainerAdapter:
     def __init__(self,base_url:str,api_key:str,endpoint_id:int)->None:
         if not api_key.strip(): raise ValueError("Portainer API key required")
-        if endpoint_id<1: raise ValueError("Portainer endpoint_id must be positive")
+        if type(endpoint_id) is not int or not 1 <= endpoint_id <= 1_000_000_000:
+            raise ValueError("Portainer endpoint_id must be a bounded positive integer")
         self.http=JsonHttpClient(base_url,headers={"X-API-Key":api_key}); self.endpoint_id=endpoint_id
     def endpoints(self)->list[dict[str,Any]]:
         data=self.http.request("GET","/api/endpoints")
@@ -70,14 +72,27 @@ class PortainerAdapter:
         data=self.http.request("GET",f"/api/endpoints/{self.endpoint_id}/docker/networks")
         if not isinstance(data,list): raise RuntimeError("invalid Docker networks response")
         return data
-    def stacks(self)->list[dict[str,Any]]:
+    def _fetch_raw_stacks(self)->list[dict[str,Any]]:
+        """Internal, untrusted HTTP response; never registered as a tool."""
         data=self.http.request(
             "GET",
             "/api/stacks",
             query={"endpointId":self.endpoint_id},
         )
-        if not isinstance(data,list): raise RuntimeError("invalid Portainer stacks response")
+        if not isinstance(data,list):
+            raise RuntimeError("invalid Portainer stacks response")
         return data
+
+    def stacks(self)->dict[str,object]:
+        """Public bulk observation returns only approved, bounded fields."""
+        return project_portainer_stacks(
+            self._fetch_raw_stacks(), endpoint_id=self.endpoint_id,
+            observed_at=datetime.now(timezone.utc),
+        )
+
+    def stack_inventory_summary(self)->dict[str,object]:
+        """Compatibility with #236; same canonical projection, never raw."""
+        return self.stacks()
     def stack_summary(self, stack_id: int)->dict[str,Any]:
         """Read exact stack metadata, stripping secrets before Core exposure."""
         if type(stack_id) is not int or stack_id < 1:

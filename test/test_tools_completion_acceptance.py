@@ -176,7 +176,7 @@ def test_portainer_adapter_supports_bounded_read_only_inventory_and_stats():
         [{"Id":"img"}],
         {"Volumes":[]},
         [{"Id":"net"}],
-        [{"Id":7,"Name":"stack"}],
+        [{"Id":7,"EndpointId":2,"Name":"stack","Status":1,"Env":[{"name":"TOKEN","value":"SECRET_SHOULD_NOT_LEAK"}]}],
     ])
     adapter.http=fake
 
@@ -185,7 +185,11 @@ def test_portainer_adapter_supports_bounded_read_only_inventory_and_stats():
     assert adapter.images()[0]["Id"] == "img"
     assert adapter.volumes()["Volumes"] == []
     assert adapter.networks()[0]["Id"] == "net"
-    assert adapter.stacks()[0]["Name"] == "stack"
+    projected = adapter.stacks()
+    assert projected["stacks"][0]["name"] == "stack"
+    assert projected["stacks"][0]["runtime_health"] == "UNKNOWN"
+    assert projected["source_verified"] is False
+    assert "SECRET_SHOULD_NOT_LEAK" not in json.dumps(projected)
 
     assert fake.calls[0][0:2] == (
         "GET",
