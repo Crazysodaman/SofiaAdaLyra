@@ -160,6 +160,14 @@ fn safe_management_payload(
                 safe_management_payload(member, depth + 1)?;
             }
         }
+        serde_json::Value::String(text) => {
+            if text.chars().any(char::is_control) {
+                return Err(ContractError::new(
+                    "invalid_management_reply",
+                    "terminal control characters in management response",
+                ));
+            }
+        }
         _ => {}
     }
     Ok(())
@@ -288,6 +296,22 @@ mod tests {
         ).is_err());
         reply["generation"] = json!(3);
         reply["payload"]["owner_secret"] = json!("not-for-ui");
+        assert!(super::UntrustedManagementReply::parse(
+            reply.to_string().as_bytes(), &request, now
+        ).is_err());
+    }
+
+    #[test]
+    fn denies_terminal_controls_in_server_reply() {
+        let query = include_str!("../../../../contracts/platform/management-read-valid-v1.json");
+        let now = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:01Z")
+            .expect("known clock");
+        let request = UntrustedManagementRead::parse(query.as_bytes(), now)
+            .expect("fixture request");
+        let mut reply: Value = serde_json::from_str(include_str!(
+            "../../../../contracts/platform/management-read-response-valid-v1.json"
+        )).expect("fixture reply");
+        reply["payload"]["message"] = json!("danger\u{1b}[31m");
         assert!(super::UntrustedManagementReply::parse(
             reply.to_string().as_bytes(), &request, now
         ).is_err());
