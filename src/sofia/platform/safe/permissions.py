@@ -201,6 +201,7 @@ _READ_ONLY = frozenset({
     "portainer.volumes",
     "portainer.networks",
     "portainer.stacks",
+    "portainer.stack",
     "jmri.power",
     "jmri.roster",
     "jmri.object",
