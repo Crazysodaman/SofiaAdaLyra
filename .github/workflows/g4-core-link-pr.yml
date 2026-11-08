@@ -47,6 +47,6 @@ jobs:
           python -m pip check
           python -m compileall -q src/sofia test
       - name: Run g4 regressions
-        run: python -m pytest -q test/test_core_link_conversation.py test/test_core004_wire_security.py test/test_core004_real_inference_opt_in.py
+        run: python -m pytest -q test/test_core_link_conversation.py test/test_core004_wire_security.py test/test_core004_admission_fence.py test/test_core004_real_inference_opt_in.py
       - name: Run grant revocation boundary regressions
         run: python -m pytest -q test/test_distributed_revocation_races.py test/test_distributed_operations.py test/test_distributed_durable.py
