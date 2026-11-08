@@ -102,7 +102,7 @@ class PlatformManagementReadDispatcher:
         self, *,
         current_peer_grant: Callable[[object, UntrustedManagementRead], object],
         live_status: Callable[[], object],
-        providers: Mapping[str, Callable[[], object]],
+        providers: Mapping[str, Callable[[VerifiedReadPeer], object]],
         clock: Callable[[], datetime],
     ):
         if (not callable(current_peer_grant) or not callable(live_status)
@@ -129,6 +129,9 @@ class PlatformManagementReadDispatcher:
             raise ValueError("service clock must be timezone aware")
         moment = instant.astimezone(timezone.utc)
         request = UntrustedManagementRead.parse(raw, now=moment)
+        # Peer identity must arrive from the OS transport, never request JSON.
+        if transport_peer is None:
+            raise ManagementReadDenied("verified OS peer context required")
         # Recheck current principal enrollment/revocation using OS peer data
         # before observing canonical state or touching any provider.
         grant = self._peer_grant(transport_peer, request)
@@ -142,7 +145,9 @@ class PlatformManagementReadDispatcher:
             provider = self._providers.get(request.operation)
             if provider is None:
                 raise ManagementReadDenied("reviewed provider not installed")
-            observed = provider()
+            # A reviewed provider receives the verified principal scope, not
+            # the untrusted caller's requested identity or a global grant.
+            observed = provider(grant)
         # A provider can block: never return values under stale authorization.
         next_instant = self._clock()
         if (not isinstance(next_instant, datetime)
