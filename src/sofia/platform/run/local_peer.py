@@ -16,6 +16,7 @@ import json
 import socket
 import struct
 import sys
+from time import monotonic
 from typing import Callable, Mapping
 
 MAX_REQUEST_BYTES = 65536
@@ -59,9 +60,13 @@ def read_single_bounded_request(connection: socket.socket) -> bytes:
     """A single newline-terminated JSON request, no pipelining or unlimited IO."""
     if not isinstance(connection, socket.socket) or connection.family != socket.AF_UNIX:
         raise PermissionError("Unix connection required")
-    connection.settimeout(_IO_TIMEOUT)
+    deadline = monotonic() + _IO_TIMEOUT
     raw = bytearray()
     while True:
+        remaining = deadline - monotonic()
+        if remaining <= 0:
+            raise TimeoutError("Platform management read deadline exceeded")
+        connection.settimeout(remaining)
         try:
             block = connection.recv(min(4096, MAX_REQUEST_BYTES + 1 - len(raw)))
         except socket.timeout as error:
@@ -81,7 +86,7 @@ def dispatch_one_kernel_peer_read(
     connection: socket.socket,
     *,
     dispatch: Callable[..., Mapping[str, object]],
-    now: datetime,
+    now: datetime | Callable[[], datetime],
 ) -> None:
     """Dispatch one bounded read, with no active listener or implicit approval.
 
@@ -91,7 +96,9 @@ def dispatch_one_kernel_peer_read(
     """
     peer = require_kernel_unix_peer(connection)
     request = read_single_bounded_request(connection)
-    result = dispatch(request, authenticated_peer=peer.principal, now=now)
+    # A callable clock is sampled AFTER intake, defeating slow-client stale time.
+    observed_at = now() if callable(now) else now
+    result = dispatch(request, authenticated_peer=peer.principal, now=observed_at)
     if not isinstance(result, Mapping):
         raise ValueError("non-object Platform management response")
     try:

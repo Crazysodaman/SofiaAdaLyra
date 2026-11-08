@@ -1,0 +1,51 @@
+{
+  "schema": "aegis.platform.library.response.v1",
+  "protocol": "1.0",
+  "request_id": "req:d028:catalog:1",
+  "correlation_id": "corr:d028:1",
+  "operation": "library.catalog.snapshot.v1",
+  "platform_id": "platform:fixture",
+  "platform_generation": 7,
+  "state_revision": 12,
+  "observed_at": "2026-11-08T04:00:01Z",
+  "outcome": "OK",
+  "data": {
+    "catalog_revision": 22,
+    "catalog_generation": 5,
+    "catalog_fresh_until": "2026-11-08T04:10:00Z",
+    "target_platform_id": "platform:fixture",
+    "source": {
+      "kind": "LOCAL_VERIFIED_CACHE",
+      "source_id": "source:offline",
+      "last_observed_at": "2026-11-08T04:00:01Z",
+      "status": "CURRENT"
+    },
+    "page": {
+      "limit": 2,
+      "next_cursor": null,
+      "cursor_state": "CURRENT"
+    },
+    "items": [
+      {
+        "artifact_id": "artifact:module-fixture-a",
+        "kind": "module",
+        "version": "1.0.0",
+        "revision": 3,
+        "manifest_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "content_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "size_bytes": 4096,
+        "publisher": "publisher:fixture",
+        "signer_key_id": "key:test-only",
+        "signature_scheme": "ed25519",
+        "signature_receipt_ref": "receipt:verifier-fixture",
+        "target_os_arch": "debian12-x86_64",
+        "sdk_range": "1.x",
+        "abi_range": "1.x",
+        "license_distribution": "permitted",
+        "data_class": "public",
+        "distribution_allowed": true
+      }
+    ]
+  },
+  "denial": null
+}

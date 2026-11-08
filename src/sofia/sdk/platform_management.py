@@ -15,7 +15,7 @@ from typing import Mapping
 MANAGEMENT_READ_SCHEMA = "aegis.platform.management.read.v1"
 MANAGEMENT_READ_PROTOCOL = "1.0"
 _MAX_BYTES = 64 * 1024
-_RFC3339 = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$")
+_RFC3339 = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$")
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$")
 _READ_OPERATIONS = frozenset({
     "platform.status", "core.list", "module.list", "fleet.list",
@@ -73,8 +73,10 @@ class UntrustedManagementRead:
             value = payload[field]
             if not isinstance(value, str) or _ID.fullmatch(value) is None:
                 raise ValueError(f"invalid {field}")
+        # Keep integers within the portable exactly representable JSON
+        # range shared by Python, serde_json and future GUI clients.
         if (type(payload["expected_generation"]) is not int
-                or payload["expected_generation"] < 1):
+                or not 1 <= payload["expected_generation"] <= (2**53 - 1)):
             raise ValueError("expected generation must be positive")
         if not isinstance(payload["operation"], str) or payload["operation"] not in _READ_OPERATIONS:
             raise PermissionError("only reviewed read-only queries are allowed")

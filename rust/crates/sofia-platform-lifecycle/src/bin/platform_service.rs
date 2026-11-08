@@ -14,6 +14,9 @@ use std::sync::{
 use std::time::{Duration, Instant};
 
 const SCHEMA: &str = "aegis.platform.service-control.v1";
+// Match reviewed #224 cold-start protection; health IPC stays at five seconds.
+const INITIAL_REPLY_TIMEOUT: Duration = Duration::from_secs(12);
+const HEALTH_REPLY_TIMEOUT: Duration = Duration::from_secs(5);
 type Failure = Box<dyn std::error::Error + Send + Sync>;
 
 #[derive(Clone)]
@@ -81,6 +84,10 @@ struct Reply {
     sequence: Option<u64>,
     pid: Option<u32>,
     supervisor_pid: Option<u32>,
+    #[serde(default)]
+    management_listening: bool,
+    #[serde(default)]
+    management_endpoint: Option<String>,
 }
 
 struct Worker {
@@ -90,6 +97,7 @@ struct Worker {
     generation: u64,
     sequence: u64,
     operator_stop: bool,
+    management_endpoint: String,
     config: Configuration,
 }
 impl Worker {
@@ -151,11 +159,19 @@ impl Worker {
             generation: 0,
             sequence: 0,
             operator_stop: false,
+            management_endpoint: String::new(),
             config: config.clone(),
         };
-        let ready = worker.receive()?;
+        let ready = worker.receive(INITIAL_REPLY_TIMEOUT)?;
         worker.generation = ready.generation;
         worker.operator_stop = ready.operator_stop;
+        worker.management_endpoint = ready.management_endpoint.clone().unwrap_or_default();
+        if !ready.management_listening
+            || worker.management_endpoint.is_empty()
+            || worker.management_endpoint.len() > 256
+        {
+            return Err("authenticated management listener not ready".into());
+        }
         if ready.phase != "ready"
             || ready.sequence.is_some()
             || ready.pid.map(u64::from) != Some(u64::from(worker.child.id()))
@@ -165,10 +181,10 @@ impl Worker {
         }
         Ok(worker)
     }
-    fn receive(&self) -> Result<Reply, Failure> {
+    fn receive(&self, timeout: Duration) -> Result<Reply, Failure> {
         let value = self
             .replies
-            .recv_timeout(Duration::from_secs(5))?
+            .recv_timeout(timeout)?
             .map_err(|_| "canonical Platform service unavailable")?;
         if value.schema != SCHEMA
             || value.platform_id != self.config.platform_id
@@ -191,11 +207,13 @@ impl Worker {
         let input = self.input.as_mut().ok_or("service input closed")?;
         writeln!(input, "{request}")?;
         input.flush()?;
-        let value = self.receive()?;
+        let value = self.receive(HEALTH_REPLY_TIMEOUT)?;
         if value.sequence != Some(self.sequence)
             || value.pid.is_some()
             || value.supervisor_pid.is_some()
             || value.generation != self.generation
+            || !value.management_listening
+            || value.management_endpoint.as_deref() != Some(self.management_endpoint.as_str())
             || value.phase
                 != if operation == "shutdown" {
                     "stopped"
@@ -285,7 +303,7 @@ fn console(config: &Configuration) -> Result<(), Failure> {
             notify("READY=1\nSTATUS=Core-free Platform authority active")?;
             println!(
                 "{}",
-                json!({"schema": SCHEMA, "phase":"ready", "supervisor_pid": std::process::id(), "platform_id":config.platform_id, "worker_pid":worker.child.id(), "generation":worker.generation, "operator_stop":worker.operator_stop})
+                json!({"schema": SCHEMA, "phase":"ready", "supervisor_pid": std::process::id(), "platform_id":config.platform_id, "worker_pid":worker.child.id(), "generation":worker.generation, "operator_stop":worker.operator_stop, "management_listening": true})
             );
             Ok(())
         },
@@ -341,6 +359,12 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn cold_boot_timeout_is_bounded_without_relaxing_health_ipc() {
+        assert!(INITIAL_REPLY_TIMEOUT > HEALTH_REPLY_TIMEOUT);
+        assert!(INITIAL_REPLY_TIMEOUT < Duration::from_secs(15));
+        assert_eq!(HEALTH_REPLY_TIMEOUT, Duration::from_secs(5));
+    }
     #[test]
     fn reply_rejects_duplicate_and_unknown_fields() {
         let value = json!({"schema":SCHEMA,"phase":"healthy","platform_id":"p",
