@@ -86,7 +86,7 @@ pub struct HistoryCursor {
     pub message_id: String,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Request {
     pub request_id: String,
     pub idempotency_key: String,
@@ -100,12 +100,36 @@ pub struct Request {
     pub deadline: DateTime<Utc>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Response {
     pub request_id: String,
     pub status: String,
     pub payload: Value,
     pub server_at: DateTime<Utc>,
+}
+
+// Request and response payloads may include personal conversation content.
+// Never print them through Rust's automatically derived Debug formatter.
+impl fmt::Debug for Request {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Request")
+            .field("request_id", &self.request_id)
+            .field("operation", &self.operation)
+            .field("payload", &"<redacted>")
+            .finish_non_exhaustive()
+    }
+}
+
+impl fmt::Debug for Response {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Response")
+            .field("request_id", &self.request_id)
+            .field("status", &self.status)
+            .field("payload", &"<redacted>")
+            .finish_non_exhaustive()
+    }
 }
 
 fn valid_id(value: &str) -> bool {
@@ -719,6 +743,36 @@ impl<'de> de::DeserializeSeed<'de> for StrictSeed {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn request_and_response_debug_cannot_disclose_private_payload() {
+        let now = Utc::now();
+        let binding = EnrolledBinding {
+            active: true,
+            local_platform_id: "p:local".into(),
+            remote_platform_id: "p:remote".into(),
+            remote_core_identity_id: "c:one".into(),
+            remote_core_generation: 1,
+            endpoint: Url::parse("https://localhost/v1/core-link").expect("valid fixture"),
+            protocol: PROTOCOL.into(),
+            trust_anchor_sha256: "0".repeat(64),
+        };
+        let mut request = Request::status(&binding, "req:test", now);
+        request.payload = serde_json::json!({"private": "secret-conversation-text"});
+        let request_debug = format!("{request:?}");
+        assert!(!request_debug.contains("secret-conversation-text"));
+        assert!(request_debug.contains("<redacted>"));
+
+        let response = Response {
+            request_id: "req:test".into(),
+            status: "completed".into(),
+            payload: serde_json::json!({"memory": "secret-conversation-text"}),
+            server_at: now,
+        };
+        let response_debug = format!("{response:?}");
+        assert!(!response_debug.contains("secret-conversation-text"));
+        assert!(response_debug.contains("<redacted>"));
+    }
+
     #[test]
     fn rejects_mutation_and_malformed_response() {
         let now = Utc::now();
