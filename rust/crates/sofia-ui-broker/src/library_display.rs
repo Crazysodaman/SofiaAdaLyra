@@ -501,6 +501,52 @@ mod tests {
     }
 
     #[test]
+    fn forged_receipt_issuer_target_digest_generation_revision_and_time_are_denied() {
+        let now = Instant::now();
+        for tamper in 0..6 {
+            let mut incoming = snapshot(3, 7, 1);
+            let receipt = incoming
+                .artifact
+                .as_mut()
+                .unwrap()
+                .downloaded
+                .as_mut()
+                .unwrap();
+            match tamper {
+                0 => receipt.issuer_identity = String::new(),
+                1 => receipt.target_platform_id = "platform:attacker".into(),
+                2 => receipt.content_sha256 = "c".repeat(64),
+                3 => receipt.evidence_generation = 4,
+                4 => receipt.evidence_revision = 8,
+                _ => receipt.evidence_observed_unix_ms = 999_999,
+            }
+            let mut ui = LibraryDisplaySession::default();
+            assert_eq!(
+                ui.refresh(&mut Stub(Ok(incoming)), now),
+                Err(LibraryDisplayError::InvalidStageReceipt),
+                "forged receipt vector {tamper}"
+            );
+            assert_eq!(ui.status_label(), "UNVERIFIED");
+            assert!(ui.current().is_none());
+        }
+    }
+
+    #[test]
+    fn observation_time_cannot_regress_on_fresh_sequence() {
+        let now = Instant::now();
+        let mut ui = LibraryDisplaySession::default();
+        ui.refresh(&mut Stub(Ok(snapshot(3, 7, 1))), now).unwrap();
+        let mut backward = snapshot(3, 8, 2);
+        backward.observed_unix_ms = 999_999;
+        assert_eq!(
+            ui.refresh(&mut Stub(Ok(backward)), now),
+            Err(LibraryDisplayError::TimeRegressed)
+        );
+        assert_eq!(ui.status_label(), "STALE");
+        assert!(ui.current().is_none());
+    }
+
+    #[test]
     fn revision_and_generation_replay_fail_closed_across_reconnect() {
         let t = Instant::now();
         let mut ui = LibraryDisplaySession::default();
