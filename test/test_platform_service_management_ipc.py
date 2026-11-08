@@ -115,3 +115,58 @@ def test_authorizer_rereads_proven_grants_and_disallows_wildcard(tmp_path, monke
     assert authority("unix:uid:1000:gid:1000", "platform.status") is None
     state_now["current"] = (grant({"peer": exact["peer"]}),)
     assert authority("unix:uid:1000:gid:1000", "platform.status") is None
+
+
+def test_windows_operator_acl_requires_exact_current_attended_grant(tmp_path, monkeypatch):
+    from sofia.platform.safe.permissions import StandingPermissionGrant
+    from sofia.platform.run.management_windows_pipe import ManagementWindowsPipeListener
+
+    identity, current, state = provision(tmp_path)
+    store = PermissionStore(state)
+    now = datetime.now(timezone.utc)
+    pinned = current.identity.canonical_uuid
+    sid = "S-1-5-21-1234-5678-9012-1235"
+    scope = {"platform_id": pinned, "peer": "windows:sid:" + sid,
+             "operation": "platform.status"}
+
+    def exact_grant(scope, *, revoked=False, proven=True):
+        return StandingPermissionGrant(
+            grant_id=str(uuid4()), capability="platform.management.read",
+            scope=scope, granted_by="person:sparks",
+            granted_at=now - timedelta(minutes=1),
+            expires_at=now + timedelta(minutes=5),
+            revoked_at=now if revoked else None,
+            owner_authenticated=proven,
+        )
+
+    entries = []
+    monkeypatch.setattr(store, "grants", lambda **_: tuple(entries))
+    authority = CurrentManagementPeerAuthority(
+        store, platform_id=pinned, clock=lambda: now,
+    )
+    assert authority.enrolled_windows_operator_sid() is None
+    entries.append(exact_grant(scope))
+    assert authority.enrolled_windows_operator_sid() == sid
+    ManagementWindowsPipeListener(
+        "AegisUnitTest", dispatch=lambda *_a, **_k: {},
+        enrolled_operator_sid=authority.enrolled_windows_operator_sid(),
+    )
+    entries[:] = [exact_grant(scope, revoked=True)]
+    assert authority.enrolled_windows_operator_sid() is None
+    entries[:] = [exact_grant(scope, proven=False)]
+    assert authority.enrolled_windows_operator_sid() is None
+    entries[:] = [exact_grant({**scope, "peer": "windows:sid:S-1-5-32-544"})]
+    with pytest.raises(PermissionError, match="operator principal"):
+        authority.enrolled_windows_operator_sid()
+    entries[:] = [
+        exact_grant(scope),
+        exact_grant({**scope, "peer": "windows:sid:S-1-5-21-1234-5678-9012-5678"}),
+    ]
+    with pytest.raises(PermissionError, match="multiple operator"):
+        authority.enrolled_windows_operator_sid()
+    for denied in ("S-1-5-18", "S-1-5-32-544", "S-1-1-0", "Administrators"):
+        with pytest.raises(PermissionError):
+            ManagementWindowsPipeListener(
+                "AegisTest", dispatch=lambda *_a, **_k: {},
+                enrolled_operator_sid=denied,
+            )
