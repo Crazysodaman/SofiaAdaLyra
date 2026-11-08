@@ -6,7 +6,7 @@ The only file loaded is the reviewed shared UI token manifest. No network
 endpoint, service state or write operations are available in this first shell.
 #>
 [CmdletBinding()]
-param([switch]$Check)
+param([switch]$Check, [switch]$UiProbe)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -39,6 +39,24 @@ function Get-AegisTheme {
     return $document.tokens
 }
 
+# UI-only states: never grant access or modify Platform service state.
+function Get-AegisBlockedReason {
+    param(
+        [ValidateSet('OFFLINE','STOP_ACTIVE','REVOKED','DENIED','STALE',
+            'UNKNOWN_GENERATION','RESTARTING')]
+        [string]$State
+    )
+    switch ($State) {
+        'STOP_ACTIVE' { return 'SAFE/STOP active; changes are blocked.' }
+        'REVOKED' { return 'Owner authority revoked; a fresh approval is required.' }
+        'DENIED' { return 'Permission denied; no change was made.' }
+        'STALE' { return 'Observation stale; disconnect is not uninstall.' }
+        'UNKNOWN_GENERATION' { return 'Unknown generation; refresh before editing.' }
+        'RESTARTING' { return 'Service restarting; current authority is unknown.' }
+        default { return 'Platform offline; source and health are unverified.' }
+    }
+}
+
 $Tokens = Get-AegisTheme
 if ($Check) {
     # Safe in CI and unattended Windows sessions: does not load WinForms
@@ -50,10 +68,11 @@ if ($Check) {
     Write-Output 'PRODUCTION_AUTHORIZED=FALSE'
     Write-Output 'ACTIONS=DISABLED'
     Write-Output 'OFFLINE_STALE_RESTART_DENIED=FAIL_CLOSED'
+    Write-Output 'BLOCK_STATES=STOP_ACTIVE,REVOKED,DENIED,STALE,UNKNOWN_GENERATION,RESTARTING,OFFLINE'
     exit 0
 }
 
-if (-not [Environment]::UserInteractive) {
+if (-not [Environment]::UserInteractive -and -not $UiProbe) {
     throw 'Aegis GUI requires an interactive Windows desktop'
 }
 Add-Type -AssemblyName System.Windows.Forms
@@ -107,6 +126,10 @@ $form.ForeColor = Get-AegisColor 'text_main'
 $form.Font = New-Object System.Drawing.Font('Segoe UI', 10)
 $form.AutoScaleMode = [System.Windows.Forms.AutoScaleMode]::Dpi
 $form.KeyPreview = $true
+$form.AccessibleName = 'Aegis Platform Control Center read-only preview'
+$form.Add_KeyDown({
+    if ($_.KeyCode -eq [System.Windows.Forms.Keys]::Escape) { $form.Close() }
+})
 
 $sidebar = New-Object System.Windows.Forms.Panel
 $sidebar.Dock = [System.Windows.Forms.DockStyle]::Left
@@ -189,6 +212,7 @@ $content.Controls.Add($notice)
 # UI-only previews of lifecycle actions. They are deliberately disabled.
 # Team A's authenticated Platform management adapter must be connected and
 # service-side SAFE/STOP, revocation and permission checks must pass first.
+$script:unavailableReason = Get-AegisBlockedReason -State 'OFFLINE'
 $script:actionsByPage = @{
     'Platform Overview' = @('Refresh Status')
     'Core Manager' = @('Start Core', 'Stop Core', 'Restart Core')
@@ -210,7 +234,7 @@ for ($i = 0; $i -lt 3; $i++) {
     $action.ForeColor = Get-AegisColor 'text_muted'
     $action.Enabled = $false
     $action.TabStop = $false
-    $action.AccessibleDescription = 'Disabled: authenticated Platform management unavailable'
+    $action.AccessibleDescription = 'Disabled: ' + $script:unavailableReason
     $content.Controls.Add($action)
     $script:actionButtons += $action
 }
@@ -264,9 +288,29 @@ $navigation.Add_SelectedIndexChanged({
     }
     $script:body.Text = 'SOURCE: UNVERIFIED' + [Environment]::NewLine +
         $kind + [Environment]::NewLine +
+        ('BLOCKED: ' + $script:unavailableReason) + [Environment]::NewLine +
         'No operation performed.'
 })
 $navigation.SelectedIndex = 0
+
+# Headless native-control construction, without showing or activating a UI.
+# This is a component test, not installed-host GUI acceptance.
+if ($UiProbe) {
+    try {
+        if ($navigation.Items.Count -ne 8) {
+            throw 'Unexpected Aegis navigation count'
+        }
+        if (@($script:actionButtons | Where-Object { $_.Enabled }).Count -ne 0) {
+            throw 'Management button unexpectedly enabled'
+        }
+        Write-Output 'AEGIS_GUI_NATIVE_CONSTRUCTION=PASS'
+        Write-Output 'AUTHENTICATION=NOT_CONNECTED'
+        Write-Output 'ACTIONS=DISABLED'
+    } finally {
+        $form.Dispose()
+    }
+    exit 0
+}
 
 $form.Add_Shown({ $form.Activate() })
 try {
