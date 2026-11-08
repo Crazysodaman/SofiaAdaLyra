@@ -11,12 +11,13 @@ import os
 from pathlib import Path
 import shutil
 import json
+import subprocess
 import zipfile
 
 import pytest
 
 from sofia.platform.ops.platform_installer_offline_capsule import (
-    build_reviewed_offline_capsule,
+    build_reviewed_offline_capsule, offline_capsule_publisher_seal_message,
 )
 from sofia.platform.ops.platform_release import PlatformReleaseRejected
 from test.test_ops_platform_installer_bundle import reviewed
@@ -163,3 +164,56 @@ def test_capsule_refuses_tamper_to_each_mandatory_signed_asset(
     with pytest.raises((PlatformReleaseRejected, ValueError)):
         build_reviewed_offline_capsule(**capsule_args(reviewed, capsule))
     assert not capsule.exists()
+
+
+@pytest.mark.skipif(os.name == "nt" or shutil.which("openssl") is None,
+                    reason="stock Linux OpenSSL Ed25519 capsule verification")
+def test_same_release_publisher_seals_entire_core_free_capsule_with_stock_shell(
+        reviewed, tmp_path):
+    builder, stage, manifest, pins = reviewed
+    capsule = tmp_path / "fully-sealed-test-only.zip"
+    receipt = build_reviewed_offline_capsule(**capsule_args(reviewed, capsule))
+    message = offline_capsule_publisher_seal_message(
+        capsule_sha256=receipt["capsule_sha256"],
+        signer_key_id=pins["trusted_signer_key_id"],
+    )
+    assert sha256(message).hexdigest() == receipt["publisher_capsule_seal_message_sha256"]
+    # Test software signer is the SAME as the canonical signed release,
+    # not an independent Hub key or a second installation signer.
+    signature_path = tmp_path / "delivery-signature.raw"
+    signature_path.write_bytes(builder._key.sign(message))
+    verifier = PROJECT_ROOT / "packaging/installers/verify-aegis-capsule.sh"
+    argv = [
+        "bash", str(verifier),
+        "--capsule", str(capsule),
+        "--signature", str(signature_path),
+        "--publisher-key", str(pins["trusted_public_key"]),
+        "--publisher-sha256", pins["trusted_key_sha256"],
+        "--publisher-signer", pins["trusted_signer_key_id"],
+    ]
+    result = subprocess.run(argv, capture_output=True, text=True, timeout=20)
+    assert result.returncode == 0, result.stderr
+    witness = json.loads(result.stdout)
+    assert witness["result"] == "SIGNED_CAPSULE_BYTES_ONLY"
+    assert witness["capsule_sha256"] == receipt["capsule_sha256"]
+    assert witness["publisher_delivery_verified"] is True
+    assert witness["owner_approved"] is False
+    assert witness["release_assets_verified"] is False
+    assert witness["publisher_revocation_current"] is False
+    assert receipt["launcher_publisher_signature_verified"] is False
+    with capsule.open("ab") as output:
+        output.write(b"capsule-byte-tampered-after-publisher-signing")
+    tampered = subprocess.run(argv, capture_output=True, text=True, timeout=20)
+    assert tampered.returncode == 3
+    assert "SIGNED_CAPSULE_BYTES_ONLY" not in tampered.stdout
+
+
+@pytest.mark.parametrize("sha,signer", [
+    ("not-a-sha256", "existing-publisher"),
+    ("0" * 64, "invalid owner:publisher"),
+])
+def test_capsule_seal_message_rejects_invalid_signing_input(sha, signer):
+    with pytest.raises(ValueError):
+        offline_capsule_publisher_seal_message(
+            capsule_sha256=sha, signer_key_id=signer,
+        )
