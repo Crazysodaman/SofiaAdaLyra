@@ -103,7 +103,7 @@ $body = New-Object System.Windows.Controls.Grid
 $navCol = New-Object System.Windows.Controls.ColumnDefinition
 $navCol.Width = [System.Windows.GridLength]::new(230.0)
 $contentCol = New-Object System.Windows.Controls.ColumnDefinition
-$contentCol.Width = New-Object System.Windows.GridLength(1,Star)
+$contentCol.Width = [System.Windows.GridLength]::new(1.0,[System.Windows.GridUnitType]::Star)
 [void]$body.ColumnDefinitions.Add($navCol)
 [void]$body.ColumnDefinitions.Add($contentCol)
 
@@ -112,7 +112,7 @@ $navigation.Background = $card
 $navigation.Margin = [System.Windows.Thickness]::new(0.0,0.0,15.0,0.0)
 
 $detail = New-Object System.Windows.Controls.StackPanel
-$detail.Margin = New-Object System.Windows.Thickness(18)
+$detail.Margin = [System.Windows.Thickness]::new(18.0)
 $pageTitle = New-Object System.Windows.Controls.TextBlock
 $pageTitle.Text = 'Platform'
 $pageTitle.FontSize = 24
