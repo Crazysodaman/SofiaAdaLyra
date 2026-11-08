@@ -102,6 +102,12 @@ Distribution can initially be one repository/wheel with explicit subpackages, th
 
 **SDK ABI rules:** semantic versioning and explicit protocol negotiation; additive changes only within the compatible window; no dynamic importing arbitrary module code during validation; packages pin API minimum/maximum range; backward-compatible adapters only for reviewed behaviors; conformance fixtures on Windows and Linux; no user/private data or tokens in mock artifacts; avoid circular Core⇄Platform imports; stable error taxonomy; documented thread/process safety. Developer tools never directly write live canonical state.
 
+### Golden test module and compatibility check (2026-11-08)
+
+An initial **source-level reference module** now lives at [`examples/sdk_reference_module/`](../../examples/sdk_reference_module/README.md). It exposes one no-effect, bounded `reference.ping` capability, typed LIVE and COMPONENT_RESTART settings, and [disposable conformance tests](../../test/test_sdk_reference_module.py) using the actual signed package verifier, Platform lifecycle manager, capability authority checker, settings revision/CAS and Python/Rust protocol parity. The dedicated [SDK conformance CI](../../.github/workflows/sdk-reference-conformance.yml) runs on Windows and Linux whenever the relevant Python SDK/Rust contracts/module interfaces change. See [SDK compatibility and upgrade rules](../development/SDK_REFERENCE_AND_COMPATIBILITY.md).
+
+**Acceptance boundary:** The current reference module is an **in-process source harness**, not a production signed/installed isolated worker, a new accepted optional catalog identity, or end-to-end GUI/TUI certification. It checks for version drift but **does not auto-upgrade installed Core/module SDK packages**. The reviewed isolated worker, signed installed-host acceptance and per-component safe update orchestration remain future implementation.
+
 ## 6. Required engineering work slices
 
 **ISO-01** audit process boundaries and runtime composition imports; source-level map of Core and module code still loaded in Platform interpreter, service/process ownership, real supervisor and staging semantics.
