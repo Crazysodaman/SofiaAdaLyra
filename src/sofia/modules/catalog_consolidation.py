@@ -108,8 +108,8 @@ def candidate_modules() -> tuple[dict[str, str], ...]:
     """Conditional *ideas* which are not source-registered or installable."""
     return tuple(
         {"candidate_id": candidate_id, "initial_owner": initial_owner,
-         "split_condition": reason, "approved_catalog_entry": "false",
-         "installable": "false"}
+         "split_condition": reason, "approved_catalog_entry": False,
+         "installable": False}
         for candidate_id, initial_owner, reason in _CONDITIONAL_CANDIDATES
     )
 
