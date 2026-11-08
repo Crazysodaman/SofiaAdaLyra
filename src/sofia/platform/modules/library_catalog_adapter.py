@@ -202,6 +202,12 @@ def review_selected_library_catalog_module(
         raise ModuleRecipientRejected("current publisher revocation denied")
     if signed_content_admit(row, package_root) is not True:
         raise ModuleRecipientRejected("archive digest or signed receipt not independently verified")
+    # A can revoke host scope while B verifies bytes. Recheck before reading
+    # any publisher key or treating even an inert candidate as reviewed.
+    if current_host_scope_admit(data, row) is not True:
+        raise ModuleRecipientRejected("canonical host SAFE/STOP revoked during archive review")
+    if publisher_current(manifest.trust_ref) is not True:
+        raise ModuleRecipientRejected("publisher revoked during archive review")
     public_key = publisher_key_lookup(manifest.trust_ref)
     if type(public_key) is not bytes or len(public_key) != 32:
         raise ModuleRecipientRejected("independent publisher public key unavailable")
