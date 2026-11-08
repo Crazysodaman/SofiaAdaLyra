@@ -6,6 +6,7 @@ import pytest
 from sofia.core.cognition.model import CognitiveRequest
 from sofia.core.cognition.provider import LLMProviderError
 from sofia.core.cognition.providers.ollama_provider import OllamaProvider
+from sofia.platform.core_worker.ollama_transport import GenericOllamaProvider
 from sofia.platform.config import create_default_configuration
 
 
@@ -229,15 +230,9 @@ def test_ollama_rejects_unpaired_surrogate_content_before_persistence():
 
 @pytest.mark.parametrize("provider_class", [
     OllamaProvider,
-    pytest.param(
-        __import__(
-            "sofia.platform.core_worker.ollama_transport",
-            fromlist=["GenericOllamaProvider"],
-        ).GenericOllamaProvider,
-        id="generic-transport",
-    ),
+    GenericOllamaProvider,
 ])
-@pytest.mark.parametrize("content", ["", "   \\n\\t", None])
+@pytest.mark.parametrize("content", ["", "   \n\t", None])
 def test_empty_ollama_completion_fails_closed_instead_of_becoming_canned_chat(
     provider_class, content,
 ):
