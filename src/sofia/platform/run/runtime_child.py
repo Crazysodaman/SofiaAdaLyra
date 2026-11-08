@@ -12,7 +12,8 @@ import time
 
 from sofia.platform.application.bootstrap import SofiaApplication
 from sofia.platform.config import create_production_configuration
-from sofia.platform.run.heartbeat import ApplicationHeartbeatStore
+from sofia.platform.run.runtime_authority import require_local_runtime_authority
+from sofia.platform.run.process_lock import StateProcessLock
 from sofia.platform.state.atomic_file import atomic_write_text
 
 
@@ -29,10 +30,8 @@ def run_child(
         raise FileNotFoundError("canonical state database does not exist")
     if not isinstance(start_token, str) or re.fullmatch(r"[0-9a-f]{32}", start_token) is None:
         raise ValueError("start_token must be an exact launch ID")
-    if expected_generation_epoch is not None and (
-        type(expected_generation_epoch) is not int or expected_generation_epoch < 1
-    ):
-        raise ValueError("expected_generation_epoch must be positive or None")
+    if type(expected_generation_epoch) is not int or expected_generation_epoch < 1:
+        raise PermissionError("Core runtime child requires a positive generation")
     if poll_seconds <= 0 or poll_seconds > 5:
         raise ValueError("poll_seconds must be in (0, 5]")
     ready_file.parent.mkdir(parents=True, exist_ok=True)
@@ -42,55 +41,51 @@ def run_child(
     except FileNotFoundError:
         pass
 
-    heartbeat_store = (
-        None if expected_generation_epoch is None
-        else ApplicationHeartbeatStore(state_path)
-    )
-
-    def require_current_generation() -> None:
-        if (
-            heartbeat_store is not None
-            and heartbeat_store.current_generation() != expected_generation_epoch
-        ):
-            raise PermissionError(
-                "runtime generation changed; denying stale worker readiness"
-            )
-
-    # Reject a superseded generation before starting canonical application work.
-    require_current_generation()
-    application = SofiaApplication(
-        create_production_configuration(state_path=state_path)
-    )
-    try:
-        application.start()
-        # Reject takeover during boot before publishing the ready marker.
-        require_current_generation()
-        atomic_write_text(
-            ready_file,
-            json.dumps(
-                {
-                    "pid": os.getpid(),
-                    "ready_at": datetime.now(timezone.utc).isoformat(),
-                    "state_path": str(state_path.resolve()),
-                    "start_token": start_token,
-                    "generation_epoch": expected_generation_epoch,
-                },
-                sort_keys=True,
-            )
-            + "\n",
+    def require_current_authority() -> None:
+        require_local_runtime_authority(
+            state_path, expected_epoch=expected_generation_epoch,
         )
-        while not stop_file.exists():
-            require_current_generation()
-            time.sleep(poll_seconds)
-    finally:
+
+    # An OS process lock prevents overlapping service-hosted Core children.
+    # The canonical cross-host writer and signed Platform admission are
+    # distinct authority boundaries and remain independently required.
+    with StateProcessLock(
+        state_path, resource="core-runtime", owner_label="Core runtime child",
+    ):
+        require_current_authority()
+        application = SofiaApplication(
+            create_production_configuration(state_path=state_path)
+        )
         try:
-            application.shutdown()
+            application.start()
+            # Reject takeover during boot before publishing the ready marker.
+            require_current_authority()
+            atomic_write_text(
+                ready_file,
+                json.dumps(
+                    {
+                        "pid": os.getpid(),
+                        "ready_at": datetime.now(timezone.utc).isoformat(),
+                        "state_path": str(state_path.resolve()),
+                        "start_token": start_token,
+                        "generation_epoch": expected_generation_epoch,
+                    },
+                    sort_keys=True,
+                )
+                + "\n",
+            )
+            while not stop_file.exists():
+                require_current_authority()
+                time.sleep(poll_seconds)
         finally:
             try:
-                ready_file.unlink()
-            except FileNotFoundError:
-                pass
-
+                application.shutdown()
+            finally:
+                try:
+                    ready_file.unlink()
+                except FileNotFoundError:
+                    pass
+    
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
