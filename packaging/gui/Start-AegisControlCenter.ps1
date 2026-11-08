@@ -69,6 +69,11 @@ if ($Check) {
     Write-Output 'ACTIONS=DISABLED'
     Write-Output 'OFFLINE_STALE_RESTART_DENIED=FAIL_CLOSED'
     Write-Output 'BLOCK_STATES=STOP_ACTIVE,REVOKED,DENIED,STALE,UNKNOWN_GENERATION,RESTARTING,OFFLINE'
+    Write-Output 'LIBRARY=UNAVAILABLE'
+    Write-Output 'LIBRARY_SOURCE=UNVERIFIED'
+    Write-Output 'LIBRARY_INVENTORY=NOT_OBSERVED'
+    Write-Output 'LIBRARY_ACTIONS=DISABLED'
+    Write-Output 'INTERNET_FALLBACK=DISABLED'
     exit 0
 }
 
@@ -158,7 +163,10 @@ $navigation.SelectionMode = 'One'
 @(
     'Platform Overview', 'Core Manager', 'Module Manager',
     'Fleet', 'Settings', 'Security & Approvals',
-    'Updates & Recovery', 'Diagnostics'
+    'Updates & Recovery', 'Diagnostics',
+    'Library > Catalog', 'Library > Sources', 'Library > Downloads',
+    'Library > Installed', 'Library > Storage', 'Library > Hub',
+    'Library > History'
 ) | ForEach-Object { [void]$navigation.Items.Add($_) }
 $sidebar.Controls.Add($navigation)
 
@@ -222,6 +230,13 @@ $script:actionsByPage = @{
     'Security & Approvals' = @('Request Approval', 'Review Requests')
     'Updates & Recovery' = @('Update Platform', 'Repair Platform', 'Rollback')
     'Diagnostics' = @('View Diagnostics')
+    'Library > Catalog' = @('Select Package', 'Review Dependencies', 'Preview Plan')
+    'Library > Sources' = @('Review Sources', 'Enable Internet')
+    'Library > Downloads' = @('Request Download', 'Pause Transfer', 'Resume Transfer')
+    'Library > Installed' = @('Stage Selected', 'Request Install', 'Activate')
+    'Library > Storage' = @('Review Quota', 'Preview Cleanup', 'Pin Package')
+    'Library > Hub' = @('Configure Hub', 'Enroll Client', 'Revoke Client')
+    'Library > History' = @('View Receipts', 'Export Audit')
 }
 $script:actionButtons = @()
 for ($i = 0; $i -lt 3; $i++) {
@@ -272,6 +287,34 @@ $navigation.Add_SelectedIndexChanged({
         'Diagnostics' {
             'Service diagnostics: NOT OBSERVED. No logs or protected files opened.'
         }
+        'Library > Catalog' {
+            'Catalog: NOT OBSERVED. Signer/compatibility: UNKNOWN. ' +
+            'No artifact is SELECTED, DOWNLOADED or VERIFIED by this preview.'
+        }
+        'Library > Sources' {
+            'Local/USB/Hub/Peer sources: NOT OBSERVED. Enrollment: UNKNOWN. ' +
+            'Internet fallback: DISABLED. Offline never means missing.'
+        }
+        'Library > Downloads' {
+            'Transfers: NOT OBSERVED. Received bytes: UNKNOWN. ' +
+            'Verified bytes: UNKNOWN. Complete transfer is not installation.'
+        }
+        'Library > Installed' {
+            'Cached/Verified/Staged/Installed/Active: UNKNOWN separately. ' +
+            'Downloaded is not installed. Install does not activate a Core.'
+        }
+        'Library > Storage' {
+            'Quota/reservations/pins: UNKNOWN. Garbage collection: DISABLED. ' +
+            'Never remove active/rollback-pinned bytes from a UI guess.'
+        }
+        'Library > Hub' {
+            'Hub role: UNKNOWN. Current enrolled clients: NOT OBSERVED. ' +
+            'No public listener, enrollment or package serving started.'
+        }
+        'Library > History' {
+            'Download/verify/stage/install/activate receipts: NOT OBSERVED. ' +
+            'Source/digest/signer/timestamp: UNKNOWN. No success inferred.'
+        }
         default {
             'Platform state: NOT OBSERVED. No authenticated service is connected.'
         }
@@ -297,13 +340,15 @@ $navigation.SelectedIndex = 0
 # This is a component test, not installed-host GUI acceptance.
 if ($UiProbe) {
     try {
-        if ($navigation.Items.Count -ne 8) {
+        if ($navigation.Items.Count -ne 15) {
             throw 'Unexpected Aegis navigation count'
         }
         if (@($script:actionButtons | Where-Object { $_.Enabled }).Count -ne 0) {
             throw 'Management button unexpectedly enabled'
         }
         Write-Output 'AEGIS_GUI_NATIVE_CONSTRUCTION=PASS'
+        Write-Output 'ARTIFACT_LIBRARY_NAVIGATION=7'
+        Write-Output 'LIBRARY_ACTIONS=DISABLED'
         Write-Output 'AUTHENTICATION=NOT_CONNECTED'
         Write-Output 'ACTIONS=DISABLED'
     } finally {

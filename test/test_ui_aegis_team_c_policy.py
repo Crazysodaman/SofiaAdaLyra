@@ -56,3 +56,24 @@ def test_gui_blocks_all_inactive_management_states_and_supports_escape():
     assert "AccessibleDescription" in source
     assert "Add_KeyDown" in source
     assert "Enabled = $true" not in source
+
+
+def test_d028_06_library_navigation_is_read_only_without_a_service_source():
+    gui = GUI.read_text(encoding="utf-8")
+    tui = TUI.read_text(encoding="utf-8")
+    for page in ("Catalog", "Sources", "Downloads", "Installed",
+                 "Storage", "Hub", "History"):
+        assert "Library > " + page in gui
+        assert "Library > " + page in tui
+    for expected in ("LIBRARY=UNAVAILABLE", "LIBRARY_ACTIONS=DISABLED",
+                     "INTERNET_FALLBACK=DISABLED"):
+        assert expected in gui
+    assert "OfflineReader" in tui
+    assert "CATALOG: NOT_OBSERVED" in tui
+    assert "RECEIVED_BYTES: UNKNOWN" in tui
+    assert "VERIFIED_BYTES: UNKNOWN" in tui
+    assert "CACHED: UNKNOWN" in tui
+    assert "INSTALLED: UNKNOWN" in tui
+    assert "ACTIVE: UNKNOWN" in tui
+    assert "download" in gui.lower()
+    assert "Enabled = $true" not in gui

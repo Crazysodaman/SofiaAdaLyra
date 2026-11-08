@@ -23,6 +23,9 @@ def test_gui_shell_is_separately_installed_and_core_free():
         "Platform Overview", "Core Manager", "Module Manager",
         "Fleet", "Settings", "Security & Approvals",
         "Updates & Recovery", "Diagnostics",
+        "Library > Catalog", "Library > Sources", "Library > Downloads",
+        "Library > Installed", "Library > Storage", "Library > Hub",
+        "Library > History",
     ):
         assert menu in source
     assert "No authenticated Platform management service is connected" in source
@@ -66,6 +69,10 @@ def test_windows_gui_check_mode_is_headless_and_no_service_actions():
     assert "ACTIONS=DISABLED" in done.stdout
     assert "OFFLINE_STALE_RESTART_DENIED=FAIL_CLOSED" in done.stdout
     assert "BLOCK_STATES=STOP_ACTIVE,REVOKED,DENIED,STALE,UNKNOWN_GENERATION,RESTARTING,OFFLINE" in done.stdout
+    assert "LIBRARY=UNAVAILABLE" in done.stdout
+    assert "LIBRARY_INVENTORY=NOT_OBSERVED" in done.stdout
+    assert "LIBRARY_ACTIONS=DISABLED" in done.stdout
+    assert "INTERNET_FALLBACK=DISABLED" in done.stdout
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows WinForms construction probe")
@@ -79,5 +86,7 @@ def test_windows_native_controls_constructed_with_management_disabled():
     )
     assert result.returncode == 0, result.stderr
     assert "AEGIS_GUI_NATIVE_CONSTRUCTION=PASS" in result.stdout
+    assert "ARTIFACT_LIBRARY_NAVIGATION=7" in result.stdout
+    assert "LIBRARY_ACTIONS=DISABLED" in result.stdout
     assert "AUTHENTICATION=NOT_CONNECTED" in result.stdout
     assert "ACTIONS=DISABLED" in result.stdout
