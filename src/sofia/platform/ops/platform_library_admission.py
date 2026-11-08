@@ -168,7 +168,16 @@ def preview_signed_seed_cache(
         "manifest_sha256": manifest.digest,
         "signer_key_id": trusted_signer_key_id,
         "signed_release_verified": True,
+        # Explicitly separate the five evidentiary states. These are
+        # internal read-only observations, not Team A's unfrozen IPC schema.
+        "received_state": "LOCAL_MEDIA_BYTES_OBSERVED",
+        "verified_state": "SIGNED_ASSET_VERIFIED",
         "cache_state": "CACHED_VERIFIED" if present else "MISSING",
+        "staged_state": "NOT_OBSERVED",
+        "installed_state": (
+            "B1_SIGNED_BYTES_VERIFIED" if installed is True else "NOT_OBSERVED"
+        ),
+        "active_state": "NOT_OBSERVED",
         "installed": installed,
         "active": None,
         "active_observation": "NOT_OBSERVED",
