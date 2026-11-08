@@ -33,6 +33,8 @@ _MAX_MEDIA_BYTES = 1024**3 + 2 * 1024**2
 _STATIC = (
     ("packaging/installers/install-aegis.sh", "aegis/install-aegis.sh"),
     ("packaging/installers/Install-Aegis.ps1", "aegis/Install-Aegis.ps1"),
+    ("packaging/installers/debian12-offline-prerequisites.sh", "aegis/debian12-offline-prerequisites.sh"),
+    ("packaging/installers/verify-aegis-capsule.sh", "aegis/verify-aegis-capsule.sh"),
     ("contracts/ui/aegis-theme-v1.json", "aegis/contracts/ui/aegis-theme-v1.json"),
 )
 _STAMP = (1980, 1, 1, 0, 0, 0)
