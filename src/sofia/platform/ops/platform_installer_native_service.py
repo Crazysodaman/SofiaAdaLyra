@@ -250,6 +250,48 @@ class DebianSystemdNativeService:
                     service_health="UNKNOWN", core_activated=False,
                     fully_healthy=False)
 
+    def restart_verified(self, spec: NativeServiceSpecification) -> dict[str, object]:
+        """Repair only a matching signed unit; never rewrite unknown configuration."""
+        self._require_root()
+        self.observe(spec)
+        _run_systemctl("restart", _SERVICE_LINUX)
+        return self.observe(spec)
+
+    def replace_verified(
+        self, previous: NativeServiceSpecification, candidate: NativeServiceSpecification,
+    ) -> dict[str, object]:
+        """Switch only a known owned unit to another already signed B1 release."""
+        self._require_root()
+        self.observe(previous)
+        if (candidate.target is not previous.target
+                or candidate.platform_id != previous.platform_id
+                or candidate.public_key_sha256 != previous.public_key_sha256
+                or candidate.identity_home != previous.identity_home
+                or candidate.local_state != previous.local_state):
+            raise PlatformInstallationDenied("signed replacement changes protected Platform identity")
+        replacement = self._unit(candidate)
+        # The original unit must remain intact until the temp file is synced.
+        assert_no_redirected_components(self.unit_path, include_leaf=True)
+        if self.unit_path.read_bytes() != self._unit(previous):
+            raise PlatformInstallationDenied("native unit changed before release replacement")
+        pending = self.unit_path.with_name(self.unit_path.name + ".pending")
+        assert_no_redirected_components(pending, include_leaf=True)
+        fd = os.open(pending, os.O_WRONLY | os.O_CREAT | os.O_EXCL
+                     | getattr(os, "O_NOFOLLOW", 0), 0o644)
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(replacement)
+            stream.flush()
+            os.fsync(stream.fileno())
+        # Any failure past this point requires exact-host reconciliation:
+        # neither a blind restore nor a second unapproved restart is safe.
+        _run_systemctl("stop", _SERVICE_LINUX)
+        if self.unit_path.read_bytes() != self._unit(previous):
+            raise PlatformInstallationDenied("native unit changed during release replacement")
+        os.replace(pending, self.unit_path)
+        _run_systemctl("daemon-reload")
+        _run_systemctl("start", _SERVICE_LINUX)
+        return self.observe(candidate)
+
     def stop_and_unregister(self, spec: NativeServiceSpecification) -> dict[str, object]:
         self._require_root()
         self.observe(spec)  # No adopting foreign units, even for removal.
@@ -322,6 +364,95 @@ class WindowsScmNativeService:
         finally:
             if service is not None:
                 api.CloseServiceHandle(service)
+            api.CloseServiceHandle(scm)
+
+    def restart_verified(self, spec: NativeServiceSpecification) -> dict[str, object]:
+        """SCM repair for an exact matching command, never an unrelated service."""
+        _check_spec(spec, PlatformReleaseTarget.WINDOWS_X86_64)
+        api = self._api()
+        from subprocess import list2cmdline
+        scm = api.OpenSCManager(None, None, api.SC_MANAGER_ALL_ACCESS)
+        handle = None
+        try:
+            handle = api.OpenService(scm, _SERVICE_WINDOWS, api.SERVICE_ALL_ACCESS)
+            if api.QueryServiceConfig(handle)[3] != list2cmdline(spec.command()):
+                raise PlatformInstallationDenied("SCM executable differs from signed receipt")
+            status = api.QueryServiceStatus(handle)
+            if status[1] != api.SERVICE_STOPPED:
+                api.ControlService(handle, api.SERVICE_CONTROL_STOP)
+                self._wait_stopped(api, handle)
+            api.StartService(handle, None)
+            self._wait_running(api, handle)
+            return dict(schema="aegis.native-service-receipt.v1",
+                        service=_SERVICE_WINDOWS, process_state="RUNNING",
+                        platform_id=spec.platform_id,
+                        release_manifest_sha256=spec.manifest_sha256,
+                        service_health="UNKNOWN", core_activated=False,
+                        fully_healthy=False)
+        finally:
+            if handle is not None:
+                api.CloseServiceHandle(handle)
+            api.CloseServiceHandle(scm)
+
+    @staticmethod
+    def _wait_stopped(api, handle) -> None:
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            if api.QueryServiceStatus(handle)[1] == api.SERVICE_STOPPED:
+                return
+            time.sleep(0.1)
+        raise RuntimeError("SCM stop timeout; state requires reconciliation")
+
+    @staticmethod
+    def _wait_running(api, handle) -> None:
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            state = api.QueryServiceStatus(handle)[1]
+            if state == api.SERVICE_RUNNING:
+                return
+            if state == api.SERVICE_STOPPED:
+                raise RuntimeError("SCM service immediately exited; reconcile before retry")
+            time.sleep(0.1)
+        raise RuntimeError("SCM startup timeout; state requires reconciliation")
+
+    def replace_verified(
+        self, previous: NativeServiceSpecification, candidate: NativeServiceSpecification,
+    ) -> dict[str, object]:
+        """SCM exact signed release replacement with retained Platform identity."""
+        _check_spec(previous, PlatformReleaseTarget.WINDOWS_X86_64)
+        _check_spec(candidate, PlatformReleaseTarget.WINDOWS_X86_64)
+        if (candidate.platform_id != previous.platform_id
+                or candidate.public_key_sha256 != previous.public_key_sha256
+                or candidate.identity_home != previous.identity_home
+                or candidate.local_state != previous.local_state):
+            raise PlatformInstallationDenied("SCM replacement changes Platform identity")
+        from subprocess import list2cmdline
+        api = self._api()
+        scm = api.OpenSCManager(None, None, api.SC_MANAGER_ALL_ACCESS)
+        handle = None
+        try:
+            handle = api.OpenService(scm, _SERVICE_WINDOWS, api.SERVICE_ALL_ACCESS)
+            if api.QueryServiceConfig(handle)[3] != list2cmdline(previous.command()):
+                raise PlatformInstallationDenied("foreign or unverified SCM executable")
+            if api.QueryServiceStatus(handle)[1] != api.SERVICE_STOPPED:
+                api.ControlService(handle, api.SERVICE_CONTROL_STOP)
+                self._wait_stopped(api, handle)
+            api.ChangeServiceConfig(
+                handle, api.SERVICE_NO_CHANGE, api.SERVICE_NO_CHANGE,
+                api.SERVICE_NO_CHANGE, list2cmdline(candidate.command()),
+                None, None, None, None, None, None,
+            )
+            api.StartService(handle, None)
+            self._wait_running(api, handle)
+            return dict(schema="aegis.native-service-receipt.v1",
+                        service=_SERVICE_WINDOWS, process_state="RUNNING",
+                        platform_id=candidate.platform_id,
+                        release_manifest_sha256=candidate.manifest_sha256,
+                        service_health="UNKNOWN", core_activated=False,
+                        fully_healthy=False)
+        finally:
+            if handle is not None:
+                api.CloseServiceHandle(handle)
             api.CloseServiceHandle(scm)
 
     def stop_and_unregister(self, spec: NativeServiceSpecification) -> dict[str, object]:
