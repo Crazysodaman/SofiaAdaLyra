@@ -200,6 +200,16 @@ def review_selected_library_catalog_module(
     # Check publisher revocation BEFORE even asking B to read candidate bytes.
     if publisher_current(manifest.trust_ref) is not True:
         raise ModuleRecipientRejected("current publisher revocation denied")
+    # Dependency receipts are a separate, CURRENT host authorization, not
+    # a self-asserted VerifiedModulePackage. Deny before any archive/file/key
+    # bytes are accessed when an installed/staged dependency is unreviewed.
+    if verified_dependencies:
+        if not callable(dependency_receipt_admit):
+            raise ModuleRecipientRejected("canonical dependency receipt required")
+        for dependency in verified_dependencies:
+            if (dependency.package_digest != dependency.manifest.package_identity_digest()
+                    or dependency_receipt_admit(dependency) is not True):
+                raise ModuleRecipientRejected("unverified or revoked dependency receipt")
     if signed_content_admit(row, package_root) is not True:
         raise ModuleRecipientRejected("archive digest or signed receipt not independently verified")
     # A can revoke host scope while B verifies bytes. Recheck before reading
@@ -230,13 +240,6 @@ def review_selected_library_catalog_module(
     )
     # Use the existing canonical compatibility evaluator, never an invented
     # ABI parser; B/A approve exact OS/ABI in the external signed policy gate.
-    if verified_dependencies:
-        if not callable(dependency_receipt_admit):
-            raise ModuleRecipientRejected("canonical dependency receipt required")
-        for dependency in verified_dependencies:
-            if (dependency.package_digest != dependency.manifest.package_identity_digest()
-                    or dependency_receipt_admit(dependency) is not True):
-                raise ModuleRecipientRejected("unverified or revoked dependency receipt")
     report = evaluate_module_compatibility(
         verified.manifest, profile=profile, target=target,
         installed_dependencies=tuple(p.manifest for p in verified_dependencies),
