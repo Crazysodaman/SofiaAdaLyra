@@ -175,6 +175,12 @@ pub mod linux {
                 "uncorrelated_management_response" => ReadFailure::Unverified,
                 _ => ReadFailure::Unverified,
             })?;
+            // A's canonical parser only returns OK or a CORRELATED typed
+            // DENIED observation. Both originate at the verified native peer.
+            // Fence this socket across subsequent requests even if STOP or
+            // revocation was the first authenticated result. Otherwise a
+            // replaced endpoint could be silently adopted after a denial.
+            self.verified_endpoint = Some(inode);
             if response.outcome == "DENIED" {
                 return Err(
                     response.denial.as_ref()
@@ -185,9 +191,6 @@ pub mod linux {
             if response.outcome != "OK" {
                 return Err(ReadFailure::Unverified);
             }
-            // A current correlated OK is the first point at which this
-            // installer-derived endpoint can be pinned for future reads.
-            self.verified_endpoint = Some(inode);
             // A's canonical parser just required exact status fields,
             // operator_stop=false, core_started=false and correlation.
             // This sequence counts locally validated unique random requests,
@@ -438,6 +441,24 @@ pub mod linux {
             assert_ne!(old_inode, fs::metadata(&original).unwrap().ino());
             assert_eq!(client.next().err(), Some(ReadFailure::Unverified));
             assert_eq!(client.local_sequence, 1);
+        }
+
+        #[test]
+        fn stop_denial_also_pins_native_endpoint_epoch() {
+            let (home, pins, thread) = fake_service("STOPPED");
+            let original = pins.socket_path.clone();
+            let mut client = NativeLinuxManagementReader::new(pins);
+            assert_eq!(client.next().err(), Some(ReadFailure::Stopped));
+            thread.join().unwrap();
+            let old_inode = fs::metadata(&original).unwrap().ino();
+            assert_eq!(client.verified_endpoint.map(|(_, inode)| inode), Some(old_inode));
+            fs::rename(&original, home.path().join("old-stop-socket")).unwrap();
+            let _new_listener = UnixListener::bind(&original).unwrap();
+            fs::set_permissions(&original, fs::Permissions::from_mode(0o600))
+                .unwrap();
+            assert_ne!(old_inode, fs::metadata(&original).unwrap().ino());
+            assert_eq!(client.next().err(), Some(ReadFailure::Unverified));
+            assert_eq!(client.local_sequence, 0);
         }
 
         #[test]
