@@ -116,6 +116,17 @@ def test_evaluation_crash_window_resumes_milestones_without_redrafting(tmp_path)
         )
         artifact_id = str(job.result["artifact_id"])
         receipt = str(job.result["evidence_ref"])
+        # On a loaded Windows CI host, completing actual artifact bytes can
+        # finish after this fixture's nominal now+5 evaluation. Observe the
+        # canonical RUN receipt timestamp instead of asking LIFE to prove a
+        # future operation happened before it was observed.
+        source_receipt = life.evidence_index.lookup(receipt)
+        assert source_receipt is not None
+        assert source_receipt.kind == "operation_receipt"
+        evaluated_at = max(
+            now + timedelta(seconds=5),
+            source_receipt.observed_at + timedelta(seconds=1),
+        )
         # Simulate interruption immediately after durable evaluation commit
         # but before the background work owner settled milestone rows.
         life.evaluate_artifact(
@@ -128,13 +139,13 @@ def test_evaluation_crash_window_resumes_milestones_without_redrafting(tmp_path)
             },
             reason="Independent checker observed one passing and one failed criterion.",
             evidence_refs=(receipt,), preserve_for_research=False,
-            now=now + timedelta(seconds=5),
+            now=evaluated_at,
         )
         assert all(
             m.status is MilestoneStatus.PLANNED
             for m in life.store.milestones(project.project_id)
         )
-        outcome = life.tick(now=now + timedelta(seconds=8))
+        outcome = life.tick(now=evaluated_at + timedelta(seconds=3))
         assert outcome["follow_through"] == "revision_requires_native_drafting"
         assert life._project(project.project_id).status is ProjectStatus.ACTIVE
         first, second = life.store.milestones(project.project_id)
@@ -144,7 +155,7 @@ def test_evaluation_crash_window_resumes_milestones_without_redrafting(tmp_path)
         first_time = first.updated_at
         life.close()
         life, _goals2, _restart = infrastructure(tmp_path)
-        life.tick(now=now + timedelta(seconds=9))
+        life.tick(now=evaluated_at + timedelta(seconds=4))
         assert life.store.milestones(project.project_id)[0].updated_at == first_time
         assert len(life.store.jobs(project.project_id)) == 1
     finally:
