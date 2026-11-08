@@ -7,7 +7,9 @@ on:
       - 'src/sofia/platform/ops/library_chunk_receiver.py'
       - 'src/sofia/platform/ops/library_chunk_sender.py'
       - 'src/sofia/platform/ops/library_tls_chunk_transport.py'
+      - 'src/sofia/platform/ops/library_tls_hub.py'
       - 'test/test_library_tls_chunk_transport.py'
+      - 'test/test_library_tls_hub.py'
       - 'test/test_library_chunk_receiver.py'
       - 'test/test_library_chunk_sender.py'
       - '.github/workflows/aegis-d028-tls-chunk.yml'
@@ -37,11 +39,12 @@ jobs:
       - name: Verify dependencies
         run: python -m pip check
       - name: Compile new transport and tests
-        run: python -m compileall -q src/sofia/platform/ops/library_tls_chunk_transport.py test/test_library_tls_chunk_transport.py
+        run: python -m compileall -q src/sofia/platform/ops/library_tls_chunk_transport.py src/sofia/platform/ops/library_tls_hub.py test/test_library_tls_chunk_transport.py test/test_library_tls_hub.py
       - name: Execute transport, hostile frames, sender and receiver tests
         run: >-
           python -m pytest -q
           test/test_library_tls_chunk_transport.py
+          test/test_library_tls_hub.py
           test/test_library_chunk_receiver.py
           test/test_library_chunk_sender.py
           test/test_package_grouping.py
