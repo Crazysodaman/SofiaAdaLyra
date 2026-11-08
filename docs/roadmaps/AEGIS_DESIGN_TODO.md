@@ -361,6 +361,16 @@ Design: dedicated test environment dashboard for Platform-only clean installs, s
 
 ---
 
+### AG-D028 | Core-free install, selective component packages and LAN Artifact Library
+
+**Status:** OWNER-REQUESTED DISTRIBUTION DESIGN (2026-11-08), NOT IMPLEMENTED NETWORK HUB OR PRODUCTION CERTIFIED. **Detailed spec:** [AG-D028 Selective Installs and Artifact Library](AG_D028_AEGIS_FEDERATED_ARTIFACT_LIBRARY.md).
+
+**Five requested capabilities:** install Aegis Platform + neutral SDK/runtime without personal Core/optional module/model downloads; fetch selected Core(s) independently; fetch single module or explicit dependency-aware group; reuse verified packages from authenticated Fleet peers instead of Internet; operate a server-side owner-controlled Artifact Library Hub with reviewed cache, quotas and source precedence.
+
+**Separation:** Central master **artifact bytes/catalog**, not shared writable canonical Core/Platform data. Each Platform independently authenticates, verifies signer+digest/revocation and obtains exact owner approval for installation/activation. A Core may propose downloads or SDK changes through authorized DEV tools, but cannot mint grants, overwrite peer protected state, auto-install, or distribute licensed models/private identities without consent.
+
+**Implementation priority:** Phase A minimal signed Platform-only/offline installer remains existing mandatory AG-D011 / #201 Team B release scope. Later phases: PLAT-02/05/08 signed component catalog and content store, PLAT-07 enrolled peer transfer, Team C UI/TUI, Team E exact-SHA host tests. LAN Hub/P2P distribution must not become an unapproved new Platform 1.0 blocker. Existing `OfflineArtifactCache` provides only local source foundation, **not** current authenticated network transfer.
+
 ## Questions to decide before promoting UX concepts
 
 - Should Core Manager, Model Manager and Module Manager be three windows, or tabs inside one Aegis Control Center?
