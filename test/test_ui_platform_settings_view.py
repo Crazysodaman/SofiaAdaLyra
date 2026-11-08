@@ -92,3 +92,76 @@ def test_untrusted_snapshot_cannot_certify_live_settings_draft():
     snapshot["revision"] = 3
     snapshot["effective_revision"] = 2
     assert baseline.needs_review(project_settings_snapshot(snapshot))
+
+
+
+def signed_module_snapshot():
+    from sofia.sdk.module_settings import (
+        ModuleSettingApplyClass, ModuleSettingField, ModuleSettingType,
+        ModuleSettingsContract, module_settings_contract_to_document,
+    )
+    contract = ModuleSettingsContract(
+        "sofia.module.settings.v1", 1, (
+            ModuleSettingField(
+                "display.mode", "Display", ModuleSettingType.ENUM,
+                ModuleSettingApplyClass.LIVE,
+                enum_values=("compact", "full"),
+            ),
+            ModuleSettingField(
+                "credential.ref", "Credential", ModuleSettingType.STRING,
+                ModuleSettingApplyClass.COMPONENT_RESTART,
+                secret_reference=True,
+            ),
+        ),
+    )
+    return {
+        "module_id": "org.sofia.settings.test",
+        "package_digest": "a" * 64,
+        "lifecycle": "active",
+        "lifecycle_revision": 3,
+        "revision": 2,
+        "effective_revision": 1,
+        "values": {
+            "display.mode": "compact",
+            "credential.ref": "<protected-secret-reference>",
+        },
+        "contract": module_settings_contract_to_document(contract),
+    }
+
+
+def test_module_setting_projection_binds_signed_package_identity_and_redacts():
+    from sofia.sdk.platform_settings_view import project_module_settings_snapshot
+    snapshot = signed_module_snapshot()
+    view = project_module_settings_snapshot(snapshot)
+    assert view.package_digest == "a" * 64
+    assert view.lifecycle_revision == 3
+    assert [item.field_id for item in view.rows] == [
+        "credential.ref", "display.mode",
+    ]
+    assert view.rows[0].saved_value == "[REDACTED]"
+    assert view.rows[1].saved_value == "compact"
+    assert all(item.requires_apply is None for item in view.rows)
+
+
+def test_reinstall_digest_and_lifecycle_revision_invalidate_module_editor():
+    from sofia.sdk.platform_settings_view import project_module_settings_snapshot
+    baseline = signed_module_snapshot()
+    current = project_module_settings_snapshot(baseline)
+    replacement = signed_module_snapshot()
+    replacement["package_digest"] = "b" * 64
+    assert current.needs_review(project_module_settings_snapshot(replacement))
+    replacement = signed_module_snapshot()
+    replacement["lifecycle_revision"] += 1
+    assert current.needs_review(project_module_settings_snapshot(replacement))
+
+
+def test_module_ui_never_displays_raw_secret_or_accepts_unknown_field():
+    from sofia.sdk.platform_settings_view import project_module_settings_snapshot
+    snapshot = signed_module_snapshot()
+    snapshot["values"]["credential.ref"] = "secret:owner.private_key"
+    with pytest.raises(ValueError, match="unredacted"):
+        project_module_settings_snapshot(snapshot)
+    snapshot = signed_module_snapshot()
+    snapshot["values"]["injected.setting"] = "anything"
+    with pytest.raises(ValueError, match="unreviewed"):
+        project_module_settings_snapshot(snapshot)
