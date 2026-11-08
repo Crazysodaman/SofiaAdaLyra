@@ -338,3 +338,44 @@ def test_systemd_external_group_requires_dedicated_identity_and_strict_mode(monk
             "/run/aegis-platform", parent(0o750),
             service_uid=uid, service_gid=gid,
         )
+
+
+@pytest.mark.skipif(not LINUX, reason="Debian dedicated supplementary operator GID")
+def test_systemd_external_group_separate_from_service_primary_gid(monkeypatch):
+    import grp
+    import stat
+    from types import SimpleNamespace
+    from sofia.platform.run.platform_service import systemd_management_operator_group
+
+    service_uid, service_gid, mgmt_gid = 31041, 31041, 31044
+    monkeypatch.setattr(
+        grp, "getgrnam",
+        lambda name: SimpleNamespace(gr_gid=mgmt_gid) if name == "aegis-mgmt" else None,
+    )
+    parent = lambda mode, gid=mgmt_gid: SimpleNamespace(
+        st_mode=stat.S_IFDIR | mode, st_uid=service_uid, st_gid=gid,
+    )
+    assert systemd_management_operator_group(
+        "/run/aegis-platform", parent(0o750),
+        service_uid=service_uid, service_gid=service_gid,
+        service_groups=(mgmt_gid,),
+    ) == mgmt_gid
+    # A secondary operator group is never implied by filesystem mode alone.
+    with pytest.raises(PermissionError, match="installed management group"):
+        systemd_management_operator_group(
+            "/run/aegis-platform", parent(0o750),
+            service_uid=service_uid, service_gid=service_gid,
+            service_groups=(),
+        )
+    with pytest.raises(PermissionError, match="installed management group"):
+        systemd_management_operator_group(
+            "/run/aegis-platform", parent(0o750, gid=service_gid),
+            service_uid=service_uid, service_gid=service_gid,
+            service_groups=(mgmt_gid,),
+        )
+    with pytest.raises(PermissionError, match="private service runtime group"):
+        systemd_management_operator_group(
+            "/run/aegis-platform", parent(0o700),
+            service_uid=service_uid, service_gid=service_gid,
+            service_groups=(mgmt_gid,),
+        )
