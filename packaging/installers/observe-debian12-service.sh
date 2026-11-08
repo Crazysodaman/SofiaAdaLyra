@@ -90,17 +90,17 @@ if [[ -d "$runtime_dir" && ! -L "$runtime_dir" ]] &&
     for entry in "$runtime_dir"/mgmt-*.sock; do
       [[ -e "$entry" ]] || continue
       [[ ! -L "$entry" && -S "$entry" ]] || {
-        printf '%s\\n' 'Management endpoint is redirected or not a Unix socket' >&2
+        printf '%s\n' 'Management endpoint is redirected or not a Unix socket' >&2
         exit 3
       }
       basename="${entry##*/}"
-      [[ "$basename" =~ ^mgmt-[1-9][0-9]{0,18}\\.sock$ ]] || {
-        printf '%s\\n' 'Management endpoint has unreviewed epoch identity' >&2
+      [[ "$basename" =~ ^mgmt-[1-9][0-9]{0,18}\.sock$ ]] || {
+        printf '%s\n' 'Management endpoint has unreviewed epoch identity' >&2
         exit 3
       }
       ((socket_count+=1))
       if ((socket_count > 32)); then
-        printf '%s\\n' 'Too many retained epoch-socket entries' >&2
+        printf '%s\n' 'Too many retained epoch-socket entries' >&2
         exit 3
       fi
       # Multiple stale epoch sockets may be left after crashes. They are
@@ -109,7 +109,7 @@ if [[ -d "$runtime_dir" && ! -L "$runtime_dir" ]] &&
       socket_owner_uid="$(stat -c %u -- "$entry")" || exit 3
       socket_group_gid="$(stat -c %g -- "$entry")" || exit 3
       if [[ "$socket_mode" != 600 && "$socket_mode" != 660 ]]; then
-        printf '%s\\n' 'Management socket has overly broad permissions' >&2
+        printf '%s\n' 'Management socket has overly broad permissions' >&2
         exit 3
       fi
     done
