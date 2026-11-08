@@ -1,0 +1,44 @@
+name: Aegis Main-only Remote Branch Blob Triage
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/aegis_branch_blob_triage.py'
+      - '.github/workflows/aegis-branch-main-triage.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  read-only-provenance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch all remote branch heads read-only
+        shell: bash
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git fetch --prune origin '+refs/heads/*:refs/remotes/origin/*'
+          git rev-parse HEAD
+          git rev-parse refs/remotes/origin/main
+      - name: Audit ancestry and exact file blobs
+        shell: bash
+        run: |
+          python tools/aegis_branch_blob_triage.py \
+            --main refs/remotes/origin/main \
+            --output "$RUNNER_TEMP/aegis-remote-branch-disposition.json"
+      - name: Preserve machine-readable result without merging anything
+        uses: actions/upload-artifact@v4
+        with:
+          name: aegis-main-only-branch-triage
+          path: ${{ runner.temp }}/aegis-remote-branch-disposition.json
+          if-no-files-found: error
