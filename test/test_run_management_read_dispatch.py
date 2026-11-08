@@ -219,9 +219,9 @@ def test_management_read_response_size_is_bounded():
     dispatcher, _, _ = service()
     dispatcher._settings = lambda _: {
         "schema_version": 1, "revision": 1, "effective_revision": 1,
-        "values": {"location_label": "x" * 100000},
+        "values": {"ollama_endpoint": "x" * 100000},
         "contracts": {
-            "location_label": {"owner": "host", "apply_class": "live"}
+            "ollama_endpoint": {"owner": "host", "apply_class": "component_restart"}
         },
     }
     with pytest.raises(ManagementReadDenied, match="exceeds limit"):
@@ -235,9 +235,9 @@ def test_invalid_non_json_settings_observation_is_rejected():
     dispatcher, _, _ = service()
     dispatcher._settings = lambda _: {
         "schema_version": 1, "revision": 1, "effective_revision": 1,
-        "values": {"location_label": object()},
+        "values": {"ollama_endpoint": object()},
         "contracts": {
-            "location_label": {"owner": "host", "apply_class": "live"}
+            "ollama_endpoint": {"owner": "host", "apply_class": "component_restart"}
         },
     }
     with pytest.raises(ManagementReadDenied, match="invalid management response"):
