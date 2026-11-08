@@ -56,7 +56,7 @@ with **only** these codes:
 `STALE_GENERATION`, `EXPIRED`, `UNAVAILABLE`.
 No explanation, secret, token, proof, path, or additional status fields.
 No `error` alias, arbitrary nested denial keys, or success+denial hybrid.
-Sensitive keys, nonfinite JSON and unbounded nesting/lists are rejected.
+Sensitive keys, non-ASCII projection keys, Unicode C0/C1 controls in values and keys, nonfinite JSON and unbounded nesting/lists are rejected. A Unicode line separator U+2028 in a value is not a C0/C1 control.
 
 A **kernel/token-authenticated but never-enrolled or now-revoked** peer gets
 no content / EOF, not a typed denial that would reveal existence or
@@ -102,8 +102,10 @@ connection alone must not yield data.
 Existing Debian 12 unit uses `RuntimeDirectory=aegis`,
 `RuntimeDirectoryMode=0700`, `PrivateTmp=true`; keep default owner-private.
 Only an independently reviewed signed installer may provision
-`/run/aegis` mode `0750` with dedicated enrolled operator GID, and
-epoch-fenced AF_UNIX socket `0660`. Group membership is OS connection
+a **separate** `/run/aegis-platform` mode `0750`, dedicated
+`aegis-mgmt` group with current owner-enrolled operators, and
+epoch-fenced AF_UNIX socket `0660`; `/run/aegis` MUST remain `0700`
+and owner-only. Group membership is OS connection
 eligibility, never authorization by itself. `/run` is not a PrivateTmp
 namespace; do not weaken `PrivateTmp` unnecessarily. No `/tmp` external
 socket, broad chmod, inherited active endpoint, symlink, or group wildcard.
