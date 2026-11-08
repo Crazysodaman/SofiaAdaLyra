@@ -97,6 +97,7 @@ _EXPORTS: dict[str, str] = {
     "platform_activation_request": ".platform_installation",
     "verify_installed": ".platform_installation",
     "verify_staged_release_candidate": ".platform_installation",
+    "preview_signed_platform_install": ".platform_installer_preview",
     "OperatorHandoffEvidence": ".state_promotion",
     "OperatorHandoffKind": ".state_promotion",
     "OperatorHandoffReview": ".state_promotion",
