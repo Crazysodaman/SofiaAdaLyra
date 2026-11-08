@@ -5,21 +5,19 @@
 //! external reviewer; OS credentials alone never establish publisher trust.
 //! Until such an installer-backed source is wired, CLI uses OfflineReader.
 
-use crate::control_center::{InstallationState, PermissionState, SafeState};
-use crate::control_center_session::{
-    from_verified_denial, DisplayReadSource, DisplaySnapshot, ReadFailure,
-};
-use chrono::{Duration as ChronoDuration, SecondsFormat, Utc};
-use sofia_contracts::management::{
-    UntrustedManagementRead, UntrustedManagementResponse, MANAGEMENT_READ_PROTOCOL,
-    MANAGEMENT_READ_SCHEMA, MAX_MANAGEMENT_RESPONSE_BYTES,
-};
-
 #[cfg(target_os = "linux")]
 pub mod linux {
-    use super::*;
+    use crate::control_center::{InstallationState, PermissionState, SafeState};
+    use crate::control_center_session::{
+        from_verified_denial, DisplayReadSource, DisplaySnapshot, ReadFailure,
+    };
+    use chrono::{Duration as ChronoDuration, SecondsFormat, Utc};
+    use sofia_contracts::management::{
+        UntrustedManagementRead, UntrustedManagementResponse, MANAGEMENT_READ_PROTOCOL,
+        MANAGEMENT_READ_SCHEMA, MAX_MANAGEMENT_RESPONSE_BYTES,
+    };
     use nix::sys::socket::{getsockopt, sockopt::PeerCredentials};
-    use std::fs::{self, Metadata};
+    use std::fs;
     use std::io::{Read, Write};
     use std::os::unix::ffi::OsStrExt;
     use std::os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt};
@@ -69,6 +67,7 @@ pub mod linux {
                 || !bytes[0].is_ascii_alphanumeric()
                 || !bytes
                     .iter()
+                    .copied()
                     .all(|byte| byte.is_ascii_alphanumeric()
                         || matches!(byte, b'.' | b'_' | b'-' | b':' | b'@' | b'/'))
                 || generation == 0
@@ -121,7 +120,7 @@ pub mod linux {
                 "schema": MANAGEMENT_READ_SCHEMA,
                 "protocol": MANAGEMENT_READ_PROTOCOL,
                 "request_id": request_id,
-                "target_platform_id": self.pins.platform_id,
+                "target_platform_id": self.pins.platform_id.clone(),
                 "expected_generation": self.pins.generation,
                 "operation": "platform.status",
                 "created_at": created_at,
