@@ -24,6 +24,7 @@ from sofia.platform.core_link import (
     CoreLinkBindingStore,
     CoreLinkEndpoint,
     CoreLinkTLSCredentials,
+    CoreLinkTransportError,
     PinnedCoreLinkClient,
 )
 from sofia.platform.run.process_lock import StateProcessLock
@@ -369,15 +370,24 @@ class CoreLinkDesktopClient:
                 draft=content, pending_idempotency_key=key,
                 pending_content=content,
             ))
-            response = self._request(
-                "conversation.send",
-                {
-                    "session_id": self._state.session_id,
-                    "content": content,
-                    "client_created_at": self.clock().isoformat(),
-                },
-                idempotency_key=key,
-            )
+            try:
+                response = self._request(
+                    "conversation.send",
+                    {
+                        "session_id": self._state.session_id,
+                        "content": content,
+                        "client_created_at": self.clock().isoformat(),
+                    },
+                    idempotency_key=key,
+                )
+            except CoreLinkTransportError as exc:
+                # After a transport loss the host might still be generating.
+                # Keep the durable original key and require reconciliation;
+                # NEVER silently re-send with a fresh idempotency key.
+                raise RemoteTurnUncertain(
+                    "remote turn outcome is unknown after transport loss; "
+                    "reconcile the persisted idempotency key before retry"
+                ) from exc
             if response.status is not CoreLinkResponseStatus.COMPLETED:
                 raise RemoteTurnUncertain(
                     f"remote turn outcome is {response.status.value}; reconcile before retry"
