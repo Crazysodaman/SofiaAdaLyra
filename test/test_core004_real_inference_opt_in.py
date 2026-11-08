@@ -52,6 +52,49 @@ def test_core004_disposable_pinned_mtls_desktop_uses_actual_ollama(
         )
 
     monkeypatch.setattr(baseline, "configuration", disposable_ollama_configuration)
+
+    # The ordinary regression uses a 20s test-provider HTTPS timeout. Real
+    # cold-start and model generation require an explicitly larger bound,
+    # without weakening the normal CI test or changing production defaults.
+    actual_client_class = baseline.PinnedCoreLinkClient
+
+    def long_inference_client(*args, **kwargs):
+        if kwargs.get("timeout_seconds") == 20:
+            kwargs["timeout_seconds"] = 120
+        return actual_client_class(*args, **kwargs)
+
+    monkeypatch.setattr(baseline, "PinnedCoreLinkClient", long_inference_client)
+
+    # Prove that the Core path actually called the installed Ollama model.
+    # A generated desktop message without this evidence could have come from
+    # a deterministic/fixture branch and is NOT real-inference acceptance.
+    from ollama import Client
+    from sofia.modules.inference.ollama_provider import OllamaProvider
+
+    observed: list[tuple[str, bool]] = []
+
+    class ObservedOllamaClient:
+        def __init__(self, wrapped):
+            self.wrapped = wrapped
+
+        def chat(self, **kwargs):
+            result = self.wrapped.chat(**kwargs)
+            content = getattr(getattr(result, "message", None), "content", None)
+            observed.append((kwargs.get("model"), isinstance(content, str) and bool(content.strip())))
+            return result
+
+    def monitored_factory(requested_endpoint):
+        if requested_endpoint != endpoint:
+            raise AssertionError("Ollama was redirected outside the isolated endpoint")
+        # Keep the provisional per-I/O bound; this is not a complete 120s
+        # wall-clock budget or a worker lease certification.
+        return ObservedOllamaClient(Client(host=endpoint, timeout=45.0))
+
+    monkeypatch.setattr(OllamaProvider, "_new_client", staticmethod(monitored_factory))
     baseline.test_pinned_mtls_core_link_runs_real_remote_conversation_without_local_core(
         tmp_path,
     )
+    assert observed, "No genuine Ollama.chat call was observed"
+    assert all(
+        observed_model == model and nonblank for observed_model, nonblank in observed
+    ), "Ollama model changed or returned no generated text"

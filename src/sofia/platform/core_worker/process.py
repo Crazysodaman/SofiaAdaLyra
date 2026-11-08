@@ -21,6 +21,8 @@ from uuid import uuid4
 
 from sofia.sdk.cognition_engine import CognitiveEngine, CognitiveEngineError
 from sofia.platform.core_worker.engines import LLMCognitiveEngine, TestCognitiveEngine
+from sofia.platform.core_worker.provider_deadline import call_with_deadline
+from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.sdk.cognition_model import CognitiveRequest, CognitiveResponse
 from sofia.sdk.cognition_engine import LLMProvider, LLMProviderError
 from sofia.platform.config.model import ProviderConfiguration
@@ -708,8 +710,10 @@ class _CoreWorkerProcess:
                         "Core worker exceeded bounded provider calls"
                     )
                 self._serve_provider_request(
-                    value=value, expected_role=role,
+                    value=value, expected_role=role, deadline=deadline,
                 )
+        if time.monotonic() >= deadline:
+            raise TimeoutError("Core worker response deadline expired")
         if value.get("kind") == "error":
             raise CoreWorkerError(f"Core worker failed: {value.get('error', 'unknown')}")
         if set(value) != {"kind", "request_id", "payload", "payload_digest"} or (
@@ -723,6 +727,7 @@ class _CoreWorkerProcess:
 
     def _serve_provider_request(
         self, *, value: Mapping[str, object], expected_role: str,
+        deadline: float,
     ) -> None:
         required = {
             "kind", "request_id", "role", "configuration_digest",
@@ -745,8 +750,13 @@ class _CoreWorkerProcess:
             payload = base64.b64decode(value["payload"], validate=True)
             if sha256(payload).hexdigest() != value["payload_digest"]:
                 raise PermissionError("Core provider request digest mismatch")
-            response = binding.provider.respond(decode_request(payload))
+            decoded = decode_request(payload)
+            response = call_with_deadline(
+                lambda: binding.provider.respond(decoded), deadline=deadline,
+            )
             result = encode_response(response)
+            if time.monotonic() >= deadline:
+                raise TimeoutError("Core provider response deadline expired")
             _send(self._connection, {
                 "kind": "provider_response",
                 "request_id": request_id,
@@ -1073,6 +1083,8 @@ class CoreWorkerController:
         now = datetime.now(timezone.utc)
         if process is None or not self.generations.is_active(process.endpoint):
             raise CognitiveEngineError("Core worker generation is not active")
+        if OperatorStopStore(self.generations.lease_store.path).current().active:
+            raise CognitiveEngineError("Core worker operator STOP active")
         current_lease = self.generations.lease_store.current(now=now)
         if current_lease is None or (
             current_lease.owner_id != self.lease.owner_id
@@ -1105,11 +1117,27 @@ class CoreWorkerController:
             deadline=deadline,
         )
         try:
-            return process.respond(
+            response = process.respond(
                 envelope=envelope, request=request,
                 timeout=max(0.001, (deadline - now).total_seconds()),
                 role=role,
             )
+            # Final admission fence: a model result is not permission to
+            # commit it after STOP, lease expiry, or generation replacement.
+            completed_at = datetime.now(timezone.utc)
+            current = self.generations.lease_store.current(now=completed_at)
+            if (
+                completed_at >= deadline
+                or not self.generations.is_active(process.endpoint)
+                or current is None
+                or current.owner_id != self.lease.owner_id
+                or current.epoch != self.lease.epoch
+                or OperatorStopStore(self.generations.lease_store.path).current().active
+            ):
+                raise PermissionError(
+                    "Core worker result completed after authority expired"
+                )
+            return response
         except Exception as exc:
             self._quarantine(process, now=datetime.now(timezone.utc), reason=type(exc).__name__)
             raise CognitiveEngineError("Core worker request failed or became uncertain") from exc

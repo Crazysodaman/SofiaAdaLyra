@@ -111,3 +111,20 @@ Coordinator authorized P3-LEGACY-01 **for disposable engineering implementation 
 Additional existing `test_memory_deletion_restore.py` must prove independent operator erasure-journal precedence, but passing it does not prove real-host backup installation. Combined Team 3 CI includes that fixture and whole-application restart tests.
 
 **Policy version:** V1 / `P3-LEGACY-01`; approval: disposable engineering only; activation: OFF; G8: 0/16; Core shakedown: NO; production GO: NO.
+
+
+## C-005 development-first functional execution (2026-11-08)
+
+- GitHub CI is **not** a gate between development commits. The final integrated IG-001 candidate must still pass full exact-SHA CI before any release milestone can be accepted. No queued/pending/skipped job is a PASS.
+- Added `test_v1_reviewed_correction_reaches_application_memory_after_two_restarts` in `test/test_core_team3_application_v1_hook.py`: authentic owner-scoped propose/promote → correction link → shutdown → same-session reopen → reviewed correction promotion → old revoked/new recall → second shutdown/reopen → only new candidate recalled. The test uses a synthetic provider. It does not satisfy real Ollama inference.
+- Expected full-checkout command (NOT EXECUTED in the tool environment due absence of a mounted checkout and GitHub DNS access):
+  ```bash
+  python -m pytest -q test/test_core_team3_disposable_continuity.py test/test_core_team3_legacy_policy_v1.py test/test_core_team3_application_v1_hook.py
+  python -m pytest -q test/test_application_restart_continuity.py test/test_memory_deletion_restore.py
+  ```
+- Actual local environment: Python 3.13.5 / SQLite 3.46.1; no local Aegis checkout; `git ls-remote https://github.com/Crazysodaman/SofiaAdaLyra.git HEAD` failed `Could not resolve host: github.com`.
+- **Executed limited independent SQLite fault-injection behavioral probe:** create disposable `memory_candidate` table with old/promoted and new/proposed, attach `BEFORE UPDATE` trigger aborting new/promoted, run `BEGIN IMMEDIATE` with old→revoked then new→promoted, catch `sqlite3.IntegrityError`, close and reconnect, assert old stays `promoted` and new stays `proposed`. Result **PASS** under Python 3.13.5 / SQLite 3.46.1. **This reproduces only SQLite's rollback semantics; it is NOT a real Aegis source test, application execution, CI gate or host evidence.**
+- Team 2 has the test-only `attach_disposable_memory_policy_v1(app, disposable_root=tmp_path, approved_by=owner, expected_version=...)` seam, which preserves the application's real provider and conversation boundary. Its synthetic test has no Ollama inference evidence. Team 5 holds isolated IG-001 draft #257; Team 3 must be incorporated into that ONE candidate after fresh SHA review, never by an independent second integration branch.
+- Core Team 1/Platform A generation fencing and independent authenticated eligibility-policy floor still require formal ACK; Team 5 needs independent erasure-safe restore and no-second-writer negatives. **Protected-state migration, policy activation, merge, production release and G8 acceptance remain unauthorized.**
+
+Release/status: CORE SHAKEDOWN NO-GO; PRODUCTION GO NO.

@@ -8,10 +8,14 @@ on:
       - "src/sofia/platform/run/runtime_service.py"
       - "src/sofia/platform/run/runtime_authority.py"
       - "src/sofia/platform/run/host.py"
+      - "src/sofia/platform/core_worker/process.py"
+      - "src/sofia/platform/core_worker/provider_deadline.py"
       - "test/test_run_release_process.py"
       - "test/test_run_runtime_child.py"
       - "test/test_run_runtime_authority.py"
       - "test/test_run_host.py"
+      - "test/test_core_worker_provider_deadline.py"
+      - "test/test_core001_disposable_writer_restart.py"
       - ".github/workflows/core001-lifecycle-regression.yml"
   workflow_dispatch:
 
@@ -45,6 +49,8 @@ jobs:
           test/test_run_runtime_child.py
           test/test_run_runtime_authority.py
           test/test_run_host.py
+          test/test_core_worker_provider_deadline.py
+          test/test_core001_disposable_writer_restart.py
           test/test_run_supervisor.py
           test/test_ui_tray_lifecycle.py
           test/test_core_worker_process.py

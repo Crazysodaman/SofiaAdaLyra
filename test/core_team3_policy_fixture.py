@@ -47,3 +47,51 @@ def attach_disposable_memory_policy_v1(
     policy.assert_same_canonical_state(memory_system.candidate_store.database_path)
     memory_system._eligibility_policy = policy
     return policy
+
+
+def create_disposable_core_application(disposable_root: Path) -> SofiaApplication:
+    """Create a fully isolated synthetic Core home, never a repo identity writer.
+
+    Constitution/hash/avatar fixtures are copied read-only from repository
+    examples on FIRST disposable use. Identity is minted only under tmp_path;
+    all subsequent application composition requires the same existing UUID.
+    """
+    from dataclasses import replace
+    from shutil import copyfile
+    from sofia.core.identity.model import IdentityBootstrapMode
+    from sofia.core.identity.store import IdentityStore
+    from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
+    from test.test_application_restart_continuity import (
+        CONSTITUTION_PATH, HASH_PATH, AVATAR_PATH,
+        create_configuration, create_personality,
+    )
+
+    root = Path(disposable_root).resolve(strict=True)
+    if not root.is_dir():
+        raise ValueError("disposable_root must be an existing directory")
+    copies = (
+        (CONSTITUTION_PATH, root / "constitution.md"),
+        (HASH_PATH, root / "constitution.sha256"),
+        (AVATAR_PATH, root / "avatar.json"),
+    )
+    for source, destination in copies:
+        if not destination.exists():
+            copyfile(source, destination)
+    identity_path = root / "identity.json"
+    if not identity_path.exists():
+        IdentityStore(identity_path).load()  # new disposable UUID only
+    personality_path = root / "personality.json"
+    if not personality_path.exists():
+        create_personality(root)
+    state_path = bootstrap_canonical_sqlite(root / "sofia.db")
+    original = create_configuration(personality_path, state_path)
+    config = replace(
+        original,
+        constitution_path=root / "constitution.md",
+        constitution_hash_path=root / "constitution.sha256",
+        identity_path=identity_path,
+        avatar_path=root / "avatar.json",
+        identity_bootstrap_mode=IdentityBootstrapMode.REQUIRE_EXISTING,
+        filesystem_root=root,
+    )
+    return SofiaApplication(config)
