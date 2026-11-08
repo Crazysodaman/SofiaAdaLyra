@@ -138,6 +138,25 @@ class ApprovedLibraryHub:
             except (OSError, ssl.SSLError, TimeoutError) as exc:
                 raise ChunkTransferRejected("mutual TLS Hub connection unavailable") from exc
 
+    def serve_bounded(self, *, max_connections: int) -> int:
+        """Serve a bounded number of separately authorized mTLS chunks.
+
+        The canonical Platform service controls the event loop and cancellation.
+        Each reconnect calls serve_once, which rechecks the owner Hub role at
+        accept, TLS establishment, and within its per-chunk authorization.
+        No background daemon or implicit retry is created.
+        """
+        if type(max_connections) is not int or not 1 <= max_connections <= 10000:
+            raise ChunkTransferRejected("bounded Hub connection budget required")
+        if self._listener is None:
+            raise ChunkTransferRejected("Hub was not explicitly opened")
+        total_bytes = 0
+        for _ in range(max_connections):
+            if self._owner_enabled() is not True:
+                raise ChunkTransferRejected("Hub role revoked between chunks")
+            total_bytes += self.serve_once()
+        return total_bytes
+
     def close(self) -> None:
         listener = self._listener
         self._listener = None
