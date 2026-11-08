@@ -1,0 +1,180 @@
+"""B-002: real canonical SAFE/B1 boundary around native OS operations.
+
+Only disposable builder identities, synthetic owner credentials, and test-only
+backends are used. No actual service is created by this suite.
+"""
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+import pytest
+
+from sofia.platform.ops.platform_installation import (
+    PlatformInstallationDenied, PlatformInstallationStore, install_staged_release,
+)
+from sofia.platform.ops.platform_installer_native_service import DebianSystemdNativeService
+from sofia.platform.ops.platform_installer_native_transaction import (
+    apply_owner_approved_native_service, native_service_operation_request,
+)
+from sofia.platform.safe.execution_approval import ExecutionApproval, ExecutionApprovalVerifier
+from sofia.platform.state.installation_identity import InstallationIdentityStore
+from sofia.sdk.platform_release import PlatformReleaseTarget
+from test.owner_auth_fixture import record_verified_owner_approval
+from test.test_ops_platform_installation import SignedReleaseBuilder
+from test.test_platform_release_verifier import platform_wheels
+from test.test_platform_service_session import provision
+
+pytestmark = pytest.mark.pkg_ops
+
+
+@pytest.fixture
+def installed_scope(tmp_path, platform_wheels, canonical_state_path):
+    builder = SignedReleaseBuilder(tmp_path / "signed", platform_wheels)
+    staged, manifest, _ = builder.stage(revision=5)
+    b1 = PlatformInstallationStore(tmp_path / "b1.db")
+    release = tmp_path / "signed-release-v5"
+    install_staged_release(staged, release, store=b1, verifier=builder.verifier)
+    identity_store, identity, state = provision(tmp_path / "host")
+    return dict(
+        operation="register",
+        store=b1, verifier=builder.verifier,
+        expected_target=PlatformReleaseTarget.DEBIAN12_X86_64,
+        destination=release, identity_home=identity_store.home, local_state=state,
+        canonical_safe_state=canonical_state_path,
+    )
+
+
+def grant_for_request(scope, *, id, now):
+    request = native_service_operation_request(**scope)
+    approval = ExecutionApproval(
+        approval_id=id,
+        capability=request["capability"],
+        request_fingerprint=request["fingerprint"],
+        approved_by="person:sparks",
+        approved_at=now - timedelta(seconds=1),
+        expires_at=now + timedelta(minutes=5),
+    )
+    record_verified_owner_approval(ExecutionApprovalVerifier(scope["canonical_safe_state"]), approval)
+    return approval
+
+
+def fake_backend(*, error=None):
+    backend = DebianSystemdNativeService()
+    recorded = []
+
+    def emit(spec, state="RUNNING"):
+        recorded.append((state, spec.platform_id, spec.manifest_sha256))
+        if error is not None:
+            raise RuntimeError(error)
+        return dict(schema="aegis.native-service-receipt.v1", service=spec.service_name,
+                    process_state=state, platform_id=spec.platform_id,
+                    release_manifest_sha256=spec.manifest_sha256,
+                    service_health="UNKNOWN", core_activated=False)
+
+    backend.register = emit
+    backend.stop_and_unregister = lambda spec: emit(spec, "REMOVED")
+    backend.restart_verified = lambda spec: emit(spec)
+    backend.replace_verified = lambda prev, spec: emit(spec)
+    return backend, recorded
+
+
+def test_native_request_is_nonexecuting_signed_plan(installed_scope):
+    scope = dict(installed_scope)
+    request = native_service_operation_request(**scope)
+    assert request["schema"] == "aegis.native-service-request.v1"
+    assert request["owner_approved"] is False
+    assert request["parameters"]["candidate"]["revision"] == 5
+    assert request["parameters"]["native_generation"] == 0
+    assert request["parameters"]["previous"] is None
+    assert not (scope["store"].path.parent / "native-service-transaction.json").exists()
+
+
+@pytest.mark.parametrize("approval_id", ("", "not-a-current-grant"))
+def test_native_registration_without_real_scoped_grant_has_zero_effects(installed_scope, approval_id):
+    scope = dict(installed_scope)
+    backend, calls = fake_backend()
+    with pytest.raises((PermissionError, PlatformInstallationDenied)):
+        apply_owner_approved_native_service(
+            **scope, backend=backend, approval_id=approval_id,
+        )
+    assert calls == []
+    assert not (scope["store"].path.parent / "native-service-transaction.json").exists()
+
+
+def test_native_register_remove_reinstall_retains_exact_uuid(installed_scope):
+    scope = dict(installed_scope)
+    backend, calls = fake_backend()
+    original = InstallationIdentityStore(Path(scope["identity_home"])).load()
+    now = datetime.now(timezone.utc)
+    first = grant_for_request(scope, id="approval:b2-native-register-first", now=now)
+    result = apply_owner_approved_native_service(
+        **scope, backend=backend, approval_id=first.approval_id, now=now,
+    )
+    assert result["owner_approval_consumed"] is True
+    assert result["full_health_certified"] is False
+    assert result["service_health"] == "UNKNOWN"
+    assert result["protected_identity_retained"] is True
+    assert result["core_activated"] is False
+
+    scope["operation"] = "unregister"
+    second = grant_for_request(scope, id="approval:b2-native-unregister", now=now)
+    removed = apply_owner_approved_native_service(
+        **scope, backend=backend, approval_id=second.approval_id, now=now,
+    )
+    assert removed["process_state"] == "REMOVED"
+    assert removed["protected_identity_retained"] is True
+
+    scope["operation"] = "register"
+    third = grant_for_request(scope, id="approval:b2-native-reinstall", now=now)
+    again = apply_owner_approved_native_service(
+        **scope, backend=backend, approval_id=third.approval_id, now=now,
+    )
+    assert again["process_state"] == "RUNNING"
+    assert len(calls) == 3
+    identity = InstallationIdentityStore(Path(scope["identity_home"])).load()
+    assert identity.identity.canonical_uuid == original.identity.canonical_uuid
+    assert identity.public_key_sha256 == original.public_key_sha256
+    journal = scope["store"].path.parent / "native-service-transaction.json"
+    assert '"generation":3' in journal.read_text()
+
+
+def test_native_interrupted_registration_blocks_blind_retry(installed_scope):
+    scope = dict(installed_scope)
+    backend, calls = fake_backend(error="crash after possible SCM/systemd write")
+    now = datetime.now(timezone.utc)
+    approval = grant_for_request(scope, id="approval:b2-interrupted", now=now)
+    with pytest.raises(RuntimeError, match="crash"):
+        apply_owner_approved_native_service(
+            **scope, backend=backend, approval_id=approval.approval_id, now=now,
+        )
+    assert len(calls) == 1
+    journal = scope["store"].path.parent / "native-service-transaction.json"
+    assert '"OUTCOME_UNKNOWN"' in journal.read_text()
+    with pytest.raises(PlatformInstallationDenied, match="unresolved native"):
+        native_service_operation_request(**scope)
+
+
+def test_native_replay_cannot_act_again(installed_scope):
+    scope = dict(installed_scope)
+    backend, calls = fake_backend()
+    now = datetime.now(timezone.utc)
+    approval = grant_for_request(scope, id="approval:b2-replay", now=now)
+    apply_owner_approved_native_service(
+        **scope, backend=backend, approval_id=approval.approval_id, now=now,
+    )
+    with pytest.raises((PermissionError, PlatformInstallationDenied)):
+        apply_owner_approved_native_service(
+            **scope, backend=backend, approval_id=approval.approval_id,
+            now=now + timedelta(seconds=1),
+        )
+    assert len(calls) == 1
+
+
+def test_native_unknown_operation_refuses_any_backend(installed_scope):
+    scope = dict(installed_scope)
+    scope["operation"] = "purge"
+    backend, calls = fake_backend()
+    with pytest.raises(PlatformInstallationDenied, match="unsupported"):
+        native_service_operation_request(**scope)
+    assert calls == []
