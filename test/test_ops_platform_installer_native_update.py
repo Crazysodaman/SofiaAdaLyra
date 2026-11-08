@@ -8,6 +8,7 @@ from __future__ import annotations
 from base64 import b64encode
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
+import os
 
 import pytest
 
@@ -117,6 +118,11 @@ def test_b1_accepts_valid_signed_predecessor_but_not_unhistoried_one(signed_vers
     install_staged_release(staging, second, store=base["store"], verifier=builder.verifier)
     assert base["store"].receipt_for_destination(second)["manifest_sha256"] == signed.digest
     assert base["store"].revision_floor() == 6
+    if os.name != "nt":
+        # B1 publishes signed code as private files; the native service
+        # executable alone must gain owner-execute, not world/group access.
+        executable = second / "assets" / "aegis-platform-service"
+        assert executable.stat().st_mode & 0o777 == 0o700
 
 
 def test_native_register_update_repair_approved_rollback_and_remove(signed_versions):
