@@ -102,7 +102,9 @@ Distribution can initially be one repository/wheel with explicit subpackages, th
 
 **SDK ABI rules:** semantic versioning and explicit protocol negotiation; additive changes only within the compatible window; no dynamic importing arbitrary module code during validation; packages pin API minimum/maximum range; backward-compatible adapters only for reviewed behaviors; conformance fixtures on Windows and Linux; no user/private data or tokens in mock artifacts; avoid circular Core⇄Platform imports; stable error taxonomy; documented thread/process safety. Developer tools never directly write live canonical state.
 
-### Golden test module and compatibility check (2026-11-08)
+### Golden test Core, Platform and Module SDK references (2026-11-08)
+
+A pair of **source-level dummy Core and Platform** references now accompanies the golden module at [`examples/sdk_reference_system/`](../../examples/sdk_reference_system/README.md). They exercise the actual authority-free SDK request/response envelopes, simulated per-Core grants and denial, source identity and generation fencing, STOP, unplug and replay rejection, without real host effects. This is a developer conformance fixture, **not** production authentication or isolated Core/Platform implementation.
 
 An initial **source-level reference module** now lives at [`examples/sdk_reference_module/`](../../examples/sdk_reference_module/README.md). It exposes one no-effect, bounded `reference.ping` capability, typed LIVE and COMPONENT_RESTART settings, and [disposable conformance tests](../../test/test_sdk_reference_module.py) using the actual signed package verifier, Platform lifecycle manager, capability authority checker, settings revision/CAS and Python/Rust protocol parity. The dedicated [SDK conformance CI](../../.github/workflows/sdk-reference-conformance.yml) runs on Windows and Linux whenever the relevant Python SDK/Rust contracts/module interfaces change. See [SDK compatibility and upgrade rules](../development/SDK_REFERENCE_AND_COMPATIBILITY.md).
 
