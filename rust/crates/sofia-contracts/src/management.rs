@@ -146,6 +146,8 @@ fn safe_management_projection(
                 let lower = key.to_ascii_lowercase();
                 if key.is_empty()
                     || key.len() > 160
+                    || !key.is_ascii()
+                    || key.chars().any(char::is_control)
                     || ["__proto__", "prototype", "constructor"].contains(&lower.as_str())
                     || [
                         "secret",
