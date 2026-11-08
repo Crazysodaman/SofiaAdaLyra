@@ -7,13 +7,15 @@ from datetime import datetime, timezone
 
 from sofia.core.memory.provenance import CandidateStatus
 from sofia.core.social.principals import local_sparks_principal
-from test.core_team3_policy_fixture import attach_disposable_memory_policy_v1
-from test.test_application_restart_continuity import create_application
+from test.core_team3_policy_fixture import (
+    attach_disposable_memory_policy_v1,
+    create_disposable_core_application,
+)
 
 
 def test_v1_disposable_application_wiring_survives_restart(tmp_path):
     owner = local_sparks_principal()
-    first = create_application(tmp_path)
+    first = create_disposable_core_application(tmp_path)
     first_policy = attach_disposable_memory_policy_v1(
         first, disposable_root=tmp_path, approved_by=owner,
     )
@@ -55,7 +57,7 @@ def test_v1_disposable_application_wiring_survives_restart(tmp_path):
     finally:
         first.shutdown()
 
-    second = create_application(tmp_path)
+    second = create_disposable_core_application(tmp_path)
     second_policy = attach_disposable_memory_policy_v1(
         second, disposable_root=tmp_path, approved_by=owner,
         expected_version=1,
@@ -76,7 +78,7 @@ def test_v1_disposable_application_wiring_survives_restart(tmp_path):
 def test_v1_reviewed_correction_reaches_application_memory_after_two_restarts(tmp_path):
     """Actual application memory path; provider remains a synthetic test model."""
     owner = local_sparks_principal()
-    first = create_application(tmp_path)
+    first = create_disposable_core_application(tmp_path)
     attach_disposable_memory_policy_v1(
         first, disposable_root=tmp_path, approved_by=owner,
     )
@@ -126,7 +128,7 @@ def test_v1_reviewed_correction_reaches_application_memory_after_two_restarts(tm
     finally:
         first.shutdown()
 
-    second = create_application(tmp_path)
+    second = create_disposable_core_application(tmp_path)
     attach_disposable_memory_policy_v1(
         second, disposable_root=tmp_path, approved_by=owner,
         expected_version=1,
@@ -146,7 +148,7 @@ def test_v1_reviewed_correction_reaches_application_memory_after_two_restarts(tm
     finally:
         second.shutdown()
 
-    third = create_application(tmp_path)
+    third = create_disposable_core_application(tmp_path)
     attach_disposable_memory_policy_v1(
         third, disposable_root=tmp_path, approved_by=owner,
         expected_version=1,
