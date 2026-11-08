@@ -11,6 +11,7 @@ import traceback
 import errno
 import os
 import pwd
+import grp
 import socket
 import stat
 from datetime import datetime, timedelta, timezone
@@ -28,19 +29,53 @@ UNIT='aegis-platform.service'
 # A's canonical management listener, current SAFE authority and installer
 # remain untouched. Root has NO enrolled owner grant in this isolated fixture.
 def _native_management_socket(ready_row):
+    """Read the installed unit, not a user-supplied runtime or socket path.
+
+    Support exactly Team A's private 0700/0600 endpoint or B's explicitly
+    configured supplementary-group 0750/0660 endpoint. A working second-user
+    enrolled install must not be falsely rejected by the guest negative.
+    """
     assert ready_row.get('management_listening') is True
     assert type(ready_row.get('generation')) is int
-    runtime=Path('/run/aegis')
+    assert ready_row['generation'] > 0
     service=pwd.getpwnam('aegis')
+    props=dict(line.split('=',1) for line in command(
+        'systemctl','show',UNIT,
+        '--property=User,Group,RuntimeDirectory,RuntimeDirectoryMode'
+    ).splitlines() if '=' in line)
+    assert props.get('User')=='aegis' and props.get('Group')=='aegis'
+    location=props.get('RuntimeDirectory')
+    assert location in {'aegis','aegis-platform'}, 'unreviewed runtime location'
+    mode_value=props.get('RuntimeDirectoryMode','')
+    assert mode_value and all(c in '01234567' for c in mode_value)
+    mode=int(mode_value,8)
+    assert mode in (0o700,0o750)
+    runtime=Path('/run')/location
     parent=os.lstat(runtime)
     assert stat.S_ISDIR(parent.st_mode)
-    assert parent.st_uid==service.pw_uid and parent.st_gid==service.pw_gid
-    assert stat.S_IMODE(parent.st_mode)==0o700
+    assert parent.st_uid==service.pw_uid
+    assert stat.S_IMODE(parent.st_mode)==mode
+    if mode==0o700:
+        assert parent.st_gid==service.pw_gid
+        expected_gid=service.pw_gid
+        expected_socket_mode=0o600
+    else:
+        assert location=='aegis-platform', 'group access only in signed runtime'
+        expected_gid=grp.getgrnam('aegis-mgmt').gr_gid
+        assert parent.st_gid==expected_gid
+        # The service process must really have the approved supplemental
+        # management group. Merely naming an installer group is insufficient.
+        status=Path('/proc',str(ready_row['worker_pid']),'status').read_text()
+        groups=[line for line in status.splitlines() if line.startswith('Groups:')]
+        assert len(groups)==1
+        actual_groups={int(gid) for gid in groups[0].split(':',1)[1].split()}
+        assert expected_gid in actual_groups or expected_gid==service.pw_gid
+        expected_socket_mode=0o660
     path=runtime/('mgmt-'+str(ready_row['generation'])+'.sock')
     inode=os.lstat(path)
-    assert stat.S_ISSOCK(inode.st_mode) and inode.st_uid==service.pw_uid
-    assert inode.st_gid==service.pw_gid
-    assert stat.S_IMODE(inode.st_mode)==0o600
+    assert stat.S_ISSOCK(inode.st_mode)
+    assert inode.st_uid==service.pw_uid and inode.st_gid==expected_gid
+    assert stat.S_IMODE(inode.st_mode)==expected_socket_mode
     return path
 
 def _assert_unknown_operator_eof(ready_row):
