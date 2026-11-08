@@ -187,3 +187,75 @@ Team E must independently verify actual signed artifacts and four-host
 installed-service receipts. The original 38 acceptance rows and LIB-01..16
 are still unaccepted. No main edit, production deployment, automatic Core or
 Hub activation, independent signing root, second installer or writer.
+
+
+## B-004: independent publisher proof and staged offline media (2026-11-08)
+
+**Exact-HEAD unit/runner CI not yet resolved. No production-signed artifact or installed-host receipt is claimed.**
+
+**Debian signature proof:** The existing `install-aegis.sh` now additionally accepts:
+
+```bash
+bash packaging/installers/install-aegis.sh \
+  --verify-publisher /absolute/offline/staged-release \
+  --publisher-key /absolute/out-of-band/trusted-publisher.pem \
+  --publisher-sha256 <64-lowercase-hex-SHA256-of-public-PEM> \
+  --publisher-signer <reviewed-signer-key-id> --json
+```
+
+It uses stock shell, `sha256sum`, `base64`, and OpenSSL's Ed25519
+`pkeyutl -verify -rawin` implementation to check the **exact canonical
+PlatformReleaseManifest.digest** using the existing release signature and
+an independently pinned public-key fingerprint. It denies an untrusted
+signer, incorrect key, malformed/duplicated signature envelope, changed
+manifest, and mixed install/owner-authorization flags. Linux images without
+OpenSSL fail closed: OpenSSL is not guaranteed present on every minimal
+Debian 12 install. The output is only `SIGNED_MANIFEST_ONLY`; it has
+**not** verified all assets, OS compatibility, complete Python runtime,
+installed anything, or consumed current SAFE permission.
+
+**Windows publisher trust:** `Install-Aegis.ps1` also offers:
+`-VerifyPublisherBootstrap <reviewed-native-exe>`,
+`-TrustedPublisherThumbprint <independently-pinned-40-hex-thumbprint>`,
+`-TrustedBootstrapSha256 <independently-pinned-64-hex-digest>`,
+plus optional `-Json`. Uses stock Windows PowerShell 5.1
+`Get-AuthenticodeSignature` and `Get-FileHash`, requires valid
+code-signing EKU/certificate and exact SHA. This checks the native
+bootstrap **executable's** Authenticode signature, not the canonical
+Ed25519 PlatformReleaseManifest. No approved production-signed native
+bootstrap executable has been built or witnessed in #244. Its successful
+result would be `AUTHENTICODE_BINARY_ONLY`, not installation authority.
+
+**Offline media assembler:** `platform_installer_offline_capsule.py`
+uses the existing canonical signed Platform verifier and
+`review_core_free_offline_seed` on a **release builder** to reproducibly
+package the complete signed release asset set, both launchers and the
+shared UI theme under one `aegis/` archive tree. It refuses unsigned
+asset drift, symlinked staging, overwrite and optional Core/model bytes.
+SHA-256 and exact release-manifest digest are recorded. Since the
+launchers/theme are not themselves in the signed release manifest,
+`launcher_publisher_signature_verified=false` and
+`self_contained_native_installer_certified=false` remain mandatory
+receipt fields. No signing private key enters this builder; the release
+publisher/CI certificate workflow must independently attest the capsule
+and signed native executor before any external release claim.
+
+**Disposable CI artifact:** The installer workflow can emit a synthetic
+software-signed Core-free capsule, its test-only public PEM and
+`test-only-capsule-evidence.json` with exact SHA-256 for Team E. This
+fixture uses an ephemeral non-production signer and fake service/runtime
+payload and **cannot be deployed**. GitHub Actions artifacts are queued
+until actual execution; only after a completed, rehashed run can E cite
+their exact artifact hash and evidence ID.
+
+**Remaining end-to-end install blockers:** Actual stock-host
+certification requires a signed native executable capable of verifying
+the complete Ed25519 manifest/assets without any preinstalled Python,
+an independently pinned publisher root and code-signing certificate,
+signed native service-account ACL and Windows operator SID/Unix socket
+provisioning, current Team A authenticated enrollment/SAFE/STOP/expiry/
+revocation, B1 native install/update/repair/rollback/uninstall/reinstall
+with persistent UUID, and Team E signed Windows/Debian disposable-host
+receipts through reboot and failure. Until then, protected shell/GUI
+operations remain denied. Neither a capsule hash, Authenticode-only
+check nor raw manifest signature is a complete installer certificate.
