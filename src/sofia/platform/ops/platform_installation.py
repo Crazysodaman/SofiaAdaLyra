@@ -524,6 +524,19 @@ def install_staged_release(staging_path, destination, *, store, verifier,
         minimum_revision=(max(1, int(minimum_revision)) if minimum_revision is not None
                           else 1))
     checkpoint = store.checkpoint()
+    # A signed parent digest is not sufficient provenance on its own:
+    # require B1's immutable installation history to contain that exact
+    # predecessor. The native swap additionally checks the currently
+    # selected service release and one-use owner approval.
+    signed_parent = candidate.manifest.parent_manifest_sha256
+    if signed_parent is not None and not any(
+        row['manifest_sha256'] == signed_parent
+        and row['result'] == SUCCEEDED
+        and row['revision'] < candidate.revision
+        for row in store.history()
+    ):
+        raise PlatformInstallationDenied(
+            'signed release predecessor has no matching durable B1 history')
     if checkpoint is not None and candidate.revision < checkpoint.minimum_accepted_revision:
         if operation != ROLLBACK:
             raise PlatformInstallationDenied(
