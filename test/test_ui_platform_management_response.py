@@ -160,3 +160,29 @@ def test_builder_stays_bounded_and_denies_mixed_outcome():
         make_response(req, observed_at=NOW, data={"password": "no"})
     with pytest.raises(ValueError):
         make_response(req, observed_at=datetime(2026,11,8,4), data=data)
+
+
+def test_shared_denial_and_escaped_c1_corpus_has_language_parity():
+    denied = (ROOT / "management-read-response-denied-v1.json").read_bytes()
+    req, _ = read()
+    result = UntrustedManagementResponse.parse(denied, expected=req, now=NOW)
+    assert result.outcome == "DENIED"
+    assert result.data is None
+    assert result.denial_code == "STOPPED"
+
+    request = UntrustedManagementRead.parse(
+        (ROOT / "management-read-settings-valid-v1.json").read_bytes(), now=NOW
+    )
+    c1 = (ROOT / "management-read-response-invalid-c1-v1.json").read_bytes()
+    assert b"\\u0085" in c1
+    with pytest.raises(ValueError, match="control"):
+        UntrustedManagementResponse.parse(c1, expected=request, now=NOW)
+    value = json.loads(c1)
+    value["data"] = {"message": "\u2028"}  # line separator, not C0/C1 control
+    ok = UntrustedManagementResponse.parse(
+        json.dumps(value).encode("utf-8"), expected=request, now=NOW,
+    )
+    assert ok.outcome == "OK"
+    value["data"] = {"nönascii": "safe"}
+    with pytest.raises(ValueError, match="key"):
+        parse(value, request=request)
