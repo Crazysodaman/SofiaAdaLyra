@@ -33,3 +33,24 @@ The Rust ControlCenterView handles OFFLINE, CONNECTING, UNVERIFIED, STALE, RESTA
 - CI: cargo test --locked -p sofia-ui-broker; compiled \`aegis_tui\` smoke (status returns nonzero, NO_COLOR, unknown command denied, safe help); Windows GUI PowerShell \`-Check\` plus Linux source policy checks.
 - Required later: actual Windows desktop interactive/keyboard/200%-scaling/high-contrast and Windows/Debian 12 installed-host lifecycle evidence; exact signed release and authenticated service integration.
 - #201 rows 31–38: **NOT ACCEPTED** by this preview. Successful tests validate the read-only presentation and binaries only. Release remains NO-GO.
+
+
+## Coordinator C-001 continued implementation
+
+The provisional GUI implementation is *only* the WinForms PowerShell 5.1 Control Center from #230/#243. #222 and #228 stay as reference prototypes; neither is an independently maintained deployment target. The existing Rust \`aegis_tui\` binary remains canonical for terminal control, including SSH/NO_COLOR tests. Both consume the one shared 22-token theme manifest; the Windows UI additionally honors OS high-contrast preference.
+
+### New authority-free client-side state
+
+\`rust/crates/sofia-ui-broker/src/control_center_session.rs\` defines a display-only \`DisplayReadSource\` integration seam. It has no IPC transport, wire format, service executor, owner token, approval, or independent signature verifier. The only wired implementation is \`OfflineReader\`, which never manufactures a healthy host. This is intentionally a **not-yet-integrated client contract**, not evidence of authenticated management.
+
+The session retains installed lifecycle metadata while disconnect/restart/stale makes health unknown; it fences replayed sequence, decreasing generation, changed Platform identity, settings revision rollback, impossible saved/applied revision pairs, and a removal-receipt claim applied to the wrong lifecycle. On failure, the UI discards active permission, SAFE state and verified-removal presentation. A reconnect requires a newer sequence within the same Platform generation or a newer generation; an editor must be reviewed after a restart/revision/state change. STOP, revoked, denied, offline, stale, restarting and unknown generation all block mutating action preview. A \`RecheckWithService\` hint never executes a request and cannot authorize anything.
+
+The TUI renders session state and unknown installed/settings values. Its source remains \`OfflineReader\` until Team A approves the response/transport composition. The WinForms shell names these denial states and keeps all management buttons disabled. The Windows \`-UiProbe\` constructs and inspects real WinForms controls without showing a desktop window or touching services; it cannot substitute for interactive host accessibility or GUI acceptance.
+
+### Team A and Team B handoff, November 8
+
+- Team A PR #241 has a coordination request for the **one** reconciled #232/#234 versioned response contract, typed STOP/revoked/denied/stale/unknown generation responses, correlation, generation, service identity, bounded freshness, settings revisions, and signed lifecycle evidence. Team C will not write a competing response schema, forge \`source=PLATFORM_SESSION\`, or connect the GUI to an unauthenticated socket.
+- Team B PR #229 has a coordination request for **separately installable optional** WinForms GUI and native TUI components. Final signed package manifest, artifact SHA/signature chain, install/uninstall lifecycle receipts and Windows/Debian 12 installed-host evidence are Team B owned. Neither GUI nor TUI is an independent installer or updater.
+- Pre-integration negative tests check no IPC shortcut/DB/owner credential access, denied/revoked/STOP/restart state, replay, generation change, revision rollback, stale clock and removal-receipt presentation.
+- Exact-head tests: \`cargo fmt --all --check\`, \`cargo clippy --locked -p sofia-ui-broker --all-targets -- -D warnings\`, \`cargo test --locked -p sofia-ui-broker\`, native Windows/Ubuntu \`aegis_tui\` executable smoke, Python GUI/policy checks and Windows PowerShell \`-UiProbe\`. These are **component tests** only.
+- Release acceptance: #201 rows **31–38 remain NOT ACCEPTED** until verified OS-authenticated management on disposable installed hosts, signed packaging, interactive native Windows UI and Debian 12 terminal evidence are supplied. No merge, production activation, personal Core migration or permission bypass is authorized.
