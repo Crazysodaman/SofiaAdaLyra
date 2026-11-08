@@ -15,10 +15,9 @@ from sofia.sdk import (
     SDK_PROTOCOL_VERSION,
 )
 
-from examples.sdk_reference_system.wire import payload_digest
-
-PING_TYPE = "aegis.sdk.reference.ping.v1"
-PING_RESULT_TYPE = "aegis.sdk.reference.ping.result.v1"
+from examples.sdk_reference_system.wire import (
+    PING_TYPE, PING_RESULT_TYPE, payload_digest,
+)
 
 
 class ReferenceCore:
