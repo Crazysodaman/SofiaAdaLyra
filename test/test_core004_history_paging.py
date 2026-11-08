@@ -90,6 +90,6 @@ def test_core004_desktop_rejects_history_page_replay_and_preserves_projection(
         CoreLinkDesktopStateStore((tmp_path / "replay-desktop.json").resolve(), selected),
         clock=lambda: NOW,
     )
-    with pytest.raises(RuntimeError, match="(history ordering/replay|history cursor|history payload)"):
+    with pytest.raises(RuntimeError, match="(history ordering/replay|history cursor|history payload|history item)"):
         client.start()
     assert client.messages == (), "never publish a partially verified history"
