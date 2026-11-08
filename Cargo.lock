@@ -1247,10 +1247,15 @@ name = "sofia-ui-broker"
 version = "0.1.0"
 dependencies = [
  "atomicwrites",
+ "chrono",
  "fs2",
+ "getrandom 0.2.17",
+ "nix",
  "serde",
  "serde_json",
  "sha2",
+ "sofia-contracts",
+ "tempfile",
  "winapi-util",
  "windows-permissions",
  "winsafe",

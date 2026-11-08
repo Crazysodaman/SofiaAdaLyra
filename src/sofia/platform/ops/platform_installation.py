@@ -368,6 +368,11 @@ def _verify_release_bytes(directory, *, verifier, minimum_revision, expected_sou
     manifest_payload = _decode_private_json(directory / 'release-manifest.json')
     signature_document = _decode_private_json(directory / 'release-signature.json')
     scope = manifest_payload.get('target')
+    # This only binds an Ed25519-signed manifest's own predecessor field.
+    # It does NOT authorize an update or establish that predecessor as the
+    # currently installed release. B1/native generation-fenced callers must
+    # separately compare that digest against their durable predecessor.
+    signed_parent = manifest_payload.get('parent_manifest_sha256')
     return verifier.verify(
         manifest_payload, assets_root=directory / 'assets',
         signature_b64=signature_document.get('signature_b64'),
@@ -375,7 +380,8 @@ def _verify_release_bytes(directory, *, verifier, minimum_revision, expected_sou
         expected_source_sha=expected_source_sha
         if expected_source_sha is not None else manifest_payload.get('source_sha'),
         expected_target=verifier_target(scope),
-        minimum_revision=int(minimum_revision))
+        minimum_revision=int(minimum_revision),
+        expected_parent_manifest_sha256=signed_parent)
 
 
 def verify_staged_release_candidate(staging_path, *, verifier, minimum_revision=0):
@@ -442,14 +448,23 @@ def _publish_verified_tree(candidate, destination, *, verifier, operation, now,
         digest, data = read_artifact_file(source, size, include_data=True)
         if digest != reference.sha256:
             raise PlatformReleaseRejected('staged source changed before installation')
-        _write_new(assets.joinpath(*reference.path.split('/')), data)
+        target_asset = assets.joinpath(*reference.path.split('/'))
+        _write_new(target_asset, data)
+        if asset.kind == 'service' and os.name != 'nt':
+            # Native systemd ExecStart must be executable. This only changes
+            # POSIX owner mode (0600 -> 0700), never the signed ELF bytes.
+            # Parent directories remain private and are never world-readable.
+            assert_no_redirected_components(target_asset, include_leaf=True)
+            os.chmod(target_asset, 0o700, follow_symlinks=False)
+            assert_owner_private_path(target_asset, directory=False)
     signature_document = _decode_private_json(
         candidate.staging_path / 'release-signature.json')
     verifier.verify(manifest.to_payload(), assets_root=assets,
         signature_b64=signature_document.get('signature_b64'),
         signer_key_id=candidate.signer_key_id,
         expected_source_sha=candidate.source_sha, expected_target=manifest.target,
-        minimum_revision=candidate.revision)
+        minimum_revision=candidate.revision,
+        expected_parent_manifest_sha256=manifest.parent_manifest_sha256)
     runtime = next(asset.reference for asset in manifest.assets
                    if asset.kind == 'python-runtime')
     materialize_python_runtime(assets.joinpath(*runtime.path.split('/')),
@@ -518,6 +533,19 @@ def install_staged_release(staging_path, destination, *, store, verifier,
         minimum_revision=(max(1, int(minimum_revision)) if minimum_revision is not None
                           else 1))
     checkpoint = store.checkpoint()
+    # A signed parent digest is not sufficient provenance on its own:
+    # require B1's immutable installation history to contain that exact
+    # predecessor. The native swap additionally checks the currently
+    # selected service release and one-use owner approval.
+    signed_parent = candidate.manifest.parent_manifest_sha256
+    if signed_parent is not None and not any(
+        row['manifest_sha256'] == signed_parent
+        and row['result'] == SUCCEEDED
+        and row['revision'] < candidate.revision
+        for row in store.history()
+    ):
+        raise PlatformInstallationDenied(
+            'signed release predecessor has no matching durable B1 history')
     if checkpoint is not None and candidate.revision < checkpoint.minimum_accepted_revision:
         if operation != ROLLBACK:
             raise PlatformInstallationDenied(
