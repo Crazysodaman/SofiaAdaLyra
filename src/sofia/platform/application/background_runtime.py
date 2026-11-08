@@ -36,7 +36,7 @@ from sofia.platform.ops.backup_topology import (
 )
 from sofia.platform.ops.discovery import FleetDiscoveryCoordinator, FleetDiscoveryEnrollmentReconciler
 from sofia.core.personality.influence import ContinuityInfluence
-from sofia.platform.run.heartbeat import ApplicationHeartbeat
+from sofia.platform.run.heartbeat import generation_bound_heartbeat_publisher
 
 if TYPE_CHECKING:
     from sofia.platform.application.bootstrap import SofiaApplication
@@ -1070,30 +1070,18 @@ def create_background_coordinator(
         None,
     )
     if runtime_id is not None and heartbeat_store is not None:
-        def publish_heartbeat(now, healthy):
-            runtime_state = getattr(
+        def runtime_state() -> str:
+            return getattr(
                 getattr(application._runtime, "state", None),
-                "value",
-                "ready" if healthy else "unknown",
+                "value", "unknown",
             )
-            heartbeat_store.publish(
-                ApplicationHeartbeat(
-                    instance_id=str(runtime_id),
-                    recorded_at=now,
-                    ready=bool(
-                        healthy and runtime_state == "ready"
-                    ),
-                    runtime_state=runtime_state,
-                    database_writable=True,
-                    background_running=True,
-                    detail=(
-                        "application background loop healthy"
-                        if healthy
-                        else "application background loop reported an error"
-                    ),
-                    generation_epoch=heartbeat_store.current_generation(),
-                )
-            )
+
+        # Do not let an older application process stamp a newer watchdog
+        # generation into a heartbeat after a service restart or takeover.
+        publish_heartbeat = generation_bound_heartbeat_publisher(
+            heartbeat_store, instance_id=str(runtime_id),
+            runtime_state=runtime_state,
+        )
         coordinator.set_heartbeat(publish_heartbeat)
 
     return coordinator
