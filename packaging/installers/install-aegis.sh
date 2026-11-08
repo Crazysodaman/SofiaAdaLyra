@@ -16,6 +16,8 @@ MODE=menu
 PLAIN=0
 JSON_MODE=0
 DRY_RUN=0
+CHECK_REQUESTED=0
+OPERATION_REQUESTED=0
 OPERATION=none
 
 usage() {
@@ -28,12 +30,14 @@ usage() {
 
 while (($#)); do
   case "$1" in
-    --check) MODE=check; shift ;;
+    --check) MODE=check; CHECK_REQUESTED=1; shift ;;
     --help|-h) MODE=help; shift ;;
     --no-color|--plain|--line-mode) PLAIN=1; shift ;;
     --json) JSON_MODE=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     --operation)
+      if ((OPERATION_REQUESTED)); then printf '%s\n' 'Operation specified twice' >&2; exit 2; fi
+      OPERATION_REQUESTED=1
       if (($# < 2)); then printf '%s\n' 'Missing operation' >&2; exit 2; fi
       OPERATION="$2"
       case "$OPERATION" in
@@ -44,6 +48,11 @@ while (($#)); do
     *) printf 'Unknown option: %s\n' "$1" >&2; exit 2 ;;
   esac
 done
+
+if ((CHECK_REQUESTED && OPERATION_REQUESTED)); then
+  printf '%s\n' '--check cannot be combined with --operation' >&2
+  exit 2
+fi
 
 # Presentation manifest is never evaluated or sourced as executable code.
 theme_hex() {
