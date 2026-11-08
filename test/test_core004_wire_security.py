@@ -38,7 +38,7 @@ class _RecordingGateway:
         pass
 
 
-@pytest.mark.parametrize("wire_case", ["duplicate_operation", "nested_duplicate", "nan"])
+@pytest.mark.parametrize("wire_case", ["duplicate_operation", "nested_duplicate", "nan", "positive_inf", "negative_inf"])
 def test_core004_mtls_server_rejects_ambiguous_json_before_dispatch(tmp_path, wire_case):
     ca, (server_cert, server_key), (client_cert, client_key) = tls_material(tmp_path)
     gateway = _RecordingGateway()
@@ -64,7 +64,8 @@ def test_core004_mtls_server_rejects_ambiguous_json_before_dispatch(tmp_path, wi
             '"payload": {}', '"payload": {"spoof": 1, "spoof": 2}', 1,
         )
     else:
-        raw = original.replace('"payload": {}', '"payload": {"value": NaN}', 1)
+        number = {"nan": "NaN", "positive_inf": "Infinity", "negative_inf": "-Infinity"}[wire_case]
+        raw = original.replace('"payload": {}', '"payload": {"value": ' + number + "}", 1)
     assert raw != original, "negative test did not mutate the actual wire frame"
     connection = HTTPSConnection(
         "localhost", server.address[1], context=context, timeout=5,
@@ -152,3 +153,23 @@ def test_core004_pinned_client_rejects_duplicate_json_response(monkeypatch, tmp_
     with pytest.raises(CoreLinkTransportError, match="invalid HTTP"):
         client.request(req)
     assert posted == [True]
+
+@pytest.mark.parametrize("name,is_request", [
+    ("valid-status-request.json", True),
+    ("valid-history-request.json", True),
+    ("valid-history-page-2-request.json", True),
+    ("valid-status-response.json", False),
+    ("valid-history-response.json", False),
+])
+def test_core004_strict_json_preserves_rust_python_wire_fixtures(name, is_request):
+    """Hardening must preserve every existing valid v1 Rust/Python payload."""
+    from sofia.sdk.cognition_json import loads_strict_model_json
+    from sofia.sdk.core_link import CoreLinkRequest
+    root = Path(__file__).resolve().parent.parent / "contracts" / "core-link"
+    raw = (root / name).read_text(encoding="utf-8")
+    strict = loads_strict_model_json(raw)
+    assert strict == json.loads(raw)
+    if is_request:
+        assert CoreLinkRequest.from_payload(strict).to_payload() == strict
+    else:
+        assert CoreLinkResponse.from_payload(strict).to_payload() == strict
