@@ -55,6 +55,11 @@ def test_v1_excludes_legacy_promoted_without_erasing_originals(tmp_path):
         assert candidates.is_recall_eligible(before["candidate_id"])
         assert not ReviewedMemoryEligibilityV1(before["state"]).allows(before["candidate_id"])
         assert _strict_recall(candidates, before) == ()
+        assert tuple(candidates.iter_promoted_summaries(
+            principal_id=before["owner"].principal_id,
+            audience_id=before["owner"].audience_id,
+            require_reviewed_source_v1=True,
+        )) == ()
         assert candidates.status(before["candidate_id"]) is CandidateStatus.PROMOTED
         assert candidates.get(before["candidate_id"]).sources[0].message_id == before["message"].id
         assert conversations.list_messages(before["session_id"]) == (before["message"],)
@@ -74,6 +79,11 @@ def test_owner_re_review_surviving_originals_survives_restart(tmp_path):
         )
         assert len(digest) == 64
         assert policy.allows(before["candidate_id"])
+        assert [candidate_id for candidate_id, _ in candidates.iter_promoted_summaries(
+            principal_id=before["owner"].principal_id,
+            audience_id=before["owner"].audience_id,
+            require_reviewed_source_v1=True,
+        )] == [before["candidate_id"]]
         assert [item.id for item in _strict_recall(candidates, before)] == [
             str(before["candidate_id"])
         ]
