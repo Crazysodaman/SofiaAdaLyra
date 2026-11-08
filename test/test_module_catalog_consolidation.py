@@ -70,8 +70,8 @@ def test_conditional_new_module_ideas_are_not_installed_or_active():
     for candidate in candidates:
         assert candidate["candidate_id"] not in EXPECTED_OPTIONAL_IDS
         assert candidate["initial_owner"] in EXPECTED_OPTIONAL_IDS
-        assert candidate["approved_catalog_entry"] == "false"
-        assert candidate["installable"] == "false"
+        assert candidate["approved_catalog_entry"] is False
+        assert candidate["installable"] is False
 
 
 def test_missing_catalog_sources_report_unknown_instead_of_claiming_merger():
