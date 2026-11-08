@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 import json
 import os
 import sqlite3
+import stat
 import tempfile
 from pathlib import Path
 from threading import Event, RLock, Thread
@@ -28,7 +29,9 @@ from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.platform.safe.permissions import PermissionStore
 from sofia.platform.state.installation_identity import InstallationIdentityStore
 from sofia.platform.state.local_store import PlatformLocalStore
-from sofia.platform.state.private_file import assert_owner_private_path
+from sofia.platform.state.private_file import (
+    assert_no_redirected_components, assert_owner_private_path,
+)
 from sofia.sdk.cognition_json import loads_strict_model_json
 
 SCHEMA = 'aegis.platform.service-control.v1'
@@ -102,13 +105,38 @@ class PlatformServiceSession:
             )
             self._management_endpoint = listener.name
         elif sys.platform == "linux":
-            # Each RUN epoch uses a *new* private socket directory. Abrupt OS
-            # exit leaves no reusable/stale endpoint that a restarted process
-            # could accidentally adopt. No symlinks or world access.
-            home = Path(tempfile.mkdtemp(prefix="aegis-mgmt-"))
-            home.chmod(0o700)
-            self._management_home = home
-            listener = ManagementUnixListener(home / "management.sock", dispatch=dispatcher.dispatch)
+            runtime = os.environ.get("RUNTIME_DIRECTORY")
+            if runtime is not None:
+                # Trust only the exact, signed-systemd configured runtime
+                # directory. Never adopt /tmp, HOME, colon lists or a caller's
+                # arbitrary environment path as an external IPC endpoint.
+                if runtime != "/run/aegis-platform":
+                    raise PermissionError("unreviewed systemd runtime directory")
+                home = Path(runtime)
+                assert_no_redirected_components(home, include_leaf=True)
+                parent = home.stat(follow_symlinks=False)
+                if (not stat.S_ISDIR(parent.st_mode)
+                        or parent.st_uid != os.geteuid()
+                        or parent.st_gid != os.getegid()
+                        or stat.S_IMODE(parent.st_mode) != 0o750):
+                    raise PermissionError("systemd runtime directory not governed")
+                # Epoch-fenced path avoids adopting a socket abandoned by a
+                # forced kill; old paths stay non-authoritative and offline.
+                socket_path = home / ("mgmt-" + str(self.lease.epoch) + ".sock")
+                listener = ManagementUnixListener(
+                    socket_path, dispatch=dispatcher.dispatch,
+                    operator_group_gid=os.getegid(),
+                )
+            else:
+                # Explicit developer fallback: owner-only, no external users.
+                # Installed Debian service MUST use RuntimeDirectory rather
+                # than claiming external connectivity through PrivateTmp.
+                home = Path(tempfile.mkdtemp(prefix="aegis-mgmt-"))
+                home.chmod(0o700)
+                self._management_home = home
+                listener = ManagementUnixListener(
+                    home / "management.sock", dispatch=dispatcher.dispatch,
+                )
             self._management_endpoint = str(listener.path)
         else:
             raise PermissionError("no native authenticated management transport")
