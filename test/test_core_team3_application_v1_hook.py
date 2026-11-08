@@ -71,3 +71,93 @@ def test_v1_disposable_application_wiring_survives_restart(tmp_path):
         )] == [str(candidate.candidate_id)]
     finally:
         second.shutdown()
+
+
+def test_v1_reviewed_correction_reaches_application_memory_after_two_restarts(tmp_path):
+    """Actual application memory path; provider remains a synthetic test model."""
+    owner = local_sparks_principal()
+    first = create_application(tmp_path)
+    attach_disposable_memory_policy_v1(
+        first, disposable_root=tmp_path, approved_by=owner,
+    )
+    first.start()
+    session_id = first.conversation.session_id
+    try:
+        first.conversation.respond(
+            "Remember that the synthetic calibration marker is sapphire.",
+            principal=owner,
+        )
+        original = next(
+            item for item in reversed(first.conversation.messages())
+            if item.role.value == "user"
+        )
+        earlier = first.memory_review.propose(
+            session_id=session_id,
+            message_ids=(original.id,),
+            content="The synthetic calibration marker is sapphire.",
+            created_at=original.created_at,
+        )
+        first.memory_review.promote(
+            earlier.candidate_id, approved_by=owner,
+        )
+        assert [record.id for record in first._runtime.memory_system.recall_relevant(
+            "synthetic calibration marker", principal=owner,
+        )] == [str(earlier.candidate_id)]
+
+        first.conversation.respond(
+            "Correction: the synthetic calibration marker is amber now.",
+            principal=owner,
+        )
+        correction_source = next(
+            item for item in reversed(first.conversation.messages())
+            if item.role.value == "user"
+        )
+        replacement = first.memory_review.propose(
+            session_id=session_id,
+            message_ids=(correction_source.id,),
+            content="The synthetic calibration marker is amber.",
+            created_at=correction_source.created_at,
+        )
+        first.memory_review.link_correction(
+            replacement.candidate_id, earlier.candidate_id,
+            approved_by=owner,
+        )
+        assert first.memory_review.status(replacement.candidate_id) is CandidateStatus.PROPOSED
+    finally:
+        first.shutdown()
+
+    second = create_application(tmp_path)
+    attach_disposable_memory_policy_v1(
+        second, disposable_root=tmp_path, approved_by=owner,
+        expected_version=1,
+    )
+    second.start(session_id=session_id)
+    try:
+        assert second.memory_review.status(earlier.candidate_id) is CandidateStatus.PROMOTED
+        assert second.memory_review.status(replacement.candidate_id) is CandidateStatus.PROPOSED
+        second.memory_review.promote(
+            replacement.candidate_id, approved_by=owner,
+        )
+        assert second.memory_review.status(earlier.candidate_id) is CandidateStatus.REVOKED
+        assert second.memory_review.status(replacement.candidate_id) is CandidateStatus.PROMOTED
+        assert [record.id for record in second._runtime.memory_system.recall_relevant(
+            "synthetic calibration marker", principal=owner,
+        )] == [str(replacement.candidate_id)]
+    finally:
+        second.shutdown()
+
+    third = create_application(tmp_path)
+    attach_disposable_memory_policy_v1(
+        third, disposable_root=tmp_path, approved_by=owner,
+        expected_version=1,
+    )
+    third.start(session_id=session_id)
+    try:
+        memories = third._runtime.memory_system.recall_relevant(
+            "synthetic calibration marker", principal=owner,
+        )
+        assert [record.id for record in memories] == [str(replacement.candidate_id)]
+        assert "amber" in memories[0].content
+        assert all("sapphire" not in record.content for record in memories)
+    finally:
+        third.shutdown()
