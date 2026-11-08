@@ -60,13 +60,18 @@ def install_disposable_policy_v1(
             "updated_at TEXT NOT NULL)"
         )
         row = db.execute(
-            "SELECT version FROM core_memory_eligibility_policy WHERE singleton=1"
+            "SELECT version,reviewed_by,audience_id FROM "
+            "core_memory_eligibility_policy WHERE singleton=1"
         ).fetchone()
         observed = None if row is None else row[0]
         if observed != expected_version:
             raise MemoryEligibilityVersionError(
                 "policy version changed; explicit reviewed migration required"
             )
+        if row is not None and tuple(row[1:]) != (
+            approved_by.principal_id, approved_by.audience_id,
+        ):
+            raise PermissionError("policy revision belongs to another owner audience")
         if observed is None:
             db.execute(
                 "INSERT INTO core_memory_eligibility_policy "
