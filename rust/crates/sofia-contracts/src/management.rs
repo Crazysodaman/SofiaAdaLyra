@@ -159,7 +159,7 @@ fn safe_management_projection(
                         "authorization",
                     ]
                     .iter()
-                    .any(|name| lower.contains(name))
+                    .any(|name| lower.contains(*name))
                 {
                     return Err(ContractError::new(
                         "invalid_management_response",
