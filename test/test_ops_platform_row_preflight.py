@@ -306,3 +306,42 @@ def test_d028_runnable_harness_fails_closed_on_symlinked_signed_metadata(
     assert "release-manifest.json" in report["evidence_invalid"]
     assert report["acceptance"] == "NOT_CLAIMED"
     assert not report["release_accepted"]
+
+
+def test_d028_cli_can_plan_but_never_greenlight_supplied_host_receipts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture,
+) -> None:
+    import sys
+    from tools import aegis_platform_row_preflight as qa
+
+    exact = "a" * 40
+    monkeypatch.setattr(qa, "_git_sha", lambda: exact)
+    monkeypatch.setattr(sys, "argv", [
+        "aegis_platform_row_preflight", "--d028-four-host",
+    ])
+    assert qa.main() == 0  # Planning validity, not signed-host evidence.
+    no_receipts = json.loads(capsys.readouterr().out)
+    assert no_receipts["d028_four_host"]["acceptance"] == "NOT_CLAIMED"
+    assert no_receipts["d028_four_host"]["evidence_dir_supplied"] is False
+
+    monkeypatch.setattr(sys, "argv", [
+        "aegis_platform_row_preflight", "--d028-four-host",
+        "--d028-evidence-dir", str(tmp_path),
+    ])
+    assert qa.main() == 2  # Missing actual signed-host evidence cannot green CI.
+    missing = json.loads(capsys.readouterr().out)
+    assert missing["d028_four_host"]["evidence_missing"]
+
+    for name in D028_EVIDENCE_FILES:
+        (tmp_path / name).write_text(json.dumps({"source_sha": exact}), encoding="utf-8")
+    for case in LIB_ROWS:
+        (tmp_path / (case + ".json")).write_text(json.dumps({
+            "source_sha": exact, "scenario_id": case, "status": "PASS",
+        }), encoding="utf-8")
+    assert qa.main() == 3  # A full set of self-reported JSON remains UNTRUSTED.
+    untrusted = json.loads(capsys.readouterr().out)
+    assert untrusted["d028_four_host"]["evidence_missing"] == []
+    assert untrusted["d028_four_host"]["evidence_invalid"] == []
+    assert untrusted["d028_four_host"]["release_accepted"] is False
+    assert all(entry["acceptance"] == "NOT_CLAIMED"
+               for entry in untrusted["d028_four_host"]["scenarios"])
