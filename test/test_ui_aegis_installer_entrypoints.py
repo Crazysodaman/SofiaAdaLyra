@@ -19,7 +19,8 @@ WINDOWS = ROOT / "packaging" / "installers" / "Install-Aegis.ps1"
 THEME = ROOT / "contracts" / "ui" / "aegis-theme-v1.json"
 
 
-@pytest.mark.skipif(shutil.which("bash") is None, reason="Bash is not installed")
+@pytest.mark.skipif(os.name == "nt" or shutil.which("bash") is None,
+                    reason="Debian Bash runs on Linux; Windows runs PowerShell")
 def test_debian_readonly_preflight_uses_no_ansi_and_never_claims_install():
     result = subprocess.run(
         ["bash", str(BASH), "--check"], capture_output=True, text=True,
@@ -31,7 +32,8 @@ def test_debian_readonly_preflight_uses_no_ansi_and_never_claims_install():
     assert "\x1b" not in result.stdout
 
 
-@pytest.mark.skipif(shutil.which("bash") is None, reason="Bash is not installed")
+@pytest.mark.skipif(os.name == "nt" or shutil.which("bash") is None,
+                    reason="Debian Bash runs on Linux; Windows runs PowerShell")
 def test_bash_interactive_refused_without_tty_and_unknown_option_rejected():
     result = subprocess.run(
         ["bash", str(BASH)], input="", capture_output=True,
