@@ -61,11 +61,13 @@ def test_provider_and_lifecycle_adapter_share_the_authoritative_endpoint(
     monkeypatch,
 ):
     provider_hosts = []
+    provider_timeouts = []
     lifecycle_hosts = []
 
     class Client:
-        def __init__(self, *, host):
+        def __init__(self, *, host, timeout):
             provider_hosts.append(host)
+            provider_timeouts.append(timeout)
 
     class Http:
         def __init__(self, base_url):
@@ -82,6 +84,7 @@ def test_provider_and_lifecycle_adapter_share_the_authoritative_endpoint(
 
     assert provider.endpoint == adapter.base_url == "http://inference.internal:12434"
     assert provider_hosts == lifecycle_hosts == ["http://inference.internal:12434"]
+    assert provider_timeouts == [45.0]
 
 
 def test_host_owned_endpoint_reaches_production_configuration(tmp_path, monkeypatch):
