@@ -7,6 +7,7 @@ from hashlib import sha256
 import json
 import os
 import platform
+import subprocess
 from pathlib import Path
 from time import monotonic
 
@@ -37,6 +38,18 @@ AVATAR = ROOT / "src/sofia/core/embodiment/avatar.json"
 def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
     if os.getenv("SOFIA_CORE002_LIVE") != "1":
         pytest.skip("OWNER OPT-IN REQUIRED; skip is NOT a live-inference PASS")
+    expected_sha = os.getenv("SOFIA_CORE002_EXPECTED_SHA", "").strip()
+    if len(expected_sha) != 40 or any(
+        character not in "0123456789abcdef" for character in expected_sha
+    ):
+        pytest.fail("Set SOFIA_CORE002_EXPECTED_SHA to exact 40-hex candidate SHA")
+    observed_sha = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT,
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    assert observed_sha == expected_sha, (
+        "Refusing to misattribute genuine inference to a different source SHA"
+    )
     model = os.getenv("SOFIA_OLLAMA_MODEL", "").strip()
     if not model:
         pytest.fail("SOFIA_OLLAMA_MODEL must specify an already installed model")
@@ -264,6 +277,7 @@ def test_core002_real_provider_multiturn_and_persistence(monkeypatch, tmp_path):
         assert label in second[-1].casefold(), "Topic switch lost label"
     finally:
         print("CORE002_LIVE_RECEIPT=" + json.dumps({
+            "source_sha": observed_sha,
             "model": model,
             "model_digest": model_digest,
             "provider": "ollama",
