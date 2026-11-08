@@ -122,6 +122,11 @@ def review_selected_library_catalog_module(
         raise ModuleRecipientRejected("catalog target, revision or generation stale")
     source = _exact(data["source"], _SOURCE)
     page = _exact(data["page"], _PAGE)
+    if source["kind"] not in {
+        "LOCAL_VERIFIED_CACHE", "OFFLINE_MEDIA", "OWNER_SELECTED_HUB",
+        "AUTHORIZED_PEER", "OFFICIAL_REMOTE",
+    }:
+        raise ModuleRecipientRejected("unreviewed artifact source")
     if (source["status"] != "CURRENT" or page["cursor_state"] != "CURRENT"
             or type(page["limit"]) is not int or not 1 <= page["limit"] <= 128
             or type(data["items"]) is not list
@@ -154,6 +159,17 @@ def review_selected_library_catalog_module(
             or not 1 <= len(row["signature_receipt_ref"]) <= 160
             or type(row["distribution_allowed"]) is not bool):
         raise ModuleRecipientRejected("selected content identity or signing metadata mismatched")
+    for label in ("artifact_id", "version", "publisher", "signer_key_id",
+                  "signature_receipt_ref", "target_os_arch", "sdk_range", "abi_range"):
+        value = row[label]
+        if type(value) is not str or not 1 <= len(value) <= 160:
+            raise ModuleRecipientRejected("unreviewed catalog item identifier")
+    if row["license_distribution"] not in {
+        "permitted", "restricted", "non_redistributable", "unknown",
+    } or row["data_class"] not in {"public", "protected", "private"}:
+        raise ModuleRecipientRejected("unreviewed catalog license/data class")
+    if row["license_distribution"] == "unknown" or row["data_class"] == "protected":
+        raise ModuleRecipientRejected("unknown or protected license cannot admit module")
     if (row["license_distribution"] != "permitted"
             or row["data_class"] != "public") and row["distribution_allowed"]:
         raise ModuleRecipientRejected("private or restricted artifact illegally offered")
