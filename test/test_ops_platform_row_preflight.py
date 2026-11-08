@@ -438,3 +438,34 @@ def test_ig001_manifest_conflicts_and_execution_gates_fail_closed() -> None:
     assert m["proposed_disposable_environment"]["required_os"] == "Debian GNU/Linux 12 x86_64"
     assert m["proposed_disposable_environment"]["personal_core"] is False
     assert "STOP before and midrequest" in m["security_negatives_must_preserve"]
+
+
+def test_ig001_e008_assembled_source_does_not_claim_functional_acceptance() -> None:
+    """Git object assembly is not an installed service, signer or release gate."""
+    import re
+    p = (
+        Path(__file__).resolve().parents[1] / "docs" / "development"
+        / "PLATFORM_1_0_TEAM_E_E008_SOURCE_ASSEMBLY_RECEIPT_2026-11-08.json"
+    )
+    row = json.loads(p.read_text(encoding="utf-8"))
+    assert row["schema"] == "aegis.platform.ig001.e008.source-assembly-receipt.v1"
+    assert re.fullmatch(r"[0-9a-f]{40}", row["integrated_source_sha"])
+    assert re.fullmatch(r"[0-9a-f]{40}", row["integration_tree_sha"])
+    assert {p["pr"] for p in row["source_prs"]} == {241, 244, 243, 258, 245}
+    assert row["overlay_tree_entries"] == 78
+    assert row["shared_contract_blobs_identical"] == 6
+    assert row["source_only_verified"] is True
+    assert row["compiled_integrated_platform"] is False
+    assert row["disposable_host_executed"] is False
+    assert row["genuine_platform_status_observed"] is False
+    assert row["canonical_writer_recovery_witness"] is False
+    assert row["integrated_milestone_ci"] == "NOT_STARTED"
+    assert row["release_accepted"] is False
+    assert row["production_authorized"] is False
+    assert row["personal_core_activated"] is False
+    assert row["acceptance"] == {
+        "platform_38_pass": 0, "platform_38_fail": 7,
+        "platform_38_not_tested": 31, "library_16_pass": 0,
+        "library_16_not_tested": 16, "go": "NO",
+    }
+    assert {x["team"] for x in row["first_functional_blockers"]} >= {"B", "C", "E"}
