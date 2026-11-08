@@ -383,7 +383,9 @@ mod tests {
     #[test]
     fn editor_needs_review_after_reinstall_even_when_revision_reused() {
         let mut model = ModuleStatusModel::default();
-        model.observe(event("module:one", 1), true).expect("initial module");
+        model
+            .observe(event("module:one", 1), true)
+            .expect("initial module");
         model
             .row_mut("host:local", "module:one")
             .expect("editor")
@@ -393,7 +395,9 @@ mod tests {
         removed.lifecycle = ModuleLifecycle::Removed;
         removed.health = ModuleHealth::Unknown;
         removed.removal_receipt_id = Some("receipt:old".to_owned());
-        model.observe(removed, true).expect("verified removal event");
+        model
+            .observe(removed, true)
+            .expect("verified removal event");
         let mut replacement = event("module:one", 3);
         replacement.module_generation = 2;
         // Same settings revision is not authority to reuse a stale draft.
@@ -407,14 +411,18 @@ mod tests {
     #[test]
     fn editor_needs_review_after_signed_package_replacement_or_host_restart() {
         let mut model = ModuleStatusModel::default();
-        model.observe(event("module:one", 1), true).expect("initial module");
+        model
+            .observe(event("module:one", 1), true)
+            .expect("initial module");
         model
             .row_mut("host:local", "module:one")
             .expect("editor")
             .begin_edit();
         let mut replacement = event("module:one", 2);
         replacement.package_digest = "b".repeat(64);
-        model.observe(replacement, true).expect("signed package changed");
+        model
+            .observe(replacement, true)
+            .expect("signed package changed");
         assert!(model
             .row("host:local", "module:one")
             .expect("package replacement")
@@ -467,7 +475,9 @@ mod tests {
             .expect("row")
             .last_received_at;
         model.expire_at(received + Duration::from_secs(31), Duration::from_secs(30));
-        let row = model.row("host:local", "module:one").expect("still installed");
+        let row = model
+            .row("host:local", "module:one")
+            .expect("still installed");
         assert_eq!(row.current_health(), ModuleHealth::Unknown);
         assert_eq!(row.observation.lifecycle, ModuleLifecycle::Active);
         assert_eq!(row.freshness, ObservationFreshness::Stale);
@@ -476,7 +486,10 @@ mod tests {
             .observe(event("module:one", 2), true)
             .expect("fresh observed reconnect");
         assert_eq!(
-            model.row("host:local", "module:one").expect("reconnected").current_health(),
+            model
+                .row("host:local", "module:one")
+                .expect("reconnected")
+                .current_health(),
             ModuleHealth::VerifiedHealthy
         );
     }
@@ -494,7 +507,10 @@ mod tests {
             .last_received_at;
         model.expire_at(received - Duration::from_secs(1), Duration::from_secs(30));
         assert_eq!(
-            model.row("host:local", "module:one").expect("row").current_health(),
+            model
+                .row("host:local", "module:one")
+                .expect("row")
+                .current_health(),
             ModuleHealth::Unknown
         );
     }
