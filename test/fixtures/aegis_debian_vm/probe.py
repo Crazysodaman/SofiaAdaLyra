@@ -48,6 +48,31 @@ def ready(previous=None):
                 observed[key]=value[:96]
     except (OSError,subprocess.CalledProcessError,subprocess.TimeoutExpired):
         observed={'observation':'unavailable'}
+    # Preserve a bounded *classification* of the Rust supervisor failure
+    # without exporting configuration paths, credentials or journal payloads.
+    try:
+        logs=subprocess.run(
+            ['journalctl','-u',UNIT,'-o','cat','--no-pager','-n','60'],
+            capture_output=True,text=True,timeout=5,check=True).stdout
+        reason='unclassified'
+        for line in reversed(logs.splitlines()):
+            prefix='Platform service failed closed: '
+            if prefix in line:
+                explanation=line.split(prefix,1)[1]
+                if 'timed out' in explanation:
+                    reason='worker-reply-timeout'
+                elif 'identity response differs' in explanation:
+                    reason='worker-identity-mismatch'
+                elif 'unavailable' in explanation:
+                    reason='worker-unavailable'
+                elif 'configuration' in explanation:
+                    reason='configuration-denied'
+                else:
+                    reason='supervisor-rejected'
+                break
+        observed['SupervisorFailureClass']=reason
+    except (OSError,subprocess.CalledProcessError,subprocess.TimeoutExpired):
+        observed['SupervisorFailureClass']='diagnostic-unavailable'
     raise AssertionError('VM service readiness deadline: '+json.dumps(
         {'previous_pid':previous,'systemd':observed},sort_keys=True))
 
