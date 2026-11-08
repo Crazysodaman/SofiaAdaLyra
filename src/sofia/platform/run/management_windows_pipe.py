@@ -154,13 +154,21 @@ def require_windows_pipe_peer(handle) -> str:
 class ManagementWindowsPipeListener:
     """One protected native named-pipe instance, one bounded read per client."""
 
-    def __init__(self, name: str, *, dispatch: Callable[..., Mapping[str, object]]) -> None:
+    def __init__(
+        self, name: str, *, dispatch: Callable[..., Mapping[str, object]],
+        enrolled_operator_sid: str | None = None,
+    ) -> None:
         if not isinstance(name, str) or _NAME.fullmatch(name) is None:
             raise ValueError("bounded Aegis pipe name required")
         if not callable(dispatch):
             raise TypeError("service-owned dispatcher required")
+        if enrolled_operator_sid is not None and re.fullmatch(
+            r"S-1-5-21-(?:[0-9]+-){3}[0-9]+", enrolled_operator_sid
+        ) is None:
+            raise PermissionError("operator DACL requires individually enrolled user SID")
         self.name = "\\\\.\\pipe\\" + name
         self._dispatch = dispatch
+        self._enrolled_operator_sid = enrolled_operator_sid
         self._handle = None
 
     def open(self):
@@ -168,6 +176,10 @@ class ManagementWindowsPipeListener:
         import ctypes.wintypes as wt
         sid = _own_sid(k, a)
         sddl = "D:P(A;;GA;;;SY)(A;;GA;;;" + sid + ")"
+        if self._enrolled_operator_sid is not None and self._enrolled_operator_sid != sid:
+            # GRGW (read/write) only, no generic-all ACL for an external
+            # operator, and NEVER a group/Everyone/Administrators SID.
+            sddl += "(A;;GRGW;;;" + self._enrolled_operator_sid + ")"
         sd = ctypes.c_void_p()
         if not a.ConvertStringSecurityDescriptorToSecurityDescriptorW(
             sddl, 1, ctypes.byref(sd), None
