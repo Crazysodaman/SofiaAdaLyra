@@ -132,3 +132,28 @@ def test_non_distributable_and_private_content_is_denied():
             "source", "target", "0" * 64, 1, 1, "1" * 64, 1,
             "module", "permitted", "private",
         )
+
+
+def test_replaced_after_hash_cannot_be_published(tmp_path, monkeypatch):
+    """The published CAS inode must be the exact inode SHA-256 verified."""
+    data, pin, receiver = _setup(tmp_path)
+    approve = lambda _: True
+    receiver.append_chunk(
+        pin, offset=0, chunk=data,
+        chunk_sha256=hashlib.sha256(data).hexdigest(), authorize=approve,
+    )
+    part = receiver.incoming / (pin.content_sha256 + ".part")
+    replacement = receiver.incoming / "replacement"
+    replacement.write_bytes(b"z" * len(data))
+    replacement.chmod(0o600)
+    original_link = os.link
+
+    def swap_before_link(source, destination, **kwargs):
+        assert Path(source) == part
+        os.replace(replacement, part)
+        return original_link(source, destination, **kwargs)
+
+    monkeypatch.setattr(os, "link", swap_before_link)
+    with pytest.raises(ChunkTransferRejected, match="published object failed identity"):
+        receiver.finalize(pin, authorize=approve)
+    assert not list(receiver.completed.iterdir())
