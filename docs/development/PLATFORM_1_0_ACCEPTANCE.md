@@ -39,7 +39,7 @@ claims complete signed-release installed-host acceptance.
 
 | ID | Requirement | State | Windows | Debian 12 | Missing release evidence / next dependency |
 | --- | --- | --- | --- | --- | --- |
-| 01 | Fresh Platform-only install | NOT TESTED | NOT TESTED | NOT TESTED | Complete signed OS installer, not wheels alone |
+| 01 | Fresh Platform-only install | NOT TESTED | NOT TESTED | NOT TESTED | **GO blocker AG-D011:** signed one-script Windows PowerShell / Debian 12 Bash installer, themed interactive TUI (when terminal supports it), plain ASCII/monochrome fallback, no preinstalled Python/Cargo/Core, real SCM/systemd install and signed installed-host receipts; wheels alone do not count |
 | 02 | No Core installed | NOT TESTED | NOT TESTED | NOT TESTED | Minimal installed wheels covered by `test_platform_optional_dependencies`; final OS release receipt pending |
 | 03 | No canonical Core DB | NOT TESTED | NOT TESTED | NOT TESTED | Same minimal test; service-wide file access acceptance pending |
 | 04 | Permanent UUID | NOT TESTED | NOT TESTED | NOT TESTED | Existing identity tests; reinstall/reboot OS receipt pending |
@@ -57,8 +57,8 @@ claims complete signed-release installed-host acceptance.
 | 16 | Offline names | NOT TESTED | NOT TESTED | NOT TESTED | Existing cached/unconfirmed client tests; remote reconnect |
 | 17 | Generic signed module install | NOT TESTED | NOT TESTED | NOT TESTED | Installed signed artifact lifecycle |
 | 18 | Module rollback/lifecycle | NOT TESTED | NOT TESTED | NOT TESTED | Isolation, limits and crash/revocation acceptance |
-| 19 | Signed update/recovery | NOT TESTED | NOT TESTED | NOT TESTED | OS service upgrade/interruption receipts |
-| 20 | Identity through reinstall | NOT TESTED | NOT TESTED | NOT TESTED | Uninstall/reinstall OS receipts |
+| 19 | Signed update/recovery | NOT TESTED | NOT TESTED | NOT TESTED | Installer update/repair/rollback with verified signatures, bounded interruption/restart and OS service recovery receipts |
+| 20 | Identity through reinstall | NOT TESTED | NOT TESTED | NOT TESTED | Installer uninstall/reinstall OS receipts; preserve protected identity/state by default, no personal Core purge or duplicate service/writer |
 | 21 | Invalid Core rejection | NOT TESTED | NOT TESTED | NOT TESTED | Existing signature/path tests; installed package service boundary |
 | 22 | Signed synthetic Core install | FAIL | NOT TESTED | NOT TESTED | Governed stage/activation interface |
 | 23 | Synthetic start/stop/detach | FAIL | NOT TESTED | NOT TESTED | Governed process lifecycle |
@@ -68,7 +68,7 @@ claims complete signed-release installed-host acceptance.
 | 27 | Native Rust regressions | NOT TESTED | NOT TESTED | NOT TESTED | Native Rust and disposable SCM/systemd regressions pass; final signed-release integration receipt pending |
 | 28 | Installed-wheel isolation | NOT TESTED | NOT TESTED | NOT TESTED | Component CI + minimal dependency test; final exact release receipt pending |
 | 29 | Exact-SHA release CI | NOT TESTED | NOT TESTED | NOT TESTED | Distinct Platform-only gate plus signed release artifacts |
-| 30 | Complete operator runbook | FAIL | NOT TESTED | NOT TESTED | Installed service, recovery and diagnostic commands |
+| 30 | Complete operator runbook | FAIL | NOT TESTED | NOT TESTED | Document AG-D011 one-script setup, themed TUI / ASCII fallback, headless noninteractive invocation, verified service, update/repair/rollback/uninstall and diagnostics |
 | 31 | Versioned authenticated management API | NOT TESTED | NOT TESTED | NOT TESTED | B3 CLI/IPC boundary consumed by CLI, TUI and GUI without duplicate stores |
 | 32 | Terminal Control Center (Windows) | NOT TESTED | NOT TESTED | NOT TESTED | AG-D022 TUI over the management API with live status, reconnect and stale-state handling |
 | 33 | Terminal Control Center (Debian 12) | NOT TESTED | NOT TESTED | NOT TESTED | AG-D022 TUI on headless Debian 12; headless Platform keeps running with no GUI dependency |
@@ -76,7 +76,52 @@ claims complete signed-release installed-host acceptance.
 | 35 | Core Manager surfaces (parity) | NOT TESTED | NOT TESTED | NOT TESTED | AG-D004 via the versioned API on GUI and TUI; no display-name-only authorization |
 | 36 | Module Manager surfaces (policy) | NOT TESTED | NOT TESTED | NOT TESTED | AG-D006 live status, uninstall/reinstall policy and Core-originated removal proposals |
 | 37 | Security/Approvals, Updates/Recovery and Diagnostics surfaces | NOT TESTED | NOT TESTED | NOT TESTED | Protected operations gated service-side; approval surface may not mint authority |
-| 38 | Shared GUI/TUI theme and independent installability | NOT TESTED | NOT TESTED | NOT TESTED | AEGIS_SHARED_GUI_TUI_THEME tokens applied to both interfaces; independently installable; headless operation unaffected |
+| 38 | Shared GUI/TUI theme and independent installability | NOT TESTED | NOT TESTED | NOT TESTED | Same approved AEGIS_SHARED_GUI_TUI_THEME tokens in GUI, terminal Control Center and AG-D011 installer TUI; truecolor/limited-color/NO_COLOR plain-ASCII fallback; separately installable GUIs; headless service independent |
+
+## AG-D011 interactive installer promoted to Platform 1.0 GO-LIVE blocker (2026-11-08)
+
+**Explicit owner decision:** The cross-platform, one-script installer and its
+shared-theme interactive terminal experience are required for the **Platform 1.0
+GO** decision. This refines the already-required signed OS installer; it does
+not add or renumber acceptance rows. Evaluate against existing rows **01, 19,
+20, 30 and 38**, plus **06–08 and 10** for service registration, recovery and
+authorized management. Design-only documentation, staged files and wheel tests
+cannot satisfy these release gates.
+
+**Minimum ship contract:**
+
+- Reviewed signed release bundle, independently verified root of trust, and
+  one auditable launch script per OS: `Install-Aegis.ps1` for supported Windows
+  and `install-aegis.sh` for Debian 12. No Git clone, Python, Cargo, GPU,
+  Sofía Core or model required to install a **Core-free** Platform.
+- Keyboard-only interactive setup/maintenance **TUI** where a usable terminal
+  exists, with the **same canonical Aegis palette** as GUI and TUI:
+  `#9400D3` purple, `#00C2FF` cyan, `#39FF14` lime, `#000000` background.
+  Reuse `contracts/ui/aegis-theme-v1.json`, not an installer-specific palette.
+  Provide safe truecolor/256/16-color handling, `NO_COLOR`, narrow/SSH
+  **plain ASCII numbered-menu fallback**, and no ANSI in redirected/log/JSON
+  output. Color never conveys trust or authorization by itself.
+- Same installer backend and security rules for TUI and scripted/headless CLI.
+  Preflight, exact signed artifact/OS/architecture validation, install preview,
+  approved service changes, status/diagnostics, update, repair, rollback and
+  uninstall. A noninteractive mode must require explicit safe inputs and must
+  never bypass SAFE/STOP, owner approval, revocation or anti-replay.
+- Install a real **Rust-owned native OS service** with verified installed
+  runtime/SDK dependencies, durable identity and receipts. Install/reinstall
+  must not adopt unrelated services, create a second writer, silently install a
+  Core/Fleet peer or purge protected state. Uninstall preserves state by default;
+  destructive purge requires separate authorization.
+- **GO evidence:** exact-SHA signed Windows and Debian 12 disposable-host
+  install/update/repair/uninstall/reinstall and reboot/crash/rollback tests;
+  interactive TUI, ASCII/monochrome and headless mode checks; accessibility,
+  secret redaction, keyboard cancellation and failure-path receipts. All mapped
+  rows remain NOT TESTED/FAIL until their actual signed installed-host evidence
+  is accepted.
+
+**Implementation status:** REQUIRED, **NOT YET VERIFIED OR SHIPPED**. AG-D011
+is the canonical installer UX design. Do not infer the scripts currently
+exist or that the active B1 staging branch already activates the signed Rust
+service. No production deployment, real Core activation or G8 authorization.
 
 ## UI scope added by owner directive (2026-11-08)
 

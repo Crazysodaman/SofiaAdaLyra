@@ -127,16 +127,16 @@ Possible split: Codex owns Platform/Rust/SDK boundaries, OpenCode develops Sofí
 
 ## New ideas to flesh out (proposals only)
 
-AG-D011 now has an explicit **OWNER-DESIRED CLI-first installation UX**; AG-D012–AG-D018 remain captured design explorations with the individual statuses stated below. None of these entries automatically schedules a new implementation task or changes Platform 1.0 acceptance #201. Candidate order is for design discussion, **not** implementation priority.
+**Owner promotion (2026-11-08): AG-D011 is an explicit Platform 1.0 GO-LIVE blocker**. Its signed one-script installer plus approved themed TUI and plain ASCII/headless fallback must pass existing #201 rows 01, 19, 20, 30 and 38. AG-D012–AG-D018 remain design explorations unless independently approved; other proposals here do not silently change release scope.
 
 ### AG-D011 | One-script ASCII Platform Installer and First-run Setup
 
-**Status:** OWNER-DESIRED (2026-11-07), CLI-first cross-platform UX direction confirmed. **Implementation:** NOT SCHEDULED BY THIS DESIGN FILE. **Target release:** align with existing Platform 1.0 signed installer/CLI work (#201), only after backend authority and Windows/Debian installed-host acceptance.
+**Status:** OWNER-APPROVED / REQUIRED FOR PLATFORM 1.0 GO (2026-11-08). **Implementation:** NOT YET SHIPPED OR VERIFIED. **Target release:** Platform 1.0 #201, with shared governed installation backend, real Rust OS service registration, Windows/Debian disposable installed-host acceptance, themed interactive setup TUI and plain-ASCII/headless fallback.
 
-**Detailed design:** [AG-D011: One-script ASCII Platform Installer](AG_D011_ASCII_PLATFORM_INSTALLER.md), including interactive terminal layout, Windows PowerShell and Debian Bash bootstrap entrypoints, signed release validation, Core-free defaults, secure approval, update/repair/uninstall, rollback and OS acceptance. These scripts are **proposed release entrypoints and do not yet exist as certified installers**.
+**Detailed release requirement:** [AG-D011: One-script ASCII Platform Installer](AG_D011_ASCII_PLATFORM_INSTALLER.md), including interactive shared-theme terminal layout, `NO_COLOR`/ASCII fallback, Windows PowerShell and Debian Bash bootstrap entrypoints, signed release validation, Core-free defaults, scoped secure approval, update/repair/uninstall, rollback and OS acceptance. Scripts are **required to ship**, but are **not yet certified implementations**.
 
 **Confirmed owner experience:**
-- Download one reviewed, signed Platform release package and run `./Install-Aegis.ps1` (Windows) or `bash ./install-aegis.sh` (Debian). Follow a keyboard-only, plain ASCII setup menu that works over SSH or in ordinary terminals without a GUI.
+- Download one reviewed, signed Platform release package and run `./Install-Aegis.ps1` (Windows) or `bash ./install-aegis.sh` (Debian). Provide keyboard-only setup TUI using the same approved Aegis purple/cyan/lime/black theme as the GUI, with numbered plain-ASCII/`NO_COLOR` fallback for SSH, narrow/limited terminals and an explicitly safe noninteractive CLI mode.
 - A first-run flow inspects OS/prerequisites, authenticates the signed artifact and exact platform target, previews paths/service/state changes, prompts for scoped owner approval through existing SAFE/STOP authority, performs a governed install and shows source-backed service health. No manual Git, Rust, Python, wheels, Ollama or Core dependency is required from the user.
 - Default installation is **Core-free, local, and not Fleet-enrolled**. Core installation, inference configuration, Fleet enrollment, updates and service-impacting operations remain explicitly separate approved steps.
 - Reopen installer for update, repair, uninstall, status and diagnostics without silently creating a second identity, deleting personal Core data, overriding revoked grants or restarting an unrelated service. Protected-state purge requires a separate destructive authorization ceremony.

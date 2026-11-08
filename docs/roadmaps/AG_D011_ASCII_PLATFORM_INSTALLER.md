@@ -1,9 +1,9 @@
 # AG-D011 | One-script ASCII Aegis Platform installer
 
-**Decision:** OWNER-DESIRED, CLI-first Windows and Debian setup experience (2026-11-07).
-**Implementation:** DESIGN ONLY. Neither shell entrypoint below is currently a certified or published release installer.
-**Scope:** Refinement of AG-D011 first-run wizard, not a competing platform installation authority or new GO-LIVE gate.
-**Dependency:** Reuse Platform 1.0 #201 work (signed release verifier/stager, identity, Rust native service, OS registration, SAFE/STOP, authenticated management CLI/IPC, recovery). The existing OpenCode #201 work order has priority; this design does not authorize implementation changes or real-host activation.
+**Decision:** OWNER-APPROVED and REQUIRED FOR PLATFORM 1.0 GO (2026-11-08 owner directive); CLI-first Windows and Debian setup experience originally chosen 2026-11-07.
+**Implementation:** RELEASE-BLOCKING SPECIFICATION, NOT IMPLEMENTED/CERTIFIED. Neither shell entrypoint below is currently a certified or published installer.
+**Scope:** AG-D011 is now an explicit Platform 1.0 GO blocker through existing #201 acceptance rows 01, 19, 20, 30 and 38 (also 06–08 and 10 for service/recovery/management). No second installation authority and no new acceptance row.
+**Dependency:** Implement using Platform 1.0 #201 work (signed release verifier/stager, identity, real Rust-owned native service, OS registration, SAFE/STOP, authenticated management CLI/IPC and recovery). It is approved release implementation scope but does not authorize deployment, personal Core activation or real-host cutover.
 
 ## 1. Owner-facing contract
 
@@ -53,9 +53,9 @@ STEP 7/7  Install and verify  [actual executor receipts]
 
 Final screen must show distinct facts: artifact VERIFIED, service RUNNING/STOPPED/UNKNOWN, service HEALTHY/DEGRADED/UNKNOWN, Platform identity serial/fingerprint, Core NOT INSTALLED when absent, Fleet NOT ENROLLED when not enrolled, exact release revision/digest, service origin, and log/diagnostics location. Never equate process RUNNING with full health, trust, Core cognition or model inference.
 
-## Canonical CLI color scheme
+## Canonical CLI/TUI installer color scheme (mandatory for Platform 1.0)
 
-All ASCII installer menus, prompts, preflight displays, action review and status/diagnostic output use the owner-defined [shared Aegis GUI/TUI color theme](AEGIS_SHARED_GUI_TUI_THEME.md) by default; [terminal-specific color and monochrome rules](AEGIS_CLI_TUI_COLOR_THEME.md) apply where the terminal supports it: purple `#9400D3` branding, cyan `#00C2FF` accent, lime `#39FF14` success, black `#000000` background, `#0B1020` panels, light text `#E5E7EB`, amber `#FFB000` warnings and red `#9F0202` danger accents, plus the complete HUD/hover/focus palette specified there. Monochrome ASCII remains a first-class fallback for SSH, serial terminals, `NO_COLOR`, narrow displays and redirected output. Never rely on color alone to identify protected operations or imply an install succeeded. Implement the shared theme only through presentation, without overriding service/owner authority.
+All interactive installer TUI menus, ASCII fallback prompts, preflight displays, action review and status/diagnostic output **must** use the owner-defined [shared Aegis GUI/TUI color theme](AEGIS_SHARED_GUI_TUI_THEME.md) by default; [terminal-specific color and monochrome rules](AEGIS_CLI_TUI_COLOR_THEME.md) apply where the terminal supports it: purple `#9400D3` branding, cyan `#00C2FF` accent, lime `#39FF14` success, black `#000000` background, `#0B1020` panels, light text `#E5E7EB`, amber `#FFB000` warnings and red `#9F0202` danger accents, plus the complete HUD/hover/focus palette specified there. Monochrome ASCII remains a first-class fallback for SSH, serial terminals, `NO_COLOR`, narrow displays and redirected output. Never rely on color alone to identify protected operations or imply an install succeeded. Implement the shared theme only through presentation, without overriding service/owner authority.
 
 ## 2. Cross-platform bootstrap architecture
 
@@ -102,21 +102,21 @@ Do not confuse the existing `packaging/services/aegis-platform.service`, Rust `a
 | Purge | Separate explicit advanced destructive ceremony with independent owner authorization, verified backup/recovery constraints and precise preview. Not a default menu shortcut. |
 | Diagnostics | Read-only facts with bounded scrubbed logs, missing prereqs, service state, installation revision and genuine recovery suggestions. |
 
-## 6. Test matrix and release gate
+## 6. Mandatory Platform 1.0 installed-host test matrix and release gate
 
 - Fresh Windows nonadmin-to-admin consent, fresh Debian12 local/SSH user-to-sudo, and offline installation on disposable hosts; no Python/Cargo/GPU/Core preinstalled.
 - Correct signature versus modified package; untrusted/revoked signer; wrong OS/architecture, stale release, downgrade, missing dependency, incomplete bundle and redirected extraction directory.
 - Explicit lack of Core, model, network or desktop still permits supported Core-free install. No `sofia.db` or personal assets created.
 - Existing Platform identity reuse; conflicting/wrong identity; existing unrelated service; interrupted stage, interrupted registration, power loss, restart, retry, repair and rollback with no duplicated service or writer.
 - Lost/deleted/expired owner approval, STOP between review and execution, wrong host, replay, guest/remote identity spoof, unsafe CLI flags and redacted secret handling.
-- Screen-reader-friendly plain ASCII, narrow SSH terminal width, non-ANSI fallback, Windows and Linux line-ending handling, keyboard-only prompts, cancelled/back navigation, non-TTY refusal or approved explicit noninteractive inputs.
+- Interactive themed TUI on Windows and Debian, exact canonical 22-token manifest reuse, truecolor/256/16-color fallback, screen-reader-friendly plain ASCII numbered-menu fallback for `NO_COLOR`, narrow/SSH/serial terminals, no ANSI in pipe/JSON/log, Windows/Linux line endings, keyboard-only prompts, cancelled/back navigation, and non-TTY refusal unless an approved explicitly scoped noninteractive mode is used.
 - Report exact Git SHA, signed release digest, binary/package version, tests, OS-native installed-host lifecycle/health and cleanup evidence; only mark #201 acceptance rows PASS when their full existing criteria are met.
 
 ## 7. Milestones and non-goals
 
-- **UX-0 (this document):** Owner has chosen a one-script ASCII CLI installer as primary path. Capture expected prompts, default selections and review semantics. **DESIGN ONLY**.
+- **UX-0 (this document):** Owner has selected the one-script CLI-first installer with themed optional TUI and plain ASCII fallback as a **mandatory Platform 1.0 GO feature**. This design documents behavior; implementation and installed-host evidence are still outstanding.
 - **UX-1:** Build read-only preflight + deterministic plan output and ASCII presentation using agreed service interface, with Windows/Debian tests. Cannot stage or activate real hosts.
 - **UX-2:** Wire the launchers to the #201 governed signed installer and authenticated management API once those foundations have passed their own tests; add disposable installed-host acceptance.
 - **UX-3:** Signed installer release packages, operator docs and approved production process; never inferred from a passing CLI demo.
 
-Do not add UI design acceptance as a silent new requirement for #201. Its already-mandatory **real signed installer and headless management CLI** may share the final backend. Future GUI uses the same API; this CLI is neither Sofía Workbench nor an alternative identity authority.
+**Owner-approved GO scope (2026-11-08):** AG-D011's interactive theme and fallback are now explicitly mandatory under #201 without adding a 39th row. The real signed installer and headless CLI share the same governed backend and authority as the optional TUI and future GUI. None of these interfaces is Sofía Workbench or an alternative identity authority.
