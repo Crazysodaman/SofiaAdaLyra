@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import os
+import socket
+import ssl
 from threading import Thread
 
 import pytest
@@ -11,7 +13,8 @@ from sofia.platform.ops.library_chunk_receiver import (
 )
 from sofia.platform.ops.library_tls_chunk_transport import serve_one_chunk
 from sofia.platform.ops.library_tls_resumable_fetch import fetch_resumable_chunks
-from test.test_library_tls_chunk_transport import _pair, _transfer
+from test.test_library_tls_chunk_transport import _transfer
+from test.test_core_link_conversation import tls_material
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX private CAS mode verification")
@@ -26,13 +29,50 @@ def test_authenticated_reconnect_resumes_durable_receiver(tmp_path):
     failures = []
     authorizations = []
 
+    # A real enrollment retains the same certificate across reconnects.
+    ca, (server_cert, server_key), (client_cert, client_key) = tls_material(tmp_path)
+    server_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    server_ctx.minimum_version = server_ctx.maximum_version = ssl.TLSVersion.TLSv1_3
+    server_ctx.verify_mode = ssl.CERT_REQUIRED
+    server_ctx.load_verify_locations(cafile=str(ca))
+    server_ctx.load_cert_chain(str(server_cert), str(server_key))
+    client_ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile=str(ca))
+    client_ctx.minimum_version = client_ctx.maximum_version = ssl.TLSVersion.TLSv1_3
+    client_ctx.load_cert_chain(str(client_cert), str(client_key))
+
+    def tls_pair():
+        a, b = socket.socketpair()
+        server = server_ctx.wrap_socket(a, server_side=True, do_handshake_on_connect=False)
+        client = client_ctx.wrap_socket(
+            b, server_hostname="localhost", do_handshake_on_connect=False,
+        )
+        server.settimeout(5)
+        client.settimeout(5)
+        handshake_errors = []
+        def handshake():
+            try:
+                server.do_handshake()
+            except Exception as exc:
+                handshake_errors.append(exc)
+        thread = Thread(target=handshake)
+        thread.start()
+        try:
+            client.do_handshake()
+        finally:
+            thread.join(timeout=8)
+        if handshake_errors or thread.is_alive():
+            server.close()
+            client.close()
+            raise AssertionError("re-enrolled mTLS handshake failed")
+        return server, client
+
     def grant(sock, fingerprint, pinned, offset, length):
         assert len(fingerprint) == 64 and pinned == transfer
         authorizations.append((offset, length))
         return True
 
     def open_tls():
-        server, client = _pair(tmp_path)
+        server, client = tls_pair()
         def send():
             try:
                 serve_one_chunk(
