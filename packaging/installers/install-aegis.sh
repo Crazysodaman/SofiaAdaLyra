@@ -55,6 +55,7 @@ theme_hex() {
 }
 
 use_color=0
+narrow=0
 # No ANSI in noninteractive output. Use the single canonical theme manifest.
 if [[ "$PLAIN" -eq 0 && "$JSON_MODE" -eq 0 && -t 0 && -t 1 && ! -v NO_COLOR &&
       "$(printenv TERM || printf dumb)" != dumb ]]; then
@@ -67,7 +68,7 @@ if [[ "$PLAIN" -eq 0 && "$JSON_MODE" -eq 0 && -t 0 && -t 1 && ! -v NO_COLOR &&
   fi
   # Narrow SSH/serial windows use monochrome instead of clipped color art.
   width="$(tput cols 2>/dev/null || printf 80)"
-  if [[ "$width" =~ ^[0-9]{1,4}$ ]] && ((width < 64)); then use_color=0; fi
+  if [[ "$width" =~ ^[0-9]{1,4}$ ]] && ((width < 64)); then use_color=0; narrow=1; fi
 fi
 
 paint() {
@@ -147,14 +148,18 @@ if [[ ! -t 0 || ! -t 1 ]]; then
 fi
 
 while :; do
-  paint primary '+------------------------------------------------------------+'
-  printf '\n'
-  paint primary '|                AEGIS PLATFORM INSTALLER                    |'
-  printf '\n'
-  paint warning '|        PREVIEW ONLY / NO INSTALL AUTHORITY                 |'
-  printf '\n'
-  paint primary '+------------------------------------------------------------+'
-  printf '\n'
+  if [[ "$narrow" -eq 1 ]]; then
+    printf '%s\n' 'AEGIS PLATFORM INSTALLER' 'PREVIEW ONLY / NO INSTALL AUTHORITY'
+  else
+    paint primary '+------------------------------------------------------------+'
+    printf '\n'
+    paint primary '|                AEGIS PLATFORM INSTALLER                    |'
+    printf '\n'
+    paint warning '|        PREVIEW ONLY / NO INSTALL AUTHORITY                 |'
+    printf '\n'
+    paint primary '+------------------------------------------------------------+'
+    printf '\n'
+  fi
   paint accent '[1]'; printf ' Install Platform (blocked)\n'
   paint accent '[2]'; printf ' Update Platform (blocked)\n'
   paint accent '[3]'; printf ' Repair Platform (blocked)\n'
