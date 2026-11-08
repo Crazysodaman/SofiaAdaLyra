@@ -170,7 +170,7 @@ def test_redirected_library_root_denied_before_creation(tmp_path):
     assert not (external / "library").exists()
 
 
-@pytest.mark.parametrize("bad_id", ["peer\\nforged", "peer name", "/root", "..", "peer\\x00null"])
+@pytest.mark.parametrize("bad_id", ["peer\nforged", "peer name", "/root", "..", "peer\x00null"])
 def test_transfer_rejects_control_character_peer_ids(bad_id):
     with pytest.raises(ValueError, match="platform identities"):
         PinnedChunkTransfer(
