@@ -85,9 +85,12 @@ def _safe_data(value: object, depth: int = 0) -> None:
         if any(unicodedata.category(char) == "Cc" for char in value):
             raise ValueError("control characters in management response")
     elif type(value) is float:
-        if not math.isfinite(value):
-            raise ValueError("nonfinite management result")
-    elif value is None or type(value) in (bool, int):
+        if not math.isfinite(value) or abs(value) > (2**53 - 1):
+            raise ValueError("nonportable management number")
+    elif type(value) is int:
+        if abs(value) > (2**53 - 1):
+            raise ValueError("nonportable management integer")
+    elif value is None or type(value) is bool:
         return
     else:
         raise ValueError("unsupported management response projection")
