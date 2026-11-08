@@ -182,6 +182,7 @@ def _core001_marker_spawn(tmp_path, monkeypatch, *, mode, epoch=7):
             "ready_at": "2026-11-08T09:35:00+00:00",
             "state_path": str(state_path.resolve()),
             "start_token": token,
+            "phase": "PROCESS_READY",
             "generation_epoch": generation,
         }
         if mode == "dead":
