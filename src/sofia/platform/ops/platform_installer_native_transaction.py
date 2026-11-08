@@ -1,0 +1,310 @@
+"""AG-D011 B1-owned, SAFE-fenced native service transaction coordinator.
+
+The B1 signed installed-release store is the ONLY code installation authority.
+This companion tracks exact observed OS-service effects; it does not grant
+authority, create a second release store, or activate a Core.
+
+This API is intentionally not wired to PowerShell/Bash or external IPC until
+Team A freezes authenticated operation and live enrollment/revocation policy.
+Native effects are always protected by an existing exact one-use owner proof.
+"""
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from hashlib import sha256
+import json
+from pathlib import Path
+
+from sofia.platform.ops.platform_installation import (
+    PlatformInstallationDenied, PlatformInstallationStore,
+)
+from sofia.platform.ops.platform_installer_native_service import (
+    NativeServiceSpecification, signed_native_service_specification,
+)
+from sofia.platform.ops.platform_release import PlatformReleaseVerifier
+from sofia.platform.run.process_lock import StateProcessLock
+from sofia.platform.safe.execution_approval import (
+    ExecutionApprovalVerifier, execution_fingerprint,
+)
+from sofia.platform.safe.operator_stop import OperatorStopStore
+from sofia.platform.state.private_file import (
+    assert_no_redirected_components, assert_owner_private_path,
+    atomic_write_private_text,
+)
+from sofia.sdk.cognition_json import loads_strict_model_json
+from sofia.sdk.platform_release import PlatformReleaseTarget
+
+_NATIVE_CAPABILITY = "platform.native_service.apply"
+_JOURNAL_SCHEMA = "aegis.native-service-transaction.v1"
+_JOURNAL_FILE = "native-service-transaction.json"
+_OPS = frozenset(("register", "repair", "update", "rollback", "unregister"))
+
+
+def _public_spec(spec: NativeServiceSpecification) -> dict[str, object]:
+    return {
+        "platform_id": spec.platform_id,
+        "public_key_sha256": spec.public_key_sha256,
+        "release_id": spec.release_id,
+        "revision": spec.revision,
+        "manifest_sha256": spec.manifest_sha256,
+        "native_sha256": spec.executable_sha256,
+        "service_name": spec.service_name,
+        "target": spec.target.value,
+    }
+
+
+def _journal_path(store: PlatformInstallationStore) -> Path:
+    if not isinstance(store, PlatformInstallationStore):
+        raise TypeError("canonical B1 installation store required")
+    path = Path(store.path).absolute().parent / _JOURNAL_FILE
+    assert_owner_private_path(path.parent, directory=True)
+    assert_no_redirected_components(path, include_leaf=True)
+    return path
+
+
+def _load_journal(store: PlatformInstallationStore) -> dict[str, object] | None:
+    path = _journal_path(store)
+    if not path.exists():
+        return None
+    assert_owner_private_path(path, directory=False)
+    if path.stat(follow_symlinks=False).st_size > 16000:
+        raise PlatformInstallationDenied("native journal oversized")
+    raw = loads_strict_model_json(path.read_text(encoding="utf-8"))
+    if (type(raw) is not dict or
+            set(raw) != {"schema", "phase", "generation", "current", "last_operation", "last_receipt"}
+            or raw["schema"] != _JOURNAL_SCHEMA
+            or type(raw["generation"]) is not int or raw["generation"] < 1
+            or raw["phase"] not in
+            ("PENDING", "OUTCOME_UNKNOWN", "SERVICE_OBSERVED", "REMOVED")):
+        raise PlatformInstallationDenied("native journal inconsistent, cannot recover silently")
+    return raw
+
+
+def _record_journal(store: PlatformInstallationStore, state: dict[str, object]) -> None:
+    path = _journal_path(store)
+    atomic_write_private_text(
+        path, json.dumps(state, sort_keys=True, separators=(",", ":"), allow_nan=False),
+    )
+
+
+def _spec(*, store, verifier, expected_target, destination, identity_home, local_state):
+    return signed_native_service_specification(
+        store=store, verifier=verifier, expected_target=expected_target,
+        destination=destination, identity_home=identity_home,
+        local_state=local_state,
+    )
+
+
+def native_service_operation_request(
+    *,
+    operation: str,
+    store: PlatformInstallationStore,
+    verifier: PlatformReleaseVerifier,
+    expected_target: PlatformReleaseTarget,
+    destination: Path | str,
+    identity_home: Path | str,
+    local_state: Path | str,
+    canonical_safe_state: Path | str,
+    previous_destination: Path | str | None = None,
+) -> dict[str, object]:
+    """Verify installed signed code + B1 checkpoint + native journal before approval."""
+    if operation not in _OPS:
+        raise PlatformInstallationDenied("unsupported native lifecycle operation")
+    if not isinstance(store, PlatformInstallationStore):
+        raise TypeError("B1 store required")
+    if store.pending_attempts():
+        raise PlatformInstallationDenied("unreconciled B1 attempt blocks native execution")
+    current = _spec(
+        store=store, verifier=verifier, expected_target=expected_target,
+        destination=destination, identity_home=identity_home,
+        local_state=local_state,
+    )
+    prev = None
+    if operation in ("update", "rollback"):
+        if previous_destination is None:
+            raise PlatformInstallationDenied("exact current B1 release required")
+        prev = _spec(
+            store=store, verifier=verifier, expected_target=expected_target,
+            destination=previous_destination, identity_home=identity_home,
+            local_state=local_state,
+        )
+        if (current.platform_id != prev.platform_id
+                or current.public_key_sha256 != prev.public_key_sha256):
+            raise PlatformInstallationDenied("native release change cannot alter Platform identity")
+        if operation == "update":
+            if current.revision <= prev.revision:
+                raise PlatformInstallationDenied("native update must advance signed revision")
+        else:
+            history = store.history()
+            if (current.revision >= prev.revision or not any(
+                item["release_id"] == current.release_id
+                and item["manifest_sha256"] == current.manifest_sha256
+                and item["result"] == "SUCCEEDED" for item in history
+            )):
+                raise PlatformInstallationDenied("rollback needs previously verified signed bytes")
+    elif previous_destination is not None:
+        raise PlatformInstallationDenied("unexpected previous release path")
+    safe = Path(canonical_safe_state).absolute()
+    assert_no_redirected_components(safe, include_leaf=True)
+    journal = _load_journal(store)
+    if journal is not None and journal["phase"] in ("PENDING", "OUTCOME_UNKNOWN"):
+        raise PlatformInstallationDenied("unresolved native outcome requires reconciliation")
+    registered = journal["current"] if journal else None
+    if operation == "register":
+        if registered is not None:
+            raise PlatformInstallationDenied("existing registered service cannot be adopted")
+    elif operation in ("repair", "unregister"):
+        if registered != _public_spec(current):
+            raise PlatformInstallationDenied("service is not owned by exact signed B1 release")
+    else:
+        if registered != _public_spec(prev):
+            raise PlatformInstallationDenied("previous native service release identity mismatch")
+    checkpoint = store.checkpoint()
+    params = {
+        "operation": operation,
+        "candidate": _public_spec(current),
+        "previous": _public_spec(prev) if prev is not None else None,
+        "identity_home": str(Path(identity_home).absolute()),
+        "local_state": str(Path(local_state).absolute()),
+        "canonical_safe_state": str(safe),
+        "destination": str(Path(destination).absolute()),
+        "previous_destination": None if previous_destination is None
+            else str(Path(previous_destination).absolute()),
+        "b1_generation": 0 if checkpoint is None else checkpoint.generation,
+        "b1_revision_floor": 0 if checkpoint is None else checkpoint.minimum_accepted_revision,
+        "native_generation": 0 if journal is None else journal["generation"],
+        "native_phase": "ABSENT" if journal is None else journal["phase"],
+    }
+    return {
+        "schema": "aegis.native-service-request.v1",
+        "capability": _NATIVE_CAPABILITY,
+        "parameters": params,
+        "fingerprint": execution_fingerprint(_NATIVE_CAPABILITY, params),
+        "owner_approved": False,
+        "executed": False,
+    }
+
+
+def apply_owner_approved_native_service(
+    *,
+    operation: str,
+    approval_id: str,
+    store: PlatformInstallationStore,
+    verifier: PlatformReleaseVerifier,
+    expected_target: PlatformReleaseTarget,
+    destination: Path | str,
+    identity_home: Path | str,
+    local_state: Path | str,
+    canonical_safe_state: Path | str,
+    backend,
+    previous_destination: Path | str | None = None,
+    now: datetime | None = None,
+) -> dict[str, object]:
+    """One owner proof + one OS operation; record outcomes before/after effects.
+
+    Real-time enrollment/revocation during an in-flight native OS call needs
+    Team A's yet-to-be-frozen service boundary. A changed STOP after an OS
+    effect causes OUTCOME_UNKNOWN, never a successful service-health claim.
+    """
+    if not isinstance(approval_id, str) or not approval_id.strip():
+        raise PlatformInstallationDenied("native OS mutation requires scoped owner approval")
+    if type(operation) is not str or operation not in _OPS:
+        raise PlatformInstallationDenied("unknown native OS operation")
+    moment = now or datetime.now(timezone.utc)
+    if moment.tzinfo is None or moment.utcoffset() is None:
+        raise ValueError("timezone aware authorization time required")
+    safe = Path(canonical_safe_state).absolute()
+    with StateProcessLock(store.path, resource="aegis-native-install",
+                          lock_directory=Path(store.path).absolute().parent):
+        if OperatorStopStore(safe).current().active:
+            raise PlatformInstallationDenied("STOP engaged, native operation denied")
+        expected = native_service_operation_request(
+            operation=operation, store=store, verifier=verifier,
+            expected_target=expected_target, destination=destination,
+            identity_home=identity_home, local_state=local_state,
+            canonical_safe_state=safe, previous_destination=previous_destination,
+        )
+        # SAFE consumption provides current proof, expiration, credential
+        # revocation and one-use exact action binding. No --yes/flag shortcut.
+        ExecutionApprovalVerifier(safe).consume(
+            approval_id=approval_id, capability=expected["capability"],
+            parameters=expected["parameters"], now=moment,
+        )
+        if OperatorStopStore(safe).current().active:
+            raise PlatformInstallationDenied("STOP engaged after approval consumption")
+        observed = native_service_operation_request(
+            operation=operation, store=store, verifier=verifier,
+            expected_target=expected_target, destination=destination,
+            identity_home=identity_home, local_state=local_state,
+            canonical_safe_state=safe, previous_destination=previous_destination,
+        )
+        if observed["fingerprint"] != expected["fingerprint"]:
+            raise PlatformInstallationDenied("B1 native service plan changed before execution")
+        candidate = _spec(
+            store=store, verifier=verifier, expected_target=expected_target,
+            destination=destination, identity_home=identity_home,
+            local_state=local_state,
+        )
+        previous = None if previous_destination is None else _spec(
+            store=store, verifier=verifier, expected_target=expected_target,
+            destination=previous_destination, identity_home=identity_home,
+            local_state=local_state,
+        )
+        previous_journal = _load_journal(store)
+        generation = 1 if previous_journal is None else previous_journal["generation"] + 1
+        base = {
+            "schema": _JOURNAL_SCHEMA, "phase": "PENDING",
+            "generation": generation,
+            "current": None if previous_journal is None else previous_journal["current"],
+            "last_operation": operation, "last_receipt": None,
+        }
+        _record_journal(store, base)
+        try:
+            if operation == "register":
+                result = backend.register(candidate)
+                selected = _public_spec(candidate)
+            elif operation == "unregister":
+                result = backend.stop_and_unregister(candidate)
+                selected = None
+            elif operation == "repair":
+                result = backend.restart_verified(candidate)
+                selected = _public_spec(candidate)
+            elif operation in ("update", "rollback"):
+                result = backend.replace_verified(previous, candidate)
+                selected = _public_spec(candidate)
+            else:
+                raise AssertionError("unsupported operation reached effect boundary")
+            if not isinstance(result, dict) or result.get("schema") != "aegis.native-service-receipt.v1":
+                raise RuntimeError("native OS adapter returned no canonical receipt")
+            if OperatorStopStore(safe).current().active:
+                raise PlatformInstallationDenied("STOP changed during native operation")
+            verified_identity = _spec(
+                store=store, verifier=verifier, expected_target=expected_target,
+                destination=destination, identity_home=identity_home, local_state=local_state,
+            )
+            if verified_identity.platform_id != candidate.platform_id:
+                raise PlatformInstallationDenied("Platform identity changed during native operation")
+            if result.get("service") != candidate.service_name or (
+                result.get("process_state") not in
+                ("RUNNING", "REMOVED")
+            ):
+                raise RuntimeError("native OS effect not observed as requested")
+            if operation == "unregister" and result["process_state"] != "REMOVED":
+                raise RuntimeError("unregister did not remove native service")
+            if operation != "unregister" and result["process_state"] != "RUNNING":
+                raise RuntimeError("native service did not reach running")
+            state = {**base, "phase": "REMOVED" if selected is None else "SERVICE_OBSERVED",
+                     "current": selected, "last_receipt": {
+                         **result,
+                         "signed_release_verified": True,
+                         "owner_approval_consumed": True,
+                         "full_health_certified": False,
+                         "protected_identity_retained": True,
+                     }}
+            _record_journal(store, state)
+            return state["last_receipt"]
+        except BaseException:
+            # Do not auto-rollback or try another service action with consumed
+            # proof. Exact native OS reconciliation required by an operator.
+            _record_journal(store, {**base, "phase": "OUTCOME_UNKNOWN"})
+            raise
