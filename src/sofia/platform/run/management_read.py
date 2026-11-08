@@ -16,7 +16,7 @@ import json
 import re
 from typing import Any
 
-from sofia.platform.config.settings_authority import SettingsOwner
+from sofia.platform.config.settings_authority import SettingsOwner, runtime_settings_contracts
 from sofia.sdk.platform_management import UntrustedManagementRead
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$")
@@ -98,18 +98,18 @@ class ManagementReadDispatcher:
                     or set(values) != set(contracts)
                     or len(values) > 256):
                 raise ManagementReadDenied("invalid scoped settings projection")
+            authoritative_contracts = runtime_settings_contracts()
             for field, contract in contracts.items():
                 if (not isinstance(field, str)
                         or not isinstance(contract, Mapping)
                         or set(contract) != {"owner", "apply_class"}):
                     raise ManagementReadDenied("invalid settings ownership contract")
-                try:
-                    owner = SettingsOwner(contract["owner"])
-                except (ValueError, TypeError) as error:
-                    raise ManagementReadDenied(
-                        "unrecognized settings owner"
-                    ) from error
-                if owner not in scopes:
+                actual = authoritative_contracts.get(field)
+                if (actual is None
+                        or actual.owner is SettingsOwner.CLIENT
+                        or actual.owner not in scopes
+                        or contract["owner"] != actual.owner.value
+                        or contract["apply_class"] != actual.apply_class.value):
                     raise ManagementReadDenied("settings disclosure outside approved scope")
         else:
             observation = {
