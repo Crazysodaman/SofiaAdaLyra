@@ -115,7 +115,7 @@ def _as_uid(uid: int, gid: int, groups: list[int], path: Path,
 
 def test_real_kernel_cross_uid_operator_socket_and_negative_policy():
     """Real separate Linux UIDs; synthetic local grant, not canonical SAFE."""
-    ctx=multiprocessing.get_context('fork')
+    ctx=multiprocessing.get_context('spawn')
     root=Path(tempfile.mkdtemp(prefix='aegis-a010-', dir='/tmp'))
     runtime=root/'runtime'
     try:
