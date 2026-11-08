@@ -73,8 +73,10 @@ class UntrustedManagementRead:
             value = payload[field]
             if not isinstance(value, str) or _ID.fullmatch(value) is None:
                 raise ValueError(f"invalid {field}")
+        # Keep integers within the portable exactly representable JSON
+        # range shared by Python, serde_json and future GUI clients.
         if (type(payload["expected_generation"]) is not int
-                or payload["expected_generation"] < 1):
+                or not 1 <= payload["expected_generation"] <= (2**53 - 1)):
             raise ValueError("expected generation must be positive")
         if not isinstance(payload["operation"], str) or payload["operation"] not in _READ_OPERATIONS:
             raise PermissionError("only reviewed read-only queries are allowed")
