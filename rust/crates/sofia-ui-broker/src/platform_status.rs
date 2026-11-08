@@ -4,6 +4,7 @@
 //! before it calls `observe`; a snapshot is never an authorization grant.
 
 use std::collections::BTreeMap;
+use std::time::{Duration, Instant};
 
 const MAX_ROWS: usize = 1024;
 const MAX_IDENT_BYTES: usize = 160;
@@ -91,6 +92,7 @@ pub struct EditSnapshot {
 pub struct ModuleRow {
     pub observation: ModuleObservation,
     pub freshness: ObservationFreshness,
+    pub last_received_at: Instant,
     pub editing_snapshot: Option<EditSnapshot>,
 }
 
@@ -220,6 +222,7 @@ impl ModuleStatusModel {
             ModuleRow {
                 observation: incoming,
                 freshness: ObservationFreshness::Fresh,
+                last_received_at: Instant::now(),
                 editing_snapshot: prior_edit,
             },
         );
@@ -231,6 +234,25 @@ impl ModuleStatusModel {
     pub fn note_disconnect(&mut self, host_id: &str) {
         for row in self.rows.values_mut() {
             if row.observation.host_id == host_id {
+                row.freshness = ObservationFreshness::Stale;
+            }
+        }
+    }
+
+    /// Called by the UI's local monotonic refresh loop. A silent link loss
+    /// must not leave old healthy observations looking connected indefinitely.
+    /// Backward or uncertain clocks also stale the row rather than extending
+    /// its verified health. This never changes installed lifecycle.
+    pub fn expire_at(&mut self, now: Instant, max_age: Duration) {
+        for row in self.rows.values_mut() {
+            if row
+                .last_received_at
+                .checked_duration_since(now)
+                .is_some()
+                || now
+                    .checked_duration_since(row.last_received_at)
+                    .is_none_or(|age| age > max_age)
+            {
                 row.freshness = ObservationFreshness::Stale;
             }
         }
@@ -434,6 +456,50 @@ mod tests {
         assert_eq!(
             model.observe(event("module:two", 4), true),
             Err(ModelError::StaleGeneration)
+        );
+    }
+
+    #[test]
+    fn silent_network_loss_expires_live_health_without_uninstalling() {
+        use std::time::Duration;
+        let mut model = ModuleStatusModel::default();
+        model
+            .observe(event("module:one", 1), true)
+            .expect("initial authenticated status");
+        let received = model
+            .row("host:local", "module:one")
+            .expect("row")
+            .last_received_at;
+        model.expire_at(received + Duration::from_secs(31), Duration::from_secs(30));
+        let row = model.row("host:local", "module:one").expect("still installed");
+        assert_eq!(row.current_health(), ModuleHealth::Unknown);
+        assert_eq!(row.observation.lifecycle, ModuleLifecycle::Active);
+        assert_eq!(row.freshness, ObservationFreshness::Stale);
+
+        model
+            .observe(event("module:one", 2), true)
+            .expect("fresh observed reconnect");
+        assert_eq!(
+            model.row("host:local", "module:one").expect("reconnected").current_health(),
+            ModuleHealth::VerifiedHealthy
+        );
+    }
+
+    #[test]
+    fn backward_observer_clock_never_extends_health() {
+        use std::time::Duration;
+        let mut model = ModuleStatusModel::default();
+        model
+            .observe(event("module:one", 1), true)
+            .expect("initial status");
+        let received = model
+            .row("host:local", "module:one")
+            .expect("row")
+            .last_received_at;
+        model.expire_at(received - Duration::from_secs(1), Duration::from_secs(30));
+        assert_eq!(
+            model.row("host:local", "module:one").expect("row").current_health(),
+            ModuleHealth::Unknown
         );
     }
 
