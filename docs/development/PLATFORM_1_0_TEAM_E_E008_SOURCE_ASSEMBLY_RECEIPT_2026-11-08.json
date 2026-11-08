@@ -1,0 +1,171 @@
+{
+  "schema": "aegis.platform.ig001.e008.source-assembly-receipt.v1",
+  "created_utc": "2026-11-08",
+  "source_integration_branch": "team-e/ig001-disposable-platform-e008-20261108",
+  "integrated_source_sha": "31566e303a993abce436c064cd267758168ff6ae",
+  "integration_tree_sha": "ef8f400f5dbb2168cd61129f168c73a57b6e3181",
+  "integration_parent_sha": "16f616a786fd5f800f72a79f8c0fae3cfe5cbc52",
+  "upstream_main_observed": "668e403d91b98a9cc467c6fc2caa554063aedeb9",
+  "source_prs": [
+    {
+      "team": "A",
+      "pr": 241,
+      "sha": "16f616a786fd5f800f72a79f8c0fae3cfe5cbc52",
+      "role": "CANONICAL_PLATFORM_SERVICE_AUTHORITY",
+      "changed_files_in_pr": 47
+    },
+    {
+      "team": "B",
+      "pr": 244,
+      "sha": "9c8c786aef4416fbdf7a814c84d362979f52ebcf",
+      "role": "ONE_B1_INSTALLER",
+      "changed_files_in_pr": 43
+    },
+    {
+      "team": "C",
+      "pr": 243,
+      "sha": "e23d891e682336cb374a0d70ed26f794779b455e",
+      "role": "ONE_READ_ONLY_NATIVE_TUI_ADAPTER",
+      "changed_files_in_pr": 28
+    },
+    {
+      "team": "D",
+      "pr": 258,
+      "sha": "6a2bfdd6ea44eae9f5b5d3723f7e74d54a5e3d6d",
+      "role": "DEBIAN12_NEGATIVE_RECOVERY_PROBE",
+      "changed_files_in_pr": 1
+    },
+    {
+      "team": "E",
+      "pr": 245,
+      "sha": "0261935414f760cd61d5b3fb869fc4d7e22466ae",
+      "role": "INDEPENDENT_INTEGRATION_QA",
+      "changed_files_in_pr": 12
+    }
+  ],
+  "assembly_method": "GITHUB_COMMIT_TREE_SINGLE_PARENT_A_WITH_REVIEWED_B_C_D_E_BLOB_OVERLAYS",
+  "overlay_tree_entries": 78,
+  "shared_contract_blobs_identical": 6,
+  "resolved_overlays": [
+    {
+      "path": "contracts/platform/management-response-parity-corpus-v1.json",
+      "sha": "b63eeafe40b7895468f7ac8e0060c3bebfababa9",
+      "decision": "A_AND_C_IDENTICAL"
+    },
+    {
+      "path": "rust/crates/sofia-contracts/src/management.rs",
+      "sha": "608b6966169441df8688c83b37d5bca9a6bdc602",
+      "decision": "CANONICAL_A_SAME_AS_C"
+    },
+    {
+      "path": ".github/workflows/aegis-debian12-vm.yml",
+      "sha": "a7e6d606d113a145c049b21c10badbef3d9b174a",
+      "decision": "KEEP_A_EXACT_HEAD_CHECKOUT_AND_E_EXACT_HEAD_ARTIFACT_NAME"
+    },
+    {
+      "path": "rust/crates/sofia-platform-lifecycle/src/bin/platform_service.rs",
+      "sha": "3b5ab81a3334f6eac7e61e0868972635d29716b5",
+      "decision": "A_CANONICAL_NO_DUPLICATE_D_SERVICE"
+    },
+    {
+      "path": "test/fixtures/aegis_debian_vm/probe.py",
+      "sha": "ff39daa970a7f0e9d3451eb95a060243a04012c8",
+      "decision": "D258_CURRENT_NEGATIVE_PROBE_WITH_45S_DEADLINE"
+    },
+    {
+      "path": "rust/crates/sofia-ui-broker/src/native_management.rs",
+      "sha": "e5a977909d33f350258794fbe05a2fd33e9069ef",
+      "decision": "C_NATIVE_READER_SOURCE_INCLUDED_NOT_INSTALLED"
+    }
+  ],
+  "observed_environment": {
+    "os_release": "Debian GNU/Linux 13.3 trixie",
+    "kernel": "Linux 6.18.57 x86_64",
+    "python": "3.13.5",
+    "pytest": "9.0.2",
+    "git": "2.47.3",
+    "cargo": "NOT_INSTALLED",
+    "rustc": "NOT_INSTALLED",
+    "qemu_system_x86_64": "NOT_INSTALLED",
+    "github_clone": "FAILED_COULD_NOT_RESOLVE_HOST_github.com",
+    "approved_disposable_debian12_host": "NOT_PROVIDED",
+    "signed_B_publisher_root": "NOT_PROVIDED",
+    "genuine_B1_installer": "NOT_AUTHORIZED"
+  },
+  "local_tests": [
+    {
+      "command": "python /mnt/data/ig001_artifact_audit.py --output /mnt/data/ig001_archive_audit_results_e008.json",
+      "result": "EXECUTED",
+      "report_sha256": "9b464c30a6659acd23effce2a6d762aa978dbd60dc6b34f12e3b01e17448f0bf",
+      "scope": "HISTORICAL_VM_ZIP_CHECKSUMS_CRC_AND_BOOT_RECEIPTS_ONLY"
+    },
+    {
+      "command": "python -m pytest -q /mnt/data/test_ig001_artifact_audit.py --disable-warnings --maxfail=1",
+      "result": "7 PASSED",
+      "scope": "HISTORICAL_VM_REVIEW_AND_SECURITY_NEGATIVES_ONLY"
+    },
+    {
+      "command": "cargo test --workspace --locked",
+      "result": "NOT_EXECUTED_CARGO_ABSENT"
+    },
+    {
+      "command": "python -m pytest -q test/test_platform_service_management_ipc.py",
+      "result": "NOT_EXECUTED_FULL_CHECKOUT_UNAVAILABLE"
+    },
+    {
+      "command": "python -m tools.aegis_debian_vm --checkout ... --output ... --toolchain ... --disposable-vm",
+      "result": "NOT_EXECUTED_APPROVED_DEBIAN12_VM_AND_QEMU_ABSENT"
+    }
+  ],
+  "first_functional_blockers": [
+    {
+      "order": 1,
+      "team": "B",
+      "source": "packaging/installers/install-aegis.sh",
+      "source_blob": "98ebe599c1ba607faacdd76896a5f04b2e09bf47",
+      "observation": "INSTALL_AUTHORITY=NOT_CONNECTED; SIGNED_MANIFEST_ONLY with assets_verified=false; install operations refuse",
+      "correction": "Supply publisher-root-verified complete signed stock-Debian12 B1 capsule+launchers/runtime, trusted installed-service profile, current A SAFE/STOP enrollment and native OS transaction receipts",
+      "type": "SOURCE_GATE_NOT_EXECUTED_ASSERTION"
+    },
+    {
+      "order": 2,
+      "team": "C",
+      "source": "rust/crates/sofia-ui-broker/src/bin/aegis_tui.rs",
+      "source_blob": "01d170bb0937ea5926f73218b4ae0630c83f89bc",
+      "observation": "run() still invokes run_with_source(&mut OfflineReader) with no trusted B-installed service pins",
+      "correction": "Wire B-signed installed-service identity and A current enrollment into NativeLinuxManagementReader for true CLI/TUI status while retaining fail-closed offline fallback",
+      "type": "SOURCE_GATE_NOT_EXECUTED_ASSERTION"
+    },
+    {
+      "order": 3,
+      "team": "A/B",
+      "observation": "No signed approved disposable Debian12 operator + service IPC origin",
+      "correction": "A current UID/GID, SAFE/STOP lease, expected RUN generation and exact service socket; B signed actual account/group/systemd identity and independent second operator witness",
+      "type": "SIGNED_HOST_EVIDENCE_MISSING"
+    },
+    {
+      "order": 4,
+      "team": "E",
+      "observation": "Local environment has no cargo/rustc/QEMU/full checkout/approved Debian12",
+      "correction": "Provide explicitly approved disposable Debian12 test host with full assembled SHA checkout + Rust toolchain and B signed installer for real execution",
+      "type": "ENVIRONMENT_BLOCKER"
+    }
+  ],
+  "source_only_verified": true,
+  "compiled_integrated_platform": false,
+  "disposable_host_executed": false,
+  "genuine_platform_status_observed": false,
+  "canonical_writer_recovery_witness": false,
+  "integrated_milestone_ci": "NOT_STARTED",
+  "release_accepted": false,
+  "production_authorized": false,
+  "personal_core_activated": false,
+  "acceptance": {
+    "platform_38_pass": 0,
+    "platform_38_fail": 7,
+    "platform_38_not_tested": 31,
+    "library_16_pass": 0,
+    "library_16_not_tested": 16,
+    "go": "NO"
+  }
+}
