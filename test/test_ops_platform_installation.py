@@ -316,6 +316,27 @@ def test_publish_failure_records_failed_attempt_and_keeps_target_absent(
     verify_installed(destination, store=store, verifier=builder.verifier)
 
 
+@pytest.mark.skipif(os.name == 'nt', reason='POSIX directory sync contract')
+def test_release_directory_sync_includes_root_and_nested_assets(tmp_path,
+                                                                monkeypatch):
+    import sofia.platform.ops.platform_installation as installation
+
+    root = tmp_path / 'release'
+    assets = root / 'assets'
+    assets.mkdir(parents=True)
+    observed = []
+    real_open = os.open
+
+    def track_open(path, *args, **kwargs):
+        observed.append(Path(path))
+        return real_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(installation.os, 'open', track_open)
+    installation._sync_directories(root)
+    assert assets in observed
+    assert root in observed
+
+
 def test_failed_parent_rename_sync_never_commits_installed_state(
         tmp_path, builder, monkeypatch):
     """A published directory without a durable parent is not an install."""
