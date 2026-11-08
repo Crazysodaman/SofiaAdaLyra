@@ -69,6 +69,8 @@ class MemorySystem:
             eligibility_policy, ReviewedMemoryEligibilityV1
         ):
             raise TypeError('eligibility_policy must be ReviewedMemoryEligibilityV1')
+        if eligibility_policy is not None:
+            eligibility_policy.assert_same_canonical_state(candidate_store.database_path)
         self._eligibility_policy = eligibility_policy
 
     @property
