@@ -160,7 +160,7 @@ def test_actual_safe_stop_allows_owner_approved_pause_but_denies_resume(
     )
     activate_id, _ = authorize(
         canonical_state_path, operation="activate", record=staged,
-        target=ModuleLifecycle.ACTIVE, profile=OperationProfileKind.OBSERVE,
+        target=ModuleLifecycle.ACTIVATING, profile=OperationProfileKind.OBSERVE,
         now=now,
     )
     active = command.activate(
