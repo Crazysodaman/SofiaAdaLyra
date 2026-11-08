@@ -98,6 +98,25 @@ def _sync_directories(destination):
             os.close(descriptor)
 
 
+def _sync_installation_parent(destination):
+    """Durably publish the renamed release directory before SQLite commits.
+
+    A verified directory tree without a durable parent entry is not an
+    installed release. Windows requires separate installed-host power-loss
+    proof, since fsync of directory handles is not portable there.
+    """
+    if os.name == 'nt':
+        return
+    parent = Path(destination).parent
+    assert_no_redirected_components(parent, include_leaf=True)
+    descriptor = os.open(parent,
+        os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0) | getattr(os, 'O_NOFOLLOW', 0))
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
 class PlatformInstallationDenied(PermissionError):
     """The release/authority/checkpoint contract refuses this lifecycle step."""
 
@@ -546,6 +565,10 @@ def install_staged_release(staging_path, destination, *, store, verifier,
         _sync_directories(quarantine)
         assert_no_redirected_components(destination, include_leaf=True)
         os.replace(quarantine, destination)
+        # Both tree and parent rename must survive a crash *before* we
+        # journal installation success or advance the anti-rollback floor.
+        _sync_directories(destination)
+        _sync_installation_parent(destination)
     except BaseException as error:
         try:
             store.finish_failed_attempt(attempt_id, str(error) or type(error).__name__, now)
