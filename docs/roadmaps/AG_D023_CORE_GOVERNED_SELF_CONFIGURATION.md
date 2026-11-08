@@ -114,7 +114,11 @@ Both the graphical and ASCII Core self-configuration menus, approval/change-hist
 
 Self-management of Core-owned **settings** is distinct from uninstalling a **Platform-owned module**. See [AG-D006 Core-Initiated Module Removal](AG_D006_CORE_INITIATED_MODULE_REMOVAL.md). The Core may make an inert, reasoned module removal proposal, identify signed module/host and independently verified dependencies, and request owner review. Current `module.remove` is **PROTECTED** in SAFE, so neither Adaptive nor Delegated self-settings grant authorizes the uninstall; an actual effect requires independent exact owner approval. The Core cannot choose the owner's permanent no-reinstall policy, purge retained module/private data, remove security/management dependencies, or self-authorize broader powers. A future, separately reviewed LAB-only disposable cleanup capability is not shipped or authorized. GUI and TUI display proposal, approval and actual lifecycle receipts consistently without restart.
 
-## 7. Reuse and implementation implications
+## 7. Reuse and implementation implications### Optional container/Portainer module is a service, not a Core self-setting
+
+[AG-D025](AG_D025_PORTAINER_DOCKER_STACK_CONTROL.md) places Portainer as a **provider adapter in optional `MOD-IT-CONTAINERS` Platform module**. The Core can inspect authorized, sanitized observations and propose Compose patches but cannot obtain the Portainer token or execute production stack updates under its own AG-D023 self-settings grant. Platform SAFE authorizes separately scoped write jobs; the module executes exact approved effects. The Portainer module continues to operate through GUI/TUI while no Core is present, and removing it never deletes the external Portainer stack or Core identity.
+
+
 
 Existing code foundations to reuse:
 - `src/sofia/platform/config/settings_authority.py`: `CanonicalSettingsService`, `SettingsOwner` classes, `SettingsApplyClass` and `SettingsApplyState`, CAS revisions, idempotency keys and revisioned event records. This is a single canonical Core-settings domain, not a license to open Core state from Platform-only hosts.
