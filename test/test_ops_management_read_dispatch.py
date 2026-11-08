@@ -30,7 +30,8 @@ def configured(provider=None):
     def authorize(peer, operation):
         state["checks"] += 1
         return (state["active"] and peer is state and operation == "platform.status")
-    def read():
+    def read(peer):
+        assert peer is state
         state["reads"] += 1
         return {"health": "unknown", "source": "Platform"}
     manager = PlatformManagementReadDispatcher(
@@ -71,7 +72,8 @@ def test_missing_and_forged_peer_never_call_provider():
 
 def test_revocation_midflight_drops_result():
     state = {}
-    def revoke():
+    def revoke(peer):
+        assert peer is state
         state["active"] = False
         return {"modules": []}
     state, manager = configured(revoke)
@@ -83,7 +85,8 @@ def test_revocation_midflight_drops_result():
 def test_identity_generation_or_stop_changes_midflight_fail_closed():
     for action in ("generation", "platform_id", "stop"):
         state = {}
-        def alter():
+        def alter(peer):
+            assert peer is state
             state[action] = (
                 4 if action == "generation" else "platform:other"
                 if action == "platform_id" else True
@@ -115,7 +118,7 @@ def test_requested_unknown_read_provider_denied_before_auth():
 
 
 def test_suspicious_secret_fields_are_never_serialized():
-    state, manager = configured(lambda: {
+    state, manager = configured(lambda _peer: {
         "status": "unknown", "owner_secret": "64hex-private-credential",
     })
     with pytest.raises(ManagementReadDenied, match="sensitive"):
@@ -123,10 +126,10 @@ def test_suspicious_secret_fields_are_never_serialized():
 
 
 def test_oversized_or_invalid_provider_payload_fails_closed():
-    state, manager = configured(lambda: {"data": "x" * 35000})
+    state, manager = configured(lambda _peer: {"data": "x" * 35000})
     with pytest.raises(ManagementReadDenied, match="exceeds limit"):
         manager.read(request(), peer=state)
-    state, manager = configured(lambda: {"data": object()})
+    state, manager = configured(lambda _peer: {"data": object()})
     with pytest.raises(ManagementReadDenied, match="unsupported"):
         manager.read(request(), peer=state)
 
@@ -139,7 +142,8 @@ def test_authentication_is_not_supplied_by_request_fields():
 
 def test_midflight_clock_expiry_refuses_delivery():
     state = {}
-    def slow():
+    def slow(peer):
+        assert peer is state
         state["time"] = NOW + timedelta(seconds=6)
         return {"state": "unknown"}
     state, manager = configured(slow)
@@ -154,7 +158,7 @@ def test_truthy_non_boolean_authorization_cannot_grant_access():
         authorize_peer=lambda *_: "yes",
         current_identity=lambda: ("platform:alpha", 3),
         operator_stop_active=lambda: False,
-        providers={"platform.status": lambda: reads.append(1) or {}},
+        providers={"platform.status": lambda _peer: reads.append(1) or {}},
         clock=lambda: NOW,
     )
     with pytest.raises(ManagementReadDenied, match="authorization"):
@@ -169,7 +173,7 @@ def test_unknown_operator_stop_state_is_not_equivalent_to_clear():
         authorize_peer=lambda *_: True,
         current_identity=lambda: ("platform:alpha", 3),
         operator_stop_active=lambda: None,
-        providers={"platform.status": lambda: reads.append(1) or {}},
+        providers={"platform.status": lambda _peer: reads.append(1) or {}},
         clock=lambda: NOW,
     )
     with pytest.raises(ManagementReadDenied, match="STOP"):
@@ -180,7 +184,7 @@ def test_unknown_operator_stop_state_is_not_equivalent_to_clear():
 def test_provider_mutation_after_read_cannot_modify_verified_response():
     state, _ = configured()
     payload = {"state": "unknown"}
-    state, manager = configured(lambda: payload)
+    state, manager = configured(lambda _peer: payload)
     result = manager.read(request(), peer=state)
     payload["owner_secret"] = "leaked-after-review"
     assert "owner_secret" not in result.to_json().decode("utf-8")
@@ -188,7 +192,7 @@ def test_provider_mutation_after_read_cannot_modify_verified_response():
 
 
 def test_client_side_prototype_pollution_key_is_denied():
-    state, manager = configured(lambda: {
+    state, manager = configured(lambda _peer: {
         "modules": [{"__proto__": {"isAdmin": True}}],
     })
     with pytest.raises(ManagementReadDenied, match="sensitive"):
@@ -197,9 +201,30 @@ def test_client_side_prototype_pollution_key_is_denied():
 
 def test_wallclock_rollback_midflight_fails_closed():
     state = {}
-    def move_back():
+    def move_back(peer):
+        assert peer is state
         state["time"] = NOW - timedelta(seconds=1)
         return {"state": "unknown"}
     state, manager = configured(move_back)
     with pytest.raises(ManagementReadDenied, match="deadline"):
         manager.read(request(), peer=state)
+
+
+def test_provider_receives_transport_verified_peer_not_request_grants():
+    accepted = []
+    peer = object()
+    dispatcher = PlatformManagementReadDispatcher(
+        authorize_peer=lambda presented, _operation: presented is peer,
+        current_identity=lambda: ("platform:alpha", 3),
+        operator_stop_active=lambda: False,
+        providers={"platform.status": lambda observed: (
+            accepted.append(observed) or {"status": "unknown"}
+        )},
+        clock=lambda: NOW,
+    )
+    result = dispatcher.read(request(), peer=peer)
+    assert result.payload == {"status": "unknown"}
+    assert accepted == [peer]
+    with pytest.raises(ManagementReadDenied):
+        dispatcher.read(request(), peer=object())
+    assert accepted == [peer]
