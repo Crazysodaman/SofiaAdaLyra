@@ -85,7 +85,7 @@ def test_stock_shell_signed_capsule_is_authenticated_without_install(sealed_caps
 
 
 @pytest.mark.parametrize("defect", (
-    "changed-capsule", "wrong-publisher", "wrong-signer",
+    "changed-capsule", "wrong-publisher", "wrong-publisher-with-new-pin", "wrong-signer",
     "missing-key-pin", "bad-key-pin", "truncated-signature",
     "extra-signature-bytes", "publisher-in-media-dir",
     "capsule-symlink", "unknown-option",
@@ -105,6 +105,13 @@ def test_stock_shell_capsule_signature_refuses_hostile_input(
             serialization.PublicFormat.SubjectPublicKeyInfo,
         )
         public.write_bytes(second)
+    elif defect == "wrong-publisher-with-new-pin":
+        second = Ed25519PrivateKey.generate().public_key().public_bytes(
+            serialization.Encoding.PEM,
+            serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        public.write_bytes(second)
+        override = (capsule, signature, public, sha256(second).hexdigest())
     elif defect == "wrong-signer":
         signer = "forged"
     elif defect == "missing-key-pin":
