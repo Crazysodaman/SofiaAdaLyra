@@ -132,6 +132,25 @@ def test_second_listener_fails_and_owner_closes_only_own_socket(private):
     assert not path.exists()
 
 
+
+@pytest.mark.skipif(not LINUX, reason="Linux kernel peer listener")
+def test_replaced_endpoint_is_denied_and_preserved_on_close(private):
+    path = private / "replace.sock"
+    listener = ManagementUnixListener(path, dispatch=lambda *_a, **_k: {})
+    listener.open()
+    replacement = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    try:
+        path.unlink()
+        replacement.bind(str(path))
+        with pytest.raises(PermissionError, match="replaced"):
+            listener.serve_once()
+        listener.close()
+        assert path.exists() and path.is_socket()
+    finally:
+        listener.close()
+        replacement.close()
+        path.unlink(missing_ok=True)
+
 @pytest.mark.skipif(not LINUX, reason="Linux kernel peer listener")
 def test_trickle_cannot_extend_absolute_intake_deadline(monkeypatch):
     import sofia.platform.run.local_peer as local_peer
