@@ -191,6 +191,15 @@ class DurableMemoryCandidateStore:
             )
             db.commit()
 
+    @property
+    def database_path(self) -> Path:
+        """Read-only canonical path needed to bind eligibility to this store.
+
+        Returning the validated pinned location does not grant a second writer
+        or permit resolving a substituted state file.
+        """
+        return self._guard.validate()
+
     def propose(self, candidate: MemoryCandidate) -> None:
         if not isinstance(candidate, MemoryCandidate):
             raise TypeError("candidate must be a MemoryCandidate")
