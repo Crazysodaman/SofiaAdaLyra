@@ -85,4 +85,8 @@ def fetch_resumable_chunks(
             if next_offset != offset + length:
                 raise ChunkTransferRejected("TLS receiver made inconsistent progress")
             offset = next_offset
+            if offset == transfer.size_bytes:
+                # The final chunk is present in quarantine. No extra TLS
+                # session, no inferred publisher verification or install.
+                return offset
     return offset
