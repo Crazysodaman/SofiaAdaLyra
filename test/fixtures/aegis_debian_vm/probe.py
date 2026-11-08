@@ -70,8 +70,37 @@ def ready(previous=None):
             for line in journal.splitlines())
     except (OSError,subprocess.CalledProcessError,subprocess.TimeoutExpired):
         observed['journal_observation']='unavailable'
+    # Inspect only allowlisted class labels from Rust's bounded error line.
+    # Never publish full guest journals, paths, environment or secrets.
+    startup_classes=[]
+    try:
+        for line in command('journalctl','-u',UNIT,'-o','cat',
+                            '--no-pager','-n','120').splitlines():
+            if not line.startswith('Platform service failed closed:'):
+                continue
+            detail=line.split(':',1)[1].strip().lower()
+            if 'timed out waiting on channel' in detail:
+                label='worker_startup_deadline'
+            elif 'abstract notify socket unsupported' in detail:
+                label='unsupported_systemd_notify_address'
+            elif 'canonical platform service unavailable' in detail:
+                label='worker_process_unavailable'
+            elif 'service lifetime binding differs' in detail:
+                label='worker_lifetime_mismatch'
+            elif 'service identity response differs' in detail:
+                label='worker_identity_mismatch'
+            elif 'no such file or directory' in detail:
+                label='missing_installed_file'
+            elif 'permission denied' in detail:
+                label='service_permission_denied'
+            else:
+                label='other_supervisor_startup_failure'
+            startup_classes.append(label)
+    except (OSError,subprocess.CalledProcessError,subprocess.TimeoutExpired):
+        startup_classes.append('service_journal_unavailable')
     raise AssertionError('VM service readiness deadline: '+json.dumps(
-        {'previous_pid':previous,'systemd':observed},sort_keys=True))
+        {'previous_pid':previous,'systemd':observed,
+         'startup_error_classes':startup_classes[-8:]},sort_keys=True))
 
 def stop(row):
     command('systemctl','stop',UNIT)
