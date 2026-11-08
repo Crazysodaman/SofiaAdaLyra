@@ -93,6 +93,7 @@ pub enum LibraryDisplayError {
     InvalidProvenance,
     InvalidStageReceipt,
     InvalidTransfer,
+    UnexpectedSafeState,
 }
 
 #[derive(Debug)]
@@ -263,6 +264,14 @@ impl LibraryDisplaySession {
         if incoming.generation == self.generation && incoming.sequence <= self.sequence {
             self.fail(ReadFailure::Stale);
             return Err(LibraryDisplayError::SequenceReplayed);
+        }
+        if incoming.safe != SafeState::Clear {
+            self.fail(if incoming.safe == SafeState::StopActive {
+                ReadFailure::Stopped
+            } else {
+                ReadFailure::Unverified
+            });
+            return Err(LibraryDisplayError::UnexpectedSafeState);
         }
         if incoming.catalog.as_ref().is_some_and(|catalog| {
             !valid_id(&catalog.signer_key_id)
@@ -481,6 +490,20 @@ mod tests {
         ui.refresh(&mut Stub(Ok(snapshot(2, 3, 2))), t).unwrap();
         ui.expire_at(t + LIBRARY_DISPLAY_MAX_AGE + Duration::from_millis(1));
         assert_eq!(ui.link(), LinkState::Stale);
+        assert!(ui.current().is_none());
+    }
+
+    #[test]
+    fn library_stop_cannot_be_a_successful_observation() {
+        let t = Instant::now();
+        let mut ui = LibraryDisplaySession::default();
+        let mut stopped = snapshot(2, 3, 1);
+        stopped.safe = SafeState::StopActive;
+        assert_eq!(
+            ui.refresh(&mut Stub(Ok(stopped)), t),
+            Err(LibraryDisplayError::UnexpectedSafeState)
+        );
+        assert_eq!(ui.status_label(), "STOP_ACTIVE");
         assert!(ui.current().is_none());
     }
 
