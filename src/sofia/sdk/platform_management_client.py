@@ -119,6 +119,13 @@ def read_linux_platform_status(
         type(installed_service_pid) is not int or installed_service_pid <= 0
     ):
         raise ValueError("invalid optional installed service PID pin")
+    if installed_socket_group_gid is not None and installed_service_pid is None:
+        # A group authorizes OS access to the inode, never the identity of
+        # the answering process. External operators must pin the actual
+        # running service PID from the verified B1 installed-session profile.
+        raise PermissionError(
+            "external management requires verified live service PID pin"
+        )
     inode = _native_socket_pin(
         socket_path, expected_uid=installed_service_uid,
         expected_gid=installed_service_gid,
