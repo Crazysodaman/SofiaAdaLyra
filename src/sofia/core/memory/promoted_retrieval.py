@@ -150,10 +150,9 @@ def retrieve_promoted(
         for order, (candidate_id, content) in enumerate(
             store.iter_promoted_summaries(
                 principal_id=principal_id, audience_id=audience_id,
+                require_reviewed_source_v1=eligibility_policy is not None,
             )
         ):
-            if eligibility_policy is not None and not eligibility_policy.allows(candidate_id):
-                continue
             memory_tokens = _tokens(content)
             query_score = len(query_tokens & memory_tokens)
 
