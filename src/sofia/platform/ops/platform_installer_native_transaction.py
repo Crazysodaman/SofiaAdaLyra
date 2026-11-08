@@ -178,6 +178,16 @@ def native_service_operation_request(
         if registered != _public_spec(prev):
             raise PlatformInstallationDenied("previous native service release identity mismatch")
     checkpoint = store.checkpoint()
+    # A B1-signed historical release may be eligible only for an explicitly
+    # approved rollback of an already owned native service. Ordinary first
+    # registration/update must never bypass the durable revision floor.
+    floor = 0 if checkpoint is None else checkpoint.minimum_accepted_revision
+    if operation in ("register", "update") and current.revision < floor:
+        raise PlatformInstallationDenied(
+            "native registration/update below B1 signed revision floor")
+    if operation == "register" and checkpoint is not None and checkpoint.active_release_id is not None:
+        raise PlatformInstallationDenied(
+            "existing activated B1 release requires explicit reconciliation")
     # Native target is a protected approval parameter, not a caller chosen
     # arbitrary service name or service-unit path.
     native_target = (
