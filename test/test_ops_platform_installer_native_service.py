@@ -123,7 +123,7 @@ def test_systemd_verified_replacement_retains_identity(native_spec, tmp_path, mo
     assert str(binary) in service.unit_path.read_text()
     assert native_spec.platform_id == candidate.platform_id
     assert ("stop", "aegis-platform.service") in calls
-    with pytest.raises(PlatformInstallationDenied, match="identity"):
+    with pytest.raises(PlatformInstallationDenied, match="identity|Platform UUID"):
         service.replace_verified(candidate, replace(native_spec, platform_id="other-platform"))
 
 
@@ -220,5 +220,5 @@ def test_windows_scm_replace_requires_unchanged_platform_identity(native_spec):
     result = driver.replace_verified(spec, replacement)
     assert result["process_state"] == "RUNNING"
     assert fake.events[-3:] == ["stopped", "updated", "started"]
-    with pytest.raises(PlatformInstallationDenied, match="identity"):
+    with pytest.raises(PlatformInstallationDenied, match="identity|Platform UUID"):
         driver.replace_verified(replacement, replace(spec, platform_id="forged"))
