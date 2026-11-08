@@ -125,8 +125,8 @@ _SHA256_PATTERN = re.compile(r"[0-9a-f]{64}\\Z")
 def _safe_evidence_path(root: Path, relative: str) -> Path:
     """Restrict intake to existing local regular files, never link chains."""
     if (not isinstance(relative, str) or not relative
-            or relative.startswith(("/", "\\\\"))
-            or "\\\\" in relative or ":" in relative
+            or relative.startswith(("/", "\\"))
+            or "\\" in relative or ":" in relative
             or ".." in Path(relative).parts):
         raise ValueError("invalid evidence relative path")
     parts = Path(relative).parts
@@ -151,6 +151,7 @@ def _read_bounded_json(root: Path, relative: str) -> dict | None:
     if not isinstance(loaded, dict):
         raise ValueError("evidence object required")
     return loaded
+
 
 def make_d028_four_host_preflight(
     source_sha: str, *, topology: dict, evidence_dir: Path | None = None,
