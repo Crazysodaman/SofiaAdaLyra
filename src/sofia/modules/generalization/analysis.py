@@ -11,6 +11,7 @@ import re
 from typing import Mapping
 from sofia.sdk.contracts import SDK_PROTOCOL_VERSION
 from sofia.platform.capability.model import Capability, CapabilityRequest
+from sofia.modules.transfer_evidence import review_transfer_trial
 
 MODULE_ID = 'MOD-GENERALIZATION'
 MODULE_VERSION = '0.1.0'
@@ -81,12 +82,8 @@ def _base(snapshot: Mapping[str, object], now: datetime, max_age_seconds: int):
     return items, observed, freshness
 
 def _review(item: Mapping[str, object]) -> dict[str, object]:
-    row=_exact(item,('id','baseline_successes','candidate_successes','trial_count','novel_task','independent_holdout'))
-    key=_identity(row['id']); n=_int(row['trial_count'],1,100000); base=_int(row['baseline_successes'],0,n); improved=_int(row['candidate_successes'],0,n)
-    novel=_bool(row['novel_task']); independent=_bool(row['independent_holdout'])
-    delta=(improved-base)/n
-    return dict(id=key, delta_success_rate=delta, finding='candidate_transfer_evidence' if novel and independent else 'not_independent_transfer', generalized_intelligence_verified=False)
-
+    """Compatibility entrypoint for Generalization's v1 advisory result."""
+    return review_transfer_trial(item)
 
 
 def review_generalization(snapshot: Mapping[str, object], *, now: datetime,
