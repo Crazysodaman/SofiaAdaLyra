@@ -18,6 +18,7 @@ from typing import Callable
 from sofia.platform.state.private_file import assert_no_redirected_components
 
 _DIGEST = re.compile(r"[0-9a-f]{64}\Z")
+_PEER_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@-]{0,159}\Z")
 _MAX_CHUNK = 1024 * 1024
 _MAX_TOTAL = 2**53 - 1
 
@@ -41,9 +42,7 @@ class PinnedChunkTransfer:
 
     def __post_init__(self) -> None:
         for identity in (self.source_platform_id, self.target_platform_id):
-            if (type(identity) is not str or not 1 <= len(identity) <= 160
-                    or not identity.isascii() or "/" in identity or "\\" in identity
-                    or identity in {".", ".."}):
+            if type(identity) is not str or _PEER_ID.fullmatch(identity) is None:
                 raise ValueError("pinned platform identities required")
         if type(self.content_sha256) is not str or _DIGEST.fullmatch(self.content_sha256) is None:
             raise ValueError("exact lowercase SHA-256 required")
