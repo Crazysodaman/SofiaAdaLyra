@@ -241,6 +241,8 @@ def make_d028_four_host_preflight(
             if not isinstance(artifacts, list) or len(artifacts) > 32:
                 invalid.append("signed-artifacts.json:INVALID_COUNT")
                 artifacts = []
+            elif not artifacts:
+                invalid.append("signed-artifacts.json:NO_ARTIFACT_BYTES")
             for idx, artifact in enumerate(artifacts):
                 if not isinstance(artifact, dict):
                     invalid.append("artifact:INVALID_OBJECT")
