@@ -52,6 +52,29 @@ def test_signed_native_spec_is_bound_to_actual_b1_identity_and_binary(native_spe
     assert spec.service_name == "aegis-platform.service"
 
 
+
+@pytest.mark.skipif(os.name == "nt", reason="Debian systemd native service path semantics")
+def test_systemd_strict_sandbox_allows_only_verified_platform_state_wal_path(native_spec, tmp_path):
+    service = DebianSystemdNativeService(
+        unit_path=tmp_path / "aegis-platform.service",
+    )
+    unit = service._unit(native_spec).decode("ascii")
+    assert "ProtectSystem=strict\\n" in unit
+    assert "ProtectHome=true\\n" in unit
+    # SQLite WAL, SHM and the canonical process/lease locks need writes
+    # in this ONE B1-provisioned, service-owned local-state directory.
+    allowed = "ReadWritePaths=" + str(native_spec.local_state.parent)
+    assert unit.splitlines().count(allowed) == 1
+    assert len([line for line in unit.splitlines()
+                if line.startswith("ReadWritePaths=")]) == 1
+    assert not any(line in unit for line in (
+        "ReadWritePaths=/\\n", "ReadWritePaths=/opt\\n",
+        "ReadWritePaths=/var\\n", "ReadWritePaths=/home\\n",
+    ))
+    assert "RuntimeDirectoryMode=0700\\n" in unit
+    assert "User=aegis\\nGroup=aegis\\n" in unit
+
+
 @pytest.mark.skipif(os.name == "nt", reason="POSIX native systemd path semantics")
 def test_systemd_register_stop_and_remove_only_exact_new_unit(native_spec, tmp_path, monkeypatch):
     import sofia.platform.ops.platform_installer_native_service as mod
