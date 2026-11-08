@@ -53,6 +53,10 @@ def fetch_resumable_chunks(
     first_fingerprint: str | None = None
     offset = -1
     for _ in range(max_chunks):
+        # Refuse an already revoked manifest before opening a new connection.
+        # The post-handshake check below remains mandatory against races.
+        if publisher_current(transfer) is not True:
+            raise ChunkTransferRejected("publisher trust revoked or unavailable")
         # The service, not the Hub, chooses the enrolled destination, CA,
         # pinned installation identity, deadline and complete SSL context.
         session = open_enrolled_tls()
