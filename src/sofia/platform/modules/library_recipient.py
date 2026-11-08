@@ -102,7 +102,7 @@ def review_signed_module_recipient(
     if (not isinstance(now, datetime) or now.tzinfo is None or now.utcoffset() is None
             or type(catalog_revision_floor) is not int or catalog_revision_floor < 0):
         raise ModuleRecipientRejected("trusted current clock/revision required")
-    if now > pin.metadata_fresh_until or pin.catalog_revision < catalog_revision_floor:
+    if now >= pin.metadata_fresh_until or pin.catalog_revision < catalog_revision_floor:
         raise ModuleRecipientRejected("catalog expired or rolled back")
     if pin.license_distribution == "unknown":
         raise ModuleRecipientRejected("unknown license cannot authorize acquisition")
