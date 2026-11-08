@@ -161,7 +161,10 @@ pub mod linux {
             )
             .map_err(|error| match error.code {
                 "stale_management_response" => ReadFailure::Stale,
-                "uncorrelated_management_response" => ReadFailure::UnknownGeneration,
+                // A wrong request ID, operation, target or generation has
+                // no verified explanation. Only a correlated typed
+                // STALE_GENERATION denial gets an explicit generation label.
+                "uncorrelated_management_response" => ReadFailure::Unverified,
                 _ => ReadFailure::Unverified,
             })?;
             if response.outcome == "DENIED" {
@@ -344,13 +347,14 @@ pub mod linux {
                 });
                 if matches!(
                     outcome,
-                    "STOPPED" | "REVOKED" | "NOT_PERMITTED" | "UNAVAILABLE" | "EXPIRED"
+                    "STOPPED" | "REVOKED" | "NOT_PERMITTED" | "UNAVAILABLE"
+                        | "EXPIRED" | "STALE_GENERATION"
                 ) {
                     result["outcome"] = serde_json::json!("DENIED");
                     result["data"] = serde_json::Value::Null;
                     result["denial"] = serde_json::json!({"code": outcome});
                 }
-                if outcome == "STALE_GENERATION" {
+                if outcome == "FORGED_GENERATION" {
                     result["platform_generation"] = serde_json::json!(2);
                 }
                 if outcome == "REPLAY" {
@@ -396,7 +400,8 @@ pub mod linux {
                 ("EXPIRED", ReadFailure::Stale),
                 ("EOF", ReadFailure::Offline),
                 ("STALE_GENERATION", ReadFailure::UnknownGeneration),
-                ("REPLAY", ReadFailure::UnknownGeneration),
+                ("FORGED_GENERATION", ReadFailure::Unverified),
+                ("REPLAY", ReadFailure::Unverified),
                 ("BAD_STOP_OK", ReadFailure::Unverified),
                 ("DUPLICATE", ReadFailure::Unverified),
             ] {
