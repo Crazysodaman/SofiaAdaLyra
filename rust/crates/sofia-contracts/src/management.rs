@@ -559,7 +559,7 @@ mod tests {
         for numeric in [
             json!(9_007_199_254_740_992_u64),
             json!(-9_007_199_254_740_992_i64),
-            json!(18_446_744_073_709_551_616_u128),
+            json!(9_007_199_254_740_993_u64),
             json!(1.0e300_f64),
         ] {
             reply["data"] = json!({"revision": numeric});
@@ -628,6 +628,8 @@ mod tests {
             allowed.to_string().as_bytes(), &settings, now,
         ).is_ok());
         allowed["data"] = json!({"nönascii":"safe"});
+        let surrogate = r#"{"value":"\ud800"}"#;
+        assert!(serde_json::from_str::<Value>(surrogate).is_err());
         assert!(UntrustedManagementResponse::parse(
             allowed.to_string().as_bytes(), &settings, now,
         ).is_err());
