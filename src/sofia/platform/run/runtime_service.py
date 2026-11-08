@@ -14,6 +14,8 @@ from sofia.platform.run.active_release import (
     ReleaseEnvironmentManager,
 )
 from sofia.platform.run.release_process import ReleaseChildProcess
+from sofia.platform.run.heartbeat import ApplicationHeartbeatStore
+from sofia.platform.run.runtime_authority import require_local_runtime_authority
 from sofia.platform.run.windows_service_spec import RUNTIME_SERVICE
 from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.core.mentor.windows_service_settings import (
@@ -32,6 +34,21 @@ def runtime_start_allowed(state_path: Path) -> bool:
     if not isinstance(state_path, Path):
         raise TypeError("state_path must be a Path")
     return not OperatorStopStore(state_path).current().active
+
+
+def authorized_service_epoch(state_path: Path) -> int:
+    """Resolve a currently leased epoch before launching a Core child."""
+    epoch = ApplicationHeartbeatStore(state_path).current_generation()
+    require_local_runtime_authority(state_path, expected_epoch=epoch)
+    return epoch
+
+
+def assert_runtime_child_alive(child: ReleaseChildProcess, *, phase: str) -> None:
+    """Require live child evidence in both active and bootstrap SCM loops."""
+    if not child.running():
+        raise RuntimeError(
+            f"{phase} Sofía runtime child exited unexpectedly"
+        )
 
 
 def runtime_package_identity() -> str:
@@ -95,6 +112,7 @@ if sys.platform == "win32":
                 environment=environment,
                 state_path=state_path,
                 control_root=release_root / "control",
+                expected_generation_epoch=authorized_service_epoch(state_path),
             )
             self._release_child = child
             try:
@@ -111,10 +129,7 @@ if sys.platform == "win32":
                     )
                     == win32event.WAIT_TIMEOUT
                 ):
-                    if not child.running():
-                        raise RuntimeError(
-                            "active Sofía release child exited unexpectedly"
-                        )
+                    assert_runtime_child_alive(child, phase="active")
                     try:
                         observed = resolver.resolve()
                     except ActiveReleaseError as exc:
@@ -162,6 +177,7 @@ if sys.platform == "win32":
                 control_root=state_path.parent / "release-runtime" / "control",
                 python_path=Path(sys.executable),
                 runtime_label="bootstrap",
+                expected_generation_epoch=authorized_service_epoch(state_path),
             )
             self._release_child = child
             try:
@@ -178,6 +194,7 @@ if sys.platform == "win32":
                     )
                     == win32event.WAIT_TIMEOUT
                 ):
+                    assert_runtime_child_alive(child, phase="bootstrap")
                     try:
                         observed = resolver.resolve()
                     except ActiveReleaseError as exc:

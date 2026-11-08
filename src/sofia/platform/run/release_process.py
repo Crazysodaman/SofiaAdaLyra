@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import json
 import subprocess
 import time
 import uuid
@@ -22,6 +23,7 @@ class ReleaseChildProcess:
     control_root: Path
     python_path: Path | None = None
     runtime_label: str | None = None
+    expected_generation_epoch: int | None = None
     process: subprocess.Popen | None = None
     ready_file: Path | None = None
     stop_file: Path | None = None
@@ -53,6 +55,11 @@ class ReleaseChildProcess:
         if ready_timeout_seconds < 5 or ready_timeout_seconds > 300:
             raise ValueError("ready timeout must be in 5..300 seconds")
 
+        if self.expected_generation_epoch is not None and (
+            type(self.expected_generation_epoch) is not int
+            or self.expected_generation_epoch < 1
+        ):
+            raise ValueError("expected_generation_epoch must be positive or None")
         python_path, label = self._identity()
         token = uuid.uuid4().hex
         self.control_root.mkdir(parents=True, exist_ok=True)
@@ -68,39 +75,87 @@ class ReleaseChildProcess:
         )
         self._stdout_handle = self.stdout_path.open("ab")
         self._stderr_handle = self.stderr_path.open("ab")
-        self.process = subprocess.Popen(
-            [
+        # A per-launch token binds readiness to this exact process attempt,
+        # independent of any previous ready marker or reused OS PID.
+        try:
+            command = [
                 str(python_path),
                 "-m",
                 "sofia.platform.run.runtime_child",
-                "--state-path",
-                str(self.state_path),
-                "--ready-file",
-                str(self.ready_file),
-                "--stop-file",
-                str(self.stop_file),
-            ],
-            stdin=subprocess.DEVNULL,
-            stdout=self._stdout_handle,
-            stderr=self._stderr_handle,
-        )
-        deadline = time.monotonic() + ready_timeout_seconds
-        while time.monotonic() < deadline:
-            if should_stop is not None and should_stop():
+                "--state-path", str(self.state_path),
+                "--ready-file", str(self.ready_file),
+                "--stop-file", str(self.stop_file),
+                "--start-token", token,
+            ]
+            if self.expected_generation_epoch is not None:
+                command.extend((
+                    "--expected-generation-epoch",
+                    str(self.expected_generation_epoch),
+                ))
+            self.process = subprocess.Popen(
+                command,
+                stdin=subprocess.DEVNULL,
+                stdout=self._stdout_handle,
+                stderr=self._stderr_handle,
+            )
+            deadline = time.monotonic() + ready_timeout_seconds
+            while time.monotonic() < deadline:
+                if should_stop is not None and should_stop():
+                    self.stop()
+                    return False
+                code = self.process.poll()
+                if code is not None:
+                    raise ReleaseProcessError(
+                        f"release child exited before readiness with code {code}"
+                    )
+                if self.ready_file.is_file():
+                    try:
+                        marker = json.loads(
+                            self.ready_file.read_text(encoding="utf-8")
+                        )
+                    except (OSError, ValueError, UnicodeError) as exc:
+                        raise ReleaseProcessError(
+                            "release child readiness is invalid"
+                        ) from exc
+                    required = {
+                        "pid", "ready_at", "state_path", "start_token",
+                        "generation_epoch", "phase",
+                    }
+                    if (
+                        not isinstance(marker, dict)
+                        or set(marker) != required
+                        or type(marker["pid"]) is not int
+                        or marker["pid"] != self.process.pid
+                        or marker["state_path"] != str(self.state_path.resolve())
+                        or marker["start_token"] != token
+                        or marker["phase"] != "PROCESS_READY"
+                        or marker["generation_epoch"] != self.expected_generation_epoch
+                        or type(marker["ready_at"]) is not str
+                        or not marker["ready_at"].strip()
+                    ):
+                        raise ReleaseProcessError(
+                            "release child readiness identity or generation mismatch"
+                        )
+                    # Do not advertise READY based on a dead child that left
+                    # an otherwise valid marker at process exit.
+                    if self.process.poll() is not None:
+                        raise ReleaseProcessError(
+                            "release child exited during readiness validation"
+                        )
+                    return True
+                time.sleep(0.25)
+            raise ReleaseProcessError(
+                "release child did not report readiness before timeout"
+            )
+        except BaseException as exc:
+            try:
                 self.stop()
-                return False
-            if self.ready_file.is_file():
-                return True
-            code = self.process.poll()
-            if code is not None:
-                raise ReleaseProcessError(
-                    f"release child exited before readiness with code {code}"
+            except Exception as cleanup_exc:
+                exc.add_note(
+                    "release child cleanup failed: "
+                    f"{type(cleanup_exc).__name__}"
                 )
-            time.sleep(0.25)
-        self.stop()
-        raise ReleaseProcessError(
-            "release child did not report readiness before timeout"
-        )
+            raise
 
     def running(self) -> bool:
         return self.process is not None and self.process.poll() is None
@@ -123,8 +178,15 @@ class ReleaseChildProcess:
                 process.kill()
                 process.wait(timeout=10)
         finally:
-            self.process = None
+            # A timed-out or unverified forced kill must retain its process
+            # identity: never claim a clean stop while the child may be alive.
+            if process.poll() is not None:
+                self.process = None
             self._close_logs()
+        if self.process is not None:
+            raise ReleaseProcessError(
+                "release child exit could not be verified"
+            )
 
     def _close_logs(self) -> None:
         for name in ("_stdout_handle", "_stderr_handle"):

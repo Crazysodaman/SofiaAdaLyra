@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
+from typing import Callable
 
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 
@@ -204,3 +205,48 @@ class ApplicationHeartbeatStore:
                 "SELECT epoch FROM run_runtime_generation WHERE singleton=1"
             ).fetchone()
         return None if row is None else int(row[0])
+
+def generation_bound_heartbeat_publisher(
+    store: ApplicationHeartbeatStore,
+    *,
+    instance_id: str,
+    runtime_state: Callable[[], str],
+) -> Callable[[datetime, bool], None]:
+    """Pin one application instance to its startup epoch; never adopt a newer one.
+
+    A stale process must not learn the new watchdog epoch and publish a
+    ready heartbeat impersonating its successor. Missing/changed epoch
+    fails closed. This is local telemetry, not distributed writer authority.
+    """
+    if not isinstance(store, ApplicationHeartbeatStore):
+        raise TypeError("ApplicationHeartbeatStore required")
+    if not isinstance(instance_id, str) or not instance_id.strip():
+        raise ValueError("nonempty application instance ID required")
+    if not callable(runtime_state):
+        raise TypeError("runtime_state must be callable")
+    pinned_epoch = store.current_generation()
+
+    def publish(now: datetime, healthy: bool) -> None:
+        if type(pinned_epoch) is not int or pinned_epoch < 1:
+            raise PermissionError("application heartbeat has no startup generation")
+        if store.current_generation() != pinned_epoch:
+            raise PermissionError("stale application heartbeat generation")
+        state = runtime_state()
+        store.publish(
+            ApplicationHeartbeat(
+                instance_id=instance_id,
+                recorded_at=now,
+                ready=bool(healthy and state == "ready"),
+                runtime_state=state,
+                database_writable=True,
+                background_running=True,
+                detail=(
+                    "application background loop healthy"
+                    if healthy
+                    else "application background loop reported an error"
+                ),
+                generation_epoch=pinned_epoch,
+            )
+        )
+
+    return publish

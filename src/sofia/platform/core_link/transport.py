@@ -24,6 +24,7 @@ from sofia.platform.core_link.binding import (
 from sofia.platform.distributed.tls import (
     public_key_fingerprint_from_der_certificate,
 )
+from sofia.sdk.cognition_json import loads_strict_model_json
 from sofia.sdk.core_link import (
     CoreLinkRequest, CoreLinkResponse, CoreLinkResponseStatus,
 )
@@ -145,8 +146,8 @@ class CoreLinkServer:
                     raise ValueError("Core Link request body size is invalid")
                 raw = self.rfile.read(length)
                 try:
-                    payload = json.loads(raw.decode("utf-8"))
-                except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                    payload = loads_strict_model_json(raw.decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
                     raise ValueError("Core Link request is not valid JSON") from exc
                 return CoreLinkRequest.from_payload(payload)
 
@@ -329,7 +330,7 @@ class PinnedCoreLinkClient:
             if len(raw) > _MAX_WIRE_BYTES:
                 raise CoreLinkTransportError("Core Link response exceeds size limit")
             try:
-                payload = json.loads(raw.decode("utf-8"))
+                payload = loads_strict_model_json(raw.decode("utf-8"))
                 response = CoreLinkResponse.from_payload(payload)
             except (UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
                 raise CoreLinkTransportError(

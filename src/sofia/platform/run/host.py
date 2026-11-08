@@ -18,6 +18,7 @@ from sofia.modules.integrations.local_maintenance import LocalMaintenanceAdapter
 from sofia.platform.run.lease import LocalRunLeaseStore, RunLease
 from sofia.platform.run.release import ReleaseRecoveryHook
 from sofia.platform.run.heartbeat import ApplicationHeartbeatStore
+from sofia.platform.run.runtime_authority import require_local_runtime_authority
 from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.state.component_schema import verify_production_component_schemas
@@ -44,6 +45,7 @@ class LocalServiceRuntimeBackend(ManagedRuntimeBackend):
         self.service_name = service_name.strip()
         self.maintenance = maintenance or LocalMaintenanceAdapter()
         self.heartbeats = ApplicationHeartbeatStore(state_path)
+        self.state_path = state_path
 
     def observe(self) -> RuntimeObservation:
         state = self.maintenance.service_status(self.service_name)
@@ -51,8 +53,17 @@ class LocalServiceRuntimeBackend(ManagedRuntimeBackend):
         if state == "running":
             heartbeat = self.heartbeats.current()
             now = datetime.now(timezone.utc)
+            try:
+                require_local_runtime_authority(
+                    self.state_path, expected_epoch=epoch, at=now,
+                )
+                authority_verified = True
+            except (PermissionError, OSError, RuntimeError, ValueError):
+                authority_verified = False
             ready = bool(
-                heartbeat is not None
+                authority_verified
+                and epoch is not None
+                and heartbeat is not None
                 and heartbeat.generation_epoch == epoch
                 and heartbeat.recorded_at <= now
                 and heartbeat.recorded_at >= now - timedelta(seconds=45)
@@ -64,9 +75,9 @@ class LocalServiceRuntimeBackend(ManagedRuntimeBackend):
                 ProcessState.RUNNING,
                 ready=ready,
                 detail=(
-                    "fresh generation-bound application heartbeat"
+                    "fresh generation-bound application heartbeat and RUN lease"
                     if ready else
-                    "service running without fresh generation-bound readiness"
+                    "service running without verified Core readiness/authority"
                 ),
                 generation_epoch=epoch,
             )
@@ -98,7 +109,15 @@ class LocalServiceRuntimeBackend(ManagedRuntimeBackend):
     def start(self, *, epoch: int) -> None:
         if type(epoch) is not int or epoch < 1:
             raise ValueError("epoch must be a positive integer")
-        self.heartbeats.bind_generation(epoch, now=datetime.now(timezone.utc))
+        now = datetime.now(timezone.utc)
+        lease = LocalRunLeaseStore(self.state_path).current(now=now)
+        if lease is None or lease.epoch != epoch:
+            raise PermissionError(
+                "service start requires current local watchdog lease"
+            )
+        if OperatorStopStore(self.state_path).current().active:
+            raise PermissionError("operator STOP denies runtime service start")
+        self.heartbeats.bind_generation(epoch, now=now)
         self.maintenance.service(self.service_name, "start")
 
     def stop(self) -> None:

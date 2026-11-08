@@ -2,6 +2,8 @@ from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import multiprocessing
 import os
+import time
+from threading import Event
 
 import pytest
 
@@ -9,6 +11,7 @@ from sofia.core.cognition.model import (
     CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole,
     CognitiveToolDefinition,
 )
+from sofia.core.cognition.engine import CognitiveEngineError
 from sofia.core.cognition.provider import LLMProvider, LLMProviderError
 from sofia.core.cognition.providers.test_provider import TestLLMProvider
 from sofia.core.cognition.fleet_engine import FleetPlacedCognitiveEngine
@@ -1362,3 +1365,70 @@ def test_installed_release_digest_rejects_symlinked_package_input(tmp_path):
 
     with pytest.raises(CoreWorkerError, match="symlink"):
         installed_core_release_digest(package)
+
+
+def test_core001_operator_stop_rejects_provider_before_dispatch(
+    canonical_state_path, tmp_path,
+):
+    from sofia.platform.safe.operator_stop import OperatorStopStore
+
+    now, generations, controller = build(canonical_state_path, tmp_path)
+    configuration = ProviderConfiguration(
+        provider="test-llm", model="stop-preflight",
+    )
+    provider = TestLLMProvider(response=CognitiveResponse("must-not-be-delivered"))
+    controller.bind_providers({
+        "primary": PlatformProviderBinding(configuration, provider),
+    })
+    active = controller.start(
+        release_digest=sha256(b"core001-stop-test").hexdigest(),
+        spec=CoreEngineProcessSpec("provider", provider=configuration),
+        now=now,
+    )
+    try:
+        OperatorStopStore(canonical_state_path).set(
+            active=True, updated_by="Sparks",
+            reason="disposable provider admission STOP",
+        )
+        with pytest.raises(CognitiveEngineError, match="STOP"):
+            controller.respond(request())
+        assert getattr(provider, "received_request", None) is None
+        assert generations.is_active(active.endpoint)
+    finally:
+        controller.cancel(now=now + timedelta(seconds=1), reason="test cleanup")
+
+
+def test_core001_sync_provider_timeout_quarantines_worker_without_late_delivery(
+    canonical_state_path, tmp_path,
+):
+    started, release = Event(), Event()
+
+    class BlockingProvider(LLMProvider):
+        def respond(self, cognitive_request):
+            started.set()
+            release.wait(timeout=3)
+            return CognitiveResponse("synthetic-late-result")
+
+    now, generations, controller = build(canonical_state_path, tmp_path)
+    configuration = ProviderConfiguration(
+        provider="test-llm", model="blocking-provider",
+    )
+    controller.bind_providers({
+        "primary": PlatformProviderBinding(configuration, BlockingProvider()),
+    })
+    controller.response_timeout = timedelta(milliseconds=250)
+    health = controller.start(
+        release_digest=sha256(b"core001-deadline-test").hexdigest(),
+        spec=CoreEngineProcessSpec("provider", provider=configuration),
+        now=now,
+    )
+    begun = time.monotonic()
+    try:
+        with pytest.raises(CognitiveEngineError, match="failed or became uncertain"):
+            controller.respond(request())
+        assert started.is_set()
+        assert time.monotonic() - begun < 2.0
+    finally:
+        release.set()
+    assert generations.is_active(health.endpoint) is False
+    assert controller.pid is None

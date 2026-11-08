@@ -13,6 +13,7 @@ from sofia.core.cognition.matrix.influence import (
     InfluenceSurface,
 )
 from sofia.core.memory.provenance import CandidateStatus
+from sofia.core.memory.eligibility_v1 import ReviewedMemoryEligibilityV1
 from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.core.personality.influence import ContinuityInfluence
 
@@ -31,7 +32,7 @@ class MemoryProjection:
     missing_or_inactive_ids: tuple[UUID, ...]
 
 
-def project_promoted_memories(store: DurableMemoryCandidateStore, candidate_ids, *, budget_characters: int) -> MemoryProjection:
+def project_promoted_memories(store: DurableMemoryCandidateStore, candidate_ids, *, budget_characters: int, eligibility_policy: ReviewedMemoryEligibilityV1 | None = None) -> MemoryProjection:
     if not isinstance(store, DurableMemoryCandidateStore):
         raise TypeError("store must be a DurableMemoryCandidateStore")
     if type(budget_characters) is not int or budget_characters < 0:
@@ -43,6 +44,8 @@ def project_promoted_memories(store: DurableMemoryCandidateStore, candidate_ids,
         if candidate_id in seen:
             continue
         seen.add(candidate_id)
+        if eligibility_policy is not None and not eligibility_policy.allows(candidate_id):
+            inactive.append(candidate_id); continue
         if not store.is_recall_eligible(candidate_id):
             inactive.append(candidate_id); continue
         memory=store.get(candidate_id)
@@ -123,11 +126,21 @@ def retrieve_promoted(
     audience_id: str | None = None,
     influence: ContinuityInfluence | None = None,
     association_store=None,
+    eligibility_policy: ReviewedMemoryEligibilityV1 | None = None,
 ) -> MemoryProjection:
     if not isinstance(query, str):
         raise TypeError("query must be a string")
     if type(limit) is not int or limit < 1:
         raise ValueError("limit must be a positive integer")
+
+    if eligibility_policy is not None:
+        if not isinstance(eligibility_policy, ReviewedMemoryEligibilityV1):
+            raise TypeError('eligibility_policy must be ReviewedMemoryEligibilityV1')
+        eligibility_policy.require_current()
+        if not principal_id or not audience_id:
+            raise PermissionError(
+                "strict reviewed-memory retrieval requires current owner/audience scope"
+            )
 
     query_tokens = _tokens(query)
     if not query_tokens:
@@ -141,6 +154,7 @@ def retrieve_promoted(
         for order, (candidate_id, content) in enumerate(
             store.iter_promoted_summaries(
                 principal_id=principal_id, audience_id=audience_id,
+                require_reviewed_source_v1=eligibility_policy is not None,
             )
         ):
             memory_tokens = _tokens(content)
@@ -185,4 +199,5 @@ def retrieve_promoted(
         store,
         ids,
         budget_characters=budget_characters,
+        eligibility_policy=eligibility_policy,
     )

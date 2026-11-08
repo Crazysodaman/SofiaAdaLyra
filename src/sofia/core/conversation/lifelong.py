@@ -353,6 +353,52 @@ class LifelongThreadStore:
         ), ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
+            if channel.casefold() == "core-link":
+                # This is the durable admission linearization point shared
+                # with Core Link revocation and operator STOP.  The gateway
+                # must already have authenticated the mTLS peer; this local
+                # check does not replace its certificate/generation validation.
+                # A revocation or STOP committed before this transaction wins
+                # and cannot race past the canonical admission write.
+                if (
+                    not isinstance(source_device_id, str)
+                    or not source_device_id.strip()
+                    or not event_id.startswith("core-link:")
+                ):
+                    raise PermissionError("Core Link canonical admission lacks a client binding")
+                client = db.execute(
+                    """SELECT principal_id,audience_id,audience_kind,scopes,
+                    enrolled_at,expires_at,revoked_at
+                    FROM core_link_client_access WHERE client_id=?""",
+                    (source_device_id,),
+                ).fetchone()
+                if client is None:
+                    raise PermissionError("Core Link enrollment missing at turn admission")
+                try:
+                    enrolled_at = datetime.fromisoformat(client["enrolled_at"])
+                    expires_at = datetime.fromisoformat(client["expires_at"])
+                except (TypeError, ValueError) as exc:
+                    raise PermissionError(
+                        "Core Link enrollment time is invalid at turn admission"
+                    ) from exc
+                if (
+                    client["revoked_at"] is not None
+                    or not enrolled_at <= now.astimezone(timezone.utc) < expires_at
+                    or (
+                        client["principal_id"], client["audience_id"],
+                        client["audience_kind"],
+                    ) != (
+                        principal.principal_id, principal.audience_id,
+                        principal.audience_kind.value,
+                    )
+                    or "conversation.send" not in client["scopes"].split("\n")
+                ):
+                    raise PermissionError("Core Link enrollment is not current at turn admission")
+                stop = db.execute(
+                    "SELECT active FROM safe_operator_stop WHERE singleton=1"
+                ).fetchone()
+                if stop is None or stop[0] != 0:
+                    raise PermissionError("operator STOP blocks Core Link turn admission")
             binding = db.execute(
                 """SELECT principal_id,audience_id,audience_kind
                 FROM social_session_principal WHERE session_id=?""",

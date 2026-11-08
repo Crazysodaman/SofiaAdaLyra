@@ -80,6 +80,8 @@ FILENAME_PACKAGE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("test_aegis_debian_vm_runner.py", ("pkg_verify", "pkg_run", "pkg_safe")),
     ("test_platform_release_", ("pkg_verify", "pkg_integrate", "pkg_safe")),
     ("test_core_worker_socket_paths.py", ("pkg_run", "pkg_integrate", "pkg_safe")),
+    ("test_core004_wire_security.py", ("pkg_net", "pkg_safe", "pkg_verify")),
+    ("test_core_worker_provider_deadline.py", ("pkg_core", "pkg_run", "pkg_verify")),
     ("test_platform_service_", ("pkg_run", "pkg_safe", "pkg_verify")),
     ("test_rust_platform_", ("pkg_run", "pkg_safe", "pkg_verify")),
     # Creative/ComfyUI tests are DEV tooling with INTEGRATE lifecycle boundaries.

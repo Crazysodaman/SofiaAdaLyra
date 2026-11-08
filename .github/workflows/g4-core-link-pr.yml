@@ -32,6 +32,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify checked-out exact PR HEAD
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -47,6 +53,6 @@ jobs:
           python -m pip check
           python -m compileall -q src/sofia test
       - name: Run g4 regressions
-        run: python -m pytest -q test/test_core_link_conversation.py
+        run: python -m pytest -q test/test_core_link_conversation.py test/test_core_link_binding.py test/test_core_link_desktop.py test/test_platform_roles_and_launcher.py test/test_core004_wire_security.py test/test_core004_admission_fence.py test/test_core004_client_deadline.py test/test_core004_history_paging.py test/test_core004_real_mtls_reconnect.py test/test_core004_real_inference_opt_in.py
       - name: Run grant revocation boundary regressions
         run: python -m pytest -q test/test_distributed_revocation_races.py test/test_distributed_operations.py test/test_distributed_durable.py

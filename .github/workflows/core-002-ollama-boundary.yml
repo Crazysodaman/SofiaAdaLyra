@@ -1,0 +1,77 @@
+name: CORE-002 Ollama Boundary and Conversation Regression
+
+on:
+  push:
+    branches: [chatgpt/core-002-ollama-failclosed-20261108]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/sofia/platform/core_worker/ollama_transport.py'
+      - 'src/sofia/modules/inference/ollama_provider.py'
+      - 'test/test_ollama_malformed_response_boundary.py'
+      - 'test/test_ollama_endpoint_and_diagnostics.py'
+      - 'test/test_core002_live_ollama_conversation.py'
+      - '.github/workflows/core-002-ollama-boundary.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core-002-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  provider-contract:
+    name: CORE-002 provider boundary (${{ matrix.os }}, Python 3.12)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    env:
+      SOFIA_CORE002_LIVE: '0'
+      SOFIA_IDLE_REFLECTIONS: '0'
+      SOFIA_COGNITION_MODEL_AUTO_MANAGE: '0'
+      SOFIA_COGNITION_MODEL_AUTO_INSTALL: '0'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Checkout exact Team 2 source HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python distribution and pytest
+        run: python -m pip install -e . pytest
+      - name: Check installed dependencies
+        run: python -m pip check
+      - name: Compile provider and non-live regression sources
+        run: >-
+          python -m compileall -q
+          src/sofia/platform/core_worker/ollama_transport.py
+          src/sofia/modules/inference/ollama_provider.py
+          test/test_ollama_malformed_response_boundary.py
+          test/test_ollama_endpoint_and_diagnostics.py
+          test/test_core002_live_ollama_conversation.py
+      - name: Run actual focused provider and cognitive pipeline pytest (NO live Ollama)
+        run: >-
+          python -m pytest -q -m "not integration"
+          test/test_ollama_malformed_response_boundary.py
+          test/test_ollama_endpoint_and_diagnostics.py
+          test/test_ollama_provider.py
+          test/test_ollama_generation_contract.py
+          test/test_generic_cognition_providers.py
+          test/test_conversation_service.py
+          test/test_cognition_reply_origin_production.py
+          test/test_personality_provider_path.py
+          test/test_core002_live_ollama_conversation.py
+      - name: Verify live probe is not silently counted as model inference
+        shell: bash
+        run: |
+          if [ "${SOFIA_CORE002_LIVE}" != "0" ]; then exit 1; fi
+          echo "Real Ollama acceptance: NOT RUN (owner-only disposable host)"

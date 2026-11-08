@@ -191,6 +191,15 @@ class DurableMemoryCandidateStore:
             )
             db.commit()
 
+    @property
+    def database_path(self) -> Path:
+        """Read-only canonical path needed to bind eligibility to this store.
+
+        Returning the validated pinned location does not grant a second writer
+        or permit resolving a substituted state file.
+        """
+        return self._guard.validate()
+
     def propose(self, candidate: MemoryCandidate) -> None:
         if not isinstance(candidate, MemoryCandidate):
             raise TypeError("candidate must be a MemoryCandidate")
@@ -429,6 +438,155 @@ class DurableMemoryCandidateStore:
                     ),
                 )
 
+    def reattest_legacy_promoted_originals(
+        self, candidate_id: UUID, *,
+        session_id: str, principal_id: str, audience_id: str,
+        audience_kind: str, reviewed_by: str,
+    ) -> str:
+        """V1 owner re-review, with exact originals checked in the writer txn.
+
+        The owner-facing MemoryReviewService authenticates and re-reads current
+        originals before invoking this transition. This low-level atomic
+        boundary never upgrades unknown, revoked, cross-audience or missing
+        sources and leaves historic candidate bytes untouched.
+        """
+        if not isinstance(candidate_id, UUID):
+            raise TypeError("candidate ID must be UUID")
+        if any(not isinstance(value, str) or not value.strip() for value in (
+            session_id, principal_id, audience_id, audience_kind, reviewed_by
+        )):
+            raise ValueError("complete owner, source and audience binding required")
+        if principal_id != reviewed_by:
+            raise PermissionError("legacy re-review must be owner-authenticated")
+
+        from hashlib import sha256
+        import json
+        from sofia.core.memory.eligibility_v1 import (
+            POLICY_VERSION, MemoryEligibilityVersionError,
+        )
+
+        with self._lock:
+            db = self._require_db()
+            with db:
+                db.execute("BEGIN IMMEDIATE")
+                try:
+                    policy = db.execute(
+                        "SELECT version FROM core_memory_eligibility_policy "
+                        "WHERE singleton=1"
+                    ).fetchone()
+                except sqlite3.Error as exc:
+                    raise MemoryEligibilityVersionError(
+                        "reviewed-memory policy must be explicitly installed"
+                    ) from exc
+                if policy is None or type(policy[0]) is not int or policy[0] != POLICY_VERSION:
+                    raise MemoryEligibilityVersionError(
+                        "reviewed-memory policy is unavailable or downgraded"
+                    )
+                candidate = db.execute(
+                    "SELECT status,principal_id,audience_id FROM memory_candidate "
+                    "WHERE candidate_id=?", (str(candidate_id),),
+                ).fetchone()
+                if candidate is None:
+                    raise LookupError("candidate does not exist")
+                if candidate != (
+                    CandidateStatus.PROMOTED.value, principal_id, audience_id
+                ):
+                    raise PermissionError(
+                        "legacy re-review requires promoted same-scope owner memory"
+                    )
+                if db.execute(
+                    "SELECT 1 FROM memory_candidate_source_review "
+                    "WHERE candidate_id=?", (str(candidate_id),),
+                ).fetchone():
+                    raise ValueError("candidate already has reviewed source attestation")
+                source = db.execute(
+                    "SELECT message_id,session_id,role,content,created_at,position "
+                    "FROM memory_candidate_source WHERE candidate_id=? "
+                    "ORDER BY ordinal", (str(candidate_id),),
+                ).fetchall()
+                if not 1 <= len(source) <= 64 or any(
+                    row[1] != session_id for row in source
+                ):
+                    raise PermissionError(
+                        "legacy evidence must contain bounded same-session originals"
+                    )
+                db.execute(
+                    "INSERT INTO memory_candidate_source_review "
+                    "(candidate_id,source_session_id,principal_id,audience_id,"
+                    "audience_kind,reviewed_at) VALUES(?,?,?,?,?,?)",
+                    (
+                        str(candidate_id), session_id, principal_id, audience_id,
+                        audience_kind, _utc(datetime.now(timezone.utc)),
+                    ),
+                )
+                # This read happens in the same BEGIN IMMEDIATE transaction.
+                # Changed originals, roles, timestamps or audience roll back
+                # the freshly inserted attestation with no partial approval.
+                self._verify_reviewed_originals_in_writer(db, candidate_id)
+                original_digest = sha256(
+                    json.dumps(source, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+                ).hexdigest()
+                db.execute(
+                    "CREATE TABLE IF NOT EXISTS core_memory_legacy_review_receipt ("
+                    "candidate_id TEXT PRIMARY KEY,"
+                    "policy_version INTEGER NOT NULL,"
+                    "reviewer TEXT NOT NULL,audience_id TEXT NOT NULL,"
+                    "source_sha256 TEXT NOT NULL,reviewed_at TEXT NOT NULL,"
+                    "FOREIGN KEY(candidate_id) REFERENCES memory_candidate(candidate_id))"
+                )
+                db.execute(
+                    "INSERT INTO core_memory_legacy_review_receipt VALUES(?,?,?,?,?,?)",
+                    (
+                        str(candidate_id), POLICY_VERSION, reviewed_by,
+                        audience_id, original_digest,
+                        _utc(datetime.now(timezone.utc)),
+                    ),
+                )
+        return original_digest
+
+    def record_owner_testimony(
+        self, candidate_id: UUID, *,
+        owner_id: str, audience_id: str, source_message_id: str,
+    ) -> None:
+        """Mark a new candidate as fresh owner testimony, not old attestation."""
+        if not isinstance(candidate_id, UUID):
+            raise TypeError("candidate_id must be UUID")
+        if any(not isinstance(value, str) or not value.strip() for value in (
+            owner_id, audience_id, source_message_id
+        )):
+            raise ValueError("fresh owner testimony must be scoped and sourced")
+        with self._lock:
+            db = self._require_db()
+            with db:
+                db.execute("BEGIN IMMEDIATE")
+                row = db.execute(
+                    "SELECT c.status,c.principal_id,c.audience_id,s.role "
+                    "FROM memory_candidate AS c "
+                    "JOIN memory_candidate_source AS s ON "
+                    "s.candidate_id=c.candidate_id AND s.message_id=? "
+                    "WHERE c.candidate_id=?", (source_message_id,str(candidate_id)),
+                ).fetchone()
+                if row != (
+                    CandidateStatus.PROPOSED.value,owner_id,audience_id,"user"
+                ):
+                    raise PermissionError(
+                        "owner testimony requires new proposed candidate and user original"
+                    )
+                db.execute(
+                    "CREATE TABLE IF NOT EXISTS core_memory_owner_testimony ("
+                    "candidate_id TEXT PRIMARY KEY,owner_id TEXT NOT NULL,"
+                    "audience_id TEXT NOT NULL,source_message_id TEXT NOT NULL,"
+                    "witnessed_at TEXT NOT NULL,"
+                    "FOREIGN KEY(candidate_id) REFERENCES memory_candidate(candidate_id))"
+                )
+                db.execute(
+                    "INSERT INTO core_memory_owner_testimony VALUES(?,?,?,?,?)",
+                    (
+                        str(candidate_id),owner_id,audience_id,source_message_id,
+                        _utc(datetime.now(timezone.utc)),
+                    ),
+                )
+
     def is_recall_eligible(
         self, candidate_id: UUID, *, at: datetime | None = None,
     ) -> bool:
@@ -502,6 +660,7 @@ class DurableMemoryCandidateStore:
         principal_id: str | None = None,
         audience_id: str | None = None,
         batch_size: int = 128,
+        require_reviewed_source_v1: bool = False,
     ) -> Iterator[tuple[UUID, str]]:
         """Stream eligible promoted content in stable chronological keyset order.
 
@@ -522,6 +681,8 @@ class DurableMemoryCandidateStore:
             raise ValueError("audience_id requires principal_id")
         if type(batch_size) is not int or not 1 <= batch_size <= 512:
             raise ValueError("batch_size must be 1..512")
+        if type(require_reviewed_source_v1) is not bool:
+            raise TypeError("reviewed-source policy selector must be bool")
 
         with self._lock:
             existing_tables = {
@@ -579,6 +740,15 @@ class DurableMemoryCandidateStore:
         scope: list[str] = [
             CandidateStatus.PROMOTED.value, _utc(datetime.now(timezone.utc)),
         ]
+        if require_reviewed_source_v1:
+            # Opt-in V1 quarantine runs in the indexed SQL page query.
+            # Legacy copies never enter Python's ranking/scoring iterator.
+            clauses.append(
+                "EXISTS (SELECT 1 FROM memory_candidate_source_review AS r "
+                "WHERE r.candidate_id=memory_candidate.candidate_id "
+                "AND r.principal_id=memory_candidate.principal_id "
+                "AND r.audience_id=memory_candidate.audience_id)"
+            )
         if principal_id is not None:
             clauses.append("principal_id=?")
             scope.append(principal_id)

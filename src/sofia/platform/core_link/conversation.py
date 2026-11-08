@@ -371,6 +371,17 @@ class CoreLinkConversationGateway:
                     request.request_id, CoreLinkResponseStatus.OUTCOME_UNKNOWN,
                     {"event_id": event_id, "error": str(exc)}, now,
                 )
+            # A turn can already be durably admitted before the owner
+            # activates STOP or revokes the client. Do not publish its
+            # content merely because admission once succeeded. This final
+            # server-side recheck protects raw mTLS callers as well as our
+            # pinned Python client; it is not a claim that in-flight model
+            # work was retroactively cancelled.
+            delivery_access, _, delivery_generation = self._authenticate(
+                certificate_public_key_sha256, request,
+            )
+            if delivery_access != access or delivery_generation != generation:
+                raise PermissionError("Core Link authority changed before reply delivery")
             result = {
                 "session_id": service.session_id,
                 "content": response.content,
