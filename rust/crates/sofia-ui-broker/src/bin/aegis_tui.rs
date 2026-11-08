@@ -4,6 +4,7 @@
 
 use serde_json::Value;
 use sofia_ui_broker::control_center::ControlCenterView;
+use sofia_ui_broker::control_center_session::{DisplaySession, OfflineReader};
 use std::env;
 use std::io::{self, IsTerminal, Write};
 use std::process::ExitCode;
@@ -119,21 +120,26 @@ fn render_menu(colors: bool) -> String {
     lines.join("\n")
 }
 
-fn render_page(page: Page, colors: bool) -> String {
-    let state = ControlCenterView::offline();
+fn render_page(page: Page, colors: bool, state: &ControlCenterView) -> String {
     format!(
-        "{}\nSERVICE: {} / SOURCE: {}\n{}\n{}\n{}",
+        "{}\nSERVICE: {} / SOURCE: {}\nSETTINGS: {}\nINSTALLATION: {}\n{}\n{}\n{}",
         paint(page.heading(), "primary", colors),
         state.service_label(),
         state.source_label(),
+        state.settings_label(),
+        state.installation_label(),
         "VALUES: UNAVAILABLE (not disconnected, removed, healthy or zero)",
-        "SETTINGS: UNKNOWN / PERMISSION: NOT_EVALUATED / SAFE-STOP: UNKNOWN",
+        "PERMISSION: NOT_EVALUATED / SAFE-STOP: UNKNOWN",
         "No writes, approvals, downloads, installation, state files or service changes."
     )
 }
 
 fn run() -> io::Result<ExitCode> {
     let args: Vec<String> = env::args().skip(1).collect();
+    // Only the offline reader is wired until Team A's authenticated
+    // response contract and native OS transport are approved.
+    let mut session = DisplaySession::default();
+    let _ = session.refresh(&mut OfflineReader, std::time::Instant::now());
     if args.iter().any(|arg| arg == "--help" || arg == "-h") {
         println!("aegis-tui [--plain | --help | --status]");
         println!("This read-only shell does not perform management operations.");
@@ -169,7 +175,7 @@ fn run() -> io::Result<ExitCode> {
             return Ok(ExitCode::SUCCESS);
         }
         if let Some(page) = select_page(&selection) {
-            println!("{}\n", render_page(page, colors));
+            println!("{}\n", render_page(page, colors, session.view()));
         } else {
             println!("Not a valid menu number; no operation performed.\n");
         }
@@ -189,6 +195,7 @@ fn main() -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::{paint, render_menu, render_page, rgb, select_page, Page};
+    use sofia_ui_broker::control_center::{ControlCenterView, LinkState};
 
     #[test]
     fn theme_imports_exact_shared_manifest() {
@@ -204,10 +211,28 @@ mod tests {
         assert!(menu.contains("UNAVAILABLE"));
         assert!(menu.contains("Settings"));
         assert!(!menu.contains("VERIFIED HEALTHY"));
-        let page = render_page(Page::Settings, false);
+        let page = render_page(Page::Settings, false, &ControlCenterView::offline());
         assert!(page.contains("UNVERIFIED"));
         assert!(page.contains("No writes"));
         assert!(!page.contains('\x1b'));
+    }
+
+    #[test]
+    fn all_denial_modes_are_visible_and_no_ansi_in_plain_mode() {
+        for (link, label) in [
+            (LinkState::Revoked, "REVOKED"),
+            (LinkState::AccessDenied, "ACCESS_DENIED"),
+            (LinkState::Stale, "STALE"),
+            (LinkState::Restarting, "RESTARTING"),
+            (LinkState::UnknownGeneration, "UNKNOWN_GENERATION"),
+        ] {
+            let mut state = ControlCenterView::offline();
+            state.link = link;
+            let page = render_page(Page::Modules, false, &state);
+            assert!(page.contains(label));
+            assert!(page.contains("NOT_CURRENTLY_VERIFIED"));
+            assert!(!page.contains('\x1b'));
+        }
     }
 
     #[test]
