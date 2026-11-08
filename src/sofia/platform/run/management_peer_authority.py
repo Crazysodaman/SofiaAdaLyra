@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import datetime, timezone
+import re
 
 from sofia.platform.config.settings_authority import SettingsOwner
 from sofia.platform.safe.permissions import PermissionStore
@@ -60,3 +61,38 @@ class CurrentManagementPeerAuthority:
                     and grant.matches(expected, now=moment)):
                 return frozenset()
         return None
+
+    def enrolled_windows_operator_sid(self) -> str | None:
+        """One *currently owner-approved* human user SID for the pipe DACL.
+
+        This is only OS connection admission. Dispatch still checks live SAFE,
+        STOP, exact Platform/operation scope and revocation on every request.
+        No synthetic SID, group SID, or generic interactive-user ACL.
+        Multiple active enrolled operators are refused until installer policy
+        explicitly defines a reviewed multi-operator contract.
+        """
+        moment = self._clock()
+        if not isinstance(moment, datetime) or moment.utcoffset() is None:
+            raise PermissionError("SAFE authorization clock unavailable")
+        operators: set[str] = set()
+        for grant in self._permissions.grants(active_only=False):
+            if (grant.capability != CAPABILITY
+                    or not isinstance(grant.scope, dict)
+                    or set(grant.scope) != _SCOPE
+                    or grant.scope.get("platform_id") != self._platform_id
+                    or grant.scope.get("operation") != "platform.status"
+                    or not grant.matches(grant.scope, now=moment)):
+                continue
+            peer = grant.scope.get("peer")
+            if not isinstance(peer, str) or not peer.startswith("windows:sid:"):
+                continue
+            sid = peer.removeprefix("windows:sid:")
+            # Only individually enrolled local/domain *user* SIDs. System,
+            # service accounts, Everyone, Administrators, Authenticated Users
+            # and group SIDs cannot be nominated by this access contract.
+            if re.fullmatch(r"S-1-5-21-(?:[0-9]+-){3}[0-9]+", sid) is None:
+                raise PermissionError("unsupported Windows operator principal")
+            operators.add(sid)
+            if len(operators) > 1:
+                raise PermissionError("multiple operator SIDs require explicit installer policy")
+        return next(iter(operators), None)
