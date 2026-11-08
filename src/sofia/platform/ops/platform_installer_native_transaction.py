@@ -20,6 +20,7 @@ from sofia.platform.ops.platform_installation import (
 )
 from sofia.platform.ops.platform_installer_native_service import (
     NativeServiceSpecification, signed_native_service_specification,
+    DebianSystemdNativeService, WindowsScmNativeService,
 )
 from sofia.platform.ops.platform_release import PlatformReleaseVerifier
 from sofia.platform.run.process_lock import StateProcessLock
@@ -32,7 +33,9 @@ from sofia.platform.state.private_file import (
     atomic_write_private_text,
 )
 from sofia.sdk.cognition_json import loads_strict_model_json
-from sofia.sdk.platform_release import PlatformReleaseTarget
+from sofia.sdk.platform_release import PlatformReleaseTarget, PlatformReleaseManifest
+from sofia.sdk.cognition_json import loads_strict_model_json
+from sofia.platform.state.artifact_file import read_artifact_file
 
 _NATIVE_CAPABILITY = "platform.native_service.apply"
 _JOURNAL_SCHEMA = "aegis.native-service-transaction.v1"
@@ -142,6 +145,21 @@ def native_service_operation_request(
                 and item["result"] == "SUCCEEDED" for item in history
             )):
                 raise PlatformInstallationDenied("rollback needs previously verified signed bytes")
+    if operation == "update":
+        # B1 confirms signature/bytes; the native swap also requires the
+        # candidate to be a signed direct successor of the active release.
+        manifest_path = Path(destination).absolute() / "release-manifest.json"
+        size = manifest_path.stat(follow_symlinks=False).st_size
+        if size > 131072:
+            raise PlatformInstallationDenied("signed update manifest oversized")
+        candidate_manifest = PlatformReleaseManifest.from_payload(
+            loads_strict_model_json(read_artifact_file(
+                manifest_path, size, include_data=True,
+            )[1].decode("utf-8"))
+        )
+        if (candidate_manifest.digest != current.manifest_sha256
+                or candidate_manifest.parent_manifest_sha256 != prev.manifest_sha256):
+            raise PlatformInstallationDenied("update candidate has wrong signed predecessor")
     elif previous_destination is not None:
         raise PlatformInstallationDenied("unexpected previous release path")
     safe = Path(canonical_safe_state).absolute()
@@ -210,6 +228,12 @@ def apply_owner_approved_native_service(
         raise PlatformInstallationDenied("native OS mutation requires scoped owner approval")
     if type(operation) is not str or operation not in _OPS:
         raise PlatformInstallationDenied("unknown native OS operation")
+    if type(backend) not in (DebianSystemdNativeService, WindowsScmNativeService):
+        raise PlatformInstallationDenied("only reviewed native OS driver is permitted")
+    expected_driver = (WindowsScmNativeService if expected_target is PlatformReleaseTarget.WINDOWS_X86_64
+                       else DebianSystemdNativeService)
+    if type(backend) is not expected_driver:
+        raise PlatformInstallationDenied("native driver and signed OS target differ")
     moment = now or datetime.now(timezone.utc)
     if moment.tzinfo is None or moment.utcoffset() is None:
         raise ValueError("timezone aware authorization time required")
