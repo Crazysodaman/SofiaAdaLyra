@@ -236,3 +236,18 @@ def test_generation_larger_than_portable_json_integer_refused():
         UntrustedManagementRead.parse(
             json.dumps(request).encode("utf-8"), now=NOW,
         )
+
+
+@pytest.mark.parametrize("escaped", [r"\ud800", r"\udfff"])
+def test_unpaired_surrogates_refused_like_rust_strict_json(escaped):
+    req = UntrustedManagementRead.parse(
+        (ROOT / "management-read-settings-valid-v1.json").read_bytes(), now=NOW,
+    )
+    _, fixture = read()
+    response = json.loads(fixture)
+    response["operation"] = "settings.inspect"
+    response["data"] = {"value": "PLACEHOLDER"}
+    wire = json.dumps(response, separators=(",", ":")).encode("ascii")
+    wire = wire.replace(b"PLACEHOLDER", escaped.encode("ascii"))
+    with pytest.raises(ValueError, match="surrogate"):
+        UntrustedManagementResponse.parse(wire, expected=req, now=NOW)
