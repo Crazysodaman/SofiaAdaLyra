@@ -74,16 +74,36 @@ def create_disposable_core_application(disposable_root: Path) -> SofiaApplicatio
         (HASH_PATH, root / "constitution.sha256"),
         (AVATAR_PATH, root / "avatar.json"),
     )
-    for source, destination in copies:
-        if not destination.exists():
-            copyfile(source, destination)
     identity_path = root / "identity.json"
-    if not identity_path.exists():
-        IdentityStore(identity_path).load()  # new disposable UUID only
     personality_path = root / "personality.json"
-    if not personality_path.exists():
+    state_path = root / "sofia.db"
+    authority_paths = (
+        *(destination for _, destination in copies),
+        identity_path, personality_path, state_path,
+    )
+    if any(path.is_symlink() for path in authority_paths):
+        raise PermissionError("disposable Core authority paths cannot be symlinks")
+    fresh_bootstrap = not any(path.exists() for path in authority_paths)
+    if fresh_bootstrap:
+        for source, destination in copies:
+            copyfile(source, destination)
+        IdentityStore(identity_path).load()  # disposable UUID, only first use
         create_personality(root)
-    state_path = bootstrap_canonical_sqlite(root / "sofia.db")
+        bootstrap_canonical_sqlite(state_path)
+    else:
+        # A missing identity, Constitution, personality or canonical SQLite
+        # after any previous use is lost state, not permission to regenerate.
+        missing = tuple(path.name for path in authority_paths if not path.exists())
+        if missing:
+            raise FileNotFoundError(
+                "disposable Core restart requires complete existing authority: "
+                + ", ".join(missing)
+            )
+    IdentityStore(
+        identity_path, bootstrap_mode=IdentityBootstrapMode.REQUIRE_EXISTING
+    ).load()
+    from sofia.platform.state.canonical_sqlite import require_existing_sqlite
+    state_path, _ = require_existing_sqlite(state_path)
     original = create_configuration(personality_path, state_path)
     config = replace(
         original,
