@@ -49,6 +49,8 @@ def test_shared_fixture_correlated_untrusted_status():
     ("operation", "core.start"),
     ("source", "OWNER_APPROVED"),
     ("protocol", "2.0"),
+    ("protocol", "1.1"),
+    ("protocol", "0.9"),
     ("schema", "aegis.platform.management.response.v1"),
     ("outcome", "TRUSTED"),
 ])
@@ -131,6 +133,14 @@ def test_no_unsafe_projections_duplicate_keys_or_unknown_fields():
         UntrustedManagementResponse.parse(
             raw.replace(b"false", b"NaN", 1), expected=req, now=NOW
         )
+
+
+def test_nonportable_nanosecond_timestamps_are_denied():
+    _, raw = read()
+    doc = json.loads(raw)
+    doc["observed_at"] = "2026-11-08T04:00:00.123456789Z"
+    with pytest.raises(ValueError, match="RFC3339"):
+        parse(doc)
 
 
 def test_builder_stays_bounded_and_denies_mixed_outcome():
