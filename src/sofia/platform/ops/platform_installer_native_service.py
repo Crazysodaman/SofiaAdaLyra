@@ -16,6 +16,7 @@ from hashlib import sha256
 import os
 from pathlib import Path
 import re
+import stat
 import subprocess
 import time
 
@@ -178,6 +179,63 @@ class DebianSystemdNativeService:
         if host_release_target() is not PlatformReleaseTarget.DEBIAN12_X86_64:
             raise PlatformInstallationDenied("native Linux installer requires exact Debian12 x86_64")
 
+    @staticmethod
+    def _require_service_identity(spec: NativeServiceSpecification) -> None:
+        """Refuse startup until exact non-root service user owns protected bytes.
+
+        Ownership provisioning is a separate owner-authorized signed installer
+        step and MUST NOT be guessed by a launcher or systemd unit. This gate
+        prevents an administrator-owned private B1 tree from being installed
+        as an unreadable service under `User=aegis`.
+        """
+        import grp
+        import pwd
+
+        _check_spec(spec, PlatformReleaseTarget.DEBIAN12_X86_64)
+        try:
+            user = pwd.getpwnam("aegis")
+            group = grp.getgrnam("aegis")
+        except KeyError as error:
+            raise PlatformInstallationDenied(
+                "dedicated signed installer service identity is not provisioned"
+            ) from error
+        if (user.pw_uid == 0 or group.gr_gid == 0
+                or user.pw_gid != group.gr_gid
+                or user.pw_shell not in ("/usr/sbin/nologin", "/sbin/nologin", "/bin/false")):
+            raise PlatformInstallationDenied(
+                "service account must be dedicated and noninteractive"
+            )
+        targets = [
+            spec.executable, spec.python_executable, spec.identity_home,
+            spec.local_state,
+        ]
+        # Validate every private child of each reviewed B1 root. Parent
+        # /opt, /var etc may be root-owned but must be traversable to user.
+        release_root = spec.executable.parent.parent
+        interpreter_root = spec.python_executable
+        for node in (release_root, spec.executable.parent,
+                     spec.python_executable.parent,
+                     interpreter_root, spec.executable,
+                     spec.identity_home, spec.local_state):
+            assert_no_redirected_components(node, include_leaf=True)
+            details = node.stat(follow_symlinks=False)
+            if details.st_uid != user.pw_uid:
+                raise PlatformInstallationDenied(
+                    "signed code or protected Platform identity has wrong service UID"
+                )
+            if details.st_mode & 0o077:
+                raise PlatformInstallationDenied(
+                    "service code/private state must not grant group/world access"
+                )
+        for node in (spec.executable, spec.python_executable):
+            details = node.stat(follow_symlinks=False)
+            if not stat.S_ISREG(details.st_mode) or not details.st_mode & stat.S_IXUSR:
+                raise PlatformInstallationDenied(
+                    "signed native executable and bundled interpreter need owner execute"
+                )
+        if not spec.identity_home.is_dir() or not spec.local_state.is_file():
+            raise PlatformInstallationDenied("protected local state/identity unavailable")
+
     def _unit(self, spec: NativeServiceSpecification) -> bytes:
         _check_spec(spec, PlatformReleaseTarget.DEBIAN12_X86_64)
         for item in spec.command():
@@ -214,6 +272,7 @@ class DebianSystemdNativeService:
 
     def register(self, spec: NativeServiceSpecification) -> dict[str, object]:
         self._require_root()
+        self._require_service_identity(spec)
         data = self._unit(spec)
         assert_no_redirected_components(self.unit_path, include_leaf=True)
         if self.unit_path.exists() or self.unit_path.is_symlink() or self._loaded() != "not-found":
@@ -260,6 +319,7 @@ class DebianSystemdNativeService:
     def restart_verified(self, spec: NativeServiceSpecification) -> dict[str, object]:
         """Repair only a matching signed unit; never rewrite unknown configuration."""
         self._require_root()
+        self._require_service_identity(spec)
         self.observe(spec)
         _run_systemctl("restart", _SERVICE_LINUX)
         return self.observe(spec)
@@ -269,6 +329,8 @@ class DebianSystemdNativeService:
     ) -> dict[str, object]:
         """Switch only a known owned unit to another already signed B1 release."""
         self._require_root()
+        self._require_service_identity(previous)
+        self._require_service_identity(candidate)
         self.observe(previous)
         if (candidate.target is not previous.target
                 or candidate.platform_id != previous.platform_id
