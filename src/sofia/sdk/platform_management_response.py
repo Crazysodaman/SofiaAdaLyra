@@ -184,9 +184,9 @@ def make_response(
     """Server wire builder. Caller MUST already have checked current authority."""
     if not isinstance(request, UntrustedManagementRead):
         raise TypeError("typed management request required")
-    moment = observed_at.astimezone(timezone.utc)
-    if moment.utcoffset() is None:
+    if not isinstance(observed_at, datetime) or observed_at.utcoffset() is None:
         raise ValueError("aware service observation time required")
+    moment = observed_at.astimezone(timezone.utc)
     if (data is None) == (denial_code is None):
         raise ValueError("exactly one of data or denial_code required")
     if denial_code is not None and denial_code not in DENIAL_CODES:
