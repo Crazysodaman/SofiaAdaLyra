@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import json
+import math
 import re
 from typing import Mapping
 
@@ -80,7 +81,10 @@ def _safe_data(value: object, depth: int = 0) -> None:
     elif isinstance(value, str):
         if any(ord(char) < 32 or ord(char) == 127 for char in value):
             raise ValueError("control characters in management response")
-    elif value is None or type(value) in (bool, int, float):
+    elif type(value) is float:
+        if not math.isfinite(value):
+            raise ValueError("nonfinite management result")
+    elif value is None or type(value) in (bool, int):
         return
     else:
         raise ValueError("unsupported management response projection")
