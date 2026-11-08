@@ -148,11 +148,18 @@ try {
     exit 2
 }
 
+$narrow = $false
+try { $narrow = ([Console]::WindowWidth -lt 64) } catch { $narrow = $false }
 while ($true) {
-    Write-AegisText '+------------------------------------------------------------+' primary
-    Write-AegisText '|                 AEGIS PLATFORM INSTALLER                   |' primary
-    Write-AegisText '|           PREVIEW ONLY / NO INSTALL AUTHORITY              |' warning
-    Write-AegisText '+------------------------------------------------------------+' primary
+    if ($narrow) {
+        Write-AegisText 'AEGIS PLATFORM INSTALLER' primary
+        Write-AegisText 'PREVIEW ONLY / NO INSTALL AUTHORITY' warning
+    } else {
+        Write-AegisText '+------------------------------------------------------------+' primary
+        Write-AegisText '|                 AEGIS PLATFORM INSTALLER                   |' primary
+        Write-AegisText '|           PREVIEW ONLY / NO INSTALL AUTHORITY              |' warning
+        Write-AegisText '+------------------------------------------------------------+' primary
+    }
     Write-AegisText '[1] Install Platform (blocked)' accent
     Write-AegisText '[2] Update Platform (blocked)' accent
     Write-AegisText '[3] Repair Platform (blocked)' accent
