@@ -58,13 +58,14 @@ class ManagementUnixListener:
             raise PermissionError("management socket path already occupied")
 
         listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        bound = False
+        bound_identity: tuple[int, int] | None = None
         # The parent is 0700 as well. The restrictive umask prevents a
         # bind-to-chmod exposure window; do not touch an existing endpoint.
         prior_umask = os.umask(0o077)
         try:
             listener.bind(str(self.path))
-            bound = True
+            info = os.lstat(self.path)
+            bound_identity = (info.st_dev, info.st_ino)
             os.chmod(self.path, 0o600)
             info = os.lstat(self.path)
             if (
@@ -80,12 +81,13 @@ class ManagementUnixListener:
             return self
         except BaseException:
             listener.close()
-            if bound:
-                # Path parent is private, but avoid deleting a substituted
-                # endpoint on a failed launch.
+            if bound_identity is not None:
+                # Only this bind's inode may be cleaned up. A substituted
+                # socket from another service must never be unlinked.
                 try:
                     info = os.lstat(self.path)
-                    if stat.S_ISSOCK(info.st_mode) and info.st_uid == os.geteuid():
+                    if (stat.S_ISSOCK(info.st_mode)
+                            and (info.st_dev, info.st_ino) == bound_identity):
                         os.unlink(self.path)
                 except FileNotFoundError:
                     pass
