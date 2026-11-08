@@ -250,7 +250,7 @@ def create_configured_integration_tools(*,filesystem_root:Path,state_path:Path)-
                 lambda p:port.volumes()),
             _tool("portainer.networks","List Docker networks through Portainer. Read-only.",_object(),
                 lambda p:port.networks()),
-            _tool("portainer.stacks","List Portainer stacks for the configured endpoint. Read-only.",_object(),
+            _tool("portainer.stacks","List bounded redacted stack identities. Read-only; source and runtime health unverified.",_object(),
                 lambda p:port.stacks()),
             _tool("portainer.stack","Read exact stack metadata with credentials redacted. Read-only.",
                 _object({"stack_id":{"type":"integer"}},["stack_id"]),
