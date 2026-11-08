@@ -33,6 +33,12 @@ from sofia.platform.config.inference_endpoint import (
 
 # Provider-supplied JSON is not an authority grant. Bound resource use at the
 # adapter before its tool candidates reach the governed dispatcher.
+# This is the HTTP client's per-I/O timeout, not an overall turn deadline.
+# With one permitted personal quality retry, nominal 2 x 45s is below the
+# default 120s Core worker response deadline; Team 1 owns final lease fencing.
+# Custom shorter worker deadlines still require explicit compatibility QA.
+OLLAMA_IO_TIMEOUT_SECONDS = 45.0
+
 _MAX_TOOL_CALLS = 16
 _MAX_TOOL_ARGUMENT_BYTES = 64 * 1024
 _MAX_TOOL_ARGUMENT_NODES = 4096
@@ -106,7 +112,7 @@ class GenericOllamaProvider(LLMProvider):
     def _new_client(endpoint: str):
         from ollama import Client
 
-        return Client(host=endpoint)
+        return Client(host=endpoint, timeout=OLLAMA_IO_TIMEOUT_SECONDS)
 
     def respond(self, request: CognitiveRequest) -> CognitiveResponse:
         return self._respond_once(request)
