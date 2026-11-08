@@ -51,6 +51,17 @@ def test_capsule_packages_exact_signed_assets_and_stock_launchers_without_core(
     assert report["release_manifest_sha256"] == manifest.digest
     assert report["release_manifest_signature_verified"] is True
     assert report["release_assets_verified"] is True
+    assert report["verified_release_asset_count"] == len(manifest.assets)
+    assert {item["sha256"] for item in report["signed_release_assets"]} == {
+        asset.reference.sha256 for asset in manifest.assets
+    }
+    assert {item["path"] for item in report["signed_release_assets"]} == {
+        asset.reference.path for asset in manifest.assets
+    }
+    assert len(report["unsigned_delivery_assets"]) == 3
+    assert all(item["publisher_signature_verified"] is False
+               for item in report["unsigned_delivery_assets"])
+    assert report["publisher_revocation_fresh"] is False
     assert report["launcher_publisher_signature_verified"] is False
     assert report["owner_authorized"] is False
     assert report["self_contained_native_installer_certified"] is False
@@ -69,6 +80,8 @@ def test_capsule_packages_exact_signed_assets_and_stock_launchers_without_core(
         for asset in manifest.assets:
             relative = "aegis/assets/" + asset.reference.path
             assert sha256(archive.read(relative)).hexdigest() == asset.reference.sha256
+        for item in report["unsigned_delivery_assets"]:
+            assert sha256(archive.read(item["path"])).hexdigest() == item["sha256"]
         forbidden = ("sofia/core/", "sofia/modules/", "owner-secret", "identity.json",
                      "personality.json", "memory.db")
         assert not any(part in path.lower() for path in names for part in forbidden)
