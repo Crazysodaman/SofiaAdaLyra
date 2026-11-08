@@ -145,3 +145,61 @@ def test_midflight_clock_expiry_refuses_delivery():
     state, manager = configured(slow)
     with pytest.raises(ManagementReadDenied, match="exceeded request deadline"):
         manager.read(request(), peer=state)
+
+
+def test_truthy_non_boolean_authorization_cannot_grant_access():
+    state, _ = configured()
+    reads = []
+    dispatcher = PlatformManagementReadDispatcher(
+        authorize_peer=lambda *_: "yes",
+        current_identity=lambda: ("platform:alpha", 3),
+        operator_stop_active=lambda: False,
+        providers={"platform.status": lambda: reads.append(1) or {}},
+        clock=lambda: NOW,
+    )
+    with pytest.raises(ManagementReadDenied, match="authorization"):
+        dispatcher.read(request(), peer=state)
+    assert not reads
+
+
+def test_unknown_operator_stop_state_is_not_equivalent_to_clear():
+    state, _ = configured()
+    reads = []
+    dispatcher = PlatformManagementReadDispatcher(
+        authorize_peer=lambda *_: True,
+        current_identity=lambda: ("platform:alpha", 3),
+        operator_stop_active=lambda: None,
+        providers={"platform.status": lambda: reads.append(1) or {}},
+        clock=lambda: NOW,
+    )
+    with pytest.raises(ManagementReadDenied, match="STOP"):
+        dispatcher.read(request(), peer=state)
+    assert not reads
+
+
+def test_provider_mutation_after_read_cannot_modify_verified_response():
+    state, _ = configured()
+    payload = {"state": "unknown"}
+    state, manager = configured(lambda: payload)
+    result = manager.read(request(), peer=state)
+    payload["owner_secret"] = "leaked-after-review"
+    assert "owner_secret" not in result.to_json().decode("utf-8")
+    assert result.payload["state"] == "unknown"
+
+
+def test_client_side_prototype_pollution_key_is_denied():
+    state, manager = configured(lambda: {
+        "modules": [{"__proto__": {"isAdmin": True}}],
+    })
+    with pytest.raises(ManagementReadDenied, match="sensitive"):
+        manager.read(request(), peer=state)
+
+
+def test_wallclock_rollback_midflight_fails_closed():
+    state = {}
+    def move_back():
+        state["time"] = NOW - timedelta(seconds=1)
+        return {"state": "unknown"}
+    state, manager = configured(move_back)
+    with pytest.raises(ManagementReadDenied, match="deadline"):
+        manager.read(request(), peer=state)
