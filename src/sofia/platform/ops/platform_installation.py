@@ -794,14 +794,23 @@ class PythonPlatformServiceLauncher:
         self._child = None
         if child is None:
             return
+        # EOF is the service's owned shutdown signal. Do not call communicate()
+        # after closing stdin: Python tries flushing the already-closed pipe.
         try:
-            if child.stdin is not None:
+            if child.stdin is not None and not child.stdin.closed:
                 child.stdin.close()
             try:
-                child.communicate(timeout=15)
+                child.wait(timeout=15)
             except subprocess.TimeoutExpired:
                 child.kill()
-            child.communicate(timeout=5)
+                child.wait(timeout=5)
         finally:
             if child.poll() is None:
-                child.kill()
+                with suppress(Exception):
+                    child.kill()
+                with suppress(Exception):
+                    child.wait(timeout=5)
+            for stream in (child.stdout, child.stderr):
+                if stream is not None:
+                    with suppress(Exception):
+                        stream.close()
