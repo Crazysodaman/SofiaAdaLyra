@@ -1,6 +1,8 @@
 """Portainer/Docker adapter using Portainer's Docker proxy."""
 from __future__ import annotations
 from typing import Any
+from datetime import datetime, timezone
+from sofia.modules.it_containers.portainer_projection import project_portainer_stacks
 from .http import JsonHttpClient
 
 class PortainerAdapter:
@@ -77,6 +79,18 @@ class PortainerAdapter:
         )
         if not isinstance(data,list): raise RuntimeError("invalid Portainer stacks response")
         return data
+    def stack_inventory_summary(self)->dict[str,object]:
+        """Bounded, allowlisted stack projection for Core-facing inspection.
+
+        The legacy stacks() adapter remains for trusted internal callers.
+        A Core tool must never receive raw, secret-bearing stack records.
+        Source identity/health are UNVERIFIED until the signed Platform
+        connector independently authenticates and admits observations.
+        """
+        return project_portainer_stacks(
+            self.stacks(), endpoint_id=self.endpoint_id,
+            observed_at=datetime.now(timezone.utc),
+        )
     def summary(self)->dict[str,Any]:
         info=self.info()
         containers=self.containers(all_containers=True)
