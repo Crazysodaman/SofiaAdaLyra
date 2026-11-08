@@ -21,6 +21,13 @@ enum Page {
     Updates,
     Diagnostics,
     Fleet,
+    LibraryCatalog,
+    LibrarySources,
+    LibraryDownloads,
+    LibraryInstalled,
+    LibraryStorage,
+    LibraryHub,
+    LibraryHistory,
 }
 
 impl Page {
@@ -34,6 +41,13 @@ impl Page {
             Self::Updates => "Updates and Recovery",
             Self::Diagnostics => "Diagnostics",
             Self::Fleet => "Fleet",
+            Self::LibraryCatalog => "Library > Catalog",
+            Self::LibrarySources => "Library > Sources",
+            Self::LibraryDownloads => "Library > Downloads",
+            Self::LibraryInstalled => "Library > Installed",
+            Self::LibraryStorage => "Library > Storage",
+            Self::LibraryHub => "Library > Hub",
+            Self::LibraryHistory => "Library > History",
         }
     }
 }
@@ -48,6 +62,13 @@ fn select_page(choice: &str) -> Option<Page> {
         "6" => Some(Page::Updates),
         "7" => Some(Page::Diagnostics),
         "8" => Some(Page::Fleet),
+        "9" => Some(Page::LibraryCatalog),
+        "10" => Some(Page::LibrarySources),
+        "11" => Some(Page::LibraryDownloads),
+        "12" => Some(Page::LibraryInstalled),
+        "13" => Some(Page::LibraryStorage),
+        "14" => Some(Page::LibraryHub),
+        "15" => Some(Page::LibraryHistory),
         _ => None,
     }
 }
@@ -110,6 +131,13 @@ fn render_menu(colors: bool) -> String {
         ("6", "Updates / Recovery"),
         ("7", "Diagnostics"),
         ("8", "Fleet"),
+        ("9", "Library > Catalog"),
+        ("10", "Library > Sources"),
+        ("11", "Library > Downloads"),
+        ("12", "Library > Installed"),
+        ("13", "Library > Storage"),
+        ("14", "Library > Hub"),
+        ("15", "Library > History"),
         ("0", "Exit"),
     ] {
         lines.push(format!(
@@ -121,8 +149,20 @@ fn render_menu(colors: bool) -> String {
 }
 
 fn render_page(page: Page, colors: bool, state: &ControlCenterView) -> String {
+    // No catalog, inventory, progress, signer or receipt is invented by a
+    // locally launched UI; only Team A's authenticated service can supply it.
+    let library = match page {
+        Page::LibraryCatalog => "CATALOG: NOT_OBSERVED / SELECTED: UNKNOWN / COMPATIBILITY: UNKNOWN",
+        Page::LibrarySources => "SOURCES: NOT_OBSERVED / HUB: UNKNOWN / PEERS: UNKNOWN / INTERNET_FALLBACK: DISABLED",
+        Page::LibraryDownloads => "DOWNLOADS: NOT_OBSERVED / RECEIVED_BYTES: UNKNOWN / VERIFIED_BYTES: UNKNOWN",
+        Page::LibraryInstalled => "CACHED: UNKNOWN / VERIFIED: UNKNOWN / STAGED: UNKNOWN / INSTALLED: UNKNOWN / ACTIVE: UNKNOWN",
+        Page::LibraryStorage => "STORAGE: NOT_OBSERVED / QUOTA: UNKNOWN / PINS: UNKNOWN / GC: DISABLED",
+        Page::LibraryHub => "HUB_ROLE: UNKNOWN / ENROLLED_CLIENTS: NOT_OBSERVED / PUBLIC_EXPOSURE: NOT_CONFIGURED",
+        Page::LibraryHistory => "HISTORY: NOT_OBSERVED / SIGNER: UNKNOWN / RECEIPTS: NOT_OBSERVED",
+        _ => "",
+    };
     format!(
-        "{}\nSERVICE: {} / SOURCE: {}\nSETTINGS: {}\nINSTALLATION: {}\n{}\n{}\n{}",
+        "{}\nSERVICE: {} / SOURCE: {}\nSETTINGS: {}\nINSTALLATION: {}\n{}\n{}\n{}\n{}",
         paint(page.heading(), "primary", colors),
         state.service_label(),
         state.source_label(),
@@ -134,7 +174,8 @@ fn render_page(page: Page, colors: bool, state: &ControlCenterView) -> String {
             state.permission_label(),
             state.safe_label()
         ),
-        "No writes, approvals, downloads, installation, state files or service changes."
+        "No writes, approvals, downloads, installation, state files or service changes.",
+        library
     )
 }
 
@@ -145,20 +186,24 @@ fn run() -> io::Result<ExitCode> {
     let mut session = DisplaySession::default();
     let _ = session.refresh(&mut OfflineReader, std::time::Instant::now());
     if args.iter().any(|arg| arg == "--help" || arg == "-h") {
-        println!("aegis-tui [--plain | --help | --status]");
+        println!("aegis-tui [--plain | --help | --status | --library-status]");
         println!("This read-only shell does not perform management operations.");
         return Ok(ExitCode::SUCCESS);
     }
     if args.len() > 1
         || args
             .first()
-            .is_some_and(|arg| arg != "--plain" && arg != "--status")
+            .is_some_and(|arg| arg != "--plain" && arg != "--status" && arg != "--library-status")
     {
         eprintln!("Unknown option. Use --help.");
         return Ok(ExitCode::from(2));
     }
     if args.first().is_some_and(|arg| arg == "--status") {
         println!("status=UNAVAILABLE source=UNVERIFIED");
+        return Ok(ExitCode::from(3));
+    }
+    if args.first().is_some_and(|arg| arg == "--library-status") {
+        println!("library=UNAVAILABLE source=UNVERIFIED catalog=UNKNOWN cache=UNKNOWN installed=UNKNOWN active=UNKNOWN received_bytes=UNKNOWN verified_bytes=UNKNOWN internet_fallback=DISABLED actions=DISABLED");
         return Ok(ExitCode::from(3));
     }
     let colors = !args.iter().any(|arg| arg == "--plain") && color_supported();
@@ -169,7 +214,7 @@ fn run() -> io::Result<ExitCode> {
     }
     loop {
         println!("{}", render_menu(colors));
-        print!("Select [0-8]: ");
+        print!("Select [0-15]: ");
         io::stdout().flush()?;
         let mut selection = String::new();
         if io::stdin().read_line(&mut selection)? == 0 {
@@ -255,12 +300,33 @@ mod tests {
     }
 
     #[test]
+    fn offline_library_pages_never_invent_package_inventory_or_progress() {
+        for (page, expected) in [
+            (Page::LibraryCatalog, "CATALOG: NOT_OBSERVED"),
+            (Page::LibrarySources, "INTERNET_FALLBACK: DISABLED"),
+            (Page::LibraryDownloads, "RECEIVED_BYTES: UNKNOWN"),
+            (Page::LibraryInstalled, "INSTALLED: UNKNOWN"),
+            (Page::LibraryStorage, "GC: DISABLED"),
+            (Page::LibraryHub, "HUB_ROLE: UNKNOWN"),
+            (Page::LibraryHistory, "RECEIPTS: NOT_OBSERVED"),
+        ] {
+            let text = render_page(page, false, &ControlCenterView::offline());
+            assert!(text.contains(expected));
+            assert!(text.contains("SOURCE: UNVERIFIED"));
+            assert!(!text.contains("\x1b"));
+            assert!(!text.contains("100%"));
+        }
+    }
+
+    #[test]
     fn invalid_menu_input_cannot_start_service_or_grant_approval() {
         assert_eq!(select_page("4"), Some(Page::Settings));
         assert_eq!(select_page("1"), Some(Page::Platform));
         assert_eq!(select_page("4;rm -rf /"), None);
         assert_eq!(select_page("8"), Some(Page::Fleet));
-        assert_eq!(select_page("9"), None);
+        assert_eq!(select_page("9"), Some(Page::LibraryCatalog));
+        assert_eq!(select_page("15"), Some(Page::LibraryHistory));
+        assert_eq!(select_page("16"), None);
         assert!(paint("X", "accent", false) == "X");
     }
 }

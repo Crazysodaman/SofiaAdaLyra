@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "rust/crates/sofia-ui-broker/src/bin/aegis_tui.rs"
+      - "rust/crates/sofia-ui-broker/src/control_center_session.rs"
       - "contracts/ui/aegis-theme-v1.json"
       - "test/test_ui_aegis_tui_binary_smoke.py"
       - ".github/workflows/aegis-native-tui-smoke.yml"
@@ -11,6 +12,7 @@ on:
     branches: [main]
     paths:
       - "rust/crates/sofia-ui-broker/src/bin/aegis_tui.rs"
+      - "rust/crates/sofia-ui-broker/src/control_center_session.rs"
       - "test/test_ui_aegis_tui_binary_smoke.py"
       - ".github/workflows/aegis-native-tui-smoke.yml"
 

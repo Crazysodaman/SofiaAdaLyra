@@ -55,6 +55,10 @@ pub struct DisplaySnapshot {
 /// Injection seam for a future *approved* authenticated Platform client.
 /// This trait authenticates NOTHING, and has no mutation or approval methods.
 pub trait DisplayReadSource {
+    /// Read a service-verified view; never a raw, self-authenticating payload.
+    ///
+    /// # Errors
+    /// Unavailable, revoked, stale, or unverified reads fail closed.
     fn next(&mut self) -> Result<DisplaySnapshot, ReadFailure>;
 }
 

@@ -43,6 +43,8 @@ def test_native_tui_noninteractive_menu_is_plain_and_does_not_modify_service():
     assert "AEGIS PLATFORM" in observed.stdout
     assert "MANAGEMENT SERVICE UNAVAILABLE" in observed.stdout
     assert "[8] Fleet" in observed.stdout
+    assert "[9] Library > Catalog" in observed.stdout
+    assert "[15] Library > History" in observed.stdout
     assert "No operation performed" in observed.stdout or (
         "no operation performed" in observed.stdout.lower()
     )
@@ -53,3 +55,16 @@ def test_native_tui_help_is_read_only():
     observed = _run("--help")
     assert observed.returncode == 0
     assert "read-only" in observed.stdout.lower()
+
+
+def test_native_tui_library_status_is_unknown_not_empty_or_verified():
+    observed = _run("--library-status")
+    assert observed.returncode == 3
+    assert "library=UNAVAILABLE" in observed.stdout
+    assert "source=UNVERIFIED" in observed.stdout
+    assert "received_bytes=UNKNOWN" in observed.stdout
+    assert "verified_bytes=UNKNOWN" in observed.stdout
+    assert "installed=UNKNOWN" in observed.stdout
+    assert "internet_fallback=DISABLED" in observed.stdout
+    assert "actions=DISABLED" in observed.stdout
+    assert "\x1b" not in observed.stdout
