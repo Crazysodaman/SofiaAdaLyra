@@ -162,6 +162,29 @@ def build_reviewed_offline_capsule(
             "size_bytes": len(data),
             "publisher_signature_verified": False,
         })
+    # The independently signed OUTER capsule carries an OS-native digest
+    # inventory for every file other than the index itself. The outer seal
+    # authenticates these bytes, and the canonical PlatformReleaseVerifier
+    # remains the independent inner SDK/service/runtime signature authority.
+    # Bounded ASCII tab format avoids requiring Python or jq before verification.
+    members.sort(key=lambda x: x[0])
+    index_lines = ["aegis.delivery-index.v1"]
+    for filename, data in members:
+        if (not filename.isascii()
+                or any(c in filename for c in ("\\t", "\\n", "\\r"))):
+            raise PlatformReleaseRejected("unsafe offline delivery inventory path")
+        index_lines.append(f"{sha256(data).hexdigest()}\\t{len(data)}\\t{filename}")
+    index_bytes = ("\\n".join(index_lines) + "\\n").encode("ascii")
+    if len(index_bytes) > 131072 or len(index_lines) > 130:
+        raise PlatformReleaseRejected("offline delivery index outside fixed bounds")
+    index_name = "aegis/delivery-index.v1"
+    members.append((index_name, index_bytes))
+    independently_unsigned_delivery_assets.append({
+        "path": index_name,
+        "sha256": sha256(index_bytes).hexdigest(),
+        "size_bytes": len(index_bytes),
+        "publisher_signature_verified": False,
+    })
     members.sort(key=lambda x: x[0])
     if len({name.casefold() for name, _ in members}) != len(members):
         raise PlatformReleaseRejected("offline capsule has ambiguous duplicate member paths")
@@ -219,6 +242,8 @@ def build_reviewed_offline_capsule(
             "signed_parent_manifest_sha256": manifest.parent_manifest_sha256,
             "release_manifest_signature_verified": True,
             "release_assets_verified": True,
+            "offline_delivery_index_sha256": sha256(index_bytes).hexdigest(),
+            "offline_delivery_member_count": len(members),
             "verified_release_asset_count": len(exact_signed_assets),
             "signed_release_assets": tuple(exact_signed_assets),
             "unsigned_delivery_assets": tuple(independently_unsigned_delivery_assets),
