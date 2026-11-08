@@ -14,6 +14,11 @@ use std::sync::{
 use std::time::{Duration, Instant};
 
 const SCHEMA: &str = "aegis.platform.service-control.v1";
+// A child importing and verifying the installed Python runtime during a cold
+// boot needs more time than a subsequent status response. Stay below the
+// systemd 15-second startup bound; NEVER extend steady-state hung IPC.
+const INITIAL_REPLY_TIMEOUT: Duration = Duration::from_secs(12);
+const HEALTH_REPLY_TIMEOUT: Duration = Duration::from_secs(5);
 type Failure = Box<dyn std::error::Error + Send + Sync>;
 
 #[derive(Clone)]
@@ -153,7 +158,7 @@ impl Worker {
             operator_stop: false,
             config: config.clone(),
         };
-        let ready = worker.receive()?;
+        let ready = worker.receive(INITIAL_REPLY_TIMEOUT)?;
         worker.generation = ready.generation;
         worker.operator_stop = ready.operator_stop;
         if ready.phase != "ready"
@@ -165,10 +170,10 @@ impl Worker {
         }
         Ok(worker)
     }
-    fn receive(&self) -> Result<Reply, Failure> {
+    fn receive(&self, timeout: Duration) -> Result<Reply, Failure> {
         let value = self
             .replies
-            .recv_timeout(Duration::from_secs(5))?
+            .recv_timeout(timeout)?
             .map_err(|_| "canonical Platform service unavailable")?;
         if value.schema != SCHEMA
             || value.platform_id != self.config.platform_id
@@ -191,7 +196,7 @@ impl Worker {
         let input = self.input.as_mut().ok_or("service input closed")?;
         writeln!(input, "{request}")?;
         input.flush()?;
-        let value = self.receive()?;
+        let value = self.receive(HEALTH_REPLY_TIMEOUT)?;
         if value.sequence != Some(self.sequence)
             || value.pid.is_some()
             || value.supervisor_pid.is_some()
@@ -353,6 +358,12 @@ mod tests {
         let mut extra = value;
         extra["owner_authorized"] = json!(true);
         assert!(serde_json::from_value::<Reply>(extra).is_err());
+    }
+    #[test]
+    fn cold_boot_timeout_is_bounded_without_relaxing_health_ipc() {
+        assert!(INITIAL_REPLY_TIMEOUT > HEALTH_REPLY_TIMEOUT);
+        assert!(INITIAL_REPLY_TIMEOUT < Duration::from_secs(15));
+        assert_eq!(HEALTH_REPLY_TIMEOUT, Duration::from_secs(5));
     }
     #[test]
     fn no_arbitrary_program_or_incomplete_configuration() {
