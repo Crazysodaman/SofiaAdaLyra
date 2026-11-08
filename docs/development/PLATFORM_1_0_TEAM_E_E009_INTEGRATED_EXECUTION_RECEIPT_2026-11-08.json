@@ -1,0 +1,107 @@
+{
+  "schema": "aegis.platform.ig001.e009.independent-integration-execution.v1",
+  "date_utc": "2026-11-08",
+  "coordinator_directive_comment": 6725889542,
+  "isolated_integration_branch": "team-e/ig001-disposable-platform-e009-20261108",
+  "integrated_sha": "1ad9681c311c4236d0dca8982d27a122dc96c157",
+  "integrated_tree_sha": "099eef736b9f1d4f3650a33a0abc910235d79a60",
+  "integration_parent_sha": "2f4779b1ac965e51245019e46739c19ea45394d3",
+  "sources": {
+    "A": {
+      "pr": 241,
+      "sha": "2f4779b1ac965e51245019e46739c19ea45394d3"
+    },
+    "B": {
+      "pr": 244,
+      "sha": "2f2b4d5d6c602b6a0516064006c544f522596e99"
+    },
+    "C": {
+      "pr": 243,
+      "sha": "d94ac99131e3a30f83ae87811c008f9eddad8298"
+    },
+    "D": {
+      "pr": 258,
+      "sha": "03de6f08057837b5e142578a3ff253d1aa7085dc"
+    },
+    "E": {
+      "pr": 245,
+      "sha": "86f896700f205ec9553979527e3873b27b2de9f1"
+    }
+  },
+  "assembly": {
+    "source_tree_verified": true,
+    "source_tree_overlay_blob_count": 87,
+    "A_C_contract_shared_blobs_identical": 6,
+    "conflict_resolution": "Canonical A service/SAFE, sole B installer/verified local-state WAL path, C inode epoch fenced native read-only client, D real-private-or-enrolled socket test, E QA runner and exact-head artifact name.",
+    "a_service_blob": "3b5ab81a3334f6eac7e61e0868972635d29716b5",
+    "a_c_management_contract_blob": "608b6966169441df8688c83b37d5bca9a6bdc602",
+    "b_systemd_native_service_blob": "9e74997004435d5ae6af34c8e0553db30e2fda53",
+    "c_native_reader_blob": "5a667529e307ddc651983d0f76c50c0833407727",
+    "d_socket_test_blob": "b82e391d226e797e630a45a451c171f573b39e3d",
+    "d_probe_blob": "15263583dad7b6bf99004bdfae336b33e60cb20a",
+    "merged_debian_vm_workflow_blob": "a7e6d606d113a145c049b21c10badbef3d9b174a"
+  },
+  "local_execution": {
+    "os": "Debian GNU/Linux 13.3 (trixie)",
+    "kernel": "Linux 6.18.57",
+    "python": "3.13.5",
+    "rustc": "ABSENT",
+    "cargo": "ABSENT",
+    "qemu": "ABSENT",
+    "full_checkout": "ABSENT_GITHUB_DNS_FAILURE",
+    "original_test": {
+      "command": "python test/fixtures/aegis_debian_vm/socket_contract_check.py",
+      "result": "13 TESTS RAN; 13 PASS; 0 FAIL; exit 0",
+      "source_script_git_blob_verified": "b82e391d226e797e630a45a451c171f573b39e3d",
+      "probe_source": "Reviewed exact _native_management_socket function extracted from integrated D #258 probe; no guest bootstrap/side effects",
+      "semantics": "Source-level ACL synthetic test, not live systemd or publisher trust"
+    },
+    "other_python": {
+      "command": "python -m pytest -q test/test_ops_platform_installer_native_service.py test/test_platform_service_management_ipc.py test/test_platform_management_safe_service_e2e_linux.py",
+      "result": "BLOCKED: exit 4, error: file or directory not found: test/test_ops_platform_installer_native_service.py; no tests ran",
+      "first_failing_assertion": null
+    },
+    "rust": {
+      "command": "cargo +1.88.0 test --locked -p sofia-platform-lifecycle --bin aegis-platform-service",
+      "result": "BLOCKED: exit 127, cargo executable not found; no tests ran"
+    },
+    "submitted_evidence_sha256": "d4b631d963208b52d76553489f4d9a362b5931819bbdafda65bfe83ab900a7da",
+    "submitted_evidence_filename": "ig001_e009_execution_receipt.json"
+  },
+  "first_functional_blocker": {
+    "owner": "E/environment and B/installer authority",
+    "stage": "Fresh integrated Python+Rust+Debian12 installed-host execution",
+    "missing": "Accessible complete exact integrated repository checkout, Rust 1.88 Cargo toolchain, explicitly approved disposable Debian12 systemd/QEMU guest, B independently publisher-verified complete native offline release and A owner-approved SAFE/enrollment",
+    "source_issues": [
+      "B preview shell still refuses protected native install until verified signing/authority",
+      "C CLI still defaults to OfflineReader until B verified profile + A enrolled operator"
+    ],
+    "first_failing_test_assertion": null,
+    "precise_correction": "Provide approved isolated Debian12 host with full checkout and appropriate Rust/Python toolchain; B supply independently verified full publisher signed package and A SAFE-approved installation; C bind genuine service profile; run original focused pytest, Cargo and native host negatives."
+  },
+  "execution_state": {
+    "compiled": false,
+    "installed_debian12": false,
+    "installed_service_ready": false,
+    "authenticated_platform_status": false,
+    "stop_revoke_stale_negative_installed_host": false,
+    "duplicate_writer_proven_installed_host": false,
+    "exact_integrated_milestone_CI": "NOT_STARTED_BY_POLICY",
+    "production_host_accessed": false,
+    "merge_main": false,
+    "hub_started": false,
+    "personal_core_activated": false
+  },
+  "acceptance": {
+    "platform_38": {
+      "passed": 0,
+      "failed": 7,
+      "not_tested": 31
+    },
+    "library_16": {
+      "passed": 0,
+      "not_tested": 16
+    },
+    "platform_go": "NO"
+  }
+}
