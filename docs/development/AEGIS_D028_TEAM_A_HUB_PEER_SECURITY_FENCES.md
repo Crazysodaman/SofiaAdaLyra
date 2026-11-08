@@ -100,3 +100,34 @@ real Core/module lifecycle only through approved existing executor.
 Never use a second signer, shared writer, Hub-controlled permission authority,
 Internet fallback, automatic Core activation, production deployment or main
 merge. **Contract status remains unapproved until explicit coordinated signoff.**
+
+## D028-03/04 code checkpoint: no live source or transfer
+
+`src/sofia/platform/run/library_peer_gate.py` now carries a **default-deny,
+per-chunk peer admission checkpoint**. It refuses anything except a real
+mutually authenticated `ssl.SSLSocket` using TLS 1.3 and
+`ssl.CERT_REQUIRED`; derives the peer cert SHA-256 from the active verified
+handshake rather than JSON, and requires the exact existing Platform-local
+SAFE grant scope pinned to **source Platform, destination Platform,
+certificate SHA, manifest+content digest, artifact kind, catalog revision,
+PUBLIC/permitted distribution, max chunk and total bytes**. It re-reads the
+actual Platform RUN generation, STOP state, and current SAFE grants twice
+per checkpoint. Revoked/expired/rotated/unapproved status denies. No
+partial chunk can count as publisher-signed, verified or installed.
+
+**Intentionally blocked:** `library.peer.fetch` remains an unknown
+PROTECTED capability in current canonical SAFE, so no broad standing
+grant can be issued for this new operation. Team A/B/D contract review,
+owner-enrolled certificate profile, current signed trusted roots, actual
+TLS service handler, chunk data plane, quotas and independent recipient
+verifier are all STILL MISSING. The helper is not attached to any
+listener, worker, installer, Hub or default Platform mode and cannot be
+used as evidence of authenticated LAN functionality.
+
+Once a signed-off grant is introduced using the **same** SAFE owner ceremony,
+its authority must stay distinct from the B1 publisher root and installer.
+The Hub gets immutable package bytes under grant, never owner credentials or
+host-local Core state. Team E must witness an actual two-Platform TLS channel
+and revocation midstream on disposable machines before LIB-03/07/08/13
+can advance from NOT CERTIFIED.
+
