@@ -7,7 +7,9 @@ from ollama import Client
 
 from sofia.sdk.cognition_model import CognitiveRequest, CognitiveResponse
 from sofia.sdk.cognition_engine import LLMProviderError
-from sofia.platform.core_worker.ollama_transport import GenericOllamaProvider
+from sofia.platform.core_worker.ollama_transport import (
+    GenericOllamaProvider, OLLAMA_IO_TIMEOUT_SECONDS,
+)
 from sofia.core.cognition.repetition_guard import (
     naturalize_embodied_semantics,
     response_quality_issue,
@@ -25,7 +27,7 @@ class OllamaProvider(GenericOllamaProvider):
     @staticmethod
     def _new_client(endpoint: str):
         # Preserve the existing injectable client construction boundary.
-        return Client(host=endpoint)
+        return Client(host=endpoint, timeout=OLLAMA_IO_TIMEOUT_SECONDS)
 
     def respond(self, request: CognitiveRequest) -> CognitiveResponse:
         response = self._respond_once(request)
