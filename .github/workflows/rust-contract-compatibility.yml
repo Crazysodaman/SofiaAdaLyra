@@ -72,7 +72,7 @@ jobs:
       - run: python -m pip install -e ".[rust-contract-tests]" pytest
       - run: cargo build --locked -p sofia-contracts --bin sofia-contract-tool
       - name: Cross-language corpus
-        run: python -m pytest -q test/test_sdk_component_contracts.py test/test_sdk_rust_contract_compatibility.py test/test_sdk_aegis_identity.py test/test_ui_platform_management_read.py
+        run: python -m pytest -q test/test_sdk_component_contracts.py test/test_sdk_rust_contract_compatibility.py test/test_sdk_aegis_identity.py test/test_ui_platform_management_read.py test/test_ui_platform_management_reply.py
 
   policy:
     name: Dependency policy and SBOM
