@@ -495,3 +495,25 @@ def test_activation_receipt_write_failure_requires_reconciliation(
             verify_installed(destination, store=store, verifier=builder.verifier)
     finally:
         runtime.close()
+
+
+def test_bounded_service_readiness_timeout_and_rejection():
+    """A silent child must not block the Windows/Linux readiness path forever."""
+    import threading
+    import sofia.platform.ops.platform_installation as installation
+
+    released = threading.Event()
+
+    class SilentPipe:
+        def readline(self):
+            released.wait(timeout=1.0)
+            return ''
+
+    try:
+        with pytest.raises(TimeoutError, match='service readiness deadline'):
+            installation._bounded_readline(SilentPipe(), 0.02)
+    finally:
+        released.set()
+
+    with pytest.raises(ValueError, match='readiness timeout'):
+        installation._bounded_readline(SilentPipe(), 0)
