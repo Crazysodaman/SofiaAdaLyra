@@ -51,8 +51,8 @@ def service(operation="platform.status"):
             "public_key_sha256": "must-not-leak",
         }
 
-    def settings():
-        visited.append(("settings", None))
+    def settings(grant):
+        visited.append(("settings", grant.principal_id))
         return {"revision": 12, "effective_revision": 11, "scope": "host"}
 
     return PlatformManagementReadDispatcher(
@@ -107,7 +107,7 @@ def test_request_mutation_cannot_call_provider():
 
 def test_revocation_midflight_discards_observation():
     dispatcher, state, visited = service()
-    def revoke_in_provider():
+    def revoke_in_provider(_grant):
         visited.append(("settings", None))
         state["revoked"] = True
         return {"secret": "never-returns"}
@@ -122,7 +122,7 @@ def test_revocation_midflight_discards_observation():
 
 def test_generation_change_midflight_discards_observation():
     dispatcher, state, visited = service()
-    def restart_in_provider():
+    def restart_in_provider(_grant):
         state["generation"] = 4
         return {"old_generation": True}
 
@@ -151,12 +151,12 @@ def test_old_generation_and_missing_provider_fail_closed():
 
 def test_malformed_status_unknown_response_and_large_provider_denied():
     dispatcher, _state, _visited = service()
-    dispatcher._providers["settings.inspect"] = lambda: {"blob": "X" * 70000}
+    dispatcher._providers["settings.inspect"] = lambda _grant: {"blob": "X" * 70000}
     with pytest.raises(ManagementReadDenied, match="response limit"):
         dispatcher.handle(
             request("settings.inspect"), transport_peer="OS:LOCAL",
         )
-    dispatcher._providers["settings.inspect"] = lambda: {"not_json": object()}
+    dispatcher._providers["settings.inspect"] = lambda _grant: {"not_json": object()}
     with pytest.raises(ManagementReadDenied, match="invalid read data"):
         dispatcher.handle(
             request("settings.inspect"), transport_peer="OS:LOCAL",
@@ -178,7 +178,7 @@ def test_clock_and_peer_verifier_are_required():
 def test_request_expiring_while_provider_runs_cannot_disclose_response():
     dispatcher, state, _ = service()
 
-    def provider_that_expires_request():
+    def provider_that_expires_request(_grant):
         state["now"] = NOW + timedelta(seconds=10)
         return {"sensitive": "never-disclosed"}
 
@@ -192,7 +192,7 @@ def test_request_expiring_while_provider_runs_cannot_disclose_response():
 def test_backward_service_clock_discards_observation():
     dispatcher, state, _ = service()
 
-    def provider_with_clock_rollback():
+    def provider_with_clock_rollback(_grant):
         state["now"] = NOW - timedelta(seconds=1)
         return {"value": "must-not-leak"}
 
@@ -201,3 +201,19 @@ def test_backward_service_clock_discards_observation():
         dispatcher.handle(
             request("settings.inspect"), transport_peer="OS:LOCAL",
         )
+
+
+def test_verified_principal_scope_is_passed_to_reviewed_settings_provider():
+    dispatcher, _state, visited = service()
+    payload = json.loads(dispatcher.handle(
+        request("settings.inspect"), transport_peer="OS:LOCAL",
+    ))
+    assert payload["data"]["scope"] == "host"
+    assert ("settings", "principal:owner") in visited
+
+
+def test_missing_os_peer_is_rejected_before_verifier_or_status_access():
+    dispatcher, _state, visited = service()
+    with pytest.raises(ManagementReadDenied, match="OS peer context"):
+        dispatcher.handle(request(), transport_peer=None)
+    assert visited == []
