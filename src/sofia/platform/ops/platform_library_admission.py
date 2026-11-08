@@ -330,6 +330,23 @@ def preview_signed_cache_retention(
         item["manifest_sha256"] == review["manifest_sha256"]
         and item["result"] == "SUCCEEDED" for item in store.history()
     )
+    try:
+        volume = os.statvfs(cache.root)
+        available_bytes = volume.f_bavail * volume.f_frsize
+        available_inodes = volume.f_favail
+        capacity_observed = True
+    except (OSError, AttributeError):
+        available_bytes = None
+        available_inodes = None
+        capacity_observed = False
+    # Treat capacity as advisory only. Expanded install + transfer reservations
+    # still require a separately governed D028-00 planner and actual host check.
+    selected_size = review["artifact_size_bytes"]
+    quota_sufficient = cache.max_bytes - bytes_used >= selected_size
+    free_space_sufficient = (
+        available_bytes is not None and available_bytes >= selected_size
+        and available_inodes is not None and available_inodes > 0
+    )
     return {
         "schema": "aegis.platform.library.retention-review.v1",
         "source": "EXISTING_OFFLINE_ARTIFACT_CACHE",
@@ -337,6 +354,12 @@ def preview_signed_cache_retention(
         "verified_object_count": count,
         "verified_bytes_used": bytes_used,
         "quota_bytes_remaining": cache.max_bytes - bytes_used,
+        "physical_capacity_observed": capacity_observed,
+        "filesystem_free_bytes": available_bytes,
+        "filesystem_free_inodes": available_inodes,
+        "selected_asset_bytes": selected_size,
+        "quota_sufficient_for_asset": quota_sufficient,
+        "physical_space_sufficient_for_asset": free_space_sufficient,
         "unrecognized_cache_entry": unknown,
         "asset_cached_verified": review["cache_state"] == "CACHED_VERIFIED",
         "installed": review["installed"],
