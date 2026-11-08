@@ -259,3 +259,47 @@ def test_bounded_json_digests_never_grant_permission():
         payload_digest({"x": float("nan")})
     with pytest.raises(ValueError, match="4096"):
         payload_digest({"x": "z" * 4097})
+
+
+def test_core_replacement_keeps_platform_and_other_core_alive():
+    """Source-level Core generation fencing, not an OS process restart proof."""
+    platform, a, b, sa, sb = sandbox()
+    platform.plug_reference_module()
+    platform.test_only_grant(sa)
+    platform.test_only_grant(sb)
+
+    # Core A disconnects; its old session cannot keep accessing capabilities.
+    old_req, old_payload = ping(a, platform, sa, "req:a:old-generation")
+    platform.close_test_session(sa)
+    with pytest.raises(PermissionError, match="no current"):
+        platform.dispatch(
+            session=sa, request=old_req, payload=old_payload, now=NOW,
+        )
+
+    # Core B and the module keep working without replacing the Platform.
+    b_req, b_payload = ping(b, platform, sb, "req:b:still-alive")
+    b_response, b_data = platform.dispatch(
+        session=sb, request=b_req, payload=b_payload, now=NOW,
+    )
+    assert b.read_ping(b_req, b_response, b_data)["outcome"] == (
+        "succeeded_reported_unverified"
+    )
+
+    # Core A reconnects with a newer identity generation and fresh test grant.
+    next_a_endpoint = replace(a.endpoint, generation=2)
+    next_a = ReferenceCore(next_a_endpoint)
+    next_session = platform.open_test_session(next_a_endpoint, now=NOW)
+    platform.test_only_grant(next_session)
+    next_req, next_payload = ping(
+        next_a, platform, next_session, "req:a:new-generation",
+    )
+    next_response, next_data = platform.dispatch(
+        session=next_session, request=next_req,
+        payload=next_payload, now=NOW,
+    )
+    assert next_a.read_ping(next_req, next_response, next_data)["outcome"] == (
+        "succeeded_reported_unverified"
+    )
+    assert sa not in platform._sessions
+    assert sb in platform._sessions
+    assert platform.available_capabilities == ("reference.ping",)
