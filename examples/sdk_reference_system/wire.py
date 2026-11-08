@@ -10,6 +10,9 @@ from hashlib import sha256
 import json
 from typing import Mapping
 
+PING_TYPE = "aegis.sdk.reference.ping.v1"
+PING_RESULT_TYPE = "aegis.sdk.reference.ping.result.v1"
+
 
 def payload_digest(payload: Mapping[str, object]) -> str:
     """Calculate a bounded payload fingerprint, never an authorization proof."""
