@@ -142,11 +142,11 @@ class ReviewedMemoryEligibilityV1:
             try:
                 row = db.execute(
                     "SELECT 1 FROM memory_candidate AS c "
-                "INNER JOIN memory_candidate_source_review AS r "
-                "ON r.candidate_id=c.candidate_id "
-                "WHERE c.candidate_id=? AND c.status='promoted' "
-                "AND c.principal_id=r.principal_id "
-                "AND c.audience_id=r.audience_id",
+                    "INNER JOIN memory_candidate_source_review AS r "
+                    "ON r.candidate_id=c.candidate_id "
+                    "WHERE c.candidate_id=? AND c.status='promoted' "
+                    "AND c.principal_id=r.principal_id "
+                    "AND c.audience_id=r.audience_id",
                     (str(candidate_id),),
                 ).fetchone()
             except sqlite3.Error as exc:
