@@ -280,3 +280,28 @@ def test_current_safe_rechecked_after_archive_review_for_midflight_revocation(tm
         )
     assert calls == ["initial-safe", "archive", "final-safe"]
     # Verified local bytes are not accepted for install after SAFE revocation.
+
+
+
+@pytest.mark.parametrize("source,license,classification", [
+    ("EVIL_HTTP", "permitted", "public"),
+    ("LOCAL_VERIFIED_CACHE", "unknown", "public"),
+    ("LOCAL_VERIFIED_CACHE", "permitted", "protected"),
+])
+def test_invalid_source_license_or_data_class_denies_before_archive(
+    tmp_path, source, license, classification,
+):
+    data, value, root, pub = fixture(tmp_path)
+    data["source"]["kind"] = source
+    data["items"][0]["license_distribution"] = license
+    data["items"][0]["data_class"] = classification
+    if license != "permitted" or classification != "public":
+        data["items"][0]["distribution_allowed"] = False
+    calls = []
+    with pytest.raises(ModuleRecipientRejected):
+        review(
+            data, value, root / "missing", pub,
+            signed_content_admit=lambda *_: calls.append("archive") or True,
+            publisher_key_lookup=lambda _: calls.append("key") or pub,
+        )
+    assert calls == []
