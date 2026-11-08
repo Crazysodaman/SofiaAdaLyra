@@ -18,7 +18,9 @@ import sys
 from threading import Event
 
 from sofia.platform.run.local_peer import dispatch_one_kernel_peer_read
-from sofia.platform.state.private_file import assert_owner_private_path
+from sofia.platform.state.private_file import (
+    assert_no_redirected_components, assert_owner_private_path,
+)
 
 
 class ManagementUnixListener:
@@ -34,7 +36,12 @@ class ManagementUnixListener:
         path: Path,
         *,
         dispatch: Callable[..., Mapping[str, object]],
+        operator_group_gid: int | None = None,
     ) -> None:
+        if operator_group_gid is not None and (
+            type(operator_group_gid) is not int or operator_group_gid < 0
+        ):
+            raise ValueError("verified operator group GID required")
         if not isinstance(path, Path) or not path.is_absolute():
             raise ValueError("absolute management socket Path required")
         if not callable(dispatch):
@@ -43,6 +50,7 @@ class ManagementUnixListener:
         self._dispatch = dispatch
         self._listener: socket.socket | None = None
         self._owned_inode: tuple[int, int] | None = None
+        self._operator_group_gid = operator_group_gid
 
     def open(self) -> "ManagementUnixListener":
         if self._listener is not None:
@@ -51,9 +59,22 @@ class ManagementUnixListener:
             raise PermissionError("Linux kernel-authenticated management required")
         if len(os.fsencode(str(self.path))) > 100:
             raise ValueError("management socket path exceeds safe AF_UNIX bound")
-        assert_owner_private_path(self.path.parent, directory=True)
-        if self.path.parent.stat().st_uid != os.geteuid():
+        assert_no_redirected_components(self.path, include_leaf=True)
+        if self._operator_group_gid is None:
+            assert_owner_private_path(self.path.parent, directory=True)
+        elif not self.path.parent.is_dir():
+            raise PermissionError("operator runtime directory unavailable")
+        parent = self.path.parent.stat(follow_symlinks=False)
+        if parent.st_uid != os.geteuid():
             raise PermissionError("management socket directory belongs to another user")
+        if self._operator_group_gid is not None:
+            # Group traverse only; files inside the runtime directory must
+            # still be governed by explicit private-file checks separately.
+            # Mode 0750 and exact GID are an installer/systemd precondition.
+            if (not stat.S_ISDIR(parent.st_mode)
+                    or stat.S_IMODE(parent.st_mode) != 0o750
+                    or parent.st_gid != self._operator_group_gid):
+                raise PermissionError("operator runtime directory ownership/mode differs")
         if os.path.lexists(self.path):
             raise PermissionError("management socket path already occupied")
 
@@ -61,17 +82,28 @@ class ManagementUnixListener:
         bound_identity: tuple[int, int] | None = None
         # The parent is 0700 as well. The restrictive umask prevents a
         # bind-to-chmod exposure window; do not touch an existing endpoint.
-        prior_umask = os.umask(0o077)
+        prior_umask = os.umask(
+            0o117 if self._operator_group_gid is not None else 0o077
+        )
         try:
             listener.bind(str(self.path))
             info = os.lstat(self.path)
             bound_identity = (info.st_dev, info.st_ino)
-            os.chmod(self.path, 0o600)
+            # The bind uses a restrictive umask *before* any endpoint
+            # is exposed to an installer-managed group. Never chmod from an
+            # initially world-readable socket to group access.
+            if self._operator_group_gid is not None:
+                os.chown(self.path, os.geteuid(), self._operator_group_gid)
+            os.chmod(
+                self.path,
+                0o660 if self._operator_group_gid is not None else 0o600,
+            )
             info = os.lstat(self.path)
             if (
                 not stat.S_ISSOCK(info.st_mode)
                 or info.st_uid != os.geteuid()
-                or info.st_mode & 0o077
+                or info.st_gid != (self._operator_group_gid if self._operator_group_gid is not None else info.st_gid)
+                or stat.S_IMODE(info.st_mode) != (0o660 if self._operator_group_gid is not None else 0o600)
             ):
                 raise PermissionError("management socket mode or owner unsafe")
             listener.listen(8)
@@ -103,7 +135,8 @@ class ManagementUnixListener:
             not stat.S_ISSOCK(info.st_mode)
             or (info.st_dev, info.st_ino) != self._owned_inode
             or info.st_uid != os.geteuid()
-            or info.st_mode & 0o077
+            or (self._operator_group_gid is not None and info.st_gid != self._operator_group_gid)
+            or stat.S_IMODE(info.st_mode) != (0o660 if self._operator_group_gid is not None else 0o600)
         ):
             raise PermissionError("management endpoint replaced or unsafe")
 
