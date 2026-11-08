@@ -258,7 +258,7 @@ class DebianSystemdNativeService:
             "TimeoutStartSec=15\nTimeoutStopSec=20\n"
             "KillMode=mixed\nNoNewPrivileges=true\n"
             "PrivateTmp=false\nProtectSystem=strict\nProtectHome=true\n"
-            "RuntimeDirectory=aegis\nRuntimeDirectoryMode=0700\n"
+            "RuntimeDirectory=aegis-platform\nRuntimeDirectoryMode=0700\n"
             "RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6\n"
             "[Install]\nWantedBy=multi-user.target\n"
         ).encode("ascii")
