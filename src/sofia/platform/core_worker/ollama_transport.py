@@ -258,6 +258,12 @@ class GenericOllamaProvider(LLMProvider):
         if len(raw_tool_calls) > _MAX_TOOL_CALLS:
             raise LLMProviderError("Ollama returned too many tool calls.")
         tool_calls = tuple(cls._tool_call_from_ollama(call) for call in raw_tool_calls)
+        # A response with neither usable text nor a tool proposal is not a
+        # generated assistant turn. In particular, a blank or thinking-only
+        # completion must not enter personal quality repair, which could turn
+        # a failed provider call into a canned-looking conversation.
+        if not content.strip() and not tool_calls:
+            raise LLMProviderError("Ollama returned an empty cognitive response.")
         return CognitiveResponse(content=content, tool_calls=tool_calls)
 
     @staticmethod
