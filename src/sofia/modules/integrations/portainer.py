@@ -2,6 +2,7 @@
 from __future__ import annotations
 from typing import Any
 from .http import JsonHttpClient
+from sofia.modules.it_containers.stack_summary import summarize_stack_metadata
 
 class PortainerAdapter:
     def __init__(self,base_url:str,api_key:str,endpoint_id:int)->None:
@@ -77,6 +78,19 @@ class PortainerAdapter:
         )
         if not isinstance(data,list): raise RuntimeError("invalid Portainer stacks response")
         return data
+    def stack_summary(self, stack_id: int)->dict[str,Any]:
+        """Read a single stack's bounded, secret-free metadata only.
+
+        Never expose the raw Stack response to a Core: it may contain
+        Git credentials, deployment environment values or private config.
+        """
+        if type(stack_id) is not int or stack_id < 1:
+            raise ValueError("stack_id must be a positive integer")
+        data = self.http.request("GET", f"/api/stacks/{stack_id}")
+        return summarize_stack_metadata(
+            data, stack_id=stack_id, endpoint_id=self.endpoint_id,
+        )
+
     def summary(self)->dict[str,Any]:
         info=self.info()
         containers=self.containers(all_containers=True)
