@@ -26,6 +26,7 @@ from sofia.platform.ops.library_signed_selection import (
     verify_renewed_recipient_offer,
 )
 from sofia.platform.ops.library_tls_hub import ApprovedLibraryHub
+from sofia.platform.ops.library_cached_source import VerifiedLibraryCacheSource
 from sofia.platform.ops.platform_install import OfflineArtifactCache, PlatformArtifact
 from sofia.platform.run.library_source_gate import (
     CurrentLibraryHubAuthority, CurrentLibrarySourcePeerAuthorizer,
@@ -143,6 +144,13 @@ class HostedLibraryHub:
         if (not isinstance(proven, PlatformArtifact) or proven != artifact
                 or package_signer_current(artifact.signer_key_id) is not True):
             raise ChunkTransferRejected("current independently trusted B1 package verification unavailable")
+        # Re-resolve and FULLY digest ONCE at signed selection, then the B1
+        # immutable inode guard and chunk reader check before/after EACH read.
+        # An 8GiB asset must not be SHA256-rehashed 8192 times.
+        self._verified_cache = VerifiedLibraryCacheSource(
+            cache=cache, artifact=artifact,
+        )
+        self._verified_cache.current_path(transfer)
 
         self.service = service
         self.transfer = transfer
@@ -234,7 +242,7 @@ class HostedLibraryHub:
             authorize_peer=self._peer,
             publisher_current=current_publisher,
             resolve_verified_cache=lambda t: (
-                self.cache.resolve(self.artifact)
+                self._verified_cache.current_path(t)
                 if t == self.transfer and current_publisher(t) else
                 (_ for _ in ()).throw(
                     ChunkTransferRejected("Hub B1 asset or publisher no longer current")
