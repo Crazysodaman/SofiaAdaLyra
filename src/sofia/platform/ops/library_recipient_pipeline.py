@@ -193,7 +193,10 @@ def acquire_from_independently_signed_index(
                     return False
                 if new_raw != active_raw:
                     newer = verify_renewed_recipient_offer(
-                        original=offer,
+                        # Compare against latest accepted signed page, not
+                        # original: otherwise a reissued older page could
+                        # roll back freshness after two successful renewals.
+                        original=active_offer,
                         renewed_signed_index=new_raw,
                         trusted_publisher_public_key=trusted_publisher_public_key,
                         expected_publisher_key_sha256=expected_publisher_key_sha256,
