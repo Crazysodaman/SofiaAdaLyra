@@ -98,7 +98,9 @@ def test_module_manifest_refuses_revoked_publisher_and_noncanonical_bytes(signed
 def test_module_manifest_refuses_tampering_even_with_rehashed_signed_payload(signed_module):
     candidate, signer, raw, kwargs = signed_module
     altered = json.loads(raw)
-    altered["publisher"] = "other-untrusted-publisher"
+    # Change a signed policy field without breaking the separate legacy
+    # maintenance artifact-set invariant, so this reaches Ed25519 checking.
+    altered["health_contract"] = "tampered-health-policy.v2"
     forged = json.dumps(
         altered, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
     ).encode()
