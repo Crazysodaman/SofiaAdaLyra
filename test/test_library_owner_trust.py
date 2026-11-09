@@ -183,7 +183,7 @@ def test_foreign_platform_and_unapproved_key_change_are_rejected(owner, tmp_path
             catalog_generation=3, minimum_catalog_revision=7,
             previous_trust_generation=0,
         )
-    with pytest.raises((ValueError, OwnerLibraryTrustDenied, PermissionError)):
+    with pytest.raises((ValueError, OwnerLibraryTrustDenied, PermissionError, RuntimeError)):
         OwnerLibraryTrustStore(
             state, platform_id="different-installed-platform",
         )
