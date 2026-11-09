@@ -17,6 +17,7 @@ import stat
 from typing import Callable
 
 from sofia.platform.state.private_file import assert_no_redirected_components
+from sofia.platform.run.process_lock import StateProcessLock
 
 _DIGEST = re.compile(r"[0-9a-f]{64}\Z")
 _PEER_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@-]{0,159}\Z")
@@ -193,6 +194,20 @@ class ChunkedArtifactReceiver:
         finally:
             os.close(fd)
 
+    def _writer_lock(self) -> StateProcessLock:
+        """One OS-backed nonblocking writer per quarantine across processes.
+
+        Content digests never create lock keys: the exact owner-private
+        destination root determines the lock. A crashed process releases
+        the OS lock, but the durable pinned .scope remains for safe resume.
+        """
+        self._check_roots()
+        return StateProcessLock(
+            self.root / "library-receiver",
+            resource="library-receiver",
+            lock_directory=self.root,
+        )
+
     def _used_bytes(self) -> int:
         """Count all incoming and completed bytes, not each transfer separately."""
         total = 0
@@ -244,143 +259,147 @@ class ChunkedArtifactReceiver:
             raise ChunkTransferRejected("current owner-enrolled SAFE grant unavailable")
 
     def received_bytes(self, transfer: PinnedChunkTransfer, *, authorize: Callable[[PinnedChunkTransfer], bool]) -> int:
-        self._approve(transfer, authorize)
-        self._check_roots()
-        path = self.incoming / (transfer.content_sha256 + ".part")
-        size = self._existing_file(path)
-        self._check_scope(transfer, part_size=size, allow_create=False)
-        if size > transfer.size_bytes:
-            raise ChunkTransferRejected("incoming data exceeds pinned content size")
-        return size
+        with self._writer_lock():
+            self._approve(transfer, authorize)
+            self._check_roots()
+            path = self.incoming / (transfer.content_sha256 + ".part")
+            size = self._existing_file(path)
+            self._check_scope(transfer, part_size=size, allow_create=False)
+            if size > transfer.size_bytes:
+                raise ChunkTransferRejected("incoming data exceeds pinned content size")
+            return size
 
     def append_chunk(
         self, transfer: PinnedChunkTransfer, *, offset: int, chunk: bytes,
         chunk_sha256: str, authorize: Callable[[PinnedChunkTransfer], bool],
     ) -> int:
-        self._approve(transfer, authorize)
-        if (type(offset) is not int or offset < 0 or offset > _MAX_TOTAL
-                or type(chunk) is not bytes or not 1 <= len(chunk) <= _MAX_CHUNK
-                or type(chunk_sha256) is not str or _DIGEST.fullmatch(chunk_sha256) is None
-                or sha256(chunk).hexdigest() != chunk_sha256):
-            raise ChunkTransferRejected("invalid or corrupt bounded transfer chunk")
-        if offset + len(chunk) > transfer.size_bytes or transfer.size_bytes > self.max_bytes:
-            raise ChunkTransferRejected("transfer exceeds pinned size or quota")
-        self._check_roots()
-        if self._used_bytes() + len(chunk) > self.max_bytes:
-            raise ChunkTransferRejected("aggregate transfer quota exceeded")
-        path = self.incoming / (transfer.content_sha256 + ".part")
-        if self._existing_file(self.completed / transfer.content_sha256):
-            raise ChunkTransferRejected("complete object already published")
-        current = self._existing_file(path)
-        if current != offset:
-            raise ChunkTransferRejected("non-sequential or stale resume cursor")
-        self._check_scope(transfer, part_size=current, allow_create=True)
-        flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
-        fd = os.open(path, flags, 0o600)
-        try:
-            opened = os.fstat(fd)
-            if (not stat.S_ISREG(opened.st_mode) or opened.st_nlink != 1
-                    or stat.S_IMODE(opened.st_mode) & 0o077
-                    or opened.st_size != current):
-                raise ChunkTransferRejected("incoming file identity changed")
+        with self._writer_lock():
             self._approve(transfer, authorize)
-            with os.fdopen(fd, "wb", closefd=False) as writer:
-                writer.write(chunk)
-                writer.flush()
-                os.fsync(fd)
-            after = os.fstat(fd)
-            if after.st_size != current + len(chunk):
-                raise ChunkTransferRejected("transfer size changed during write")
-            if current == 0 and os.name != "nt":
-                # First .part directory entry must be durable before the
-                # sender receives a resumable offset or progress receipt.
-                directory = os.open(
-                    self.incoming,
-                    os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
-                )
-                try:
-                    os.fsync(directory)
-                finally:
-                    os.close(directory)
-            self._check_scope(
-                transfer, part_size=current + len(chunk), allow_create=False,
-            )
-            try:
-                self._approve(transfer, authorize)  # STOP/revoke during write denies chunk
-            except Exception:
-                os.ftruncate(fd, current)
-                os.fsync(fd)
-                raise
-        finally:
-            os.close(fd)
-        return current + len(chunk)
-
-    def finalize(self, transfer: PinnedChunkTransfer, *, authorize: Callable[[PinnedChunkTransfer], bool]) -> Path:
-        self._approve(transfer, authorize)
-        self._check_roots()
-        part = self.incoming / (transfer.content_sha256 + ".part")
-        if self._existing_file(part) != transfer.size_bytes:
-            raise ChunkTransferRejected("incomplete transfer cannot enter immutable store")
-        self._check_scope(
-            transfer, part_size=transfer.size_bytes, allow_create=False,
-        )
-        digest = sha256()
-        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
-        fd = os.open(part, flags)
-        try:
-            before = os.fstat(fd)
-            if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1 or before.st_size != transfer.size_bytes:
-                raise ChunkTransferRejected("incoming object changed")
-            with os.fdopen(fd, "rb", closefd=False) as reader:
-                while data := reader.read(65536):
-                    digest.update(data)
-            after = os.fstat(fd)
-            if ((before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
-                    != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)):
-                raise ChunkTransferRejected("incoming object mutated during verification")
-        finally:
-            os.close(fd)
-        # The published file must be the *same inode* whose bytes passed SHA-256.
-        # A same-size replacement after hash verification is still untrusted.
-        verified_identity = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
-        if digest.hexdigest() != transfer.content_sha256:
-            raise ChunkTransferRejected("final content digest mismatch")
-        self._approve(transfer, authorize)
-        destination = self.completed / transfer.content_sha256
-        if destination.exists() or destination.is_symlink():
-            raise ChunkTransferRejected("immutable object already exists")
-        os.link(part, destination, follow_symlinks=False)
-        try:
+            if (type(offset) is not int or offset < 0 or offset > _MAX_TOTAL
+                    or type(chunk) is not bytes or not 1 <= len(chunk) <= _MAX_CHUNK
+                    or type(chunk_sha256) is not str or _DIGEST.fullmatch(chunk_sha256) is None
+                    or sha256(chunk).hexdigest() != chunk_sha256):
+                raise ChunkTransferRejected("invalid or corrupt bounded transfer chunk")
+            if offset + len(chunk) > transfer.size_bytes or transfer.size_bytes > self.max_bytes:
+                raise ChunkTransferRejected("transfer exceeds pinned size or quota")
             self._check_roots()
-            published = destination.lstat()
-            previous = part.lstat()
-            if (not stat.S_ISREG(published.st_mode)
-                    or (published.st_dev, published.st_ino) != (previous.st_dev, previous.st_ino)
-                    or published.st_size != transfer.size_bytes
-                    or (published.st_dev, published.st_ino, published.st_size,
-                        published.st_mtime_ns) != verified_identity
-                    or published.st_nlink != 2):
-                raise ChunkTransferRejected("published object failed identity check")
-            part.unlink()
-            if self._existing_file(destination) != transfer.size_bytes:
-                raise ChunkTransferRejected("immutable object link count did not settle")
-            self._check_scope(
-                transfer, part_size=0, allow_create=False,
-            )
-            # Remove only matching immutable scope after same-inode publication.
-            self._scope_path(transfer).unlink()
-            if os.name != "nt":
-                for directory_path in (self.incoming, self.completed):
+            if self._used_bytes() + len(chunk) > self.max_bytes:
+                raise ChunkTransferRejected("aggregate transfer quota exceeded")
+            path = self.incoming / (transfer.content_sha256 + ".part")
+            if self._existing_file(self.completed / transfer.content_sha256):
+                raise ChunkTransferRejected("complete object already published")
+            current = self._existing_file(path)
+            if current != offset:
+                raise ChunkTransferRejected("non-sequential or stale resume cursor")
+            self._check_scope(transfer, part_size=current, allow_create=True)
+            flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+            fd = os.open(path, flags, 0o600)
+            try:
+                opened = os.fstat(fd)
+                if (not stat.S_ISREG(opened.st_mode) or opened.st_nlink != 1
+                        or stat.S_IMODE(opened.st_mode) & 0o077
+                        or opened.st_size != current):
+                    raise ChunkTransferRejected("incoming file identity changed")
+                self._approve(transfer, authorize)
+                with os.fdopen(fd, "wb", closefd=False) as writer:
+                    writer.write(chunk)
+                    writer.flush()
+                    os.fsync(fd)
+                after = os.fstat(fd)
+                if after.st_size != current + len(chunk):
+                    raise ChunkTransferRejected("transfer size changed during write")
+                if current == 0 and os.name != "nt":
+                    # First .part directory entry must be durable before the
+                    # sender receives a resumable offset or progress receipt.
                     directory = os.open(
-                        directory_path,
+                        self.incoming,
                         os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
                     )
                     try:
                         os.fsync(directory)
                     finally:
                         os.close(directory)
-            # VERIFIED BYTES only. No publisher signature or install receipt.
-            return destination
-        except Exception:
-            destination.unlink(missing_ok=True)
-            raise
+                self._check_scope(
+                    transfer, part_size=current + len(chunk), allow_create=False,
+                )
+                try:
+                    self._approve(transfer, authorize)  # STOP/revoke during write denies chunk
+                except Exception:
+                    os.ftruncate(fd, current)
+                    os.fsync(fd)
+                    raise
+            finally:
+                os.close(fd)
+            return current + len(chunk)
+
+    def finalize(self, transfer: PinnedChunkTransfer, *, authorize: Callable[[PinnedChunkTransfer], bool]) -> Path:
+        with self._writer_lock():
+            self._approve(transfer, authorize)
+            self._check_roots()
+            part = self.incoming / (transfer.content_sha256 + ".part")
+            if self._existing_file(part) != transfer.size_bytes:
+                raise ChunkTransferRejected("incomplete transfer cannot enter immutable store")
+            self._check_scope(
+                transfer, part_size=transfer.size_bytes, allow_create=False,
+            )
+            digest = sha256()
+            flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+            fd = os.open(part, flags)
+            try:
+                before = os.fstat(fd)
+                if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1 or before.st_size != transfer.size_bytes:
+                    raise ChunkTransferRejected("incoming object changed")
+                with os.fdopen(fd, "rb", closefd=False) as reader:
+                    while data := reader.read(65536):
+                        digest.update(data)
+                after = os.fstat(fd)
+                if ((before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+                        != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)):
+                    raise ChunkTransferRejected("incoming object mutated during verification")
+            finally:
+                os.close(fd)
+            # The published file must be the *same inode* whose bytes passed SHA-256.
+            # A same-size replacement after hash verification is still untrusted.
+            verified_identity = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+            if digest.hexdigest() != transfer.content_sha256:
+                raise ChunkTransferRejected("final content digest mismatch")
+            self._approve(transfer, authorize)
+            destination = self.completed / transfer.content_sha256
+            if destination.exists() or destination.is_symlink():
+                raise ChunkTransferRejected("immutable object already exists")
+            os.link(part, destination, follow_symlinks=False)
+            try:
+                self._check_roots()
+                published = destination.lstat()
+                previous = part.lstat()
+                if (not stat.S_ISREG(published.st_mode)
+                        or (published.st_dev, published.st_ino) != (previous.st_dev, previous.st_ino)
+                        or published.st_size != transfer.size_bytes
+                        or (published.st_dev, published.st_ino, published.st_size,
+                            published.st_mtime_ns) != verified_identity
+                        or published.st_nlink != 2):
+                    raise ChunkTransferRejected("published object failed identity check")
+                part.unlink()
+                if self._existing_file(destination) != transfer.size_bytes:
+                    raise ChunkTransferRejected("immutable object link count did not settle")
+                self._check_scope(
+                    transfer, part_size=0, allow_create=False,
+                )
+                # Remove only matching immutable scope after same-inode publication.
+                self._scope_path(transfer).unlink()
+                if os.name != "nt":
+                    for directory_path in (self.incoming, self.completed):
+                        directory = os.open(
+                            directory_path,
+                            os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+                        )
+                        try:
+                            os.fsync(directory)
+                        finally:
+                            os.close(directory)
+                # VERIFIED BYTES only. No publisher signature or install receipt.
+                return destination
+            except Exception:
+                destination.unlink(missing_ok=True)
+                raise
+
