@@ -2,6 +2,7 @@
 
 **Captured:** 2026-11-09 (America/Chicago)  
 **Status:** OWNER-REQUESTED / RESEARCHED / DESIGN TODO / NOT SCHEDULED / NOT BUILT OR HOST-CERTIFIED.  
+**Project-wide scope (2026-11-09):** Owner-only, private, noncommercial Aegis across the owner's personally operated Fleet. See [Owner-only scope and license policy](AEGIS_OWNER_ONLY_SCOPE_AND_LICENSE_POLICY.md). Legally permitted free personal-use/noncommercial voice models are eligible even if they may not be publicly redistributed. Evaluate the exact weight/voice/reference license and whether private cross-device copying is allowed before import or transfer. The separate zero-subscription/zero-paid-API voice requirement still applies.
 **Binding cost requirement:** The complete baseline listening + speaking path MUST be locally runnable **without subscriptions, paid API keys, metered speech calls, paid model downloads or ongoing hosted-service charges**. Optional external paid services are outside AG-D032's target release. Free usage does **not** remove GPU electricity, hardware or bandwidth cost.  
 **Platform release fence:** Does NOT add a Platform 1.0 / AG-D028 blocker or alter issue #201's 38 acceptance rows. No installation, download, live microphone activation, owner-host execution, VM migration or Fleet enrollment authorized by this TODO.
 **Ownership:** Expand the existing \`src/sofia/modules/voice/\` and RM-VOICE companion module. Do NOT create a competing voice Core, identity, general permission authority, second task ledger or duplicate module registry. 
