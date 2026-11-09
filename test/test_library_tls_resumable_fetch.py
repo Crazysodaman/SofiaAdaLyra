@@ -153,7 +153,7 @@ def test_reject_invalid_resume_cursor_without_network(tmp_path):
     def must_not_dial():
         opened.append(True)
         raise AssertionError("invalid resume must not start network")
-    for bad_offset in (-1, transfer.size_bytes + 1, True):
+    for bad_offset in (-1, transfer.size_bytes, transfer.size_bytes + 1, True):
         with pytest.raises(ChunkTransferRejected, match="resume cursor"):
             fetch_resumable_chunks(
                 transfer=transfer, receiver=receiver,
