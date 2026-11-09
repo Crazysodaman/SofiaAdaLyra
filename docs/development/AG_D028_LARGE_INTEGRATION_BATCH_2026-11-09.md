@@ -31,3 +31,25 @@ python -m pytest -q test/test_ops_platform_cache_streaming.py -m slow
 5. Continue semantic branch consolidation, final GitHub CI, then actual four-disposable-host installed tests and owner's production live-test phase.
 
 The original independent ledger remains **LIB 0/16 accepted and Platform 0/38 PASS**, pending signed installed-host evidence. Mock tests, source commits, and synthetic keys are not production GO. GitHub may auto-run workflows on push; no final release CI has been manually initiated here.
+
+
+## Follow-on integration: signed recipient renewal + installed service acquisition
+
+**Source-only continuation on `main`; do not promote original 0/16 / 0/38 acceptance rows.**
+
+- `src/sofia/platform/ops/library_signed_selection.py`: `verify_renewed_recipient_offer` independently rechecks Ed25519 publisher root, source+target Platform, generation/revision, signer, receipt, license, artifact ID, manifest SHA, content SHA and size. The signed envelope and catalog freshness MUST strictly advance. Replayed old pages and changed packages are denied, not silently treated as a refreshed grant.
+- `src/sofia/platform/ops/library_recipient_pipeline.py`: optional service-owned signed catalog reader renews just before freshness expiry, not at every chunk. Publisher root/revocation and exact originally selected transfer remain rechecked each step and before publishing a transfer result.
+- `src/sofia/platform/run/library_recipient_service.py`: `HostedLibraryRecipient` composes existing installed `PlatformServiceSession`, `PermissionStore`, `CurrentRecipientPeerAuthorizer`, `OperatorStopStore`, independently provisioned publisher index, enrolled TLS certificate pin, B1 `OfflineArtifactCache`, and separate one-use owner-approved cache handoff. Missing SAFE proof, wrong RUN generation, publisher revocation, invalid signed index, source certificate substitution or overlarge grant chunk denies. This class creates no new auth, signer, service, background loop, installer or Core dependency.
+- `src/sofia/platform/run/platform_service.py`: `acquire_owner_approved_library_asset` is an explicitly invoked, foreground, one-transfer-at-a-time method under the existing RUN session. It does not expose a new native RPC or auto-execute effects.
+- `test/test_library_recipient_renewal.py`, `test/test_library_recipient_service.py`: signed renewal replay/mutation/revocation, service scope, current owner-enrolled SAFE grant, changed RUN/recipient, duplicate transfer lock and oversized chunk denial. The service test stubs the actual TLS network. **These tests have not been run here.**
+
+**Most important unfinished work:** independent B1 package verifier and canonical installed publisher/Fleet trust provisioning; installed Debian/Windows peer mTLS transfer+restart+rollback in disposable hosts; sender/recipient authenticated operator control and Rust/Python D028-00 same-SHA agreement; complete native GUI/TUI and final release evidence. In particular, untrusted callbacks are NOT accepted through the public IPC. Do not treat a synthetic unit-test grant as production owner enrollment.
+
+### Add these focused checks before final CI
+
+```bash
+python -m compileall -q src/sofia/platform/ops/library_signed_selection.py src/sofia/platform/ops/library_recipient_pipeline.py src/sofia/platform/run/library_recipient_service.py src/sofia/platform/run/platform_service.py test/test_library_recipient_renewal.py test/test_library_recipient_service.py
+python -m pytest -q test/test_library_recipient_renewal.py test/test_library_recipient_service.py test/test_library_recipient_pipeline.py test/test_library_signed_selection.py
+```
+
+*Source code and test files committed are not proof that these commands passed.*
