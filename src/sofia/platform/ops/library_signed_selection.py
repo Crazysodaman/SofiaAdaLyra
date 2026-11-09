@@ -8,7 +8,7 @@ bytes over owner-enrolled TLS. No signer, listener, cache writer or installer.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Callable
 
 from sofia.platform.ops.library_chunk_receiver import (
@@ -85,10 +85,9 @@ def verify_selected_signed_transfer(
         raise ChunkTransferRejected("signed index source is not selected enrolled peer")
     if index.expires_at <= now.astimezone(timezone.utc):
         raise ChunkTransferRejected("publisher index expired at selection")
-    if (_utc(source["last_observed_at"]) > now.astimezone(timezone.utc)
-            or _utc(source["last_observed_at"]) < now.astimezone(timezone.utc) - (
-                index.expires_at - now.astimezone(timezone.utc)
-            ) - (index.expires_at - _utc(index.catalog["catalog_fresh_until"]))):
+    observed_at = _utc(source["last_observed_at"])
+    moment = now.astimezone(timezone.utc)
+    if observed_at > moment or moment - observed_at > timedelta(minutes=5):
         raise ChunkTransferRejected("signed peer source observation not current")
     page = index.catalog["page"]
     if (type(page) is not dict
