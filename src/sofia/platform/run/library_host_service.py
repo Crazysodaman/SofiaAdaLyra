@@ -22,7 +22,7 @@ from sofia.platform.ops.library_chunk_receiver import (
     ChunkTransferRejected, PinnedChunkTransfer,
 )
 from sofia.platform.ops.library_signed_selection import (
-    verify_selected_signed_transfer,
+    SelectedSignedLibraryTransfer, verify_selected_signed_transfer,
 )
 from sofia.platform.ops.library_tls_hub import ApprovedLibraryHub
 from sofia.platform.ops.platform_install import OfflineArtifactCache, PlatformArtifact
@@ -33,6 +33,49 @@ from sofia.platform.safe.permissions import PermissionStore
 
 if TYPE_CHECKING:
     from sofia.platform.run.platform_service import PlatformServiceSession
+
+
+def verify_renewed_serving_offer(
+    *,
+    original: SelectedSignedLibraryTransfer,
+    raw_signed_index: bytes,
+    trusted_publisher_public_key: bytes,
+    expected_publisher_key_sha256: str,
+    expected_catalog_generation: int,
+    publisher_key_current: Callable[[str], bool],
+    now: datetime,
+) -> SelectedSignedLibraryTransfer:
+    """Only a newly signed SAME-artifact catalog can extend a Hub session.
+
+    The old selected package's manifest/content digest, publisher signer,
+    distribution receipt, target, source, exact revision and catalog generation
+    must remain identical; a new signature or issued_at is allowed.
+    """
+    if not isinstance(original, SelectedSignedLibraryTransfer):
+        raise ChunkTransferRejected("original independently signed Hub offer required")
+    if not original.still_matches():
+        raise ChunkTransferRejected("original signed catalog changed after selection")
+    renewed = verify_selected_signed_transfer(
+        raw_signed_index=raw_signed_index,
+        transfer=original.transfer, expected_artifact_id=original.artifact_id,
+        trusted_publisher_public_key=trusted_publisher_public_key,
+        expected_publisher_key_sha256=expected_publisher_key_sha256,
+        expected_catalog_generation=expected_catalog_generation,
+        now=now, publisher_key_current=publisher_key_current,
+    )
+    if (renewed.artifact_id != original.artifact_id
+            or renewed.version != original.version
+            or renewed.signer_key_id != original.signer_key_id
+            or renewed.signature_receipt_ref != original.signature_receipt_ref
+            or renewed.transfer != original.transfer
+            or renewed.index.catalog["source"]["kind"] != "OWNER_SELECTED_HUB"
+            or renewed.index.source_platform_id != original.index.source_platform_id
+            or renewed.index.target_platform_id != original.index.target_platform_id
+            or renewed.index.catalog_revision != original.index.catalog_revision
+            or renewed.index.catalog_generation != original.index.catalog_generation
+            or not renewed.still_matches()):
+        raise ChunkTransferRejected("renewal changed immutable signed Hub offer or publisher identity")
+    return renewed
 
 
 class HostedLibraryHub:
@@ -148,10 +191,9 @@ class HostedLibraryHub:
                 # signer/receipt identity, epoch, revocation and license.
                 # If no trusted renewal source is installed, expiry denies.
                 candidate = (self._offer if self._read_index is None else
-                             verify_selected_signed_transfer(
+                             verify_renewed_serving_offer(
+                                 original=self._offer,
                                  raw_signed_index=self._read_index(),
-                                 transfer=self.transfer,
-                                 expected_artifact_id=self._offer.artifact_id,
                                  trusted_publisher_public_key=self._trusted_public_key,
                                  expected_publisher_key_sha256=self._expected_key_sha,
                                  expected_catalog_generation=self._expected_catalog_generation,
