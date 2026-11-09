@@ -113,6 +113,15 @@ class PlatformServiceSession:
         assert_owner_private_path(state_path, directory=False)
         self.storage = PlatformLocalStore(state_path, create=False,
             roles=PlatformRoleConfiguration((PlatformRole.MODULE_HOST,)), host_identity=expected_id)
+        if installed_signed_catalog is None:
+            # Single-owner default. The existing identity-pinned local SQLite
+            # holds an exact owner-authenticated signing root, if enrolled.
+            # A fresh install has no pin: catalog reads remain UNAVAILABLE.
+            # There is no public CA, tenant registry, TOFU or new daemon.
+            from sofia.platform.run.library_owner_trust import OwnerLibraryTrustStore
+            self._installed_signed_catalog = OwnerLibraryTrustStore(
+                state_path, platform_id=expected_id,
+            )
         self.lock = StateProcessLock(state_path, resource='platform-service', owner_label='Platform service',
             lock_directory=state_path.parent)
         self.lock.acquire()
