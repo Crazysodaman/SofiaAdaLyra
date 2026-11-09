@@ -277,3 +277,39 @@ def test_enrollment_is_exactly_one_current_owner_not_a_blanket_fleet_root(owner)
             state, platform_id="other-platform",
         )
     assert root.publisher_current(pin.public_key_sha256, 9999) is False
+
+
+
+def test_stop_blocks_signed_catalog_reads_and_updates_but_allows_owner_revocation(owner):
+    identity, current, state, root, env, sign, keys, now = owner
+    pin, _ = _enroll(root, keys)
+    signed = sign()
+    root.accept_signed_catalog(signed)
+    root.stop.set(
+        active=True, updated_by="Sparks",
+        reason="single-owner emergency Platform STOP",
+        at=now,
+    )
+    assert root() is None
+    assert root.publisher_current(pin.public_key_sha256, 1) is False
+    with pytest.raises(OwnerLibraryTrustDenied, match="STOP-free"):
+        root.accept_signed_catalog(signed)
+    # Revocation during STOP is an important emergency recovery operation,
+    # and still requires exact separately authenticated owner proof.
+    approval = _approve(root, REVOKE_CAPABILITY, revocation_parameters(
+        state_path=state, pin=pin,
+    ))
+    assert root.revoke(approval_id=approval).active is False
+    assert root() is None
+    assert root.audit.verify() == (True, None)
+
+
+def test_owner_snapshot_expiry_fails_closed_after_clock_advance(owner):
+    identity, current, state, root, env, sign, keys, now = owner
+    _enroll(root, keys)
+    signed = sign()
+    root.accept_signed_catalog(signed)
+    assert root().raw_signed_index == signed
+    root.clock = lambda: now + timedelta(minutes=6)
+    with pytest.raises(SignedLibraryIndexRejected, match="stale"):
+        root()
