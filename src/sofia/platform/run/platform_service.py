@@ -158,10 +158,19 @@ class PlatformServiceSession:
             management=dispatcher, library=library_dispatcher,
         )
         if os.name == "nt":
+            # A single native pipe serves BOTH separately owner-enrolled read
+            # protocols. Union only if all current owner grants resolve to
+            # one and the same individually verified Windows user SID.
+            management_sid = current_peer.enrolled_windows_operator_sid()
+            library_sid = library_peer.enrolled_windows_operator_sid()
+            selected_sids = {sid for sid in (management_sid, library_sid) if sid is not None}
+            if len(selected_sids) > 1:
+                raise PermissionError("distinct owner-enrolled Windows operators require explicit installer policy")
+            selected_sid = next(iter(selected_sids), None)
             name = "AegisPlatform-" + platform_id.replace("-", "") + "-" + str(self.lease.epoch)
             listener = ManagementWindowsPipeListener(
                 name, dispatch=read_mux.dispatch,
-                enrolled_operator_sid=current_peer.enrolled_windows_operator_sid(),
+                enrolled_operator_sid=selected_sid,
             )
             self._management_endpoint = listener.name
         elif sys.platform == "linux":
