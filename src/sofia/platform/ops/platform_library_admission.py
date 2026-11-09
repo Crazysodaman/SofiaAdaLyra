@@ -44,6 +44,10 @@ from sofia.sdk.platform_release import PlatformReleaseManifest, PlatformReleaseT
 # operation before any client, Hub or externally callable service uses it.
 LIBRARY_CACHE_ADMIT = "platform.library.cache_admit_verified_seed"
 
+# Peer bytes require a distinct exact owner proof. Offline-media approval must
+# never silently authorize a network-origin acquisition or cache admission.
+LIBRARY_PEER_CACHE_ADMIT = "platform.library.cache_admit_enrolled_peer"
+
 
 def _verified_seed(bundle_root, *, trusted_public_key, trusted_key_sha256,
                    trusted_signer_key_id, expected_source_sha, expected_target,
