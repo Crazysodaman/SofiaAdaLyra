@@ -517,3 +517,6 @@ Portainer stack projection and tests were selectively incorporated without
 replacing newer Platform A/B/C/D/E source. This does not certify module hotplug
 or finish AG-D027. Artifact Library and Platform 1.0 release requirements
 continue taking precedence.
+
+
+**Owner-local 3+1 shortlist (2026-11-09):** [AG-D030](AG_D030_AI_MODEL_LANDSCAPE_2026-11-09.md) now prioritizes exactly three free-local candidates and one alternate for general, coding, private RP text, photoreal/anime non-nude images, photoreal/anime adult images, STT and TTS; aligned with Venus's 12GB VRAM, Artemis Core VM and zero-paid-inference preferences. [AG-D033](AG_D033_LOCAL_RP_AND_CORE_CONTINUITY_RESEARCH_2026-11-09.md) adopts Rocinante-X, existing Huihui 9B, Stheno 8B, and Magnum alternate for model A/B after owner approval. Source and behavior testing remain TODO; no model installation or new Platform/Core release gate.
