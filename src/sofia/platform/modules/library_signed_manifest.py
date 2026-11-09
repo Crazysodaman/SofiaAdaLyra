@@ -99,7 +99,7 @@ def verify_publisher_signed_module_manifest(
         )
         manifest = parse_signed_manifest(document)
     except (UnicodeError, ValueError, TypeError, RecursionError,
-            PackageManifestError) as exc:
+            KeyError, IndexError, PackageManifestError) as exc:
         raise SignedModuleLibraryRejected("invalid signed module payload") from exc
     if manifest.trust_ref != expected_trust_ref:
         raise SignedModuleLibraryRejected("signed manifest refers to another publisher trust root")
