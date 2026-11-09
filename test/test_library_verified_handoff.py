@@ -163,11 +163,12 @@ def test_module_bytes_require_dedicated_module_verifier(prepared):
 
 def test_revocation_after_signed_review_cannot_import(prepared):
     args, _raw, artifact = prepared
-    checks = []
-    def publisher_current(_):
-        checks.append(1)
-        return len(checks) < 4
-    args["publisher_current"] = publisher_current
+    state = {"revoked": False}
+    def verify_and_revoke(_transfer, _path):
+        state["revoked"] = True
+        return artifact
+    args["verify_independent_publisher"] = verify_and_revoke
+    args["publisher_current"] = lambda _: not state["revoked"]
     with pytest.raises(ChunkTransferRejected, match="revoked"):
         admit_signed_transferred_asset(**args)
     assert FakeApproval.recorded == []
