@@ -184,7 +184,7 @@ jobs:
 
       - name: Upload separated component Linux release evidence (unsigned until approved promotion)
         id: upload_components
-        if: always()
+        if: success()
         uses: actions/upload-artifact@v7
         with:
           name: release-candidate-components-debian-${{ github.event.pull_request.head.sha || github.sha }}
