@@ -15,7 +15,7 @@ from sofia.platform.ops.library_chunk_receiver import (
     ChunkTransferRejected, PinnedChunkTransfer,
 )
 from sofia.platform.ops.library_signed_index import (
-    VerifiedLibraryIndex, verify_signed_library_index,
+    VerifiedLibraryIndex, verify_signed_library_index, _utc,
 )
 
 _ITEM_KEYS = frozenset({
@@ -85,6 +85,18 @@ def verify_selected_signed_transfer(
         raise ChunkTransferRejected("signed index source is not selected enrolled peer")
     if index.expires_at <= now.astimezone(timezone.utc):
         raise ChunkTransferRejected("publisher index expired at selection")
+    if (_utc(source["last_observed_at"]) > now.astimezone(timezone.utc)
+            or _utc(source["last_observed_at"]) < now.astimezone(timezone.utc) - (
+                index.expires_at - now.astimezone(timezone.utc)
+            ) - (index.expires_at - _utc(index.catalog["catalog_fresh_until"]))):
+        raise ChunkTransferRejected("signed peer source observation not current")
+    page = index.catalog["page"]
+    if (type(page) is not dict
+            or set(page) != {"limit", "next_cursor", "cursor_state"}
+            or page["cursor_state"] != "CURRENT"
+            or type(page["limit"]) is not int or not 1 <= page["limit"] <= 128
+            or len(index.catalog["items"]) > page["limit"]):
+        raise ChunkTransferRejected("signed catalog page is stale or unbounded")
     matches = []
     for row in index.catalog["items"]:
         if type(row) is not dict or set(row) != _ITEM_KEYS:
