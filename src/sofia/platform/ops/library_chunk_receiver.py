@@ -150,6 +150,17 @@ class ChunkedArtifactReceiver:
                 raise
             finally:
                 os.close(fd)
+            # Persist the metadata directory entry BEFORE the first .part
+            # write so a crash cannot leave bytes with no bound provenance.
+            if os.name != "nt":
+                directory = os.open(
+                    self.incoming,
+                    os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+                )
+                try:
+                    os.fsync(directory)
+                finally:
+                    os.close(directory)
             before = path.lstat()
         if (not stat.S_ISREG(before.st_mode)
                 or before.st_nlink != 1
@@ -280,6 +291,17 @@ class ChunkedArtifactReceiver:
             after = os.fstat(fd)
             if after.st_size != current + len(chunk):
                 raise ChunkTransferRejected("transfer size changed during write")
+            if current == 0 and os.name != "nt":
+                # First .part directory entry must be durable before the
+                # sender receives a resumable offset or progress receipt.
+                directory = os.open(
+                    self.incoming,
+                    os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+                )
+                try:
+                    os.fsync(directory)
+                finally:
+                    os.close(directory)
             self._check_scope(
                 transfer, part_size=current + len(chunk), allow_create=False,
             )
@@ -347,6 +369,16 @@ class ChunkedArtifactReceiver:
             )
             # Remove only matching immutable scope after same-inode publication.
             self._scope_path(transfer).unlink()
+            if os.name != "nt":
+                for directory_path in (self.incoming, self.completed):
+                    directory = os.open(
+                        directory_path,
+                        os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+                    )
+                    try:
+                        os.fsync(directory)
+                    finally:
+                        os.close(directory)
             # VERIFIED BYTES only. No publisher signature or install receipt.
             return destination
         except Exception:
