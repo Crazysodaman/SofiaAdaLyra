@@ -476,8 +476,8 @@ LIBRARY_PEER_SCOPE = frozenset({
     "catalog_revision", "data_class", "license_distribution",
     "max_chunk_bytes", "max_total_bytes",
 })
-_LIBRARY_PEER_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@-]{0,159}\\Z")
-_LIBRARY_DIGEST = re.compile(r"[0-9a-f]{64}\\Z")
+_LIBRARY_PEER_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@-]{0,159}\Z")
+_LIBRARY_DIGEST = re.compile(r"[0-9a-f]{64}\Z")
 _LIBRARY_KINDS = frozenset({
     "platform_release", "sdk", "core_runtime", "core_definition",
     "module", "model", "asset", "rollback",
