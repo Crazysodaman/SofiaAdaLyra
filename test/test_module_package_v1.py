@@ -56,7 +56,7 @@ def manifest(
         ("linux-x86_64", "windows-x86_64"), "1.0.0", "2.0.0",
         tuple((item, "schema:v1") for item in capabilities),
         dependencies, "subprocess-restricted", (("ram_mib", 128),), (),
-        PlacementMode.PORTABLE_STATELESS, module_id + ".state",
+        PlacementMode.PORTABLE_STATELESS, module_id.replace("-", "_") + ".state",
         "no-state-migration-v1", "module-health.v1", "signed-rollback.v1",
         (profile,), (), maintenance, settings_contract,
     )
@@ -304,3 +304,12 @@ def test_untrusted_manifest_parser_rejects_unknown_fields_and_wrong_types():
     document["schema_version"] = True
     with pytest.raises(PackageManifestError, match="schema_version"):
         parse_signed_manifest(document)
+
+
+
+def test_fixture_hyphenated_module_id_uses_safe_state_namespace():
+    value = manifest(
+        (("module.py", "a" * 64),), module_id="org.sofia.catalog-module",
+    )
+    assert value.module_id == "org.sofia.catalog-module"
+    assert value.state_namespace == "org.sofia.catalog_module.state"
