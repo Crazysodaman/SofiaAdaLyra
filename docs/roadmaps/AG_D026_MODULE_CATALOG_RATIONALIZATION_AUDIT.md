@@ -99,3 +99,19 @@
 Every selected module must specify: exact parent/module ID; signed manifest/publisher/package version; capabilities split OBSERVE, ADVISE, SIMULATE and individually approved effects; OS/host/device/resource profile; provider configuration and least-privilege token storage; canonical namespace and migration contract; dependencies, installation/update/pause/uninstall and persistent owner block; side-effect and failure/unknown receipt; health/freshness with no fake VERIFIED; backup/rollback where stateful; safe UI/TUI parity, offline/NO_COLOR; privacy/consent boundaries, fail-closed STOP; acceptance tests with source SHA, actual signed install, host-specific observations, independent review. A sample `analysis.py` exposing a source-agnostic advisory handler is **not** a connector or production execution implementation.
 
 **Work sequencing:** Do **not** bulk-merge or delete any accepted catalog IDs during Platform #201 shakedown. Start from source-backed acceptance in Platform PLAT-01..08, then release channels, then highest-use optional modules including IT-CONTAINERS, HOMELAB, IT-NETWORK, IT-OBSERVABILITY, HOUSEHOLD/FINANCE as specifically approved. Compare existing V18 code, provider wrappers and optional advisory stubs before writing new code. Protect one canonical writer and owner grants. This document changes no installation, modules, protected state, Fleet permissions, files outside design docs, or releases.
+
+
+## D027 implementation disposition (main consolidation)
+
+**Staged program approved, source-only and uncertified.**
+[AG-D027](AG_D027_MODULE_IMPLEMENTATION_PROGRAM.md) captures the six owner-approved
+conditional consolidation targets and each module's separate permission and
+migration acceptance criteria. Two additional module ideas are exploratory
+only, not active catalog IDs. Runtime package identity retirement, live data
+migration, signed SDK transfer, installed-host evidence and effect approvals
+remain outstanding.
+
+PR #236's no-effect review planner, bounded Portainer stack projection,
+negative tests, module hotplug test and Core-facing secret-redaction guard
+were selectively incorporated on `main` without merging its stale Platform
+history. No existing module was uninstalled, replaced or auto-activated.
