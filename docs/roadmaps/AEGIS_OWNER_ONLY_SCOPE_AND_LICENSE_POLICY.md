@@ -2,6 +2,8 @@
 
 **Owner clarification:** 2026-11-09. **Status:** Binding product-intent design constraint; not authorization to install, execute, change trust policies, or migrate protected state.
 
+**Later owner GO directive (2026-11-09):** This personal-use principle is now a **mandatory acceptance condition for Platform 1.0 and Core 1.0 GO/shakedown**, mapped into their **existing** acceptance rows and G8 by [binding overlay](../development/AEGIS_OWNER_ONLY_GO_LIVE_ACCEPTANCE_2026-11-09.md). This supersedes any earlier wording implying that personal-only intent was merely a future preference. It does not mandate every optional model or voice feature at GO or waive security/live host tests.
+
 ## 1. Purpose
 
 **Project Aegis is a private, single-owner AI ecosystem designed for the owner's personal use.** It is not being designed as a customer-facing SaaS, marketplace, commercial hosted service, public model distribution platform, or multi-customer product.
