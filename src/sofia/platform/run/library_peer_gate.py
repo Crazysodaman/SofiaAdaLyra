@@ -18,7 +18,9 @@ from hashlib import sha256
 import re
 import ssl
 
-from sofia.platform.safe.permissions import PermissionStore, LIBRARY_PEER_SCOPE
+from sofia.platform.safe.permissions import (
+    PermissionStore, LIBRARY_PEER_SCOPE, _validate_library_peer_standing_scope,
+)
 from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.platform.ops.library_chunk_receiver import PinnedChunkTransfer
 
@@ -28,6 +30,51 @@ _PEER_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,159}$")
 _SCOPE = LIBRARY_PEER_SCOPE
 _MAX_CHUNK = 1024 * 1024
 _MAX_INTEGER = 2**53 - 1
+
+
+def selected_peer_grant_scope(
+    *,
+    transfer: PinnedChunkTransfer,
+    enrolled_peer_certificate_sha256: str,
+    max_chunk_bytes: int,
+    expires_at: datetime,
+    now: datetime,
+) -> dict[str, object]:
+    """Build the exact grant request, never grant or authenticate it.
+
+    This is a pure preflight for the canonical owner's SAFE permission flow.
+    The certificate digest MUST originate from independently installed owner
+    enrollment, never from the incoming mTLS peer or a Hub catalog field.
+    The service must still consume a real owner authentication event to
+    create a standing grant, and recheck status/revocation on every read.
+    """
+    if not isinstance(transfer, PinnedChunkTransfer):
+        raise PermissionError("selected signed transfer required")
+    if (type(enrolled_peer_certificate_sha256) is not str
+            or _SHA256.fullmatch(enrolled_peer_certificate_sha256) is None):
+        raise PermissionError("independently enrolled certificate digest required")
+    if not isinstance(now, datetime) or now.utcoffset() is None:
+        raise PermissionError("trusted service clock required")
+    if not isinstance(expires_at, datetime) or expires_at.utcoffset() is None:
+        raise PermissionError("aware grant expiry required")
+    scope = {
+        "source_platform_id": transfer.source_platform_id,
+        "target_platform_id": transfer.target_platform_id,
+        "certificate_sha256": enrolled_peer_certificate_sha256,
+        "manifest_digest": transfer.manifest_sha256,
+        "content_digest": transfer.content_sha256,
+        "artifact_kind": transfer.artifact_kind,
+        "catalog_revision": transfer.catalog_revision,
+        "data_class": transfer.data_class,
+        "license_distribution": transfer.license_distribution,
+        "max_chunk_bytes": max_chunk_bytes,
+        "max_total_bytes": transfer.size_bytes,
+    }
+    _validate_library_peer_standing_scope(
+        scope, moment=now.astimezone(timezone.utc),
+        expires_at=expires_at.astimezone(timezone.utc),
+    )
+    return scope
 
 
 def _require_verified_tls13_peer(socket: ssl.SSLSocket) -> str:
