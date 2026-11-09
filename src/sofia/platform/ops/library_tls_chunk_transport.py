@@ -172,9 +172,19 @@ def receive_one_chunk(
     receiver: ChunkedArtifactReceiver,
     authorize_peer: Callable,
     publisher_current: Callable[[PinnedChunkTransfer], bool],
+    expected_signed_chunk_sha256: str | None = None,
 ) -> int:
-    """Fetch one bounded chunk into quarantine, NOT verification or installation."""
+    """Fetch one bounded chunk into quarantine, NOT verification or installation.
+
+    For large parent manifests the independently verified signed chunk digest
+    is mandatory and checked before any bytes enter the receiver. A Hub-provided
+    digest alone is never equivalent to a publisher-signed chunk digest.
+    """
     _bounds(transfer, offset, length)
+    if (expected_signed_chunk_sha256 is not None
+            and (type(expected_signed_chunk_sha256) is not str
+                 or _DIGEST.fullmatch(expected_signed_chunk_sha256) is None)):
+        raise ChunkTransferRejected("independent signed chunk digest invalid")
     if not isinstance(receiver, ChunkedArtifactReceiver):
         raise ChunkTransferRejected("canonical single-writer CAS receiver required")
     fingerprint = _tls_peer_fingerprint(channel)
@@ -194,9 +204,16 @@ def receive_one_chunk(
             or type(response["chunk_sha256"]) is not str
             or _DIGEST.fullmatch(response["chunk_sha256"]) is None):
         raise ChunkTransferRejected("peer returned unpinned chunk metadata")
+    if (expected_signed_chunk_sha256 is not None
+            and response["chunk_sha256"] != expected_signed_chunk_sha256):
+        raise ChunkTransferRejected("peer chunk differs from signed parent")
     data = _read_exact(channel, length)
-    if sha256(data).hexdigest() != response["chunk_sha256"]:
+    observed = sha256(data).hexdigest()
+    if observed != response["chunk_sha256"]:
         raise ChunkTransferRejected("peer chunk digest mismatch")
+    if (expected_signed_chunk_sha256 is not None
+            and observed != expected_signed_chunk_sha256):
+        raise ChunkTransferRejected("received bytes differ from signed parent")
     current(transfer)
     if publisher_current(transfer) is not True:
         raise ChunkTransferRejected("publisher metadata revoked during read")
