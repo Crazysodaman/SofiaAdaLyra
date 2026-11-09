@@ -438,3 +438,27 @@ The words **implemented**, **tested**, **merged**, **verified**, **shakedown rea
 3. When approved, link the precise issue/PR and tests. Keep this file as the product-level index, not a duplicate of the acceptance ledger.
 4. A new idea must **not** interrupt Codex's current Platform-only shakedown campaign unless the owner explicitly reprioritizes.
 
+
+
+## AG-D027 | Main-line Module Rationalization (owner decision, 2026-11-08)
+
+**Owner-approved for staged implementation, NOT certified package migrations or production deployment.**
+[AG-D026 reviewed audit](AG_D026_MODULE_CATALOG_RATIONALIZATION_AUDIT.md) and
+[AG-D027 execution program](AG_D027_MODULE_IMPLEMENTATION_PROGRAM.md) remain
+the binding source inventory. All 47 optional module identities stay registered
+until independently signed migration and compatibility acceptance.
+
+The six conditional targets are Generalization -> ML; Calendar -> Productivity
+(with separate provider credentials and consent); Project Forge ->
+Productivity + Creative; File Watch -> scoped IT Observability; Digital Twin ->
+Homelab + Workshop simulation; Avatar Studio -> Creative + Avatar rendering.
+No implicit permission inheritance, identity retirement or Core memory transfer.
+
+Two possible *future* modules, IT-GAME-SERVERS and IT-IDENTITY-DIRECTORY, are
+review-only. They are not installable catalog items or extra SAFE authorities.
+
+**Main consolidation:** PR #236's read-only catalog planner and secret-redacted
+Portainer stack projection and tests were selectively incorporated without
+replacing newer Platform A/B/C/D/E source. This does not certify module hotplug
+or finish AG-D027. Artifact Library and Platform 1.0 release requirements
+continue taking precedence.
