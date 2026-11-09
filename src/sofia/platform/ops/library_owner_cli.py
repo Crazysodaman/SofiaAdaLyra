@@ -11,6 +11,8 @@ Usage:
   python -m sofia.platform.ops.library_owner_cli --state STATE --platform-id ID import-index --file SIGNED_INDEX
   python -m sofia.platform.ops.library_owner_cli --state STATE --platform-id ID prepare-revoke
   python -m sofia.platform.ops.library_owner_cli --state STATE --platform-id ID revoke --approval-id ID
+  python -m sofia.platform.ops.library_owner_cli --state STATE --platform-id ID enroll-attended --source-platform-id HUB --public-key KEY --catalog-generation 1 --minimum-revision 1
+  python -m sofia.platform.ops.library_owner_cli --state STATE --platform-id ID revoke-attended
 
 A separate attended owner-secret/WebAuthn workflow must record the exact
 approval fingerprint returned by prepare-enroll/prepare-revoke before the
@@ -101,7 +103,7 @@ def main(argv: list[str] | None = None) -> int:
                         help="the installed immutable Platform ID, not a new name")
     actions = parser.add_subparsers(dest="action", required=True)
     actions.add_parser("status")
-    for name in ("prepare-enroll", "enroll"):
+    for name in ("prepare-enroll", "enroll", "enroll-attended"):
         command = actions.add_parser(name)
         command.add_argument("--source-platform-id", required=True)
         command.add_argument("--public-key", type=Path, required=True)
@@ -110,6 +112,7 @@ def main(argv: list[str] | None = None) -> int:
         if name == "enroll":
             command.add_argument("--approval-id", required=True)
     actions.add_parser("prepare-revoke")
+    actions.add_parser("revoke-attended")
     command = actions.add_parser("revoke")
     command.add_argument("--approval-id", required=True)
     command = actions.add_parser("import-index")
@@ -149,7 +152,7 @@ def main(argv: list[str] | None = None) -> int:
                 "install_executed": False, "core_activated": False,
             })
             return 0
-        if args.action in {"prepare-enroll", "enroll"}:
+        if args.action in {"prepare-enroll", "enroll", "enroll-attended"}:
             public = _read_bounded_file(args.public_key, max_bytes=32, exact=32)
             previous = store.current()
             generation = 0 if previous is None else previous.trust_generation
@@ -166,12 +169,24 @@ def main(argv: list[str] | None = None) -> int:
                     capability=ENROLL_CAPABILITY, parameters=params,
                 ))
             else:
+                if args.action == "enroll-attended":
+                    # Already-reviewed native owner prompt: 256-bit secret
+                    # never appears in argv/env/logs. Host SID must match
+                    # the enrolled Windows owner, not just a model's claim.
+                    from sofia.platform.safe.owner_secret import authorize_with_secret
+                    proof = authorize_with_secret(
+                        store.path, capability=ENROLL_CAPABILITY,
+                        parameters=params,
+                    )
+                    approval_id = proof.approval_id
+                else:
+                    approval_id = args.approval_id
                 pin = store.enroll(
                     source_platform_id=args.source_platform_id,
                     public_key=public,
                     catalog_generation=args.catalog_generation,
                     minimum_catalog_revision=args.minimum_revision,
-                    approval_id=args.approval_id,
+                    approval_id=approval_id,
                 )
                 _result({
                     "schema": "aegis.library.personal-owner-effect.v1",
@@ -182,7 +197,7 @@ def main(argv: list[str] | None = None) -> int:
                     "install_executed": False,
                 })
             return 0
-        if args.action in {"prepare-revoke", "revoke"}:
+        if args.action in {"prepare-revoke", "revoke", "revoke-attended"}:
             pin = store.current()
             if pin is None or not pin.active:
                 raise OwnerLibraryTrustDenied("no active owner publisher root")
@@ -192,7 +207,16 @@ def main(argv: list[str] | None = None) -> int:
                     capability=REVOKE_CAPABILITY, parameters=params,
                 ))
             else:
-                result = store.revoke(approval_id=args.approval_id)
+                if args.action == "revoke-attended":
+                    from sofia.platform.safe.owner_secret import authorize_with_secret
+                    proof = authorize_with_secret(
+                        store.path, capability=REVOKE_CAPABILITY,
+                        parameters=params,
+                    )
+                    approval_id = proof.approval_id
+                else:
+                    approval_id = args.approval_id
+                result = store.revoke(approval_id=approval_id)
                 _result({
                     "schema": "aegis.library.personal-owner-effect.v1",
                     "result": "OWNER_PUBLISHER_REVOKED",
