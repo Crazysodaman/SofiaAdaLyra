@@ -65,6 +65,38 @@ Successful catalog import means **SIGNED_CATALOG_CACHED**, not download, install
 
 Owner trust revocation takes effect on the very next provider/reader check. The existing operator **STOP** makes the catalog unavailable and blocks imports; a separately owner-approved trust revocation remains possible during STOP. After revocation, re-enrollment requires a newly approved action and a **strictly increased catalog generation**; the rollback floor cannot decrease.
 
+## Owner-selected private LAN publisher, with no signing key in Aegis
+
+The primary Hub can construct a **complete Ed25519-signed catalog index**
+using `publish_signed_owner_catalog` in
+`src/sofia/platform/ops/library_owner_catalog_publish.py`.
+`HostedLibraryHub.publish_current_signed_catalog` binds that operation to
+its already independently verified signed B1 artifact, exact recipient and
+current owner-approved private Hub RUN. Its `sign_external` callback must
+come from the owner's **existing separately approved local signer**, not
+from a remote peer, model output, public catalog, or a private-key file
+invented during startup. No private signing key is stored by the Platform.
+
+**License policy is enforced before signing:** Only artifacts whose
+independent package proof and exact license review explicitly permit
+peer copying may appear as LAN transfer items. A locally lawful
+noncommercial/personal-use model that forbids copying to another personal
+computer remains available for its separately approved local use, but its
+name, digest and weights must not be advertised to peers. Never assume
+`free` equals `may redistribute`.
+
+The recipient uses its own enrolled owner publisher record in the original
+Platform SQLite by default. `accept_installed_signed_library_catalog` is
+an internal source-to-service handoff, not an unauthenticated management RPC.
+The file-based CLI `import-index` is a temporary attended, offline handoff,
+not a public network endpoint. Signed catalog verification proves metadata
+integrity only; it does not grant TLS admission or install software.
+
+**Focused source regressions:** `test/test_library_owner_catalog_publish.py`,
+`test/test_library_host_catalog_publish.py`, and
+`test/test_library_personal_recipient_source.py`. They are disposable
+synthetic fixtures, **not real installed-host acceptance**.
+
 ## What is still needed for production host operation
 
 1. Actual owner-approved signed B1 release build and **live installed Windows/Debian** service, with independent publisher signing/root and revocation evidence.
