@@ -422,6 +422,8 @@ Covers the owner-requested top general model, top local model, top coding model,
 
 **Release fence:** Research-only backlog addition. Not a new #201, #120, G8, AG-D028 or current acceptance row; no download, deployment, model swap, VM migration, Fleet activation, private-memory transfer or reassignment of active work authorized.
 
+**Existing-Core audit (2026-11-09):** Inspection found the Core already has a romance preference service projected into private conversation, modeled emotion/relationships/reflections, reviewed memory and autobiography, private/adult authority, represented-interaction guards, Presence/ACT initiative and an explicit cognitive `OPEN` route. See AG-D033 §7 for a source-backed delta-only plan (RP-C01..RP-C06). The remaining work is production path verification, in-chat agency, separated fictional scene recall, model selection/benchmarks and real-host evidence. **Do not duplicate existing owners or treat source/test existence as G8 acceptance.**
+
 ### AG-D031 | Sofía VM with Venus + third-computer Fleet compute efficiency (2026-11-09)
 
 **Status:** OWNER-DESIRED / CAPTURED / NOT SCHEDULED. **Design TODO:** [AG-D031 Sofía VM and distributed hardware efficiency](AG_D031_DISTRIBUTED_COMPUTE_EFFICIENCY_AND_SOFIA_VM.md).
