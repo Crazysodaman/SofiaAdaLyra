@@ -8,6 +8,14 @@ Both are **NO**. G8 (#129) remains deferred. Authority: #120; original
 
 **Owner decision: Platform 1.0 is an owner-operated private homelab release, not a public SaaS or commercial model marketplace.** The [Platform/Core owner-only acceptance crosswalk](AEGIS_OWNER_ONLY_1_0_GO_LIVE_ACCEPTANCE_2026-11-09.md) is **required for GO** and maps private-by-default offline install, single owner / multiple enrolled nodes, approved personal LAN Hub, no account/billing/cloud prerequisite, precise license handling and unchanged security to existing **38** rows. This adds **no 39th row, no LIB-17 and no PASS**. Personal/noncommercial models are permitted as *candidate data artifacts* if exact legal terms allow the contemplated use; do not demand commercial redistribution rights for local use, and do not bypass origin/trust/transfer verification. Platform still boots with **zero Core/model/Voice**, and protected owner state remains separate. Verify on disposable installed Windows/Debian hosts before releasing.
 
+## Binding owner-only personal deployment GO acceptance (2026-11-09)
+
+**Owner directive:** The Platform 1.0 GO goal and shakedown MUST prove Aegis is a **private, single-owner personal Fleet system**, not a commercial customer-facing product. This is binding inside the **existing 38 rows**, rather than creating a 39th row or changing any current PASS/FAIL/BLOCKED/NOT TESTED state. Canonical [owner-only Platform + Core go-live acceptance overlay](AEGIS_OWNER_ONLY_GO_LIVE_ACCEPTANCE_2026-11-09.md) defines POC-P1–POC-P5, while [owner scope policy](../roadmaps/AEGIS_OWNER_ONLY_SCOPE_AND_LICENSE_POLICY.md) defines the product intent.
+
+Required *independent* signed installed-host evidence on disposable Windows + Debian 12 includes: offline Core-free owner-only installation with no customer login, subscription, billing, paid service or model; local/private LAN Hub with no anonymous/public access; explicitly enrolled personally controlled Fleet and negative unknown/revoked/guest tests; signed model/package acquisition distinguishing permitted private/noncommercial use from permission to copy to other hosts; denial of prohibited peer transfer or private-state export; accurate GUI/TUI/CLI owner/scope/license/trust presentation, and protected state across restart/uninstall/recovery. Reuse the existing #201 rows **01–03, 05, 07–14, 17–20, 25–31, 36–38** and AG-D028 **LIB-01–16** rather than adding identifiers.
+
+**Release verdict remains NO** until actual evidence exists. "Personal use" never makes untrusted packages, unsafe voices or unauthorized model copies legal or trusted, and never weakens SAFE/STOP, host authentication, producer-signing or receipt requirements. No added obligation to install optional AI model/voice/image/agent research candidates for Platform 1.0.
+
 ## Reconciled source inventory
 
 Initial inspected baseline: `81371ac8ca45f00657f3eed02a05d8b11a0be3fb`.
