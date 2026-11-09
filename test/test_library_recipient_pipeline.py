@@ -1,16 +1,17 @@
 """D028 state-separation integration contract, isolated from real host effects."""
 from __future__ import annotations
 
-from hashlib import sha256
-
 import pytest
 
 from sofia.platform.ops.library_chunk_receiver import (
     ChunkedArtifactReceiver, ChunkTransferRejected, PinnedChunkTransfer,
 )
-from sofia.platform.ops.library_recipient_pipeline import acquire_selected_signed_platform_asset
-from sofia.platform.ops.platform_install import OfflineArtifactCache
+from sofia.platform.ops.library_recipient_pipeline import (
+    acquire_selected_signed_platform_asset, acquire_from_independently_signed_index,
+)
+from sofia.platform.ops.platform_install import (OfflineArtifactCache, PlatformArtifact, PlatformKind)
 from test.test_library_tls_chunk_transport import _transfer
+from test.test_library_signed_selection import signed_offer as signed_offer_fixture
 
 
 @pytest.fixture
@@ -59,7 +60,7 @@ def test_partial_recipient_fetch_does_not_claim_install_or_signature(environment
     result = acquire_selected_signed_platform_asset(**args)
     assert result["received_bytes"] == 2048
     assert result["verified_bytes"] == 0
-    assert result["cache_state"] == "CACHED_UNVERIFIED"
+    assert result["cache_state"] == "RECEIVING"
     assert result["owner_proof_consumed"] is False
     assert result["installed"] is None and result["active"] is None
     assert calls == [("fetch", 0)]
@@ -107,3 +108,109 @@ def test_wrong_artifact_kind_uses_dedicated_pipeline(environment):
     with pytest.raises(ChunkTransferRejected, match="separate module"):
         acquire_selected_signed_platform_asset(**args)
     assert calls == []
+
+
+
+def test_signed_index_wrapper_binds_real_catalog_key_and_selected_transfer(
+    signed_offer_fixture, environment, monkeypatch, tmp_path,
+):
+    import sofia.platform.ops.library_recipient_pipeline as pipeline
+    _env, _sign, signed_args = signed_offer_fixture
+    original_args, _calls, _raw = environment
+    captured = []
+    def source_pipeline(**kwargs):
+        captured.append(kwargs)
+        assert kwargs["transfer"] == signed_args["transfer"]
+        assert kwargs["publisher_current"](signed_args["transfer"]) is True
+        assert kwargs["verify_independent_publisher"] is not None
+        return {
+            "cache_state": "RECEIVING", "received_bytes": 128,
+            "verified_bytes": 0, "install_executed": False,
+            "installed": None, "active": None,
+        }
+    monkeypatch.setattr(pipeline, "acquire_selected_signed_platform_asset", source_pipeline)
+    result = acquire_from_independently_signed_index(
+        **{**original_args,
+           "transfer": signed_args["transfer"],
+           "raw_signed_index": signed_args["raw_signed_index"],
+           "expected_artifact_id": signed_args["expected_artifact_id"],
+           "trusted_publisher_public_key": signed_args["trusted_publisher_public_key"],
+           "expected_publisher_key_sha256": signed_args["expected_publisher_key_sha256"],
+           "expected_catalog_generation": signed_args["expected_catalog_generation"],
+           "publisher_key_current": lambda _: True,
+           "now": signed_args["now"]},
+    )
+    assert result["selected_artifact_id"] == "sdk.release.1"
+    assert len(result["signed_index_sha256"]) == 64
+    assert len(captured) == 1
+    assert result["verified_bytes"] == 0
+
+
+def test_signed_index_wrapper_refuses_untrusted_index_before_any_transfer(
+    signed_offer_fixture, environment, monkeypatch,
+):
+    import sofia.platform.ops.library_recipient_pipeline as pipeline
+    _env, _sign, signed_args = signed_offer_fixture
+    original_args, _calls, _raw = environment
+    executed = []
+    monkeypatch.setattr(
+        pipeline, "acquire_selected_signed_platform_asset",
+        lambda **_: executed.append(True),
+    )
+    from sofia.platform.ops.library_signed_index import SignedLibraryIndexRejected
+    with pytest.raises(SignedLibraryIndexRejected):
+        acquire_from_independently_signed_index(
+            **{**original_args,
+               "transfer": signed_args["transfer"],
+               "raw_signed_index": signed_args["raw_signed_index"],
+               "expected_artifact_id": signed_args["expected_artifact_id"],
+               "trusted_publisher_public_key": signed_args["trusted_publisher_public_key"],
+               "expected_publisher_key_sha256": "f" * 64,
+               "expected_catalog_generation": signed_args["expected_catalog_generation"],
+               "publisher_key_current": lambda _: True,
+               "now": signed_args["now"]},
+        )
+    assert executed == []
+
+
+def test_signed_index_wrapper_rejects_package_signer_mismatch(
+    signed_offer_fixture, environment, monkeypatch,
+):
+    import sofia.platform.ops.library_recipient_pipeline as pipeline
+    _env, _sign, signed_args = signed_offer_fixture
+    original_args, _calls, _raw = environment
+    def source_pipeline(**kwargs):
+        transfer = kwargs["transfer"]
+        wrong_package = PlatformArtifact(
+            artifact_id="sdk.release.1", version="1.0",
+            platform=PlatformKind.LINUX, architecture="x86_64",
+            sha256=transfer.content_sha256,
+            signer_key_id="different-untrusted-package-signer",
+            signature_verified=True, source="synthetic-test-archive",
+        )
+        kwargs["verify_independent_publisher"](
+            transfer, kwargs["canonical_safe_state"],
+        )
+        return {}
+    def independent_verifier(transfer, path):
+        return PlatformArtifact(
+            artifact_id="sdk.release.1", version="1.0",
+            platform=PlatformKind.LINUX, architecture="x86_64",
+            sha256=transfer.content_sha256,
+            signer_key_id="different-untrusted-package-signer",
+            signature_verified=True, source="synthetic-test-archive",
+        )
+    monkeypatch.setattr(pipeline, "acquire_selected_signed_platform_asset", source_pipeline)
+    with pytest.raises(ChunkTransferRejected, match="differs"):
+        acquire_from_independently_signed_index(
+            **{**original_args,
+               "transfer": signed_args["transfer"],
+               "raw_signed_index": signed_args["raw_signed_index"],
+               "expected_artifact_id": signed_args["expected_artifact_id"],
+               "trusted_publisher_public_key": signed_args["trusted_publisher_public_key"],
+               "expected_publisher_key_sha256": signed_args["expected_publisher_key_sha256"],
+               "expected_catalog_generation": signed_args["expected_catalog_generation"],
+               "publisher_key_current": lambda _: True,
+               "verify_independent_publisher": independent_verifier,
+               "now": signed_args["now"]},
+        )
