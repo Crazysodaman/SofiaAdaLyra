@@ -23,7 +23,7 @@ from sofia.platform.ops.library_chunk_receiver import (
 from sofia.platform.ops.platform_install import (
     OfflineArtifactCache, PlatformArtifact,
 )
-from sofia.platform.ops.platform_library_admission import LIBRARY_CACHE_ADMIT
+from sofia.platform.ops.platform_library_admission import LIBRARY_PEER_CACHE_ADMIT
 from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.platform.state.private_file import assert_no_redirected_components
@@ -121,7 +121,7 @@ def admit_signed_transferred_asset(
     # This is the existing canonical one-use owner proof authority. If no
     # independently authenticated owner grant matches, NO cache import occurs.
     ExecutionApprovalVerifier(safe).consume(
-        approval_id=approval_id, capability=LIBRARY_CACHE_ADMIT,
+        approval_id=approval_id, capability=LIBRARY_PEER_CACHE_ADMIT,
         parameters=scope, now=moment,
     )
     current(transfer)
