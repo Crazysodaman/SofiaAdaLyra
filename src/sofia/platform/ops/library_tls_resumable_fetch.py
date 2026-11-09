@@ -33,6 +33,7 @@ def fetch_resumable_chunks(
     chunk_bytes: int = MAX_CHUNK,
     max_chunks: int = 128,
     start_offset: int = 0,
+    signed_chunk_sha256: Callable[[int, int], str] | None = None,
 ) -> int:
     """Fetch at most max_chunks, returning the durable offset after progress.
 
@@ -56,6 +57,8 @@ def fetch_resumable_chunks(
         raise ChunkTransferRejected("exact enrolled TLS peer certificate pin required")
     if not callable(open_enrolled_tls) or not callable(authorize_peer) or not callable(publisher_current):
         raise ChunkTransferRejected("service-owned TLS and authority required")
+    if signed_chunk_sha256 is not None and not callable(signed_chunk_sha256):
+        raise ChunkTransferRejected("canonical signed parent digest lookup required")
     if type(chunk_bytes) is not int or not 1 <= chunk_bytes <= MAX_CHUNK:
         raise ChunkTransferRejected("bounded chunk size required")
     if type(max_chunks) is not int or not 1 <= max_chunks <= 10000:
@@ -71,6 +74,16 @@ def fetch_resumable_chunks(
         # The post-handshake check below remains mandatory against races.
         if publisher_current(transfer) is not True:
             raise ChunkTransferRejected("publisher trust revoked or unavailable")
+        # Resolve the signed expected digest *before* dialing a peer. The
+        # caller must obtain this only from an independently verified signed
+        # parent manifest, never a TLS response or untrusted Hub assertion.
+        length = min(chunk_bytes, transfer.size_bytes - offset)
+        signed_digest = (None if signed_chunk_sha256 is None
+                         else signed_chunk_sha256(offset, length))
+        if (signed_digest is not None
+                and (type(signed_digest) is not str
+                     or re.fullmatch(r"[0-9a-f]{64}", signed_digest) is None)):
+            raise ChunkTransferRejected("signed parent chunk digest unavailable")
         # The service, not the Hub, chooses the enrolled destination, CA,
         # pinned installation identity, deadline and complete SSL context.
         session = open_enrolled_tls()
@@ -102,6 +115,7 @@ def fetch_resumable_chunks(
                 session, transfer=transfer, offset=offset, length=length,
                 receiver=receiver, authorize_peer=authorize_peer,
                 publisher_current=publisher_current,
+                expected_signed_chunk_sha256=signed_digest,
             )
             if next_offset != offset + length:
                 raise ChunkTransferRejected("TLS receiver made inconsistent progress")
