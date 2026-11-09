@@ -80,5 +80,18 @@ def read_authorized_cached_chunk(
             != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)):
         raise ChunkTransferRejected("verified cache source mutated during read")
     check_current()
+    # Resolver is the canonical service's verified-inode snapshot, not a
+    # remote path. Recheck AFTER byte read and the final SAFE/STOP checkpoint
+    # so a replaced cached inode cannot be sent during an authorization race.
+    again = resolve_verified_cache(transfer)
+    if not isinstance(again, Path) or again != path:
+        raise ChunkTransferRejected("canonical signed CAS path changed during transfer")
+    rechecked = again.lstat()
+    if (not stat.S_ISREG(rechecked.st_mode) or rechecked.st_nlink != 1
+            or (rechecked.st_dev, rechecked.st_ino, rechecked.st_size,
+                rechecked.st_mtime_ns)
+            != (opened.st_dev, opened.st_ino, opened.st_size,
+                opened.st_mtime_ns)):
+        raise ChunkTransferRejected("signed B1 cache source changed after chunk authorization")
     data = b"".join(chunks)
     return data, sha256(data).hexdigest()
