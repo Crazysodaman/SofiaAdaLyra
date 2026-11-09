@@ -25,6 +25,8 @@ def test_peer_fetch_can_only_use_fresh_owner_approved_scoped_grant():
 def test_verified_cache_and_install_effects_remain_protected():
     for capability in (
         "platform.library.cache_admit_verified_seed",
+        "platform.library.cache_admit_enrolled_peer",
+        "platform.library.gc_one_verified_blob",
         "platform.activate_release",
         "platform.rollback_release",
     ):
