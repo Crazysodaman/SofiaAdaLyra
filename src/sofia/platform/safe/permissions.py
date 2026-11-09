@@ -310,6 +310,8 @@ _PROTECTED = frozenset({
     "release.rollout.execute",
     "platform.activate_release",
     "platform.rollback_release",
+    # D028 irreversible one-blob CAS deletion; no standing or self-grant.
+    "platform.library.gc_one_verified_blob",
     "ops.restore.replace_protected",
     "home_assistant.service.call",
     "github.pull_request.merge",
