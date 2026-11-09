@@ -20,6 +20,7 @@ from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
+import json
 from pathlib import Path
 import re
 import sqlite3
@@ -27,6 +28,8 @@ from typing import Callable
 
 from sofia.platform.config.roles import PlatformRole, PlatformRoleConfiguration
 from sofia.platform.run.library_installed_catalog import InstalledLibraryCatalogProvider
+from sofia.platform.run.library_read_dispatch import InstalledSignedCatalogSource
+from sofia.platform.ops.library_signed_index import verify_signed_library_index
 from sofia.platform.safe.audit import AuditChain
 from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.platform.safe.operator_stop import OperatorStopStore
@@ -188,6 +191,33 @@ class OwnerLibraryTrustStore:
         """)
 
     @staticmethod
+    def _create_index_schema(db: sqlite3.Connection) -> None:
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS platform_library_owner_index (
+                singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+                trust_generation INTEGER NOT NULL CHECK(trust_generation>0),
+                catalog_revision INTEGER NOT NULL CHECK(catalog_revision>0),
+                issued_at TEXT NOT NULL,
+                signed_index_sha256 TEXT NOT NULL,
+                signed_index BLOB NOT NULL CHECK(length(signed_index)<=65536)
+            )
+        """)
+
+    @staticmethod
+    def _index(db: sqlite3.Connection):
+        exists = db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+            ("platform_library_owner_index",),
+        ).fetchone()
+        if exists is None:
+            return None
+        return db.execute(
+            "SELECT trust_generation,catalog_revision,issued_at,"
+            "signed_index_sha256,signed_index FROM platform_library_owner_index "
+            "WHERE singleton=1"
+        ).fetchone()
+
+    @staticmethod
     def _read(db: sqlite3.Connection) -> OwnerLibraryPublisher | None:
         exists = db.execute(
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
@@ -280,6 +310,8 @@ class OwnerLibraryTrustStore:
                     parameters=parameters, now=now, _transaction_db=db,
                 )
                 self._create_schema(db)
+                self._create_index_schema(db)
+                db.execute("DELETE FROM platform_library_owner_index WHERE singleton=1")
                 key_digest = sha256(public_key).hexdigest()
                 db.execute("""
                     INSERT INTO platform_library_owner_publisher (
@@ -340,6 +372,8 @@ class OwnerLibraryTrustStore:
                 )
                 if changed.rowcount != 1:
                     raise OwnerLibraryTrustDenied("publisher changed during owner revocation")
+                self._create_index_schema(db)
+                db.execute("DELETE FROM platform_library_owner_index WHERE singleton=1")
                 self.audit.append_in_transaction(
                     db, actor_id=approval.approved_by,
                     event_type="library.owner.publisher.revoked",
