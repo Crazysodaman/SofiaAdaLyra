@@ -1,6 +1,8 @@
 """Portainer/Docker adapter using Portainer's Docker proxy."""
 from __future__ import annotations
 from typing import Any
+from datetime import datetime, timezone
+from sofia.modules.it_containers.portainer_projection import project_portainer_stacks
 from .http import JsonHttpClient
 
 class PortainerAdapter:
@@ -77,6 +79,18 @@ class PortainerAdapter:
         )
         if not isinstance(data,list): raise RuntimeError("invalid Portainer stacks response")
         return data
+    def stack_inventory_summary(self)->dict[str,object]:
+        """Return only bounded, nonsecret stack metadata to Core-facing tools.
+
+        The original raw stacks() remains available only for privileged
+        internal callers; its response can contain compose files, credentials,
+        and Git authentication and MUST NOT be model-facing.
+        """
+        return project_portainer_stacks(
+            self.stacks(), endpoint_id=self.endpoint_id,
+            observed_at=datetime.now(timezone.utc),
+        )
+
     def summary(self)->dict[str,Any]:
         info=self.info()
         containers=self.containers(all_containers=True)
