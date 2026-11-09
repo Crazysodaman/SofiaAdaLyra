@@ -483,6 +483,43 @@ class OwnerLibraryTrustStore:
         pin = self.current()
         if pin is None or not pin.active or self.stop.current().active:
             return None
+        # For this single-owner homelab, signed catalog metadata normally
+        # lives in the same original identity-pinned local database. No extra
+        # service or cloud signing infrastructure is required.
+        with closing(self._connect()) as db:
+            snapshot = self._index(db)
+        if snapshot is not None:
+            raw = bytes(snapshot["signed_index"])
+            if (snapshot["trust_generation"] != pin.trust_generation
+                    or snapshot["catalog_revision"] < pin.minimum_catalog_revision
+                    or sha256(raw).hexdigest() != snapshot["signed_index_sha256"]):
+                raise OwnerLibraryTrustDenied("signed catalog or owner trust generation changed")
+            verify_signed_library_index(
+                raw,
+                trusted_publisher_public_key=pin.public_key,
+                expected_publisher_key_sha256=pin.public_key_sha256,
+                expected_source_platform_id=pin.source_platform_id,
+                expected_target_platform_id=pin.platform_id,
+                expected_catalog_generation=pin.catalog_generation,
+                minimum_catalog_revision=pin.minimum_catalog_revision,
+                now=self._now(),
+                publisher_key_current=lambda digest: self.publisher_current(
+                    digest, pin.trust_generation,
+                ),
+            )
+            return InstalledSignedCatalogSource(
+                raw_signed_index=raw,
+                trusted_publisher_public_key=pin.public_key,
+                expected_publisher_key_sha256=pin.public_key_sha256,
+                expected_source_platform_id=pin.source_platform_id,
+                expected_catalog_generation=pin.catalog_generation,
+                minimum_catalog_revision=pin.minimum_catalog_revision,
+                publisher_key_current=lambda digest: self.publisher_current(
+                    digest, pin.trust_generation,
+                ),
+            )
+        # Backward compatibility with the previously reviewed owner-private
+        # profile, still verified against the independent SQLite owner pin.
         if not self.profile.is_file():
             return None
         provider = InstalledLibraryCatalogProvider(
