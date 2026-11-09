@@ -27,6 +27,9 @@ from sofia.platform.ops.library_signed_selection import (
 )
 from sofia.platform.ops.library_tls_hub import ApprovedLibraryHub
 from sofia.platform.ops.library_cached_source import VerifiedLibraryCacheSource
+from sofia.platform.ops.library_owner_catalog_publish import (
+    OwnerPublishedAsset, publish_signed_owner_catalog,
+)
 from sofia.platform.ops.platform_install import OfflineArtifactCache, PlatformArtifact
 from sofia.platform.run.library_source_gate import (
     CurrentLibraryHubAuthority, CurrentLibrarySourcePeerAuthorizer,
@@ -252,6 +255,72 @@ class HostedLibraryHub:
         )
         self._closed = False
         self.endpoint = self._hub.open()
+
+    def publish_current_signed_catalog(
+        self, *, sign_external: Callable[[bytes], bytes],
+        lifetime_seconds: int = 120,
+    ) -> bytes:
+        """Publish only the previously verified signed B1 selection.
+
+        This is an explicit owner-approved LOCAL Hub action. The approved
+        external Ed25519 signer provides a signature, not a private key blob.
+        The returned catalog is separately reverified against the original
+        publisher root and must still be delivered over the enrolled Fleet
+        path or by owner-selected signed-file handoff. It never grants peer
+        access or copies a package.
+        """
+        if self._closed or self._hub_grant() is not True:
+            raise PermissionError("owner-approved private Hub disabled")
+        if (not self._offer.still_matches()
+                or self._publisher_key_current(self._expected_key_sha) is not True
+                or self._package_signer_current(self.artifact.signer_key_id) is not True):
+            raise ChunkTransferRejected("original verified B1 package publisher revoked")
+        self._verified_cache.current_path(self.transfer)
+        matches = [
+            item for item in self._offer.index.catalog["items"]
+            if item["artifact_id"] == self._offer.artifact_id
+        ]
+        if len(matches) != 1:
+            raise ChunkTransferRejected("exact signed B1 item no longer selectable")
+        item = matches[0]
+        selected = OwnerPublishedAsset(
+            artifact_id=self._offer.artifact_id,
+            kind=self.transfer.artifact_kind,
+            version=self._offer.version,
+            revision=item["revision"],
+            manifest_digest=self.transfer.manifest_sha256,
+            content_digest=self.transfer.content_sha256,
+            size_bytes=self.transfer.size_bytes,
+            publisher=item["publisher"],
+            signer_key_id=self._offer.signer_key_id,
+            signature_receipt_ref=self._offer.signature_receipt_ref,
+            target_os_arch=item["target_os_arch"],
+            sdk_range=item["sdk_range"],
+            abi_range=item["abi_range"],
+            license_distribution=self.transfer.license_distribution,
+            data_class=self.transfer.data_class,
+            distribution_allowed=item["distribution_allowed"],
+            independent_package_verified=self.artifact.signature_verified is True,
+        )
+        published = publish_signed_owner_catalog(
+            source_platform_id=self.transfer.source_platform_id,
+            target_platform_id=self.transfer.target_platform_id,
+            trusted_publisher_public_key=self._trusted_public_key,
+            catalog_generation=self._expected_catalog_generation,
+            catalog_revision=self.transfer.catalog_revision,
+            selected_assets=(selected,),
+            sign_external=sign_external,
+            owner_hub_current=self._hub_grant,
+            publisher_current=self._publisher_key_current,
+            time_now=self._clock,
+            lifetime_seconds=lifetime_seconds,
+        )
+        if (self._closed or self._hub_grant() is not True
+                or self._publisher_key_current(self._expected_key_sha) is not True
+                or self._package_signer_current(self.artifact.signer_key_id) is not True):
+            raise ChunkTransferRejected("owner Hub or B1 package revoked after publishing")
+        self._verified_cache.current_path(self.transfer)
+        return published
 
     def _require_current(self) -> None:
         if self._closed or self._hub_grant() is not True or not self._current_publisher(self.transfer):
