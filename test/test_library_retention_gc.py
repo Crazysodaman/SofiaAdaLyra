@@ -54,7 +54,7 @@ class FakeApproval:
         self.called.append(dict(parameters))
         if type(self).on_consume is not None:
             type(self).on_consume()
-        return SimpleNamespace(principal_id="person:sparks")
+        return SimpleNamespace(approved_by="person:sparks")
 
 
 class FakeAudit:
