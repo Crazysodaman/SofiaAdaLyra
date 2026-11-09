@@ -132,7 +132,7 @@ def test_real_owner_grant_connects_service_recipient_to_independent_signed_pipel
     )
     progress = service.acquire_owner_approved_library_asset(
         approval_id="separate-unused-B1-proof",
-        max_chunks=2, **options,
+        chunk_bytes=512, max_chunks=2, **options,
     )
     assert progress["cache_state"] == "RECEIVING"
     assert progress["installed"] is None
@@ -170,3 +170,33 @@ def test_recipient_single_writer_lock_denies_simultaneous_actions(service_recipi
             )
     finally:
         service._recipient_transfer_lock.release()
+
+
+
+def test_recipient_denies_owner_grant_chunk_scope_smaller_than_requested_before_dial(
+    service_recipient, monkeypatch,
+):
+    import sofia.platform.run.library_recipient_service as service_module
+    service, options, permissions = service_recipient
+    now = datetime.now(timezone.utc)
+    transfer = options["transfer"]
+    scope = selected_peer_grant_scope(
+        transfer=transfer,
+        enrolled_peer_certificate_sha256=options["enrolled_source_certificate_sha256"],
+        max_chunk_bytes=min(256, transfer.size_bytes),
+        expires_at=now + timedelta(minutes=4), now=now,
+    )
+    grant_with_signed_owner(
+        permissions, "library.peer.fetch", scope=scope,
+        expires_at=now + timedelta(minutes=4),
+    )
+    network = []
+    monkeypatch.setattr(
+        service_module, "acquire_from_independently_signed_index",
+        lambda **_: network.append(True),
+    )
+    with pytest.raises(PermissionError, match="chunk scope"):
+        service.acquire_owner_approved_library_asset(
+            approval_id="unused", chunk_bytes=1024, **options,
+        )
+    assert network == []
