@@ -107,3 +107,36 @@ cargo test --manifest-path rust/crates/sofia-ui-broker/Cargo.toml native_catalog
 4. Execute complete Linux/Windows clean installed-host four-machine runs, actual certificate-rotation/STOP/reboot/rollback/host storage evidence and final GitHub CI. **Authoritative ledgers still LIB 0/16 accepted, Platform 0/38 PASS.** Production-ready means ready to BEGIN owner-authorized live tests, not a claim that those live tests have passed.
 5. Continue semantic main-only consolidation of useful uniquely changed historical branches; superseded unsafe forks are preserved rather than force-merged.
 
+
+
+## 2026-11-09 | Single-owner owner-publisher Trust and signed-LAN catalog
+
+**Owner intent:** One human owner, privately operated Artemis/Venus/other enrolled nodes, no customer/tenant registry, public CDN, commercial licensing account, billing, telemetry or mandatory WAN provider. The existing Platform Core-free installation is still a hard requirement. This is source work only, not installed-host signoff.
+
+### Actual changes on `main`
+
+- **Owner publisher pin**: `src/sofia/platform/run/library_owner_trust.py` owns one target-Platform-attached, exact source Hub ID, 32-byte Ed25519 public key, catalog generation, revision floor and trust generation in the existing identity-pinned Platform-local SQLite. No automatic trust-on-first-use, public PKI, new daemon or key generation. Enrollment/rotation and revocation require distinct original SAFE one-use owner approvals and hash-chain audit in the same SQLite transaction. Broken audit denies mutations; STOP denies serving/index changes but permits separately owner-approved emergency root revocation.
+- **Signed snapshot state**: `platform_library_owner_index` stores only bounded, current complete publisher-signed catalog bytes (max 64KiB), enforced signature, audience, epoch, revocation, freshness, monotonic issued_at and nondecreasing catalog revision. Revocation/owner key rotation clears the snapshot; restart reuses it only if still valid. Never stores weights, images, owner memories, recordings or any protected data.
+- **Installed Platform default**: `src/sofia/platform/run/platform_service.py` initializes its owner-trust reader on standard Core-free startup; no root or signed catalog means `UNAVAILABLE` for an owner-enrolled Library reader, not false READY. The internal `accept_installed_signed_library_catalog` validates and caches a complete signed snapshot under current RUN/STOP. The recipient acquisition uses this same already owner-enrolled source by default, but still requires separate enrolled mutual TLS, per-chunk SAFE, publisher package verification and one-use B1 cache grant. No public or UI effect endpoint is created.
+- **Owner LAN publisher**: `src/sofia/platform/ops/library_owner_catalog_publish.py` creates an exact target/source/audience/revision bounded Ed25519 catalog from independently verified public B1 asset metadata, calling an external already approved local signer. It *self-verifies* the detached signature against independently pinned publisher public key before returning. No service-side private signing key, new CA, cloud signer or key exporter. `HostedLibraryHub.publish_current_signed_catalog` permits only the previously signed and B1-verified package/receipt and recipient while current owner Hub, STOP, package signer and B1 CAS identity remain good.
+- **License/Privacy enforcement**: A synthetic personal-use locally permitted but **no-peer-copy** model fixture must NOT appear in a peer-transfer index at all. Publisher rejects unknown/undocumented copy rights, private/adult/protected data, unsigned package claims, incorrect digest, ambiguous inventory before calling its signer. A personally lawful local install is not a blanket cross-host redistribution license.
+- **Headless personal CLI**: `src/sofia/platform/ops/library_owner_cli.py` implements `status`, `prepare-enroll`, `enroll`, `import-index`, `prepare-revoke`, `revoke`, `enroll-attended`, `revoke-attended`. The two attended mutations use existing `authorize_with_secret`, a verified current Windows owner SID and hidden 256-bit secret input; no secret through argv, settings, chat or log. Remote Linux has no automatic owner-secret fallback. The CLI is a Python module preflight, NOT registered final native `aegis library` binary.
+- **Operator runbook**: `docs/operations/AEGIS_PERSONAL_LIBRARY_OWNER_COMMISSIONING.md`, with source-only disposable workflow, no host commission authority implied.
+
+### Focused tests committed but NEVER claimed executed
+
+```bash
+python -m compileall -q src/sofia/platform/run src/sofia/platform/ops test
+python -m pytest -q test/test_library_owner_trust.py test/test_library_owner_cli.py test/test_library_single_owner_native_service.py
+python -m pytest -q test/test_library_owner_catalog_publish.py test/test_library_host_catalog_publish.py test/test_library_personal_recipient_source.py
+python -m pytest -q test/test_library_signed_index.py test/test_library_signed_selection.py test/test_library_native_read_dispatch.py test/test_library_native_ipc_signed_host.py
+```
+
+**Do not advance LIB-01–16 or Platform #201 acceptance based on these tests existing.** Real signed B1 installed-host tests and final GitHub CI are still pending per owner directive. Automatic push-triggered Actions may occur independently; none was ordered manually as final release certification.
+
+### Remaining high-value gates
+
+1. Complete canonical B1/Fleet provisioned signed publisher root and service profile on real Windows/Debian machines; source-to-recipient signed catalog delivery over **enrolled** TLS, beyond the interim owner-selected file import.
+2. Freeze D028-00 protocol and exact Rust/Python/UI/installer contracts with real same-SHA review; activate native TUI/GUI from verified installed service pins. Implement Windows pipe re-ACL/restart for new owner enrollment.
+3. Fully signed Core/module/package dependency closure, actual B1 stage/install/activate/rollback, retention/GC crash reconciliation, owner-proof gating and native service restart.
+4. Resolve outstanding branch collision semantics to canonical main. Run focused tests, then full final GitHub CI, then owner-approved real live host shakedown. **No production GO asserted.**
