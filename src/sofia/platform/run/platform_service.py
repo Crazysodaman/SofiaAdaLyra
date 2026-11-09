@@ -290,6 +290,22 @@ class PlatformServiceSession:
                 management_listening=True,
                 management_endpoint=self._management_endpoint)
 
+    def accept_installed_signed_library_catalog(self, signed_index: bytes) -> str:
+        """Store bounded signed metadata after current owner-root verification.
+
+        Internal B1/Fleet caller ONLY, never management IPC, UI, Core or a
+        remote Hub command. A signed fresh index is not an install grant.
+        The existing Platform-local SQLite holds the index and owner pin,
+        so personal homelab operation needs no cloud catalog daemon.
+        """
+        from sofia.platform.run.library_owner_trust import OwnerLibraryTrustStore
+        with self._status_lock:
+            if self.status()["operator_stop"] is not False:
+                raise PermissionError("operator STOP prevents signed catalog acceptance")
+            if not isinstance(self._installed_signed_catalog, OwnerLibraryTrustStore):
+                raise PermissionError("custom installed catalog does not own local publisher trust")
+            return self._installed_signed_catalog.accept_signed_catalog(signed_index)
+
     def open_owner_approved_library_hub(self, **installed_trusted_configuration):
         """Explicit private Hub start, never automatic from service readiness.
 
