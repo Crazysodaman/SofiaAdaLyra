@@ -9,6 +9,7 @@ causing EOF without disclosing even the existence of a catalog.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import re
 from typing import Callable
 
 from sofia.platform.safe.permissions import PermissionStore
@@ -53,3 +54,32 @@ class CurrentLibraryReadPeerAuthority:
                     and grant.matches(expected, now=now)):
                 return True
         return False
+
+    def enrolled_windows_operator_sid(self) -> str | None:
+        """At most one real owner-enrolled individual user SID for pipe DACL.
+
+        OS ACL selection is connection filtering, not permission to read a
+        catalog. Every request still rechecks the live owner SAFE grant.
+        """
+        now = self.clock()
+        if not isinstance(now, datetime) or now.utcoffset() is None:
+            raise PermissionError("Library read enrollment clock unavailable")
+        operators: set[str] = set()
+        for grant in self.permissions.grants(active_only=False):
+            if (grant.capability != LIBRARY_READ_CAPABILITY
+                    or type(grant.scope) is not dict
+                    or set(grant.scope) != _SCOPE
+                    or grant.scope.get("platform_id") != self.platform_id
+                    or grant.scope.get("operation") != CATALOG_OPERATION
+                    or not grant.matches(grant.scope, now=now)):
+                continue
+            peer = grant.scope.get("peer")
+            if type(peer) is not str or not peer.startswith("windows:sid:"):
+                continue
+            sid = peer.removeprefix("windows:sid:")
+            if re.fullmatch(r"S-1-5-21-(?:[0-9]+-){3}[0-9]+", sid) is None:
+                raise PermissionError("unsupported Library operator principal")
+            operators.add(sid)
+            if len(operators) > 1:
+                raise PermissionError("multiple Library operator SIDs require explicit installer policy")
+        return next(iter(operators), None)
