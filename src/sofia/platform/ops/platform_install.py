@@ -6,6 +6,8 @@ the existing Fleet bootstrap policy and an independently trusted installer.
 from __future__ import annotations
 
 from contextlib import closing
+from hashlib import sha256
+import stat
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
@@ -132,6 +134,13 @@ class TrustedPlatformInstaller(Protocol):
     def execute(self, plan: PlatformInstallPlan, artifact_path: Path) -> PlatformInstallReceipt: ...
 
 
+def _same_cache_inode(before, after) -> bool:
+    """Exact regular-file identity, including observed content mutation."""
+    return (stat.S_ISREG(after.st_mode) and after.st_nlink == 1
+            and (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+            == (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns))
+
+
 class OfflineArtifactCache:
     """Managed content-addressed cache; importing always rechecks the digest."""
 
@@ -155,48 +164,130 @@ class OfflineArtifactCache:
 
     @staticmethod
     def digest(path: Path) -> str:
-        return OfflineArtifactCache._snapshot(path)[0]
+        """Stream the whole immutable object without materializing its bytes.
+
+        This remains compatible with small-artifact callers while allowing
+        D028 signed parent objects >512MiB. Source path, inode, size, mtime
+        and link count must remain unchanged through the verification read.
+        """
+        path = Path(path).absolute()
+        assert_no_redirected_components(path, include_leaf=True)
+        before = path.stat(follow_symlinks=False)
+        if (not stat.S_ISREG(before.st_mode)
+                or not 0 <= before.st_size <= 8 * 1024**3
+                or before.st_nlink != 1):
+            raise PermissionError("unsafe or unbounded cache digest source")
+        flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+        digest = sha256()
+        fd = os.open(path, flags)
+        try:
+            opened = os.fstat(fd)
+            if not _same_cache_inode(before, opened):
+                raise PermissionError("artifact inode changed before digest")
+            with os.fdopen(fd, "rb", closefd=False) as handle:
+                remaining = before.st_size
+                while remaining:
+                    block = handle.read(min(65536, remaining))
+                    if not block:
+                        raise PermissionError("cache object truncated during digest")
+                    digest.update(block)
+                    remaining -= len(block)
+                if handle.read(1):
+                    raise PermissionError("cache object grew during digest")
+            after = os.fstat(fd)
+            final = path.stat(follow_symlinks=False)
+            if (not _same_cache_inode(before, after)
+                    or not _same_cache_inode(after, final)):
+                raise PermissionError("cache object mutated during digest")
+        finally:
+            os.close(fd)
+        return digest.hexdigest()
 
     def import_artifact(self, artifact: PlatformArtifact, source: Path | str) -> Path:
+        """Bounded streaming import into the sole canonical B1 CAS.
+
+        Exact publisher verification and owner SAFE admission remain the
+        responsibility of the caller; this is NOT a new install authority.
+        Copies in <=64KiB blocks, verifying source inode+mtime and final
+        immutable SHA-256 before atomic no-replace publication.
+        """
         if not isinstance(artifact, PlatformArtifact):
             raise TypeError("typed Platform artifact required")
         self._check_root()
-        observed, data = self._snapshot(source, include_data=True)
-        if observed != artifact.sha256:
-            raise ValueError("artifact bytes do not match approved SHA-256")
-        lock = StateProcessLock(self.root / 'cache', resource='platform-cache',
-            lock_directory=self.root)
-        lock.acquire()
-        try:
+        source_path = Path(source).absolute()
+        assert_no_redirected_components(source_path, include_leaf=True)
+        before = source_path.stat(follow_symlinks=False)
+        if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1
+                or not 1 <= before.st_size <= min(self.max_bytes, 8 * 1024**3)):
+            if before.st_size > self.max_bytes:
+                raise RuntimeError("offline artifact cache resource limit exceeded")
+            raise PermissionError("unsafe or unbounded source artifact")
+        lock = StateProcessLock(
+            self.root / "cache", resource="platform-cache",
+            lock_directory=self.root,
+        )
+        with lock:
             self._check_root()
             destination = self.root / artifact.sha256
-            if destination.exists() or destination.is_symlink():
-                return self.resolve(artifact)  # Never silently repair existing corruption.
+            assert_no_redirected_components(destination, include_leaf=True)
             current_size = 0
             for item in self.root.iterdir():
                 if item == lock.path:
                     continue
                 assert_no_redirected_components(item, include_leaf=True)
-                if not item.is_file():
+                details = item.lstat()
+                if not stat.S_ISREG(details.st_mode) or details.st_nlink != 1:
                     raise RuntimeError("offline artifact cache contains an unexpected entry")
-                current_size += item.stat().st_size
-            if current_size + len(data) > self.max_bytes:
+                current_size += details.st_size
+                if current_size > self.max_bytes:
+                    raise RuntimeError("offline artifact cache resource limit exceeded")
+            if current_size + before.st_size > self.max_bytes and not destination.exists():
                 raise RuntimeError("offline artifact cache resource limit exceeded")
-            descriptor, name = tempfile.mkstemp(prefix='.artifact-', dir=self.root)
+            descriptor, name = tempfile.mkstemp(prefix=".artifact-", dir=self.root)
             temporary = Path(name)
             try:
-                with os.fdopen(descriptor, 'wb') as handle:
-                    restrict_new_owner_private_path(temporary, directory=False)
-                    handle.write(data)
-                    handle.flush()
-                    os.fsync(handle.fileno())
+                restrict_new_owner_private_path(temporary, directory=False)
+                digest = sha256()
+                flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+                src_fd = os.open(source_path, flags)
+                try:
+                    opened = os.fstat(src_fd)
+                    if not _same_cache_inode(before, opened):
+                        raise PermissionError("source artifact substituted during import")
+                    with os.fdopen(src_fd, "rb", closefd=False) as reader:
+                        with os.fdopen(descriptor, "wb", closefd=False) as writer:
+                            remaining = before.st_size
+                            while remaining:
+                                block = reader.read(min(65536, remaining))
+                                if not block:
+                                    raise PermissionError("source artifact truncated during import")
+                                writer.write(block)
+                                digest.update(block)
+                                remaining -= len(block)
+                            if reader.read(1):
+                                raise PermissionError("source artifact grew during import")
+                            writer.flush()
+                            os.fsync(writer.fileno())
+                    after = os.fstat(src_fd)
+                    final = source_path.stat(follow_symlinks=False)
+                    if (not _same_cache_inode(before, after)
+                            or not _same_cache_inode(after, final)):
+                        raise PermissionError("source artifact mutated during import")
+                finally:
+                    os.close(src_fd)
+                    os.close(descriptor)
+                if digest.hexdigest() != artifact.sha256:
+                    raise ValueError("artifact bytes do not match approved SHA-256")
                 if self.digest(temporary) != artifact.sha256:
                     raise RuntimeError("cached artifact failed post-copy verification")
                 self._check_root()
-                # Atomic no-replace publication preserves concurrent or corrupt data.
+                if destination.exists() or destination.is_symlink():
+                    return self.resolve(artifact)
                 os.link(temporary, destination)
-                if os.name != 'nt':
-                    directory = os.open(self.root, os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))
+                if os.name != "nt":
+                    directory = os.open(
+                        self.root, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+                    )
                     try:
                         os.fsync(directory)
                     finally:
@@ -204,8 +295,6 @@ class OfflineArtifactCache:
                 return self.resolve(artifact)
             finally:
                 temporary.unlink(missing_ok=True)
-        finally:
-            lock.release()
 
     def resolve(self, artifact: PlatformArtifact) -> Path:
         if not isinstance(artifact, PlatformArtifact):
