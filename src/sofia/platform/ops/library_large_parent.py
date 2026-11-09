@@ -36,7 +36,10 @@ MAX_CHUNK_BYTES = 1024 * 1024
 MAX_CHUNKS = 8192
 MAX_MANIFEST_BYTES = 1024 * 1024
 MAX_BYTES = MAX_CHUNK_BYTES * MAX_CHUNKS
-MAX_TTL = timedelta(minutes=5)
+# The signed parent is immutable package metadata, unlike the short-lived
+# signed catalog observation. Current publisher revocation and host grants are
+# checked on EVERY chunk, so a transfer may safely resume over slow LAN.
+MAX_TTL = timedelta(hours=24)
 _FIELDS = frozenset({
     "schema", "publisher_key_sha256", "source_platform_id",
     "target_platform_id", "generation", "catalog_revision",
