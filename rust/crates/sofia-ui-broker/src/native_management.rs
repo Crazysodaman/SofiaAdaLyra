@@ -16,6 +16,10 @@ pub mod linux {
         UntrustedManagementRead, UntrustedManagementResponse, MANAGEMENT_READ_PROTOCOL,
         MANAGEMENT_READ_SCHEMA, MAX_MANAGEMENT_RESPONSE_BYTES,
     };
+    use sofia_contracts::library::{
+        UntrustedLibraryRequest, UntrustedLibraryResponse,
+        LIBRARY_PROTOCOL, LIBRARY_REQUEST_SCHEMA, MAX_LIBRARY_CONTROL_BYTES,
+    };
     use nix::sys::socket::{getsockopt, sockopt::PeerCredentials};
     use std::fmt::Write as _;
     use std::fs;
@@ -216,6 +220,166 @@ pub mod linux {
     impl DisplayReadSource for NativeLinuxManagementReader {
         fn next(&mut self) -> Result<DisplaySnapshot, ReadFailure> {
             self.status()
+        }
+    }
+
+    /// This is an OS-verified observation from the already-authenticated
+    /// canonical Platform service, NOT raw Hub publisher proof or a B1
+    /// installation receipt. No cached/display values imply installed state.
+    #[derive(Debug, Clone)]
+    pub struct NativeLibraryCatalogSnapshot {
+        pub platform_id: String,
+        pub platform_generation: u64,
+        pub publisher_catalog_generation: u64,
+        pub catalog_revision: u64,
+        pub source_platform_id: String,
+        pub observed_at: String,
+        pub catalog: serde_json::Value,
+    }
+
+    /// A separate D028 catalog reader over the EXISTING pinned management
+    /// socket, never a listener or new authority. The caller MUST source all
+    /// pins including the revision floor from an independently B1-publisher-
+    /// verified installed profile. A UI may not construct these from flags,
+    /// downloaded Hub JSON or stale local inventory.
+    pub struct NativeLinuxLibraryCatalogReader {
+        pins: InstalledNativeServicePins,
+        expected_source_id: String,
+        expected_catalog_generation: u64,
+        expected_catalog_revision: u64,
+        verified_endpoint: Option<(u64, u64)>,
+    }
+
+    impl NativeLinuxLibraryCatalogReader {
+        /// Construct a source-only reader. Syntax validation is not proof
+        /// the caller has B1 signer trust or current owner SAFE enrollment.
+        pub fn from_verified_installation(
+            pins: InstalledNativeServicePins,
+            expected_source_id: String,
+            expected_catalog_generation: u64,
+            expected_catalog_revision: u64,
+        ) -> Result<Self, ReadFailure> {
+            let bytes = expected_source_id.as_bytes();
+            if bytes.is_empty()
+                || bytes.len() > 160
+                || !bytes[0].is_ascii_alphanumeric()
+                || bytes.iter().any(|b| {
+                    !b.is_ascii_alphanumeric()
+                        && !matches!(b, b'.' | b'_' | b':' | b'@' | b'/' | b'-')
+                })
+                || expected_catalog_generation == 0
+                || expected_catalog_generation > MAX_GENERATION
+                || expected_catalog_revision == 0
+                || expected_catalog_revision > MAX_GENERATION
+            {
+                return Err(ReadFailure::Unverified);
+            }
+            Ok(Self {
+                pins,
+                expected_source_id,
+                expected_catalog_generation,
+                expected_catalog_revision,
+                verified_endpoint: None,
+            })
+        }
+
+        /// One new request with random correlation IDs and bounded native IO.
+        /// No fallback URL, automatic enrollment, package effect or retry.
+        pub fn catalog(&mut self) -> Result<NativeLibraryCatalogSnapshot, ReadFailure> {
+            let inode = verify_endpoint(&self.pins)?;
+            if self.verified_endpoint.is_some_and(|prior| prior != inode) {
+                return Err(ReadFailure::Unverified);
+            }
+            let now = Utc::now().fixed_offset();
+            let mut random = [0_u8; 16];
+            getrandom::getrandom(&mut random).map_err(|_| ReadFailure::Unverified)?;
+            let mut random_id = String::new();
+            for value in random {
+                write!(&mut random_id, "{value:02x}")
+                    .map_err(|_| ReadFailure::Unverified)?;
+            }
+            let raw = serde_json::to_vec(&serde_json::json!({
+                "schema": LIBRARY_REQUEST_SCHEMA,
+                "protocol": LIBRARY_PROTOCOL,
+                "request_id": format!("request:{random_id}"),
+                "correlation_id": format!("correlation:{random_id}"),
+                "operation": "library.catalog.snapshot.v1",
+                "target_platform_id": self.pins.platform_id.clone(),
+                "expected_generation": self.pins.generation,
+                "expected_revision": self.expected_catalog_revision,
+                "idempotency_key": null,
+                "created_at": now.to_rfc3339_opts(SecondsFormat::Micros, true),
+                "deadline": (now + ChronoDuration::seconds(5))
+                    .to_rfc3339_opts(SecondsFormat::Micros, true),
+                "parameters": {
+                    "limit": 32,
+                    "cursor": null,
+                    "kinds": [],
+                },
+            }))
+            .map_err(|_| ReadFailure::Unverified)?;
+            if raw.len() > MAX_LIBRARY_CONTROL_BYTES {
+                return Err(ReadFailure::Unverified);
+            }
+            let expected = UntrustedLibraryRequest::parse(&raw, now)
+                .map_err(|_| ReadFailure::Unverified)?;
+            let mut connection = UnixStream::connect(&self.pins.socket_path)
+                .map_err(|_| ReadFailure::Offline)?;
+            connection
+                .set_write_timeout(Some(IO_TIMEOUT))
+                .map_err(|_| ReadFailure::Unverified)?;
+            verify_os_peer(&connection, &self.pins)?;
+            if verify_endpoint(&self.pins)? != inode {
+                return Err(ReadFailure::Unverified);
+            }
+            connection
+                .write_all(&raw)
+                .and_then(|()| connection.write_all(b"\n"))
+                .map_err(|_| ReadFailure::Offline)?;
+            let body = read_one(&mut connection)?;
+            if body.len() > MAX_LIBRARY_CONTROL_BYTES
+                || verify_endpoint(&self.pins)? != inode
+            {
+                return Err(ReadFailure::Unverified);
+            }
+            let response = UntrustedLibraryResponse::parse(
+                &body, &expected, Utc::now().fixed_offset(),
+            ).map_err(|_| ReadFailure::Unverified)?;
+            // Fence this exact socket epoch EVEN on a correlated denial:
+            // a substituted pipe cannot be adopted after STOP/revocation.
+            self.verified_endpoint = Some(inode);
+            if response.outcome == "DENIED" {
+                return Err(
+                    response.denial_code.as_ref()
+                        .and_then(|code| from_verified_denial(code))
+                        .unwrap_or(ReadFailure::Unverified),
+                );
+            }
+            if response.outcome != "OK" {
+                return Err(ReadFailure::Unverified);
+            }
+            let catalog = response.data.ok_or(ReadFailure::Unverified)?;
+            let catalog_generation = catalog["catalog_generation"]
+                .as_u64().ok_or(ReadFailure::Unverified)?;
+            let catalog_revision = catalog["catalog_revision"]
+                .as_u64().ok_or(ReadFailure::Unverified)?;
+            let source_id = catalog["source"]["source_id"]
+                .as_str().ok_or(ReadFailure::Unverified)?;
+            if catalog_generation != self.expected_catalog_generation
+                || catalog_revision != self.expected_catalog_revision
+                || source_id != self.expected_source_id
+            {
+                return Err(ReadFailure::Unverified);
+            }
+            Ok(NativeLibraryCatalogSnapshot {
+                platform_id: response.platform_id,
+                platform_generation: response.platform_generation,
+                publisher_catalog_generation: catalog_generation,
+                catalog_revision,
+                source_platform_id: source_id.to_owned(),
+                observed_at: response.observed_at,
+                catalog,
+            })
         }
     }
 
