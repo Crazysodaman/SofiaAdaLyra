@@ -167,6 +167,13 @@ def verify_renewed_recipient_offer(
         expected_catalog_generation=expected_catalog_generation,
         now=now, publisher_key_current=publisher_key_current,
     )
+    # Signed but older pages are still replay attempts. Renewal must move
+    # both publisher envelope expiry and catalog freshness strictly forward,
+    # never reset the signed catalog generation or item revision.
+    if (next_offer.index.expires_at <= original.index.expires_at
+            or _utc(next_offer.index.catalog["catalog_fresh_until"])
+            <= _utc(original.index.catalog["catalog_fresh_until"])):
+        raise ChunkTransferRejected("signed catalog renewal did not advance freshness")
     if (next_offer.transfer != original.transfer
             or next_offer.artifact_id != original.artifact_id
             or next_offer.version != original.version
