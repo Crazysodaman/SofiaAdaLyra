@@ -3,9 +3,10 @@ from __future__ import annotations
 
 from contextlib import closing, contextmanager, nullcontext
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum, IntEnum
 import json
+import re
 from pathlib import Path
 import sqlite3
 from typing import Any
@@ -469,6 +470,60 @@ def automatic_capabilities() -> tuple[str, ...]:
     return tuple(sorted(_READ_ONLY | _SAFE_AUTONOMOUS))
 
 
+LIBRARY_PEER_SCOPE = frozenset({
+    "source_platform_id", "target_platform_id", "certificate_sha256",
+    "manifest_digest", "content_digest", "artifact_kind",
+    "catalog_revision", "data_class", "license_distribution",
+    "max_chunk_bytes", "max_total_bytes",
+})
+_LIBRARY_PEER_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@-]{0,159}\\Z")
+_LIBRARY_DIGEST = re.compile(r"[0-9a-f]{64}\\Z")
+_LIBRARY_KINDS = frozenset({
+    "platform_release", "sdk", "core_runtime", "core_definition",
+    "module", "model", "asset", "rollback",
+})
+
+
+def _validate_library_peer_standing_scope(
+    scope: dict[str, Any], *, moment: datetime,
+    expires_at: datetime | None,
+) -> None:
+    """No blanket LAN grants: exact public signer/peer/size, short lifetime.
+
+    The canonical owner-authenticated SAFE approval remains mandatory; these
+    checks only prevent overbroad requests from ever reaching consumption.
+    """
+    if type(scope) is not dict or set(scope) != LIBRARY_PEER_SCOPE:
+        raise PermissionError("Library peer grant must bind exact approved scope")
+    for field in ("source_platform_id", "target_platform_id"):
+        value = scope[field]
+        if type(value) is not str or _LIBRARY_PEER_ID.fullmatch(value) is None:
+            raise PermissionError("Library peer grant requires exact Platform IDs")
+    if scope["source_platform_id"] == scope["target_platform_id"]:
+        raise PermissionError("Library peer grant must bind distinct enrolled Platforms")
+    for field in ("certificate_sha256", "manifest_digest", "content_digest"):
+        value = scope[field]
+        if type(value) is not str or _LIBRARY_DIGEST.fullmatch(value) is None:
+            raise PermissionError("Library peer grant requires pinned SHA-256 digests")
+    if (scope["artifact_kind"] not in _LIBRARY_KINDS
+            or scope["license_distribution"] != "permitted"
+            or scope["data_class"] != "public"):
+        raise PermissionError("Library peer grant cannot distribute private or unknown content")
+    for field, minimum, maximum in (
+        ("catalog_revision", 1, 2**53 - 1),
+        ("max_chunk_bytes", 1, 1024 * 1024),
+        ("max_total_bytes", 1, 2**53 - 1),
+    ):
+        value = scope[field]
+        if type(value) is not int or not minimum <= value <= maximum:
+            raise PermissionError("Library peer grant exceeds bounded transfer scope")
+    if scope["max_chunk_bytes"] > scope["max_total_bytes"]:
+        raise PermissionError("Library peer grant chunk exceeds aggregate bytes")
+    if (expires_at is None or expires_at <= moment
+            or expires_at - moment > timedelta(hours=1)):
+        raise PermissionError("Library peer grant requires an expiry within one hour")
+
+
 def grantable_capabilities() -> tuple[str, ...]:
     return tuple(sorted(_REVERSIBLE))
 
@@ -664,6 +719,10 @@ class PermissionStore:
                 "unrestricted standing grants are not supported"
             )
         normalized_scope = dict(scope)
+        if capability == "library.peer.fetch":
+            _validate_library_peer_standing_scope(
+                normalized_scope, moment=moment, expires_at=expires_at,
+            )
         encoded_scope = self._scope_json(normalized_scope)
         if not approval_id:
             raise PermissionError(
