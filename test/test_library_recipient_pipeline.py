@@ -138,7 +138,7 @@ def test_signed_index_wrapper_binds_real_catalog_key_and_selected_transfer(
            "expected_publisher_key_sha256": signed_args["expected_publisher_key_sha256"],
            "expected_catalog_generation": signed_args["expected_catalog_generation"],
            "publisher_key_current": lambda _: True,
-           "now": signed_args["now"]},
+           "now": signed_args["now"], "current_time": lambda: signed_args["now"]},
     )
     assert result["selected_artifact_id"] == "sdk.release.1"
     assert len(result["signed_index_sha256"]) == 64
@@ -168,7 +168,7 @@ def test_signed_index_wrapper_refuses_untrusted_index_before_any_transfer(
                "expected_publisher_key_sha256": "f" * 64,
                "expected_catalog_generation": signed_args["expected_catalog_generation"],
                "publisher_key_current": lambda _: True,
-               "now": signed_args["now"]},
+               "now": signed_args["now"], "current_time": lambda: signed_args["now"]},
         )
     assert executed == []
 
@@ -181,13 +181,6 @@ def test_signed_index_wrapper_rejects_package_signer_mismatch(
     original_args, _calls, _raw = environment
     def source_pipeline(**kwargs):
         transfer = kwargs["transfer"]
-        wrong_package = PlatformArtifact(
-            artifact_id="sdk.release.1", version="1.0",
-            platform=PlatformKind.LINUX, architecture="x86_64",
-            sha256=transfer.content_sha256,
-            signer_key_id="different-untrusted-package-signer",
-            signature_verified=True, source="synthetic-test-archive",
-        )
         kwargs["verify_independent_publisher"](
             transfer, kwargs["canonical_safe_state"],
         )
@@ -212,5 +205,5 @@ def test_signed_index_wrapper_rejects_package_signer_mismatch(
                "expected_catalog_generation": signed_args["expected_catalog_generation"],
                "publisher_key_current": lambda _: True,
                "verify_independent_publisher": independent_verifier,
-               "now": signed_args["now"]},
+               "now": signed_args["now"], "current_time": lambda: signed_args["now"]},
         )
