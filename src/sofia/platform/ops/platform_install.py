@@ -285,16 +285,26 @@ class OfflineArtifactCache:
                 self._check_root()
                 if destination.exists() or destination.is_symlink():
                     return self.resolve(artifact)
-                os.link(temporary, destination)
-                if os.name != "nt":
-                    directory = os.open(
-                        self.root, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
-                    )
-                    try:
-                        os.fsync(directory)
-                    finally:
-                        os.close(directory)
-                return self.resolve(artifact)
+                # Link only after complete source+temporary digest verification.
+                # The final CAS must have exactly ONE name before resolve():
+                # digest() explicitly refuses externally hardlinked artifacts.
+                os.link(temporary, destination, follow_symlinks=False)
+                try:
+                    temporary.unlink()
+                    if os.name != "nt":
+                        directory = os.open(
+                            self.root, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+                        )
+                        try:
+                            os.fsync(directory)
+                        finally:
+                            os.close(directory)
+                    return self.resolve(artifact)
+                except BaseException:
+                    # A failed publish, durability barrier or resolve never
+                    # leaves a silently accepted new CAS object behind.
+                    destination.unlink(missing_ok=True)
+                    raise
             finally:
                 if descriptor_open:
                     os.close(descriptor)
