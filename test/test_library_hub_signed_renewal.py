@@ -84,10 +84,14 @@ def test_renewal_cannot_revive_revoked_publisher_key(renewal):
 
 def test_stale_renewal_denied_even_if_old_signature_was_good(renewal):
     env, sign, params = renewal
+    env["issued_at"] = (params["now"] - timedelta(minutes=10)).isoformat()
+    env["expires_at"] = (params["now"] - timedelta(minutes=9)).isoformat()
+    env["catalog"]["catalog_fresh_until"] = (
+        params["now"] - timedelta(minutes=9, seconds=20)
+    ).isoformat()
     with pytest.raises(SignedLibraryIndexRejected, match="stale"):
         verify_renewed_serving_offer(
-            raw_signed_index=params["original"].index.catalog.get("raw", b""),
-            **params,
+            raw_signed_index=sign(), **params,
         )
 
 
