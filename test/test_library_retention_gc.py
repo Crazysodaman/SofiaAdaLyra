@@ -52,8 +52,8 @@ class FakeApproval:
         assert capability == GC_CAPABILITY
         assert parameters["content_sha256"] == parameters["content_sha256"].lower()
         self.called.append(dict(parameters))
-        if self.on_consume:
-            self.on_consume()
+        if type(self).on_consume is not None:
+            type(self).on_consume()
         return SimpleNamespace(principal_id="person:sparks")
 
 
