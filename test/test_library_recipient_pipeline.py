@@ -12,7 +12,12 @@ from sofia.platform.ops.library_recipient_pipeline import (
 )
 from sofia.platform.ops.platform_install import (OfflineArtifactCache, PlatformArtifact, PlatformKind)
 from test.test_library_tls_chunk_transport import _transfer
-from test.test_library_signed_selection import signed_offer as signed_offer_fixture
+from test.library_fixture_support import make_signed_offer_fixture
+
+
+@pytest.fixture
+def signed_offer_fixture():
+    return make_signed_offer_fixture()
 
 
 @pytest.fixture
