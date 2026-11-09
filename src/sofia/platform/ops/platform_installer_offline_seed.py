@@ -10,7 +10,6 @@ separate signed OS executor deliverable and is NOT implemented by this module.
 from __future__ import annotations
 
 from email.parser import BytesParser
-from io import BytesIO
 from pathlib import Path
 import re
 import stat
@@ -39,11 +38,13 @@ def _inspect_dependency_wheel(path: Path, expected_sha: str, expected_size: int)
     if expected_size > 64 * 1024**2 or not _HEX.fullmatch(expected_sha):
         raise PlatformReleaseRejected("offline dependency exceeds reviewed seed bound")
     assert_no_redirected_components(path, include_leaf=True)
-    actual_sha, data = read_artifact_file(path, expected_size, include_data=True)
+    actual_sha, _ = read_artifact_file(path, expected_size, include_data=False)
     if actual_sha != expected_sha:
         raise PlatformReleaseRejected("offline dependency bytes drifted after verification")
     try:
-        with zipfile.ZipFile(BytesIO(data)) as archive:
+        # The canonical digest reader and zipfile both stream from the
+        # approved path. Never materialize a 64MiB dependency wheel in RAM.
+        with zipfile.ZipFile(path) as archive:
             entries = archive.infolist()
             if not 1 <= len(entries) <= 8192:
                 raise PlatformReleaseRejected("dependency wheel exceeds inventory bound")
@@ -77,9 +78,16 @@ def _inspect_dependency_wheel(path: Path, expected_sha: str, expected_size: int)
             normalized = re.sub("[-_.]+", "-", names[0]).lower()
             if normalized in _FORBIDDEN_DEPENDENCIES:
                 raise PlatformReleaseRejected("personal Core/model package in neutral seed")
-            return normalized
     except (zipfile.BadZipFile, zipfile.LargeZipFile, UnicodeError, OSError, ValueError) as exc:
         raise PlatformReleaseRejected("malformed offline dependency wheel") from exc
+    # A file replaced between the signed SHA read and ZIP metadata review
+    # cannot produce a trusted neutral seed. Rehash the whole wheel after.
+    after_sha, _ = read_artifact_file(
+        path, expected_size, include_data=False,
+    )
+    if after_sha != expected_sha:
+        raise PlatformReleaseRejected("offline dependency changed during ZIP review")
+    return normalized
 
 
 def review_core_free_offline_seed(
