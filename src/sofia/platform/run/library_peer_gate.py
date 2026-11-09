@@ -5,9 +5,10 @@ and never approves a grant. Only the existing Rust-owned Platform service
 may pass a real SSL socket created by an independently reviewed CERT_REQUIRED
 TLS 1.3 context and current local service/STOP and SAFE backing objects.
 
-Until owner enrollment and the dedicated grant capability are formally
-approved, library.peer.fetch remains a protected unknown capability and
-this gate refuses every real peer. This is deliberately NOT a Hub signoff.
+The library.peer.fetch capability is scope-grantable only after an authenticated
+one-use owner approval through the existing SAFE standing-grant workflow.
+With no exact, current, enrolled owner grant this gate refuses every real
+peer. This is deliberately NOT installed-host or Hub release signoff.
 """
 from __future__ import annotations
 
@@ -152,8 +153,8 @@ class CurrentRecipientPeerAuthorizer:
     Only the installed recipient Platform service may construct this object
     with its real PermissionStore, OperatorStopStore, live status reader and
     independently signed selected transfer. It does not mint an owner grant.
-    Unknown 'library.peer.fetch' capability remains denied until explicitly
-    enrolled by the existing authority. All checks are repeated per chunk.
+    A missing owner-approved 'library.peer.fetch' scope remains denied.
+    All checks are repeated per chunk.
     """
 
     def __init__(
