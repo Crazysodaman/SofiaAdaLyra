@@ -5,12 +5,13 @@ service grant or live owner-secret enrollment test.
 """
 from __future__ import annotations
 
-from hashlib import sha256
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from sofia.platform.ops.library_chunk_receiver import PinnedChunkTransfer
 from test.test_library_tls_chunk_transport import _transfer
+from sofia.platform.safe.permissions import LIBRARY_PEER_SCOPE
 
 
 def _adapter(monkeypatch):
@@ -94,3 +95,38 @@ def test_adapter_does_not_translate_unknown_grant_to_success(monkeypatch):
     monkeypatch.setattr(gate, "admit_owner_enrolled_library_chunk", deny)
     with pytest.raises(PermissionError, match="no current owner SAFE"):
         recipient(object(), "a" * 64, transfer, 0, 11)
+
+
+
+def test_exact_scope_builder_matches_canonical_grant_fields(monkeypatch):
+    gate, _recipient, transfer = _adapter(monkeypatch)
+    now = datetime.now(timezone.utc)
+    scope = gate.selected_peer_grant_scope(
+        transfer=transfer,
+        enrolled_peer_certificate_sha256="a" * 64,
+        max_chunk_bytes=min(1024, transfer.size_bytes),
+        now=now, expires_at=now + timedelta(minutes=10),
+    )
+    assert set(scope) == LIBRARY_PEER_SCOPE
+    assert scope["content_digest"] == transfer.content_sha256
+    assert scope["manifest_digest"] == transfer.manifest_sha256
+    assert scope["max_total_bytes"] == transfer.size_bytes
+    assert scope["certificate_sha256"] == "a" * 64
+
+
+def test_scope_builder_refuses_overbroad_or_unreviewed_grants(monkeypatch):
+    gate, _recipient, transfer = _adapter(monkeypatch)
+    now = datetime.now(timezone.utc)
+    cases = (
+        ("a" * 64, 1024 * 1024 + 1, now + timedelta(minutes=10)),
+        ("a" * 64, 1024, now + timedelta(hours=2)),
+        ("not-enrolled", 1024, now + timedelta(minutes=10)),
+    )
+    for cert, maximum, deadline in cases:
+        with pytest.raises(PermissionError):
+            gate.selected_peer_grant_scope(
+                transfer=transfer,
+                enrolled_peer_certificate_sha256=cert,
+                max_chunk_bytes=maximum,
+                now=now, expires_at=deadline,
+            )
