@@ -344,8 +344,18 @@ class PlatformServiceSession:
             status = self.status()
             if status.get("operator_stop") is not False:
                 raise PermissionError("operator STOP prevents recipient acquisition")
+            # The canonical personal-owner SQLite already contains the
+            # independently enrolled publisher root and signed current index.
+            # Use it automatically instead of requiring redundant caller-
+            # supplied key/profile configuration. This does NOT grant TLS
+            # enrollment, package signer trust or cache import approval.
+            config = dict(installed_trusted_configuration)
+            if "signed_catalog_source" not in config:
+                if not callable(self._installed_signed_catalog):
+                    raise PermissionError("owner publisher catalog source unavailable")
+                config["signed_catalog_source"] = self._installed_signed_catalog
             receiver = HostedLibraryRecipient(
-                service=self, **installed_trusted_configuration,
+                service=self, **config,
             )
             return receiver.acquire(
                 approval_id=approval_id, start_offset=start_offset,
