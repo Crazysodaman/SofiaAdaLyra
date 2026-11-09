@@ -53,3 +53,57 @@ python -m pytest -q test/test_library_recipient_renewal.py test/test_library_rec
 ```
 
 *Source code and test files committed are not proof that these commands passed.*
+
+
+## 2026-11-09 follow-on hardening | complete source batch, tests pending
+
+**Exact source checkpoint before this note:** `f012ac6fa86baa8e425a840b76f7566c27dab34b`.
+**Release status:** SOURCE ONLY, NOT execution-certified. Native Rust tests are NOT compiled here; Python regression files are NOT run here. Owner-requested full GitHub CI remains last.
+
+### Platform-owned source/recipient LAN lifecycle
+
+- `src/sofia/platform/run/library_source_gate.py` and `library_host_service.py` add independent current source RUN, one-hour owner-enrolled Hub serve grant bound to one numeric private address, exact port and source generation, plus separate owner-enrolled recipient certificate and per-chunk publisher checks.
+- `src/sofia/platform/run/platform_service.py` owns a single explicitly opened Hub, closes it before RUN lease release, and separately exposes a foreground recipient acquisition with no public effect RPC.
+- `src/sofia/platform/run/library_peer_gate.py`: recipient's generation is checked against recipient service, not Hub's independent generation; Core running does not invalidate Core-free Platform peer permissions.
+- `src/sofia/platform/run/library_host_service.py` uses the existing strictly monotonic signed selection renewal. `library_recipient_pipeline.py` now compares each renewal against the LATEST authenticated catalog, not the original, so a once-valid older page cannot rollback accepted freshness.
+- `test/test_library_source_gate.py`, `test/test_library_two_platform_b1_hub.py`, `test/test_library_hub_signed_renewal.py`, `test/test_library_recipient_renewal.py`, `test/test_library_host_lifecycle.py`: source/recipient separate epoch, real disposable TLS 1.3, SAFE source and recipient grants, refusal of scope substitution, revocation, STOP, catalog replay, B1 one-use admission and service-owned teardown. Test publisher signatures and release package verifier are synthetic, not certified production signing.
+
+### Durable receiver and source efficiency
+
+- `src/sofia/platform/ops/library_chunk_receiver.py` persists complete private signed transfer context alongside partial bytes, refuses legacy unbound partial files, uses an OS-backed per-quarantine writer lock, and fsyncs metadata/data entries. A resumed digest is never enough without exact source/recipient/manifest/revision/generation matching.
+- `src/sofia/platform/ops/library_cached_source.py` fully verifies B1 once per selected source, then rechecks its immutable inode/size/mtime/ctime instead of hashing up to 8 GiB for every 1MiB chunk. Sender now revalidates canonical source AFTER final SAFE/publisher check, before returning bytes. Transport still verifies bounded per-chunk SHA-256.
+- Tests: `test/test_library_chunk_resume_scope.py`, `test/test_library_cached_source.py`, `test/test_library_chunk_sender.py`.
+- These changes do NOT make an owner-writable filesystem cryptographically immutable. Production B1 root, native permissions, signer revocation and installed host revalidation remain separate mandatory authority.
+
+### Rust management consumption, not UI-owned trust
+
+- `rust/crates/sofia-ui-broker/src/native_management.rs` adds a read-only Linux D028 catalog client on Team A's EXISTING B1-pinned Unix socket. It checks kernel peer, exact socket inode/owner, random request correlation, target Platform, generation, catalog source/epoch/revision and typed strict Rust contract. Negative tests reject EOF, STOP, revocation, source/epoch/revision substitutions.
+- The TUI still defaults to `UNAVAILABLE`: no installer-provisioned production B1 native client activation or Windows pinned native Library reader has been supplied. Source-only Rust code is NOT independently compiled/tested in this chat.
+
+### Offline installer RAM efficiency
+
+- `src/sofia/platform/ops/platform_installer_offline_capsule.py`: signed release asset fingerprints, ZIP writes and post-build ZIP member verification now stream in bounded blocks. Memory no longer accumulates whole signed 512MiB assets. Existing exact delivery index, ZIP layout, SHA, publisher seal message and Core-free launchers remain governed by the original independent verifier.
+- `src/sofia/platform/ops/platform_installer_offline_seed.py`: dependency wheels are scanned through file-backed ZIP metadata with SHA checked before/after instead of loading up to 64MiB into RAM.
+- Tests: `test/test_ops_platform_capsule_streaming.py`, `test/test_ops_platform_offline_wheel_streaming.py`, plus existing `test/test_ops_platform_installer_capsule.py`. Sparse 64MiB tests are marked slow and NOT executed.
+
+### Suggested focused exact-SHA validation, NOT claimed as passed
+
+```bash
+python -m compileall -q src/sofia/platform/run src/sofia/platform/ops src/sofia/platform/modules test
+python -m pytest -q test/test_library_source_gate.py test/test_library_two_platform_b1_hub.py test/test_library_hub_signed_renewal.py test/test_library_recipient_renewal.py test/test_library_host_lifecycle.py
+python -m pytest -q test/test_library_chunk_receiver.py test/test_library_chunk_resume_scope.py test/test_library_chunk_sender.py test/test_library_cached_source.py
+python -m pytest -q test/test_library_signed_module_manifest.py test/test_ops_platform_cache_streaming.py test/test_ops_platform_installer_capsule.py test/test_ops_platform_capsule_streaming.py test/test_ops_platform_offline_wheel_streaming.py -m "not slow"
+python -m pytest -q test/test_ops_platform_capsule_streaming.py test/test_ops_platform_offline_wheel_streaming.py test/test_ops_platform_cache_streaming.py -m slow
+cargo test --manifest-path rust/crates/sofia-ui-broker/Cargo.toml native_catalog_reader
+```
+
+**Do not infer full validation from source-only changes.** GitHub push workflows can auto-trigger by repository configuration even when the final explicit CI gate is postponed. No manual full CI started here.
+
+### Still blocking full D028 and Platform 1.0
+
+1. Provision real independently publisher-signed B1/Fleet trust profiles, immutable current signing-root/revocation data, native Windows/Debian owner/peer enrollment and signed module/Core dependency closure. Do not let the Hub or UI self-supply those authorities.
+2. Finish D028-00 exact Rust/Python service/Library wire and same-SHA A/B/C/D/E acceptance; activate native GUI/TUI via independently verified installed profile (not user flags). Windows operator ACL refresh/restart policy is also outstanding.
+3. Complete actual signed package staging/install/activation/rollback and dependency receipts with separate one-use SAFE approvals and synchronized B1 pin-revision retention, crash reconciliation and destructive GC acceptance.
+4. Execute complete Linux/Windows clean installed-host four-machine runs, actual certificate-rotation/STOP/reboot/rollback/host storage evidence and final GitHub CI. **Authoritative ledgers still LIB 0/16 accepted, Platform 0/38 PASS.** Production-ready means ready to BEGIN owner-authorized live tests, not a claim that those live tests have passed.
+5. Continue semantic main-only consolidation of useful uniquely changed historical branches; superseded unsafe forks are preserved rather than force-merged.
+
