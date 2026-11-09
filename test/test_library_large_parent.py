@@ -167,3 +167,23 @@ def test_signed_parent_rejects_bad_alignment_length_and_noninteger_fields():
         t = replace(transfer, manifest_sha256=sha256(candidate).hexdigest())
         with pytest.raises(ChunkTransferRejected):
             verify_signed_large_parent(candidate, **{**kwargs, "transfer": t})
+
+
+
+def test_signed_parent_supports_slow_lan_but_not_unbounded_expiry():
+    doc, raw, transfer, kwargs, sign = _signed_parent()
+    doc["expires_at"] = (kwargs["now"] + timedelta(hours=12)).isoformat()
+    candidate = sign(doc)
+    pinned = replace(transfer, manifest_sha256=sha256(candidate).hexdigest())
+    parent = verify_signed_large_parent(
+        candidate, **{**kwargs, "transfer": pinned},
+    )
+    assert parent.matches_transfer(pinned)
+
+    doc["expires_at"] = (kwargs["now"] + timedelta(days=2)).isoformat()
+    expired_policy = sign(doc)
+    next_pin = replace(transfer, manifest_sha256=sha256(expired_policy).hexdigest())
+    with pytest.raises(ChunkTransferRejected, match="overlong"):
+        verify_signed_large_parent(
+            expired_policy, **{**kwargs, "transfer": next_pin},
+        )
