@@ -1,6 +1,7 @@
 # AG-D030 | AI model landscape: frontier, local, coding, mature fiction and image generation
 
 **Research snapshot:** 2026-11-09 (America/Chicago). **Status:** RESEARCHED / OWNER-REQUESTED TODO / NOT SCHEDULED. **No weights downloaded, no models installed, no live tests, no provider changes.**
+**Project-wide scope (2026-11-09):** This is an owner-only, private noncommercial homelab project, not a model shipping business. See [Owner-only scope and license policy](AEGIS_OWNER_ONLY_SCOPE_AND_LICENSE_POLICY.md). Candidates with restrictions on commercial use may still be fully eligible for authorized private use if their exact license permits. Check copies/transfers separately; do not automatically require commercial redistribution rights merely for local model ranking.
 **Linked backlog:** AG-D005 Aegis Model Manager; AG-D028 Artifact Library; AG-D029 agent harness/inference alternatives; AG-D007 Control Center.
 **Release fence:** This is NOT a Platform 1.0 blocker; issue #201 keeps its existing 38 acceptance rows and AG-D028 LIB-01..LIB-16 are unchanged. The shortlist is a set of candidates, not a commitment to distribute models or license-controlled adult checkpoints.
 
