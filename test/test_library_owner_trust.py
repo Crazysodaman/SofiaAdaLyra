@@ -313,3 +313,31 @@ def test_owner_snapshot_expiry_fails_closed_after_clock_advance(owner):
     root.clock = lambda: now + timedelta(minutes=6)
     with pytest.raises(SignedLibraryIndexRejected, match="stale"):
         root()
+
+
+
+def test_tampered_safe_audit_chain_never_accepts_owner_trust_mutations(owner):
+    identity, current, state, root, env, sign, keys, now = owner
+    pin, _ = _enroll(root, keys)
+    root.accept_signed_catalog(sign())
+    with sqlite3.connect(state) as db:
+        event = db.execute(
+            "SELECT event_id FROM safe_audit_event ORDER BY sequence LIMIT 1"
+        ).fetchone()
+        assert event is not None
+        db.execute(
+            "UPDATE safe_audit_event SET payload_json=? WHERE event_id=?",
+            ('{"forged":"audit"}', event[0]),
+        )
+    assert root.audit.verify()[0] is False
+    with pytest.raises(OwnerLibraryTrustDenied, match="audit chain"):
+        root.accept_signed_catalog(sign())
+    with pytest.raises(OwnerLibraryTrustDenied, match="audit chain"):
+        root.revoke(approval_id="not-even-an-owner-proof")
+    with pytest.raises(OwnerLibraryTrustDenied, match="audit chain"):
+        root.enroll(
+            source_platform_id="primary-library",
+            public_key=keys["trusted_publisher_public_key"],
+            catalog_generation=4, minimum_catalog_revision=8,
+            approval_id="not-even-an-owner-proof",
+        )
