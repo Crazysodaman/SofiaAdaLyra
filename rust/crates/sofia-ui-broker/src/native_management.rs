@@ -553,6 +553,146 @@ pub mod linux {
             (home, pins, handle)
         }
 
+        fn fake_library_service(
+            outcome: &'static str,
+        ) -> (tempfile::TempDir, InstalledNativeServicePins, thread::JoinHandle<()>) {
+            let home = tempfile::tempdir().unwrap();
+            let socket_path = home.path().join("mgmt-17.sock");
+            let listener = UnixListener::bind(&socket_path).unwrap();
+            fs::set_permissions(
+                &socket_path, fs::Permissions::from_mode(0o600),
+            ).unwrap();
+            let stat = fs::metadata(home.path()).unwrap();
+            let pins = InstalledNativeServicePins::from_externally_verified_installation(
+                socket_path, "platform:recipient".into(), 17,
+                stat.uid(), stat.gid(), None,
+                Some(i32::try_from(std::process::id()).unwrap()),
+            ).unwrap();
+            let handle = thread::spawn(move || {
+                let (mut socket, _) = listener.accept().unwrap();
+                let mut message = Vec::new();
+                BufReader::new(&socket).read_until(b'\n', &mut message).unwrap();
+                if outcome == "EOF" {
+                    return;
+                }
+                let request: serde_json::Value =
+                    serde_json::from_slice(&message).unwrap();
+                let moment = Utc::now();
+                let observed = moment.to_rfc3339_opts(SecondsFormat::Micros, true);
+                let freshness = (moment + ChronoDuration::seconds(40))
+                    .to_rfc3339_opts(SecondsFormat::Micros, true);
+                let mut response = serde_json::json!({
+                    "schema": "aegis.platform.library.response.v1",
+                    "protocol": "1.0",
+                    "request_id": request["request_id"],
+                    "correlation_id": request["correlation_id"],
+                    "operation": "library.catalog.snapshot.v1",
+                    "platform_id": request["target_platform_id"],
+                    "platform_generation": request["expected_generation"],
+                    "state_revision": request["expected_revision"],
+                    "observed_at": observed,
+                    "outcome": "OK",
+                    "data": {
+                        "catalog_revision": request["expected_revision"],
+                        "catalog_generation": 9,
+                        "catalog_fresh_until": freshness,
+                        "target_platform_id": request["target_platform_id"],
+                        "source": {
+                            "kind": "OWNER_SELECTED_HUB",
+                            "source_id": "primary-library",
+                            "last_observed_at": observed,
+                            "status": "CURRENT"
+                        },
+                        "page": {
+                            "limit": 32,
+                            "next_cursor": null,
+                            "cursor_state": "CURRENT"
+                        },
+                        "items": []
+                    },
+                    "denial": null
+                });
+                match outcome {
+                    "STOPPED" | "REVOKED" | "NOT_PERMITTED" | "UNAVAILABLE" => {
+                        response["outcome"] = serde_json::json!("DENIED");
+                        response["data"] = serde_json::Value::Null;
+                        response["denial"] = serde_json::json!({"code": outcome});
+                    }
+                    "WRONG_SOURCE" => {
+                        response["data"]["source"]["source_id"] =
+                            serde_json::json!("untrusted-source");
+                    }
+                    "WRONG_CATALOG_EPOCH" => {
+                        response["data"]["catalog_generation"] = serde_json::json!(8);
+                    }
+                    "WRONG_REVISION" => {
+                        response["data"]["catalog_revision"] = serde_json::json!(6);
+                    }
+                    "WRONG_PLATFORM" => {
+                        response["platform_id"] = serde_json::json!("other-platform");
+                    }
+                    _ => {}
+                }
+                socket.write_all(serde_json::to_string(&response).unwrap().as_bytes())
+                    .unwrap();
+                socket.write_all(b"\n").unwrap();
+            });
+            (home, pins, handle)
+        }
+
+        #[test]
+        fn native_catalog_reader_uses_pinned_socket_and_exact_signed_service_scope() {
+            let (_root, pins, handle) = fake_library_service("OK");
+            let mut reader = NativeLinuxLibraryCatalogReader::from_verified_installation(
+                pins, "primary-library".into(), 9, 7,
+            ).unwrap();
+            let observed = reader.catalog().unwrap();
+            assert_eq!(observed.platform_id, "platform:recipient");
+            assert_eq!(observed.platform_generation, 17);
+            assert_eq!(observed.publisher_catalog_generation, 9);
+            assert_eq!(observed.catalog_revision, 7);
+            assert_eq!(observed.source_platform_id, "primary-library");
+            assert!(observed.catalog["items"].as_array().unwrap().is_empty());
+            assert!(observed.catalog.get("installed").is_none());
+            handle.join().unwrap();
+        }
+
+        #[test]
+        fn native_catalog_reader_fails_closed_on_denial_and_signed_scope_mismatch() {
+            for outcome in [
+                "STOPPED", "REVOKED", "UNAVAILABLE", "WRONG_SOURCE",
+                "WRONG_CATALOG_EPOCH", "WRONG_REVISION", "WRONG_PLATFORM", "EOF",
+            ] {
+                let (_root, pins, handle) = fake_library_service(outcome);
+                let mut reader = NativeLinuxLibraryCatalogReader::from_verified_installation(
+                    pins, "primary-library".into(), 9, 7,
+                ).unwrap();
+                let result = reader.catalog();
+                assert!(result.is_err(), "unexpected verified Library: {outcome}");
+                handle.join().unwrap();
+            }
+        }
+
+        #[test]
+        fn native_catalog_reader_refuses_unknown_b1_index_source() {
+            let root = tempfile::tempdir().unwrap();
+            let path = root.path().join("mgmt-17.sock");
+            let stat = fs::metadata(root.path()).unwrap();
+            let pins = InstalledNativeServicePins::from_externally_verified_installation(
+                path, "platform:recipient".into(), 17,
+                stat.uid(), stat.gid(), None, None,
+            ).unwrap();
+            assert!(NativeLinuxLibraryCatalogReader::from_verified_installation(
+                pins.clone(), "bad source".into(), 9, 7,
+            ).is_err());
+            assert!(NativeLinuxLibraryCatalogReader::from_verified_installation(
+                pins.clone(), "primary-library".into(), 0, 7,
+            ).is_err());
+            assert!(NativeLinuxLibraryCatalogReader::from_verified_installation(
+                pins, "primary-library".into(), 9, 0,
+            ).is_err());
+        }
+
         #[test]
         fn synthetic_native_peer_returns_only_a_correlated_status() {
             let (_home, pins, thread) = fake_service("OK");
