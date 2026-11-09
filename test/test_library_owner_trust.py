@@ -10,6 +10,7 @@ from base64 import b64encode
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import json
+import sqlite3
 from uuid import uuid4
 
 import pytest
@@ -19,6 +20,7 @@ from sofia.platform.run.library_owner_trust import (
     OwnerLibraryTrustStore, enrollment_parameters, revocation_parameters,
 )
 from sofia.platform.run.platform_service import PlatformServiceSession
+from sofia.platform.ops.library_signed_index import SignedLibraryIndexRejected
 from sofia.platform.safe.execution_approval import (
     ExecutionApproval, execution_fingerprint,
 )
@@ -188,3 +190,90 @@ def test_foreign_platform_and_unapproved_key_change_are_rejected(owner, tmp_path
     pin, _ = _enroll(root, keys)
     assert root.publisher_current("f" * 64, pin.trust_generation) is False
     assert root.publisher_current(pin.public_key_sha256, pin.trust_generation + 1) is False
+
+
+
+def test_single_owner_can_store_signed_index_without_cloud_or_profile_file(owner):
+    identity, current, state, root, env, sign, keys, now = owner
+    pin, _ = _enroll(root, keys)
+    raw = sign()
+    assert root.accept_signed_catalog(raw) == sha256(raw).hexdigest()
+    assert not root.profile.exists()
+    observed = root()
+    assert observed.raw_signed_index == raw
+    assert observed.trusted_publisher_public_key == pin.public_key
+    assert observed.expected_source_platform_id == pin.source_platform_id
+    assert observed.publisher_key_current(pin.public_key_sha256) is True
+    with PlatformServiceSession(
+        identity.home, state, current.identity.canonical_uuid,
+        current.public_key_sha256,
+    ) as service:
+        assert service._installed_signed_catalog().raw_signed_index == raw
+        assert service.status()["operator_stop"] is False
+    # Restart, not just a warm Python object: the signed page remains current.
+    reloaded = OwnerLibraryTrustStore(state, platform_id=root.platform_id)
+    assert reloaded().raw_signed_index == raw
+
+
+def test_owner_signed_catalog_rejects_earlier_replayed_page_and_keeps_last(owner):
+    identity, current, state, root, env, sign, keys, now = owner
+    _enroll(root, keys)
+    initial = sign()
+    assert root.accept_signed_catalog(initial) == sha256(initial).hexdigest()
+    assert root.accept_signed_catalog(initial) == sha256(initial).hexdigest()
+    env["issued_at"] = (now - timedelta(seconds=1)).isoformat()
+    env["expires_at"] = (now + timedelta(minutes=4)).isoformat()
+    env["catalog"]["catalog_fresh_until"] = (
+        now + timedelta(minutes=3)
+    ).isoformat()
+    newer = sign()
+    assert root.accept_signed_catalog(newer) == sha256(newer).hexdigest()
+    with pytest.raises(OwnerLibraryTrustDenied, match="replay"):
+        root.accept_signed_catalog(initial)
+    assert root().raw_signed_index == newer
+    assert root.audit.verify() == (True, None)
+
+
+def test_owner_signed_catalog_rejects_wrong_target_revocation_and_tamper(owner):
+    identity, current, state, root, env, sign, keys, now = owner
+    pin, _ = _enroll(root, keys)
+    env["target_platform_id"] = "other-platform"
+    env["catalog"]["target_platform_id"] = "other-platform"
+    with pytest.raises(SignedLibraryIndexRejected, match="mismatch"):
+        root.accept_signed_catalog(sign())
+    env["target_platform_id"] = root.platform_id
+    env["catalog"]["target_platform_id"] = root.platform_id
+    raw = sign()
+    root.accept_signed_catalog(raw)
+    with sqlite3.connect(state) as db:
+        db.execute(
+            "UPDATE platform_library_owner_index SET signed_index=? "
+            "WHERE singleton=1", (b"forged-publisher-bytes",),
+        )
+    with pytest.raises(OwnerLibraryTrustDenied, match="changed"):
+        root()
+    # Repair signed snapshot only by an owner-pinned publisher, no self-trust.
+    with sqlite3.connect(state) as db:
+        db.execute(
+            "UPDATE platform_library_owner_index SET signed_index=? "
+            "WHERE singleton=1", (raw,),
+        )
+    revocation_id = _approve(root, REVOKE_CAPABILITY, revocation_parameters(
+        state_path=root.path, pin=pin,
+    ))
+    root.revoke(approval_id=revocation_id)
+    assert root() is None
+    with pytest.raises(OwnerLibraryTrustDenied, match="current owner"):
+        root.accept_signed_catalog(raw)
+
+
+def test_enrollment_is_exactly_one_current_owner_not_a_blanket_fleet_root(owner):
+    identity, current, state, root, env, sign, keys, now = owner
+    pin, _ = _enroll(root, keys)
+    assert root.current().source_platform_id == "primary-library"
+    other_host, other_identity, other_state = None, None, None
+    with pytest.raises((ValueError, OwnerLibraryTrustDenied, PermissionError)):
+        OwnerLibraryTrustStore(
+            state, platform_id="other-platform",
+        )
+    assert root.publisher_current(pin.public_key_sha256, 9999) is False
