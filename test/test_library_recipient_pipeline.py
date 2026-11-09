@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import pytest
+from datetime import timedelta
 
 from sofia.platform.ops.library_chunk_receiver import (
     ChunkedArtifactReceiver, ChunkTransferRejected, PinnedChunkTransfer,
@@ -207,3 +208,25 @@ def test_signed_index_wrapper_rejects_package_signer_mismatch(
                "verify_independent_publisher": independent_verifier,
                "now": signed_args["now"], "current_time": lambda: signed_args["now"]},
         )
+
+
+
+def test_expired_signed_index_denied_at_runtime_before_fetch(
+    signed_offer_fixture, environment,
+):
+    _env, _sign, signed_args = signed_offer_fixture
+    original_args, calls, _raw = environment
+    with pytest.raises(ChunkTransferRejected, match="publisher"):
+        acquire_from_independently_signed_index(
+            **{**original_args,
+               "transfer": signed_args["transfer"],
+               "raw_signed_index": signed_args["raw_signed_index"],
+               "expected_artifact_id": signed_args["expected_artifact_id"],
+               "trusted_publisher_public_key": signed_args["trusted_publisher_public_key"],
+               "expected_publisher_key_sha256": signed_args["expected_publisher_key_sha256"],
+               "expected_catalog_generation": signed_args["expected_catalog_generation"],
+               "publisher_key_current": lambda _: True,
+               "now": signed_args["now"],
+               "current_time": lambda: signed_args["now"] + timedelta(minutes=3)},
+        )
+    assert calls == []
