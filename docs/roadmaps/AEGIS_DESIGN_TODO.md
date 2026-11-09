@@ -69,6 +69,8 @@ Design: native cross-platform management window, optionally reachable from tray,
 
 **Status:** CAPTURED. **Target release:** TBD; do not block the independent Platform service.
 
+**Model selection research (2026-11-09):** [AG-D030 AI Model Landscape](AG_D030_AI_MODEL_LANDSCAPE_2026-11-09.md) provides candidate role assignments for general, coding, mature creative text, photoreal and anime image generation, and the owner's 12GB GPU constraints. Research only; no model installation or replacement of the authorized Artifact Library.
+
 Design: Platform/provider-owned model inventory per inference host, local and approved remote Ollama endpoints, model identity/digest/license/size/status, owner-approved download/update/removal, load/unload/keep-alive, resource/VRAM/CPU/RAM budgets and capability/benchmark evidence. Explicit **per-Core model role assignments** (primary/secondary/etc.) must never redefine or replace a Core's identity, memory or permissions. Never silently download, switch providers, migrate a model or claim remote host trust.
 
 Existing partial foundations to reuse: Python Settings Models tab, Ollama inventory/adapter, ModelLifecycleManager, Platform model/compute orchestration. These are **not** a standalone Rust-native Model Manager and do not certify live Fleet inference.
@@ -391,6 +393,16 @@ Design: dedicated test environment dashboard for Platform-only clean installs, s
 **Research result / later evaluation TODO:** Pi is a genuine separate agent harness, not an inference engine. Prefer a version-pinned, isolated, optional `agent.pi` subprocess over embedding a second cognitive Core or rewriting inference kernels. Pi+Ollama is a disposable baseline; Pi+llama.cpp with approved GGUF imports is the preferred candidate for native inference. Pi 1.x uses `@earendil-works` packages; do not copy stale `@mariozechner` examples without checking pinned-version compatibility. Pi does not provide a sufficient built-in OS security boundary: whole-process sandboxing, direct RPC tool denials, STOP/generation fencing, exact settlement semantics, versioned contracts, evidence-based benchmarks, licenses and disabled/uninstall health must all be independently tested under PI-01..PI-20.
 
 **Release fence:** This item is *not* an addition to Platform 1.0 issue #201, the AG-D028 Artifact Library gate, any live-test acceptance matrix, or current coding assignments. Promotion requires a separate owner scope/priority decision.
+
+### AG-D030 | AI model landscape and role candidate research (2026-11-09)
+
+**Status:** RESEARCHED / OWNER-REQUESTED TODO / NOT SCHEDULED. **Research:** [AG-D030 AI Model Landscape](AG_D030_AI_MODEL_LANDSCAPE_2026-11-09.md).
+
+Covers the owner-requested top general model, top local model, top coding model, top local coder, adult/mature text overall/local, and eight image-model categories (nude/non-nude × photorealistic/anime × overall/local). Includes 12GB RTX 3080 Ti fit/caveats, current frontier benchmarks, publisher model cards, explicit uncertainties in adult rankings, artifact trust/licensing/privacy, and ten proposed ML-01..ML-10 acceptance tasks.
+
+**Result (research, not deployment):** shortlist Gemini 4 Carbon / Claude Opus 5.5 / GPT-6 Astra for frontier; Qwen3.5 9B and Gemma 4 12B for home general; Opus 5.5 and Qwen2.5-Coder 14B for coding; DeepSeek V4.1 Flash 1017 Uncensored and Huihui Qwen3.5 9B for adult text; GPT Image 2.6 Sunburst, FLUX 3 Image Klein INT8, NovelAI V5, NoobAI/Animagine, CyberRealistic Pony/Lustify and WAI-NSFW Illustrious for distinct image roles. No one model is universally best, and image/adult community picks are not independent numerical winners.
+
+**Release fence:** This is not a new #201 acceptance row, AG-D028 release blocker, implementation assignment, license approval, adult artifact download, or production model/provider cutover. AG-D005 Model Manager and the existing Artifact Library remain authoritative. Any experiments use approved disposable hosts.
 
 ## Questions to decide before promoting UX concepts
 
