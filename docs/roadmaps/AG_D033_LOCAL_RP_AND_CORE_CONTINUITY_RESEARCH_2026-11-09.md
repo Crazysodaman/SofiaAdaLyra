@@ -142,3 +142,9 @@
 6. **RP-C06, real A/B and lifecycle**: With separate owner authorization, run identical 30–50 turn adult-appropriate fictional scripts on the actual 12GB Venus GPU (existing Huihui vs approved Rocinante), with restart/recall, private/shared leakage denials, explicit refusals vs false refusals, voice optionality, model cold/warm unload and gaming-first pressure. Release readiness remains gated on **verified** installed-host evidence.
 
 **Decision:** AG-D033 is principally an **integration/behavior verification and small-delta enhancement** effort, **not** a greenfield Sofía adult Core design. It remains CAPTURED / NOT SCHEDULED, and does not change Platform 1.0 or Core 1.0 GO gates.
+
+## 8. AG-D030 owner-specific 3+1 model selection crosswalk (2026-11-09)
+
+The owner requested **3 primary candidates plus 1 alternative per local category**. The canonical nine-category 3+1 inventory is in [AG-D030 § Owner-specific 3+1 shortlist](AG_D030_AI_MODEL_LANDSCAPE_2026-11-09.md). **For roleplay on Venus:** #1 Rocinante-X 12B Q4, #2 existing Huihui-Qwen3.5 9B abliterated, #3 Stheno 3.2 8B Q4, alternate Magnum v4 12B Q4. Anubis Mini remains a *researched but not prioritized* candidate in §1, not part of the owner’s requested four-model shortlist.
+
+**Delta-only Core work remains**: reuse romance preferences, emotional journal, relationships, private/consent audience guard, owner-only reviewed memory/autobiography, represented interaction and existing `CognitiveRoute.OPEN`. Extend/verify *in-conversation* initiative and scene recall instead of a second adult Sofía or second authority. **No Core coding, test execution, installed-host inference or model changes were authorized/completed by this table update.** This is a new ranking of candidates, not results from actual 12GB GPU benchmarks.
