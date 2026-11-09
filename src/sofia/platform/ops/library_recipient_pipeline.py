@@ -12,7 +12,7 @@ returned offset and the same signed transfer and enrolled certificate pin.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import ssl
 from typing import Callable
@@ -23,7 +23,9 @@ from sofia.platform.ops.library_chunk_receiver import (
 from sofia.platform.ops.library_tls_chunk_transport import MAX_CHUNK
 from sofia.platform.ops.library_tls_resumable_fetch import fetch_resumable_chunks
 from sofia.platform.ops.library_verified_handoff import admit_signed_transferred_asset
-from sofia.platform.ops.library_signed_selection import verify_selected_signed_transfer
+from sofia.platform.ops.library_signed_selection import (
+    verify_selected_signed_transfer, verify_renewed_recipient_offer,
+)
 from sofia.platform.ops.platform_install import OfflineArtifactCache, PlatformArtifact
 
 
@@ -134,6 +136,7 @@ def acquire_from_independently_signed_index(
     max_chunks: int = 128,
     now: datetime | None = None,
     current_time: Callable[[], datetime] | None = None,
+    read_current_signed_index: Callable[[], bytes] | None = None,
 ) -> dict[str, object]:
     """Verify publisher-signed selection and run bounded B1 acquisition.
 
@@ -144,6 +147,8 @@ def acquire_from_independently_signed_index(
     moment = datetime.now(timezone.utc) if now is None else now
     if current_time is not None and not callable(current_time):
         raise ChunkTransferRejected("canonical service clock required")
+    if read_current_signed_index is not None and not callable(read_current_signed_index):
+        raise ChunkTransferRejected("installed signed catalog renewal supplier required")
     offer = verify_selected_signed_transfer(
         raw_signed_index=raw_signed_index, transfer=transfer,
         expected_artifact_id=expected_artifact_id,
@@ -155,23 +160,57 @@ def acquire_from_independently_signed_index(
     if not offer.still_matches():
         raise ChunkTransferRejected("independently signed catalog changed after review")
 
+    # A large transfer may span multiple short-lived signed catalog pages.
+    # Keep a single immutable transfer pin, reauthenticate refreshed publisher
+    # index ONLY as its freshness nears expiry. Never accept newly selected
+    # items, changed signatures/receipts, a different recipient or generation.
+    active_offer = offer
+    active_raw = raw_signed_index
+
+    def _clock() -> datetime:
+        checked = (datetime.now(timezone.utc) if current_time is None
+                   else current_time())
+        if not isinstance(checked, datetime) or checked.utcoffset() is None:
+            raise ChunkTransferRejected("aware canonical recipient clock required")
+        return checked.astimezone(timezone.utc)
+
     def current_publisher(t: PinnedChunkTransfer) -> bool:
-        # A valid signature cannot keep an expired publisher index alive.
-        # The real service clock is re-observed before every chunk and before
-        # cache publication, not frozen at the initial selection time.
-        checked_at = (datetime.now(timezone.utc) if current_time is None
-                      else current_time())
-        if not isinstance(checked_at, datetime) or checked_at.utcoffset() is None:
+        nonlocal active_offer, active_raw
+        try:
+            checked_at = _clock()
+            if (t != transfer or publisher_key_current(expected_publisher_key_sha256) is not True
+                    or publisher_current(t) is not True
+                    or not offer.still_matches() or not active_offer.still_matches()):
+                return False
+            fresh_until = datetime.fromisoformat(
+                active_offer.index.catalog["catalog_fresh_until"].replace("Z", "+00:00")
+            ).astimezone(timezone.utc)
+            if (read_current_signed_index is not None
+                    and checked_at + timedelta(seconds=30)
+                    >= min(active_offer.index.expires_at, fresh_until)):
+                new_raw = read_current_signed_index()
+                if type(new_raw) is not bytes:
+                    return False
+                if new_raw != active_raw:
+                    newer = verify_renewed_recipient_offer(
+                        original=offer,
+                        renewed_signed_index=new_raw,
+                        trusted_publisher_public_key=trusted_publisher_public_key,
+                        expected_publisher_key_sha256=expected_publisher_key_sha256,
+                        expected_catalog_generation=expected_catalog_generation,
+                        now=checked_at, publisher_key_current=publisher_key_current,
+                    )
+                    active_offer, active_raw = newer, new_raw
+                    fresh_until = datetime.fromisoformat(
+                        newer.index.catalog["catalog_fresh_until"].replace("Z", "+00:00")
+                    ).astimezone(timezone.utc)
+            return (checked_at < active_offer.index.expires_at
+                    and checked_at < fresh_until
+                    and offer.still_matches()
+                    and active_offer.still_matches())
+        except (ValueError, TypeError, PermissionError, RuntimeError, OSError):
+            # A bad renewal does not become a "best effort" unsigned transfer.
             return False
-        observed = checked_at.astimezone(timezone.utc)
-        fresh_until = datetime.fromisoformat(
-            offer.index.catalog["catalog_fresh_until"].replace("Z", "+00:00")
-        ).astimezone(timezone.utc)
-        return (observed < offer.index.expires_at
-                and observed < fresh_until
-                and publisher_key_current(expected_publisher_key_sha256) is True
-                and publisher_current(t) is True
-                and offer.still_matches())
 
     def verified_package(t: PinnedChunkTransfer, received: Path) -> PlatformArtifact:
         if not offer.still_matches() or current_publisher(t) is not True:
@@ -201,6 +240,6 @@ def acquire_from_independently_signed_index(
     return {
         **result,
         "selected_artifact_id": offer.artifact_id,
-        "signed_index_sha256": offer.index.signed_index_sha256,
-        "publisher_key_sha256": offer.index.publisher_key_sha256,
+        "signed_index_sha256": active_offer.index.signed_index_sha256,
+        "publisher_key_sha256": active_offer.index.publisher_key_sha256,
     }
