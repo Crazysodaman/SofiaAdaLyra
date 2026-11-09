@@ -14,7 +14,7 @@ import sqlite3
 import stat
 import tempfile
 from pathlib import Path
-from threading import Event, RLock, Thread
+from threading import Event, Lock, RLock, Thread
 import sys
 from uuid import uuid4
 
@@ -126,6 +126,9 @@ class PlatformServiceSession:
         # One owner-approved private signed Library Hub per current RUN
         # service. Explicitly opened children are closed BEFORE lease release.
         self._hosted_library_hubs = []
+        # Recipient's quarantine is single-writer even across repeated
+        # foreground resumptions. A second simultaneous acquire is refused.
+        self._recipient_transfer_lock = Lock()
         try:
             self.leases = LocalRunLeaseStore(state_path, lease_key='platform-service')
             self.stop = OperatorStopStore(state_path)
@@ -295,6 +298,36 @@ class PlatformServiceSession:
             )
             self._hosted_library_hubs = [instance]
             return instance
+
+    def acquire_owner_approved_library_asset(
+        self, *, approval_id: str, start_offset: int = 0,
+        chunk_bytes: int = 1024 * 1024, max_chunks: int = 128,
+        **installed_trusted_configuration,
+    ) -> dict[str, object]:
+        """One foreground D028 recipient acquisition on this RUN service.
+
+        No GUI/IPC effect route is exposed until D028-00 is frozen. The
+        installed B1/Fleet composition must pass independently provisioned
+        publisher key, enrolled TLS connector, exact signed index, real cache,
+        quarantine and independent package verifier. The current SAFE owner
+        grants are always read from this service's original canonical state.
+        """
+        from sofia.platform.run.library_recipient_service import HostedLibraryRecipient
+        if not self._recipient_transfer_lock.acquire(blocking=False):
+            raise PermissionError("another installed recipient transfer is active")
+        try:
+            status = self.status()
+            if status.get("operator_stop") is not False:
+                raise PermissionError("operator STOP prevents recipient acquisition")
+            receiver = HostedLibraryRecipient(
+                service=self, **installed_trusted_configuration,
+            )
+            return receiver.acquire(
+                approval_id=approval_id, start_offset=start_offset,
+                chunk_bytes=chunk_bytes, max_chunks=max_chunks,
+            )
+        finally:
+            self._recipient_transfer_lock.release()
 
     def close(self):
         try:
