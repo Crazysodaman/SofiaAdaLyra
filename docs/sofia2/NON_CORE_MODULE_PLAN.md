@@ -64,6 +64,7 @@ Own structured logs, trace IDs, sanitized diagnostics, source/task evidence proj
 **Acceptance:** actual rendered frame/asset receipt before claiming a visual change; layered rigs verified; production UI renders independently of model text.
 
 ### RM-VOICE: Speech (initial release candidate, not automatic release blocker)
+**Detailed free/local expansion research (AG-D032, 2026-11-09):** [Free Local Voice Research and Design](../roadmaps/AG_D032_FREE_LOCAL_VOICE_RESEARCH_AND_DESIGN_2026-11-09.md). Owner requires no paid APIs/subscriptions or mandatory cloud for full PTT → local STT → Core → local TTS operation. Candidate Moonshine / Whisper / Silero / Pocket TTS / Kokoro / Qwen3-TTS provider upgrades preserve existing Voice protocols and consent/receipt authority. **Research only**; voice host certification and implementation not completed, no new Platform 1.0 blocker.
 **Purpose:** natural, intelligible speech and optional listening using explicit consent.
 **Capabilities:** configurable TTS/STT, latency/quality diagnostics, speaking-state and interruption receipts, mic capture gate.
 **Integration:** approved TTS/STT engines as replaceable adapters, coupled to conversation turn IDs.
