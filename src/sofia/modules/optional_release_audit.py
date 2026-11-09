@@ -13,6 +13,8 @@ from pathlib import Path
 import re
 from typing import Mapping
 
+from .catalog_consolidation import catalog_consolidation_review
+
 # Reviewed design inventory, from docs/sofia2/MODULE_OWNERSHIP_MATRIX.md.
 # This excludes companion releases, two adapters and the attached interaction submodule.
 EXPECTED_OPTIONAL_IDS = frozenset('''
@@ -220,5 +222,7 @@ def audit_optional_source_tree(root: Path, *, remote_observations: Mapping[str, 
             'full_repository_CI_and_host_integration_evidence',
         ],
         'cross_module_issues': list(issues),
+        # Pure migration advice, NEVER a signed module alias or GO proof.
+        'consolidation_review': catalog_consolidation_review(EXPECTED_OPTIONAL_IDS),
         'candidates': [item.to_dict() for item in values],
     }
