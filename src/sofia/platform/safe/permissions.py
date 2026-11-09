@@ -385,6 +385,10 @@ _NEVER_SELF_AUTHORIZED = frozenset({
     "permissions.revoke",
     "permissions.classify",
     "privacy.authority.change",
+    # Aegis is single-owner. Publisher roots are chosen by an authenticated
+    # owner, never automatically adopted from a Hub or downloaded manifest.
+    "platform.library.owner_trust.enroll",
+    "platform.library.owner_trust.revoke",
     "fleet.trust-policy.change",
     "fleet.decommission",
     "ops.restore.receipt.revoke",
