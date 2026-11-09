@@ -166,3 +166,75 @@ def test_owner_cli_cannot_select_a_foreign_platform_identity(tmp_path, capsys):
     identity, current, state = provision(tmp_path)
     assert _call(state, "different-installed-platform", "status") == 2
     assert "refused" in capsys.readouterr().err
+
+
+
+def test_attended_owner_secret_can_enroll_then_revoke_exact_library_root(
+    tmp_path, capsys, monkeypatch,
+):
+    """An existing 256-bit Windows owner secret proves exact one-use actions.
+
+    Windows SID is test-injected; real production requires the kernel-verified
+    Venus owner SID and no remote/Linux prompt fallback.
+    """
+    import getpass
+    import sys
+    from sofia.platform.safe import owner_secret
+
+    identity, current, state = provision(tmp_path)
+    platform_id = current.identity.canonical_uuid
+    doc, sign, keys = make_signed_catalog_fixture()
+    key_path = tmp_path / "selected-public-ed25519.bin"
+    key_path.write_bytes(keys["trusted_publisher_public_key"])
+    key_path.chmod(0o600)
+    secret = "ab" * 32
+    monkeypatch.setattr(
+        owner_secret, "require_venus_interactive_windows",
+        lambda *, require_terminal=False: "S-1-5-21-SYNTHETIC-OWNER",
+    )
+    owner_secret.OwnerSecretStore(state).enroll(secret)
+
+    class AttendedTerminal:
+        def isatty(self):
+            return True
+
+    monkeypatch.setattr(sys, "stdin", AttendedTerminal())
+    monkeypatch.setattr(getpass, "getpass", lambda *_args, **_kw: secret)
+    args = [
+        "--source-platform-id", "primary-library",
+        "--public-key", str(key_path), "--catalog-generation", "3",
+        "--minimum-revision", "7",
+    ]
+    assert _call(state, platform_id, "enroll-attended", *args) == 0
+    output = capsys.readouterr().out
+    assert "OWNER_PUBLISHER_ENROLLED" in output
+    assert secret not in output
+
+    assert _call(state, platform_id, "revoke-attended") == 0
+    output = capsys.readouterr().out
+    assert "OWNER_PUBLISHER_REVOKED" in output
+    assert secret not in output
+
+
+def test_attended_library_mode_does_not_fallback_to_unverified_linux_owner(
+    tmp_path, capsys, monkeypatch,
+):
+    from sofia.platform.safe import owner_secret
+    identity, current, state = provision(tmp_path)
+    platform_id = current.identity.canonical_uuid
+    doc, sign, keys = make_signed_catalog_fixture()
+    key_path = tmp_path / "public-key.bin"
+    key_path.write_bytes(keys["trusted_publisher_public_key"])
+    monkeypatch.setattr(
+        owner_secret, "require_venus_interactive_windows",
+        lambda *, require_terminal=False: (_ for _ in ()).throw(
+            PermissionError("owner Windows SID not independently verified")
+        ),
+    )
+    assert _call(
+        state, platform_id, "enroll-attended",
+        "--source-platform-id", "primary-library",
+        "--public-key", str(key_path),
+        "--catalog-generation", "3", "--minimum-revision", "7",
+    ) == 2
+    assert "refused" in capsys.readouterr().err
