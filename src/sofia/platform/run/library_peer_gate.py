@@ -19,6 +19,7 @@ import ssl
 
 from sofia.platform.safe.permissions import PermissionStore
 from sofia.platform.safe.operator_stop import OperatorStopStore
+from sofia.platform.ops.library_chunk_receiver import PinnedChunkTransfer
 
 CAPABILITY = "library.peer.fetch"
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -142,3 +143,57 @@ def admit_owner_enrolled_library_chunk(
     if not checked() or not checked():
         raise PermissionError("current authenticated Library peer grant unavailable")
     return fingerprint
+
+
+
+class CurrentRecipientPeerAuthorizer:
+    """Connect the existing canonical SAFE/STOP peer gate to TLS chunk reads.
+
+    Only the installed recipient Platform service may construct this object
+    with its real PermissionStore, OperatorStopStore, live status reader and
+    independently signed selected transfer. It does not mint an owner grant.
+    Unknown 'library.peer.fetch' capability remains denied until explicitly
+    enrolled by the existing authority. All checks are repeated per chunk.
+    """
+
+    def __init__(
+        self, *, permissions: PermissionStore, stop: OperatorStopStore,
+        current_status: Callable[[], Mapping[str, object]],
+        signed_transfer: PinnedChunkTransfer,
+    ) -> None:
+        if not isinstance(permissions, PermissionStore):
+            raise TypeError("canonical PermissionStore required")
+        if not isinstance(stop, OperatorStopStore):
+            raise TypeError("canonical OperatorStopStore required")
+        if not callable(current_status):
+            raise TypeError("fresh service status reader required")
+        if not isinstance(signed_transfer, PinnedChunkTransfer):
+            raise TypeError("independently selected signed transfer required")
+        self.permissions = permissions
+        self.stop = stop
+        self.current_status = current_status
+        self.transfer = signed_transfer
+
+    def __call__(
+        self, tls_socket: ssl.SSLSocket, fingerprint: str,
+        transfer: PinnedChunkTransfer, offset: int, length: int,
+    ) -> bool:
+        if transfer != self.transfer:
+            raise PermissionError("current SAFE grant bound to different signed transfer")
+        if type(fingerprint) is not str or _SHA256.fullmatch(fingerprint) is None:
+            raise PermissionError("verified enrolled peer certificate fingerprint required")
+        accepted = admit_owner_enrolled_library_chunk(
+            tls_socket=tls_socket, permissions=self.permissions,
+            stop=self.stop, current_status=self.current_status,
+            source_platform_id=transfer.source_platform_id,
+            target_platform_id=transfer.target_platform_id,
+            expected_generation=transfer.generation,
+            catalog_revision=transfer.catalog_revision,
+            manifest_digest=transfer.manifest_sha256,
+            content_digest=transfer.content_sha256,
+            artifact_kind=transfer.artifact_kind,
+            offset=offset, length=length, total_bytes=transfer.size_bytes,
+        )
+        if accepted != fingerprint:
+            raise PermissionError("TLS fingerprint disagrees with current SAFE enrollment")
+        return True
