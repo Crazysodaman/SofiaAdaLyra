@@ -7,8 +7,9 @@ already bound to a separately trusted exact digest/size are accepted here.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from hashlib import sha256
+import json
 import os
 from pathlib import Path
 import re
@@ -100,6 +101,87 @@ class ChunkedArtifactReceiver:
         for directory in (self.root, self.incoming, self.completed):
             self._check_dir(directory)
 
+    @staticmethod
+    def _scope_bytes(transfer: PinnedChunkTransfer) -> bytes:
+        """Complete durable grant context, not merely matching content SHA."""
+        data = json.dumps(
+            {"schema": "aegis.library.incoming-scope.v1",
+             "transfer": asdict(transfer)},
+            sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+            allow_nan=False,
+        ).encode("utf-8")
+        if not 1 <= len(data) <= 2048:
+            raise ChunkTransferRejected("bounded durable transfer provenance required")
+        return data
+
+    def _scope_path(self, transfer: PinnedChunkTransfer) -> Path:
+        return self.incoming / (transfer.content_sha256 + ".scope")
+
+    def _check_scope(
+        self, transfer: PinnedChunkTransfer, *,
+        part_size: int, allow_create: bool,
+    ) -> None:
+        """Bind exact source, target, signed manifest, revision, epoch and size.
+
+        Single writer is owned by the canonical Platform. A metadata file
+        cannot retroactively endorse pre-existing orphan partial bytes.
+        """
+        expected = self._scope_bytes(transfer)
+        path = self._scope_path(transfer)
+        assert_no_redirected_components(path, include_leaf=True)
+        try:
+            before = path.lstat()
+        except FileNotFoundError:
+            if part_size != 0:
+                raise ChunkTransferRejected("unbound legacy partial transfer refused")
+            if not allow_create:
+                return
+            flags = (os.O_WRONLY | os.O_CREAT | os.O_EXCL
+                     | getattr(os, "O_NOFOLLOW", 0)
+                     | getattr(os, "O_CLOEXEC", 0))
+            fd = os.open(path, flags, 0o600)
+            try:
+                with os.fdopen(fd, "wb", closefd=False) as writer:
+                    writer.write(expected)
+                    writer.flush()
+                    os.fsync(fd)
+            except BaseException:
+                path.unlink(missing_ok=True)
+                raise
+            finally:
+                os.close(fd)
+            before = path.lstat()
+        if (not stat.S_ISREG(before.st_mode)
+                or before.st_nlink != 1
+                or stat.S_IMODE(before.st_mode) & 0o077
+                or before.st_size != len(expected)):
+            raise ChunkTransferRejected("unsafe or changed durable transfer scope")
+        fd = os.open(
+            path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+            | getattr(os, "O_CLOEXEC", 0),
+        )
+        try:
+            opened = os.fstat(fd)
+            if ((before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+                    != (opened.st_dev, opened.st_ino,
+                        opened.st_size, opened.st_mtime_ns)):
+                raise ChunkTransferRejected("durable scope replaced during open")
+            with os.fdopen(fd, "rb", closefd=False) as reader:
+                recorded = reader.read(len(expected) + 1)
+            after = os.fstat(fd)
+            final = path.lstat()
+            expected_identity = (
+                before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns,
+            )
+            if (recorded != expected
+                    or (after.st_dev, after.st_ino,
+                        after.st_size, after.st_mtime_ns) != expected_identity
+                    or (final.st_dev, final.st_ino,
+                        final.st_size, final.st_mtime_ns) != expected_identity):
+                raise ChunkTransferRejected("durable transfer scope differs from signed pinned plan")
+        finally:
+            os.close(fd)
+
     def _used_bytes(self) -> int:
         """Count all incoming and completed bytes, not each transfer separately."""
         total = 0
@@ -109,7 +191,21 @@ class ChunkedArtifactReceiver:
                 count += 1
                 if count > 10000:
                     raise ChunkTransferRejected("too many store objects to review")
-                total += self._existing_file(path)
+                recorded = self._existing_file(path)
+                # Metadata is small and independently bounded; quota counts
+                # transferred bytes, not private plan serialization overhead.
+                if directory == self.incoming and path.name.endswith(".scope"):
+                    if (_DIGEST.fullmatch(path.name.removesuffix(".scope")) is None
+                            or recorded == 0 or recorded > 2048):
+                        raise ChunkTransferRejected("unexpected transfer scope metadata")
+                    continue
+                if directory == self.incoming:
+                    if (not path.name.endswith(".part")
+                            or _DIGEST.fullmatch(path.name.removesuffix(".part")) is None):
+                        raise ChunkTransferRejected("unexpected quarantine object")
+                elif _DIGEST.fullmatch(path.name) is None:
+                    raise ChunkTransferRejected("unexpected completed CAS object")
+                total += recorded
                 if total > self.max_bytes:
                     raise ChunkTransferRejected("aggregate verified and incoming quota exceeded")
         return total
@@ -141,6 +237,7 @@ class ChunkedArtifactReceiver:
         self._check_roots()
         path = self.incoming / (transfer.content_sha256 + ".part")
         size = self._existing_file(path)
+        self._check_scope(transfer, part_size=size, allow_create=False)
         if size > transfer.size_bytes:
             raise ChunkTransferRejected("incoming data exceeds pinned content size")
         return size
@@ -166,6 +263,7 @@ class ChunkedArtifactReceiver:
         current = self._existing_file(path)
         if current != offset:
             raise ChunkTransferRejected("non-sequential or stale resume cursor")
+        self._check_scope(transfer, part_size=current, allow_create=True)
         flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
         fd = os.open(path, flags, 0o600)
         try:
@@ -182,6 +280,9 @@ class ChunkedArtifactReceiver:
             after = os.fstat(fd)
             if after.st_size != current + len(chunk):
                 raise ChunkTransferRejected("transfer size changed during write")
+            self._check_scope(
+                transfer, part_size=current + len(chunk), allow_create=False,
+            )
             try:
                 self._approve(transfer, authorize)  # STOP/revoke during write denies chunk
             except Exception:
@@ -198,6 +299,9 @@ class ChunkedArtifactReceiver:
         part = self.incoming / (transfer.content_sha256 + ".part")
         if self._existing_file(part) != transfer.size_bytes:
             raise ChunkTransferRejected("incomplete transfer cannot enter immutable store")
+        self._check_scope(
+            transfer, part_size=transfer.size_bytes, allow_create=False,
+        )
         digest = sha256()
         flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
         fd = os.open(part, flags)
@@ -238,6 +342,11 @@ class ChunkedArtifactReceiver:
             part.unlink()
             if self._existing_file(destination) != transfer.size_bytes:
                 raise ChunkTransferRejected("immutable object link count did not settle")
+            self._check_scope(
+                transfer, part_size=0, allow_create=False,
+            )
+            # Remove only matching immutable scope after same-inode publication.
+            self._scope_path(transfer).unlink()
             # VERIFIED BYTES only. No publisher signature or install receipt.
             return destination
         except Exception:
