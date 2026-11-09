@@ -275,6 +275,9 @@ _REVERSIBLE = frozenset({
     # D028 local OS-authenticated read-only Library catalog; separate owner
     # enrollment from platform.status and from effectful peer/cache grants.
     "platform.library.read",
+    # Explicit owner-approved private LAN Hub serving, scoped to one current
+    # source Platform generation, address and exact listening port.
+    "platform.library.hub.serve",
     # D028 read-only, public-digest peer chunks. Only exact owner-approved
     # short-lived standing scope binds both Platform IDs, TLS cert, signer,
     # revision and bounded bytes. No automatic grant or install authority.
@@ -738,6 +741,30 @@ class PermissionStore:
             _validate_library_peer_standing_scope(
                 normalized_scope, moment=moment, expires_at=expires_at,
             )
+        if capability == "platform.library.hub.serve":
+            # Validate BEFORE consuming any authenticated owner approval.
+            # An owner may authorize one private LAN endpoint and one
+            # source generation only, never a wildcard Hub service.
+            from sofia.platform.ops.library_tls_hub import _private_bind
+            if (set(normalized_scope) != {
+                    "platform_id", "source_generation", "bind_host",
+                    "bind_port", "protocol",
+                } or type(normalized_scope["platform_id"]) is not str
+                or _LIBRARY_PEER_ID.fullmatch(normalized_scope["platform_id"]) is None
+                or type(normalized_scope["source_generation"]) is not int
+                or not 1 <= normalized_scope["source_generation"] <= 2**53 - 1
+                or type(normalized_scope["bind_port"]) is not int
+                or not 1 <= normalized_scope["bind_port"] <= 65535
+                or normalized_scope["protocol"] != "aegis.library.tls.chunk.v1"
+                or expires_at is None or expires_at <= moment
+                or expires_at - moment > timedelta(hours=1)):
+                raise PermissionError("Hub serve grant requires exact private endpoint, generation and expiry")
+            try:
+                _, canonical_host = _private_bind(normalized_scope["bind_host"])
+            except (ValueError, TypeError, PermissionError) as exc:
+                raise PermissionError("Hub serve grant requires numeric private address") from exc
+            if canonical_host != normalized_scope["bind_host"]:
+                raise PermissionError("Hub grant requires canonical numeric bind address")
         if capability == "platform.library.read":
             if (set(normalized_scope) != {"platform_id", "peer", "operation"}
                     or any(type(normalized_scope.get(field)) is not str
