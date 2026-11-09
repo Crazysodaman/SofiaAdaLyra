@@ -175,7 +175,10 @@ def test_library_request_version_scope_and_time_fail_closed(field, value):
     original = sample("request-catalog")
     original[field] = value
     with pytest.raises((ValueError, PermissionError)):
-        UntrustedLibraryRequest.parse(_wire(original), now=UTC_NOW)
+        UntrustedLibraryRequest.parse(
+            _wire(original), now=UTC_NOW,
+            expected_target_platform_id=sample("request-catalog")["target_platform_id"],
+        )
 
 
 @pytest.mark.parametrize("field,value", [
@@ -303,3 +306,18 @@ def test_d028_peer_requires_actual_mutually_authenticated_tls_not_a_fake_identit
         )
     with pytest.raises(ValueError, match="declared bounds"):
         admit_owner_enrolled_library_chunk(**{**arguments, "length": 10 * 1024 * 1024})
+
+
+
+def test_syntax_only_library_request_cannot_assert_its_own_target_authority():
+    request = sample("request-catalog")
+    request["target_platform_id"] = "platform:other"
+    # A standalone DTO cannot know the installed service audience.
+    preview = UntrustedLibraryRequest.parse(_wire(request), now=UTC_NOW)
+    assert preview.target_platform_id == "platform:other"
+    # Native broker must supply independently pinned installation identity.
+    with pytest.raises(PermissionError, match="another installed Platform"):
+        UntrustedLibraryRequest.parse(
+            _wire(request), now=UTC_NOW,
+            expected_target_platform_id=sample("request-catalog")["target_platform_id"],
+        )
