@@ -8,6 +8,14 @@
 
 Within existing CORE-01,07,11,13,15,16,20,33,35–40 and batches B00–B08, certify protected persistent Sofía identity, single writer, authenticated owner/audience boundaries, private/adult memory separation, legal free personal/noncommercial model eligibility, no mandatory paid API/cloud account, and real Venus↔Artemis Core Link continuity. The existing RM-VOICE/AG-D032 **zero-subscription local voice path must be proven if included and claimed supported in the Core 1.0 companion**; unsupported or untested voice must be reported honestly, not silently promoted to a mandatory Core identity/Platform 1.0 dependency. Real connected-host voice/avatar and migration evidence are part of separately authorized G8 (#129), never satisfied by design text. Preserve current **39 active/1 deferred** logical Core requirements and do not renumber IDs or change historical verdicts.
 
+## Binding Core 1.0 owner-only GO / shakedown requirement (2026-11-09)
+
+**Owner directive:** Sofía Core 1.0 is being built for the **sole owner of this private personal Aegis ecosystem**, not for resale, public customer onboarding or a multi-tenant hosted product. This is a required **GO acceptance refinement of CORE-01–40 and B00–B08**, not CORE-41 or a new Core module. [Owner-only GO acceptance overlay](../development/AEGIS_OWNER_ONLY_GO_LIVE_ACCEPTANCE_2026-11-09.md) defines POC-C1–POC-C5 and G8 evidence; [owner-only scope/licensing](../roadmaps/AEGIS_OWNER_ONLY_SCOPE_AND_LICENSE_POLICY.md) governs model selection.
+
+**Core acceptance:** One persistent Sofía identity and canonical memory writer; authenticated owner separate from guest, model output and audio speaker; private memories, voice references and mature creative content audience-scoped and never automatically exported; provider/model/backend swapping does not mint a new identity; free legally permitted personal/noncommercial model choices remain eligible without requiring commercial resale rights. **No mandatory paid provider, subscription, multi-customer UI or cloud dependency** for a working approved local baseline once its chosen components have been installed. Optional voice, image, adult model bundles, Pi, Goose and the future model roster stay independently governed and **are not made Core 1.0 release blockers by this clarification**.
+
+**G8:** Require actual verified owner-facing conversation and retention through restart/Core Link on the owner-profile installed-host fixture, no public/private cross-audience leak, no hidden network/external transcript, and no privilege grant merely because the owner personally controls all hosts. **GO remains NO** absent the existing integration evidence and actual G8 acceptance; no automatic protected-state move or live activation.
+
 ## Core feature inventory
 
 | ID | Feature | Brief responsibility |
