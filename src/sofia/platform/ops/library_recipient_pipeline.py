@@ -23,6 +23,7 @@ from sofia.platform.ops.library_chunk_receiver import (
 from sofia.platform.ops.library_tls_chunk_transport import MAX_CHUNK
 from sofia.platform.ops.library_tls_resumable_fetch import fetch_resumable_chunks
 from sofia.platform.ops.library_verified_handoff import admit_signed_transferred_asset
+from sofia.platform.ops.library_signed_selection import verify_selected_signed_transfer
 from sofia.platform.ops.platform_install import OfflineArtifactCache, PlatformArtifact
 
 
@@ -82,7 +83,7 @@ def acquire_selected_signed_platform_asset(
             "received_bytes": received,
             "verified_bytes": 0,
             "total_bytes": transfer.size_bytes,
-            "cache_state": "CACHED_UNVERIFIED",
+            "cache_state": "RECEIVING",
             "install_executed": False,
             "installed": None,
             "active": None,
@@ -105,4 +106,86 @@ def acquire_selected_signed_platform_asset(
         "total_bytes": transfer.size_bytes,
         "source_platform_id": transfer.source_platform_id,
         "catalog_revision": transfer.catalog_revision,
+    }
+
+
+
+def acquire_from_independently_signed_index(
+    *,
+    raw_signed_index: bytes,
+    expected_artifact_id: str,
+    trusted_publisher_public_key: bytes,
+    expected_publisher_key_sha256: str,
+    expected_catalog_generation: int,
+    publisher_key_current: Callable[[str], bool],
+    transfer: PinnedChunkTransfer,
+    receiver: ChunkedArtifactReceiver,
+    cache: OfflineArtifactCache,
+    open_enrolled_tls: Callable[[], ssl.SSLSocket],
+    expected_peer_certificate_sha256: str,
+    authorize_peer: Callable,
+    publisher_current: Callable[[PinnedChunkTransfer], bool],
+    current_host_admit: Callable[[PinnedChunkTransfer], bool],
+    verify_independent_publisher: Callable[[PinnedChunkTransfer, Path], PlatformArtifact],
+    canonical_safe_state: Path | str,
+    approval_id: str,
+    start_offset: int = 0,
+    chunk_bytes: int = MAX_CHUNK,
+    max_chunks: int = 128,
+    now: datetime | None = None,
+) -> dict[str, object]:
+    """Verify publisher-signed selection and run bounded B1 acquisition.
+
+    This deliberately requires separate publisher index trust, transport
+    enrollment, package-signature verification and owner SAFE/STOP authority.
+    None of those can be replaced by a Hub-provided boolean or UI selection.
+    """
+    from datetime import timezone
+    moment = datetime.now(timezone.utc) if now is None else now
+    offer = verify_selected_signed_transfer(
+        raw_signed_index=raw_signed_index, transfer=transfer,
+        expected_artifact_id=expected_artifact_id,
+        trusted_publisher_public_key=trusted_publisher_public_key,
+        expected_publisher_key_sha256=expected_publisher_key_sha256,
+        expected_catalog_generation=expected_catalog_generation,
+        now=moment, publisher_key_current=publisher_key_current,
+    )
+    if not offer.still_matches():
+        raise ChunkTransferRejected("independently signed catalog changed after review")
+
+    def current_publisher(t: PinnedChunkTransfer) -> bool:
+        return (publisher_key_current(expected_publisher_key_sha256) is True
+                and publisher_current(t) is True
+                and offer.still_matches())
+
+    def verified_package(t: PinnedChunkTransfer, received: Path) -> PlatformArtifact:
+        if not offer.still_matches() or current_publisher(t) is not True:
+            raise ChunkTransferRejected("publisher revoked before package verification")
+        artifact = verify_independent_publisher(t, received)
+        if (not isinstance(artifact, PlatformArtifact)
+                or artifact.sha256 != offer.transfer.content_sha256
+                or artifact.signer_key_id != offer.signer_key_id
+                or artifact.version != offer.version
+                or artifact.artifact_id != offer.artifact_id):
+            raise ChunkTransferRejected("independently signed B1 package differs from catalog")
+        return artifact
+
+    result = acquire_selected_signed_platform_asset(
+        transfer=offer.transfer,
+        receiver=receiver, cache=cache, open_enrolled_tls=open_enrolled_tls,
+        expected_peer_certificate_sha256=expected_peer_certificate_sha256,
+        authorize_peer=authorize_peer, publisher_current=current_publisher,
+        current_host_admit=current_host_admit,
+        verify_independent_publisher=verified_package,
+        canonical_safe_state=canonical_safe_state, approval_id=approval_id,
+        start_offset=start_offset, chunk_bytes=chunk_bytes,
+        max_chunks=max_chunks, now=moment,
+    )
+    if current_publisher(transfer) is not True:
+        raise ChunkTransferRejected("publisher revoked before signed acquisition receipt")
+    return {
+        **result,
+        "selected_artifact_id": offer.artifact_id,
+        "signed_index_sha256": offer.index.signed_index_sha256,
+        "publisher_key_sha256": offer.index.publisher_key_sha256,
     }
