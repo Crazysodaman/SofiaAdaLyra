@@ -71,6 +71,27 @@ def systemd_management_operator_group(
         return gid
     raise PermissionError("unexpected systemd runtime directory mode")
 
+def select_enrolled_windows_pipe_sid(
+    management_sid: str | None, library_sid: str | None,
+) -> str | None:
+    """One current individual operator across both separately SAFE-granted reads.
+
+    This is an ACL selector only. Real Windows requires SID account-type
+    verification at native pipe construction and current SAFE on every read.
+    A group, service SID, or conflicting individually enrolled user is not a
+    shortcut to local Platform authority.
+    """
+    import re
+    candidates = {sid for sid in (management_sid, library_sid) if sid is not None}
+    if len(candidates) > 1:
+        raise PermissionError("distinct owner-enrolled Windows operators require explicit installer policy")
+    for sid in candidates:
+        if (type(sid) is not str
+                or re.fullmatch(r"S-1-5-21-(?:[0-9]+-){3}[0-9]+", sid) is None):
+            raise PermissionError("unsupported Windows individual operator SID")
+    return next(iter(candidates), None)
+
+
 class PlatformServiceSession:
     """Hold existing local RUN authority plus an OS lifetime lock, never a Core lease."""
 
@@ -166,10 +187,9 @@ class PlatformServiceSession:
             # one and the same individually verified Windows user SID.
             management_sid = current_peer.enrolled_windows_operator_sid()
             library_sid = library_peer.enrolled_windows_operator_sid()
-            selected_sids = {sid for sid in (management_sid, library_sid) if sid is not None}
-            if len(selected_sids) > 1:
-                raise PermissionError("distinct owner-enrolled Windows operators require explicit installer policy")
-            selected_sid = next(iter(selected_sids), None)
+            selected_sid = select_enrolled_windows_pipe_sid(
+                management_sid, library_sid,
+            )
             name = "AegisPlatform-" + platform_id.replace("-", "") + "-" + str(self.lease.epoch)
             listener = ManagementWindowsPipeListener(
                 name, dispatch=read_mux.dispatch,
