@@ -23,6 +23,7 @@ from sofia.platform.ops.library_chunk_receiver import (
 )
 from sofia.platform.ops.library_signed_selection import (
     SelectedSignedLibraryTransfer, verify_selected_signed_transfer,
+    verify_renewed_recipient_offer,
 )
 from sofia.platform.ops.library_tls_hub import ApprovedLibraryHub
 from sofia.platform.ops.platform_install import OfflineArtifactCache, PlatformArtifact
@@ -51,32 +52,21 @@ def verify_renewed_serving_offer(
     distribution receipt, target, source, exact revision and catalog generation
     must remain identical; a new signature or issued_at is allowed.
     """
-    if not isinstance(original, SelectedSignedLibraryTransfer):
-        raise ChunkTransferRejected("original independently signed Hub offer required")
-    if not original.still_matches():
-        raise ChunkTransferRejected("original signed catalog changed after selection")
-    renewed = verify_selected_signed_transfer(
-        raw_signed_index=raw_signed_index,
-        transfer=original.transfer, expected_artifact_id=original.artifact_id,
+    # Delegate the signed identity, epoch and strictly advancing freshness
+    # contract to the same verifier used by the recipient; never weaken the
+    # Hub's replay policy by inventing a second almost-matching version.
+    renewed = verify_renewed_recipient_offer(
+        original=original, renewed_signed_index=raw_signed_index,
         trusted_publisher_public_key=trusted_publisher_public_key,
         expected_publisher_key_sha256=expected_publisher_key_sha256,
         expected_catalog_generation=expected_catalog_generation,
         now=now, publisher_key_current=publisher_key_current,
     )
-    if (renewed.artifact_id != original.artifact_id
-            or renewed.version != original.version
-            or renewed.signer_key_id != original.signer_key_id
-            or renewed.signature_receipt_ref != original.signature_receipt_ref
-            or renewed.transfer != original.transfer
-            or renewed.index.catalog["source"]["kind"] != "OWNER_SELECTED_HUB"
-            or renewed.index.source_platform_id != original.index.source_platform_id
-            or renewed.index.target_platform_id != original.index.target_platform_id
-            or renewed.index.catalog_revision != original.index.catalog_revision
-            or renewed.index.catalog_generation != original.index.catalog_generation
-            or not renewed.still_matches()):
-        raise ChunkTransferRejected("renewal changed immutable signed Hub offer or publisher identity")
+    if renewed.index.catalog["source"]["kind"] != "OWNER_SELECTED_HUB":
+        raise ChunkTransferRejected(
+            "renewal changed immutable signed Hub offer or publisher identity"
+        )
     return renewed
-
 
 class HostedLibraryHub:
     """Bound, explicitly opened service child, never a second supervisor."""
@@ -165,6 +155,7 @@ class HostedLibraryHub:
         self._trusted_public_key = trusted_publisher_public_key
         self._expected_catalog_generation = expected_catalog_generation
         self._read_index = read_current_signed_index
+        self._latest_offer = self._offer
 
         permissions = PermissionStore(service.storage.path)
         self._hub_grant = CurrentLibraryHubAuthority(
@@ -190,16 +181,23 @@ class HostedLibraryHub:
                 # exact publisher root, target, source, manifest/content SHA,
                 # signer/receipt identity, epoch, revocation and license.
                 # If no trusted renewal source is installed, expiry denies.
-                candidate = (self._offer if self._read_index is None else
-                             verify_renewed_serving_offer(
-                                 original=self._offer,
-                                 raw_signed_index=self._read_index(),
-                                 trusted_publisher_public_key=self._trusted_public_key,
-                                 expected_publisher_key_sha256=self._expected_key_sha,
-                                 expected_catalog_generation=self._expected_catalog_generation,
-                                 now=at,
-                                 publisher_key_current=self._publisher_key_current,
-                             ))
+                candidate = self._latest_offer
+                if self._read_index is not None:
+                    current_bytes = self._read_index()
+                    if type(current_bytes) is not bytes:
+                        return False
+                    from hashlib import sha256
+                    if sha256(current_bytes).hexdigest() != candidate.index.signed_index_sha256:
+                        candidate = verify_renewed_serving_offer(
+                            original=candidate,
+                            raw_signed_index=current_bytes,
+                            trusted_publisher_public_key=self._trusted_public_key,
+                            expected_publisher_key_sha256=self._expected_key_sha,
+                            expected_catalog_generation=self._expected_catalog_generation,
+                            now=at,
+                            publisher_key_current=self._publisher_key_current,
+                        )
+                        self._latest_offer = candidate
                 index = candidate.index
                 fresh_until = datetime.fromisoformat(
                     index.catalog["catalog_fresh_until"].replace("Z", "+00:00")
