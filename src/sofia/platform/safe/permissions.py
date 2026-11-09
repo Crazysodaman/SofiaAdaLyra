@@ -312,6 +312,9 @@ _PROTECTED = frozenset({
     "platform.rollback_release",
     # D028 irreversible one-blob CAS deletion; no standing or self-grant.
     "platform.library.gc_one_verified_blob",
+    # Offline seed, enrolled peer CAS and retention are distinct protected effects.
+    "platform.library.cache_admit_verified_seed",
+    "platform.library.cache_admit_enrolled_peer",
     "ops.restore.replace_protected",
     "home_assistant.service.call",
     "github.pull_request.merge",
