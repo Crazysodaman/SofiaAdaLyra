@@ -102,6 +102,9 @@ class PlatformServiceSession:
         self._management_thread = None
         self._management_home = None
         self._management_endpoint = None
+        # One owner-approved private signed Library Hub per current RUN
+        # service. Explicitly opened children are closed BEFORE lease release.
+        self._hosted_library_hubs = []
         try:
             self.leases = LocalRunLeaseStore(state_path, lease_key='platform-service')
             self.stop = OperatorStopStore(state_path)
@@ -255,8 +258,32 @@ class PlatformServiceSession:
                 management_listening=True,
                 management_endpoint=self._management_endpoint)
 
+    def open_owner_approved_library_hub(self, **installed_trusted_configuration):
+        """Explicit private Hub start, never automatic from service readiness.
+
+        The caller must be the trusted B1/Fleet service composition, not
+        untrusted native JSON or a Core. The HostedLibraryHub constructor
+        checks current SAFE, STOP, signed publisher and enrolled recipient.
+        """
+        from sofia.platform.run.library_host_service import HostedLibraryHub
+        with self._status_lock:
+            self.status()
+            if any(not child._closed for child in self._hosted_library_hubs):
+                raise PermissionError("single owner-selected Library Hub already serving")
+            instance = HostedLibraryHub(
+                service=self, **installed_trusted_configuration,
+            )
+            self._hosted_library_hubs = [instance]
+            return instance
+
     def close(self):
         try:
+            with self._status_lock:
+                try:
+                    for hub in reversed(self._hosted_library_hubs):
+                        hub.close()
+                finally:
+                    self._hosted_library_hubs.clear()
             self._stop_management()
         finally:
             with self._status_lock:
