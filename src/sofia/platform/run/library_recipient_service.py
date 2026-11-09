@@ -119,12 +119,15 @@ class HostedLibraryRecipient:
         if not isinstance(source, InstalledSignedCatalogSource):
             raise ChunkTransferRejected("independently installed publisher catalog required")
         if (source.expected_source_platform_id != self.transfer.source_platform_id
-                or source.minimum_catalog_revision > self.transfer.catalog_revision
-                or not self.original_offer.still_matches()
-                if hasattr(self, "original_offer") else
-                source.expected_source_platform_id != self.transfer.source_platform_id
                 or source.minimum_catalog_revision > self.transfer.catalog_revision):
-            raise ChunkTransferRejected("installed publisher source, floor or offer changed")
+            raise ChunkTransferRejected("installed publisher source or rollback floor changed")
+        if hasattr(self, "original_offer"):
+            if (source.expected_publisher_key_sha256
+                    != self.original_offer.index.publisher_key_sha256
+                    or source.expected_catalog_generation
+                    != self.original_offer.index.catalog_generation
+                    or not self.original_offer.still_matches()):
+                raise ChunkTransferRejected("pinned publisher root, epoch or signed selection changed")
         return source
 
     def _current(self, transfer: PinnedChunkTransfer) -> bool:
