@@ -21,6 +21,10 @@ from uuid import uuid4
 from sofia.platform.config.roles import PlatformRole, PlatformRoleConfiguration
 from sofia.platform.run.lease import LocalRunLeaseStore
 from sofia.platform.run.management_read import ManagementReadDispatcher
+from sofia.platform.run.library_read_authority import CurrentLibraryReadPeerAuthority
+from sofia.platform.run.library_read_dispatch import (
+    LibraryReadDispatcher, LocalReadMultiplexer,
+)
 from sofia.platform.run.management_peer_authority import CurrentManagementPeerAuthority
 from sofia.platform.run.management_unix_listener import ManagementUnixListener
 from sofia.platform.run.management_windows_pipe import ManagementWindowsPipeListener
@@ -128,10 +132,25 @@ class PlatformServiceSession:
             ),
             enrolled_denial_responses=True,
         )
+        # Same verified local OS peer path, distinct owner enrollment.
+        # No independently configured publisher index exists in the stock
+        # installed profile yet. A catalog read therefore says UNAVAILABLE,
+        # never fabricates trust, catalog data or installed status.
+        library_peer = CurrentLibraryReadPeerAuthority(
+            permissions, platform_id=platform_id,
+        )
+        library_dispatcher = LibraryReadDispatcher(
+            current_status=self.status,
+            authorize_os_peer=library_peer,
+            installed_signed_catalog=lambda: None,
+        )
+        read_mux = LocalReadMultiplexer(
+            management=dispatcher, library=library_dispatcher,
+        )
         if os.name == "nt":
             name = "AegisPlatform-" + platform_id.replace("-", "") + "-" + str(self.lease.epoch)
             listener = ManagementWindowsPipeListener(
-                name, dispatch=dispatcher.dispatch,
+                name, dispatch=read_mux.dispatch,
                 enrolled_operator_sid=current_peer.enrolled_windows_operator_sid(),
             )
             self._management_endpoint = listener.name
@@ -153,7 +172,7 @@ class PlatformServiceSession:
                 # forced kill; old paths stay non-authoritative and offline.
                 socket_path = home / ("mgmt-" + str(self.lease.epoch) + ".sock")
                 listener = ManagementUnixListener(
-                    socket_path, dispatch=dispatcher.dispatch,
+                    socket_path, dispatch=read_mux.dispatch,
                     operator_group_gid=group_gid,
                 )
             else:
@@ -164,7 +183,7 @@ class PlatformServiceSession:
                 home.chmod(0o700)
                 self._management_home = home
                 listener = ManagementUnixListener(
-                    home / "management.sock", dispatch=dispatcher.dispatch,
+                    home / "management.sock", dispatch=read_mux.dispatch,
                 )
             self._management_endpoint = str(listener.path)
         else:
