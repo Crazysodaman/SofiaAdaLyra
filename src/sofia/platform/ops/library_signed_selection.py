@@ -128,3 +128,60 @@ def verify_selected_signed_transfer(
         version=row["version"], signer_key_id=row["signer_key_id"],
         signature_receipt_ref=row["signature_receipt_ref"],
     )
+
+
+
+def verify_renewed_recipient_offer(
+    *,
+    original: SelectedSignedLibraryTransfer,
+    renewed_signed_index: bytes,
+    trusted_publisher_public_key: bytes,
+    expected_publisher_key_sha256: str,
+    expected_catalog_generation: int,
+    now: datetime,
+    publisher_key_current: Callable[[str], bool],
+) -> SelectedSignedLibraryTransfer:
+    """Reauthenticate a refreshed catalog without permitting plan substitution.
+
+    The index envelope/signature, observation and expiry may advance, but
+    publisher root, recipient, source, signed manifest/content digests,
+    revision, signer, license, receipt, version and exact selected item must
+    remain unchanged. Any mutation/replay or revoked root fails closed.
+
+    This must be called by the installed service while current owner SAFE,
+    STOP and TLS enrollment remain independently enforced on EVERY chunk.
+    It does not extend a signed parent, peer grant or package signing key.
+    """
+    if (not isinstance(original, SelectedSignedLibraryTransfer)
+            or not original.still_matches()):
+        raise ChunkTransferRejected("original signed recipient selection changed")
+    if (type(renewed_signed_index) is not bytes
+            or not renewed_signed_index):
+        raise ChunkTransferRejected("independent signed renewal bytes required")
+    next_offer = verify_selected_signed_transfer(
+        raw_signed_index=renewed_signed_index,
+        transfer=original.transfer,
+        expected_artifact_id=original.artifact_id,
+        trusted_publisher_public_key=trusted_publisher_public_key,
+        expected_publisher_key_sha256=expected_publisher_key_sha256,
+        expected_catalog_generation=expected_catalog_generation,
+        now=now, publisher_key_current=publisher_key_current,
+    )
+    if (next_offer.transfer != original.transfer
+            or next_offer.artifact_id != original.artifact_id
+            or next_offer.version != original.version
+            or next_offer.signer_key_id != original.signer_key_id
+            or next_offer.signature_receipt_ref != original.signature_receipt_ref
+            or next_offer.index.publisher_key_sha256
+            != original.index.publisher_key_sha256
+            or next_offer.index.source_platform_id
+            != original.index.source_platform_id
+            or next_offer.index.target_platform_id
+            != original.index.target_platform_id
+            or next_offer.index.catalog_generation
+            != original.index.catalog_generation
+            or next_offer.index.catalog_revision
+            != original.index.catalog_revision
+            or not next_offer.still_matches()):
+        raise ChunkTransferRejected("renewal changed pinned recipient artifact identity")
+    return next_offer
