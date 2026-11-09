@@ -125,7 +125,13 @@ def main(argv: list[str] | None = None) -> int:
         )
         if args.action == "status":
             pin = store.current()
-            if pin is None:
+            audit_ok, _audit_reason = store.audit.verify()
+            stopped = store.stop.current().active
+            if audit_ok is not True:
+                state, last_revision = "OWNER_AUDIT_CORRUPT", None
+            elif stopped:
+                state, last_revision = "STOPPED", None
+            elif pin is None:
                 state, last_revision = "UNENROLLED", None
             elif not pin.active:
                 state, last_revision = "REVOKED", None
@@ -144,6 +150,8 @@ def main(argv: list[str] | None = None) -> int:
                 "platform_id": store.platform_id,
                 "owner_mode": "SINGLE_OWNER_PRIVATE",
                 "publisher_state": state,
+                "operator_stop": stopped,
+                "safe_audit_chain_verified": audit_ok is True,
                 "source_platform_id": None if pin is None else pin.source_platform_id,
                 "publisher_key_sha256": None if pin is None else pin.public_key_sha256,
                 "trust_generation": None if pin is None else pin.trust_generation,
@@ -155,6 +163,16 @@ def main(argv: list[str] | None = None) -> int:
         if args.action in {"prepare-enroll", "enroll", "enroll-attended"}:
             public = _read_bounded_file(args.public_key, max_bytes=32, exact=32)
             previous = store.current()
+            if previous is not None:
+                if previous.active:
+                    raise OwnerLibraryTrustDenied(
+                        "current owner root must be revoked before replacement"
+                    )
+                if (args.catalog_generation <= previous.catalog_generation
+                        or args.minimum_revision < previous.minimum_catalog_revision):
+                    raise OwnerLibraryTrustDenied(
+                        "owner key rotation must increase catalog epoch without floor downgrade"
+                    )
             generation = 0 if previous is None else previous.trust_generation
             params = enrollment_parameters(
                 state_path=store.path, platform_id=store.platform_id,
