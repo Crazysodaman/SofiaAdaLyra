@@ -200,3 +200,46 @@ def test_recipient_unsigned_or_expired_renewal_never_returns_success(
             read_current_signed_index=lambda: b"unsigned-garbage",
         )
     assert len(opened) == 1
+
+
+
+def test_three_signed_pages_advance_monotonically_without_replaying_older_offer():
+    """Last accepted signed page, not just original, is the renewal floor."""
+    env, sign, args = make_signed_offer_fixture()
+    initial = verify_selected_signed_transfer(**args)
+    start = args["now"]
+    page1 = deepcopy(env)
+    page1["issued_at"] = (start + timedelta(seconds=10)).isoformat()
+    page1["expires_at"] = (start + timedelta(minutes=2)).isoformat()
+    page1["catalog"]["catalog_fresh_until"] = (
+        start + timedelta(minutes=1)
+    ).isoformat()
+    page1["catalog"]["source"]["last_observed_at"] = (
+        start + timedelta(seconds=10)
+    ).isoformat()
+    raw1 = sign(page1)
+    page2 = deepcopy(page1)
+    page2["issued_at"] = (start + timedelta(seconds=30)).isoformat()
+    page2["expires_at"] = (start + timedelta(minutes=3)).isoformat()
+    page2["catalog"]["catalog_fresh_until"] = (
+        start + timedelta(minutes=2)
+    ).isoformat()
+    page2["catalog"]["source"]["last_observed_at"] = (
+        start + timedelta(seconds=30)
+    ).isoformat()
+    raw2 = sign(page2)
+    def verify(previous, raw, now):
+        return verify_renewed_recipient_offer(
+            original=previous, renewed_signed_index=raw,
+            trusted_publisher_public_key=args["trusted_publisher_public_key"],
+            expected_publisher_key_sha256=args["expected_publisher_key_sha256"],
+            expected_catalog_generation=args["expected_catalog_generation"],
+            publisher_key_current=lambda _: True, now=now,
+        )
+    first = verify(initial, raw1, start + timedelta(seconds=20))
+    second = verify(first, raw2, start + timedelta(seconds=40))
+    assert second.index.expires_at > first.index.expires_at
+    # The previously signed first renewal is still valid at +40 seconds,
+    # but it is not newer than the second accepted page.
+    with pytest.raises(ChunkTransferRejected, match="advance freshness"):
+        verify(second, raw1, start + timedelta(seconds=40))
