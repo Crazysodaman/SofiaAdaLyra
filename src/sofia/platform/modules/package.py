@@ -398,6 +398,22 @@ class SignedModuleManifest:
         return json.dumps(self.unsigned_document(), sort_keys=True,
             separators=(",", ":"), ensure_ascii=False).encode("utf-8")
 
+    def canonical_signed_bytes(self) -> bytes:
+        """Exact canonical publisher-signed manifest, including detached signature.
+
+        The SHA-256 of these bytes is a signed-payload identifier, never the
+        legacy unsigned policy identity or the archive content digest.
+        """
+        document = {**self.unsigned_document(), "signature_b64": self.signature_b64}
+        return json.dumps(
+            document, sort_keys=True, separators=(",", ":"),
+            ensure_ascii=False, allow_nan=False,
+        ).encode("utf-8")
+
+    def publisher_signed_manifest_digest(self) -> str:
+        """D028's complete signed manifest SHA, distinct from package identity."""
+        return sha256(self.canonical_signed_bytes()).hexdigest()
+
 
 @dataclass(frozen=True, slots=True)
 class VerifiedModulePackage:
