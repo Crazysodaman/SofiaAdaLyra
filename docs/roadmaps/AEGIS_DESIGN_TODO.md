@@ -3,6 +3,14 @@
 > Living owner-design backlog. Capture ideas here without automatically adding work to an active release.
 > Last initial review: 2026-11-06. This file records design intent, not implementation or acceptance evidence.
 
+## Project-wide owner-only scope (owner clarification: 2026-11-09)
+
+**Binding intent:** **Project Aegis is exclusively for the owner's personal use across their own computers, VMs, devices and explicitly enrolled Fleet Platforms.** It is not a commercial/public multi-customer product, model marketplace or hosted service. [Full scope and model/voice licensing interpretation](AEGIS_OWNER_ONLY_SCOPE_AND_LICENSE_POLICY.md).
+
+**Consequences for all existing and future TODOs (including AG-D005, AG-D028–AG-D032):** prioritize private/local capability, free and legally usable personal/noncommercial model options (including voice, images and mature creative content), actual personal hardware constraints and safe owner-controlled transfers. Do **not** assume every model requires commercial redistribution rights merely to qualify for personal local use. However, use, local reproduction, packaging and cross-node transfer may have distinct license conditions; inspect the exact model/weight/voice license. Retain SAFE/STOP, authentication, signed packages, owner approval, protected private state, verified installed-host readiness and separate Platform 1.0 acceptance. The voice subsystem retains its **no paid APIs/subscriptions** requirement.
+
+**No scope expansion:** This clarification is a project-wide product preference, not authorization to install or activate anything, or a change to current branch/release/work assignment priorities. Source repository visibility is independent of intended use.
+
 ## Operating rules
 
 - **Current implementation priority:** Aegis Platform 1.0, Core-free shakedown. Authoritative acceptance: [#201](https://github.com/Crazysodaman/SofiaAdaLyra/issues/201), parent [#120](https://github.com/Crazysodaman/SofiaAdaLyra/issues/120).
@@ -414,7 +422,7 @@ Sofía Core will move to a VM on Artemis while GPU/inference jobs use separately
 
 **Status:** OWNER-REQUESTED / RESEARCHED / DESIGN TODO / NOT SCHEDULED. **Detailed research and architecture:** [AG-D032 Free Local Voice Research and Design](AG_D032_FREE_LOCAL_VOICE_RESEARCH_AND_DESIGN_2026-11-09.md).
 
-**Owner constraint:** Voice capability must work end-to-end without paid APIs, subscriptions, recurring hosted charges or mandatory cloud access once approved free voice-model assets are installed. Prefer permissively licensed local code/weights; model, voice pack and dependency licenses must be reviewed independently. This is **not** a grant to download/activate recording, clone a person, share protected voices or redistribute non-commercial weights.
+**Owner constraint:** Voice capability must work end-to-end without paid APIs, subscriptions, recurring hosted charges or mandatory cloud access once approved free voice-model assets are installed. This is a private owner-only project: **legally permitted free personal/noncommercial voice checkpoints are eligible**, even if public or commercial redistribution is prohibited. Review each code, model weight, voice pack and dependency license separately before any personal install, reproduction, packaging or cross-node transfer. This is **not** a grant to download/activate recording, impersonate a person, share protected voices, or distribute restricted weights.
 
 **Design:** Extend existing \`src/sofia/modules/voice/\` and RM-VOICE: add free STT (Moonshine streaming, whisper.cpp, faster-whisper), VAD (Silero), expressive TTS (Qwen3-TTS 1.7B VoiceDesign with 0.6B Base, Pocket TTS, Kokoro) and very lightweight fallback (Piper), while preserving Windows SAPI + System.Speech compatibility, original Core voice identity, bounded emotion/prosody, PTT privacy default, streaming/interrupt receipts, avatar lip-sync and the one Platform SAFE/Fleet resource authority. Evaluate wake words only as separately consented and licensed optional functionality.
 
