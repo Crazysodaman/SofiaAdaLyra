@@ -206,3 +206,62 @@ Audio devices generally belong to user clients; do not force open-device calls f
 - RealtimeSTT orchestration reference: https://github.com/KoljaB/RealtimeSTT
 
 **Research conclusion:** a free, locally served, CPU-first voice stack is feasible in principle but NOT validated end to end here. First prototype should test **Moonshine streaming STT + Silero VAD + Pocket TTS or Kokoro**, retaining Windows legacy fallback; separately generate an original Sofía reference using **Qwen3-TTS VoiceDesign** and measure **Qwen3-TTS Base 0.6B** against CPU-first synthesis. Do not make any of it Platform 1.0 mandatory.
+
+## 12. Owner-specific expressive voice, speaker recognition and incoming tone/emotion (research addendum, 2026-11-09)
+
+**Owner question:** Can Sofía keep a distinctive custom voice with expressive emotion, recognize the owner's voice, and interpret the owner's vocal tone/emotion? **Research finding:** Yes, as three distinct local tasks. Outbound style is controllable but backend-dependent; speaker similarity is probabilistic, not authentication; incoming emotion and sarcasm are *uncertain cues*, not proof of mental state. **Status:** DESIGN TODO ONLY, no implementation, no enrolled microphone, no download, no production/live certification, no change to Platform #201 or Core 1.0 GO obligations. Remains free/offline and owner-only.
+
+### 12.1 Three separate capabilities; one canonical Sofía
+
+1. **Custom outbound voice / emotion:** Preserve the existing protected Sofía `voice_profile_id` and `VoiceProsodyMatrix`. Evaluate **Qwen3-TTS 1.7B VoiceDesign** to create an original stable reference timbre, then **Qwen3-TTS Base** cloning or a CPU-first compatible renderer for recurring speech. Compare expressive instruction delivery using **Qwen3-TTS 1.7B CustomVoice** (preset speaker timbres), **Fun-CosyVoice 3** (style/emotion instructions), and **Chatterbox** as an **archived/unmaintained A/B baseline only** (native laugh/chuckle tags / original model exaggeration). Style requests must negotiate backend support; do not claim every checkpoint supports whispering, sarcasm, pitch changes or breath-level control. The reusable voice *identity* is not the same as an emotion preset.
+2. **Incoming owner speaker recognition:** Propose an optional local `speaker.profile` scoped to the owner, built from multiple *consented* recordings across normal, quiet, excited, tired, headset and room-mic conditions. Candidate **SpeechBrain ECAPA-TDNN speaker embeddings**; optional **pyannote.audio community-1** speaker turn separation for multi-speaker recordings, after model-gating/license review (its community model may require a free Hugging Face token for initial acquisition, but runs offline after local caching). Comparison returns owner-similarity with threshold/unknown and calibrated error data, NOT an authoritative identity assertion. Never use an LLM's text guess or a matching voice to auto-approve permission, enrollment, secrets, SAFE actions or expensive/tool execution. Test recorded-speech playback, synthetic clone, TV, another person, compression and noisy microphones. The authenticated client/session remains the security principal.
+3. **Incoming vocal tone and emotion cues:** Candidate **SenseVoiceSmall** for STT+coarse emotion/audio events; **emotion2vec+ base** (about 90M parameters) for 9-class acoustic emotion *comparison*; optional SpeechBrain IEMOCAP recipe as a further benchmark. Treat these as estimates of **perceived vocal affect**, not mind reading, psychological diagnosis, or stable personality labels. Combine calibrated audio cues with transcript, explicit user statements, interaction history and acoustic context; prioritize explicit correction and an **uncertain/unknown** output. Sarcasm/teasing especially requires context and remains unreliable. A loud voice could be excitement, industrial noise or a distant microphone. Use the owner's voluntary corrections to improve thresholds; do not silently build a perpetual emotional profile.
+
+### 12.2 Proposed bounded data flow and trust model
+
+```text
+Opt-in audio capture at approved owner device (PTT default + visible indicator)
+  -> local AEC/noise control + VAD + segmented audio
+  -> STT: Moonshine/Whisper, with optional SenseVoice A/B
+  -> parallel, independent optional observations:
+        speaker similarity (SpeechBrain; known/unknown/uncertain)
+        perceived vocal-affect evidence (SenseVoice/emotion2vec; unknown allowed)
+        prosodic cues (rate, pitch variation, loudness vs calibrated room noise)
+  -> scoped VoicePerceptionEnvelope (never an auth credential)
+  -> existing Sofía INTERACT + cognition + consent and audience boundaries
+  -> reviewed text + existing Core emotion and expression plan
+  -> VoiceProsodyMatrix + supported TTS expressive controls
+  -> authenticated output client + true playback receipt and avatar timing
+```
+
+Suggested *optional*, versioned fields: `utterance_id`, `capture_device`, `timestamp`, `audio_generation`, `consent_revision`, `principal_from_authenticated_session`, `speaker_similarity`, `speaker_decision: owner_like|other|unknown`, `affect_candidates`, `affect_uncertainty`, `acoustic_conditions`, `transcript_evidence_ref`, `model_digest`, `observed_latency_ms` and `ttl`. Never label this payload as login/authenticated_owner. Maintain strict distinction between **user vocal affect inference** and **Sofía's own modeled emotional state** in existing EMOTION/REL; infer neither from the other.
+
+Response policy: When uncertainty is high, ask or respond normally rather than state "you're angry" or "I know you are sad." Voluntary owner controls: `ignore_my_tone`, `tone_detection_off`, `speaker_recognition_off`, `show_voice_inferences`, `correct_tone`; no tone-based escalation of authority. Keep PTT, manual voice style override and text fallback. No emotion inference from ambient third-party speech without separately approved consent.
+
+### 12.3 Privacy, hardware and fallback
+
+- Protected speaker embeddings and reference speech are biometric-like owner assets; encrypt and scope them using the existing Aegis identity/SAFE/Asset Library protections. Default to minimal embeddings rather than retaining all recordings; raw buffers expire promptly. Any training/adaptation or retained vocal history is **separate, explicit opt-in**, deletable without deleting Sofía's Core identity. No cloud upload, paid API or hidden telemetry.
+- **Artemis VM:** routes canonical consented conversational events and protected metadata; do not pretend the headless Core VM has a local microphone. **Venus 3080 Ti / 12GB:** reserve GPU for active main LLM unless measured room exists. Benchmark lightweight STT/SER/speaker models on client CPU or an approved secondary node first; load heavy voice design/TTS only for owner-approved A/B sessions, no permanent duplicate VRAM residency by default. A separate Fleet node may provide speech workers only after normal enrollment, encryption, generation fencing and resource arbiter approval.
+- Loss of mic/device, uncertain speaker, noisy environment, mismatch between model versions, revoked consent, STT/SER failure, STOP or disconnected remote worker => gracefully fall back to transcript-only/neutral-TTS/text with truthful receipts. Speaker recognition never becomes the only way to speak to Sofía.
+
+### 12.4 Additional future independent tests (ALL NOT TESTED)
+
+- **VOICE-23:** Consented, original Sofía timbre selected and held consistently after reboot, model swap, emotion shift and text fallback; no human voice cloned without rights.
+- **VOICE-24:** Style-locked A/B of natural, amused, concerned, angry-but-controlled, playful, gentle and whispered delivery where *actually supported*. No hallucinated style receipt.
+- **VOICE-25:** Real owner vs guests vs TV vs prerecorded owner vs synthetic owner clone, across mic, noise and channel changes; report false accept/reject and **unknown** outcomes rather than invent accuracy.
+- **VOICE-26:** Existing owner SAFE/STOP/auth remains authoritative even after high speaker-similarity result; no voice-only privileged actions.
+- **VOICE-27:** SenseVoiceSmall vs emotion2vec+ base qualitative affect labels, confusion matrix and calibration on consented owner samples; never diagnose mental state or assert an unobserved emotion.
+- **VOICE-28:** Sarcasm / teasing / non-sarcastic prosody, loud industrial background, tired/quiet speech and accent/dialect shifts tested with transcript + context; unknown and user correction respected.
+- **VOICE-29:** Explicit no-tonal-inference mode, no speaker-enrollment mode, clear capture indicator, no retained raw audio by default; protect, export/revoke/delete optional owner reference assets through existing authority.
+- **VOICE-30:** CPU vs GPU/secondary Fleet memory, latency, power, interference with running LLM/game, start/cold load and graceful degrade measured on real approved hosts.
+- **VOICE-31:** End-to-end context aware voice reactions + expression/ears/tail timing share one Core-reviewed emotional projection; distinct evidence for audio playback and avatar frames.
+- **VOICE-32:** All code/checkpoint/voice-pack licenses reviewed and pinned; only free, offline-permitted assets used in baseline; no production claim without real-host audio and independent acceptance.
+
+**Official sources for this addendum (reviewed 2026-11-09):**
+- Qwen3-TTS VoiceDesign/CustomVoice/Base and reusable voice clone prompt: https://github.com/QwenLM/Qwen3-TTS
+- SenseVoiceSmall ASR + acoustic emotion/audio events: https://github.com/QwenAudio/SenseVoice
+- emotion2vec+ base/large 9-class inference and model terms: https://github.com/ddlBoJack/emotion2vec ; https://huggingface.co/emotion2vec/emotion2vec_plus_base
+- SpeechBrain ECAPA speaker verification and embeddings: https://huggingface.co/speechbrain/spkrec-ecapa-voxceleb
+- pyannote offline diarization community pipeline and initial gated download: https://github.com/pyannote/pyannote-audio
+- SpeechBrain emotional-audio benchmark caveats: https://github.com/speechbrain/speechbrain/tree/develop/recipes/IEMOCAP
+- 2026 empirical warning about unreliable prosodic shortcuts for sarcasm: https://aclanthology.org/2026.findings-emnlp.1464/
