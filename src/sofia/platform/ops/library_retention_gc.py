@@ -202,8 +202,8 @@ class GovernedLibraryRetention:
                     if digest.hexdigest() != content_sha256:
                         raise LibraryRetentionDenied("CAS object mutated during GC verification")
                     after = os.fstat(fd)
-                    if (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
-                        != (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns):
+                    if ((after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
+                            != (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)):
                         raise LibraryRetentionDenied("CAS object changed during GC read")
                 finally:
                     os.close(fd)
