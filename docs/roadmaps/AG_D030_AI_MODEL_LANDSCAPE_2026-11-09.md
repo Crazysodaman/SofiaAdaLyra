@@ -192,3 +192,8 @@ Extend AG-D005 without forking AG-D028:
 - Local FLUX3 in Diffusers: https://huggingface.co/blog/flux-3
 
 **Quality control:** All adult/style winners are editorial candidates, not numerical ratings; no owner-host inference executed. All publisher policy/license assertions remain pending exact artifact review before installation or distribution.
+
+## AG-D033 follow-on: Grok-style local private roleplay, initiative and continuity (2026-11-09)
+
+Owner specified three deficiencies with hosted Grok RP: unwillingness to continue certain permitted adult fictional scenes, weak conversational initiative, and personality/relationship-memory drift. The dedicated [AG-D033 local RP and continuity design](AG_D033_LOCAL_RP_AND_CORE_CONTINUITY_RESEARCH_2026-11-09.md) is the authoritative follow-on to this landscape: first A/B Rocinante-X 12B Q4 vs existing Huihui-Qwen3.5 9B, then Anubis Mini 8B / Stheno 3.2 8B / Magnum v4 12B subject to exact license checks. **Never confuse a lower-refusal model with higher RP quality;** actual improvement also needs Core-owned initiative, scene recaps, privacy-scoped episodic retrieval and one persistent Sofía identity. Its RP-01..RP-16 test plan remains research TODO, not go-live evidence or a new Platform #201 blocker. No models were installed or measured on Venus by this research.
+
