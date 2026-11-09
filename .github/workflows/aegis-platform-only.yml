@@ -64,6 +64,9 @@ jobs:
         shell: bash
         run: |
           expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          # Container checkout may be owned by the host runner UID.
+          # Trust only this exact runner workspace, never a wildcard.
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           actual="$(git rev-parse HEAD)"
           if [[ "$actual" != "$expected" ]]; then
             echo "Wrong checked-out source SHA" >&2
