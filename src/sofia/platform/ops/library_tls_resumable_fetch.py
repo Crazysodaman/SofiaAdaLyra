@@ -11,6 +11,7 @@ process restart resumes from the durable single-writer receiver offset.
 """
 from __future__ import annotations
 
+import re
 import ssl
 from typing import Callable
 
@@ -26,6 +27,7 @@ def fetch_resumable_chunks(
     *, transfer: PinnedChunkTransfer,
     receiver: ChunkedArtifactReceiver,
     open_enrolled_tls: Callable[[], ssl.SSLSocket],
+    expected_peer_certificate_sha256: str,
     authorize_peer: Callable,
     publisher_current: Callable[[PinnedChunkTransfer], bool],
     chunk_bytes: int = MAX_CHUNK,
@@ -39,6 +41,8 @@ def fetch_resumable_chunks(
     The service supplies an explicit expected durable offset; receiver state
     must match it before any bytes are requested. For a resumed call, use the
     last successful offset or a separately authorized local cursor read.
+    A separate, owner-enrolled certificate digest is required across restart
+    boundaries; TLS CA validation alone does not prove the expected Platform.
     No network URL, disk path, grant, or publisher identity is accepted from
     the remote peer. A new certificate within one call is refused, even if its
     CA is otherwise trusted; the service must deliberately restart the plan.
@@ -47,6 +51,9 @@ def fetch_resumable_chunks(
         raise ChunkTransferRejected("independently pinned transfer required")
     if not isinstance(receiver, ChunkedArtifactReceiver):
         raise ChunkTransferRejected("canonical quarantine receiver required")
+    if (type(expected_peer_certificate_sha256) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", expected_peer_certificate_sha256) is None):
+        raise ChunkTransferRejected("exact enrolled TLS peer certificate pin required")
     if not callable(open_enrolled_tls) or not callable(authorize_peer) or not callable(publisher_current):
         raise ChunkTransferRejected("service-owned TLS and authority required")
     if type(chunk_bytes) is not int or not 1 <= chunk_bytes <= MAX_CHUNK:
@@ -73,6 +80,8 @@ def fetch_resumable_chunks(
             raise ChunkTransferRejected("enrolled TLS socket factory required")
         with session:
             fingerprint = _tls_peer_fingerprint(session)
+            if fingerprint != expected_peer_certificate_sha256:
+                raise ChunkTransferRejected("TLS peer differs from owner-enrolled certificate")
             if first_fingerprint is not None and fingerprint != first_fingerprint:
                 raise ChunkTransferRejected("enrolled peer certificate changed mid-transfer")
             first_fingerprint = fingerprint
