@@ -410,6 +410,18 @@ Covers the owner-requested top general model, top local model, top coding model,
 
 Sofía Core will move to a VM on Artemis while GPU/inference jobs use separately enrolled Venus and a third computer through Aegis Platforms. Design resource-aware placement, no unnecessary resident model copies, real VRAM+KV+buffer headroom, CPU/RAM/VM budgets, gaming-first preemption policy on Venus, measured cold/warm modes and end-to-end performance/power telemetry. The third node's hardware is unspecified, so no capacity is assumed. No migration, code implementation, test-host operations, #201 release-gate expansion or Fleet enrollment is authorized by this TODO.
 
+### AG-D032 | Free local voice module expansion and Sofía voice identity (2026-11-09)
+
+**Status:** OWNER-REQUESTED / RESEARCHED / DESIGN TODO / NOT SCHEDULED. **Detailed research and architecture:** [AG-D032 Free Local Voice Research and Design](AG_D032_FREE_LOCAL_VOICE_RESEARCH_AND_DESIGN_2026-11-09.md).
+
+**Owner constraint:** Voice capability must work end-to-end without paid APIs, subscriptions, recurring hosted charges or mandatory cloud access once approved free voice-model assets are installed. Prefer permissively licensed local code/weights; model, voice pack and dependency licenses must be reviewed independently. This is **not** a grant to download/activate recording, clone a person, share protected voices or redistribute non-commercial weights.
+
+**Design:** Extend existing \`src/sofia/modules/voice/\` and RM-VOICE: add free STT (Moonshine streaming, whisper.cpp, faster-whisper), VAD (Silero), expressive TTS (Qwen3-TTS 1.7B VoiceDesign with 0.6B Base, Pocket TTS, Kokoro) and very lightweight fallback (Piper), while preserving Windows SAPI + System.Speech compatibility, original Core voice identity, bounded emotion/prosody, PTT privacy default, streaming/interrupt receipts, avatar lip-sync and the one Platform SAFE/Fleet resource authority. Evaluate wake words only as separately consented and licensed optional functionality.
+
+**Important findings:** Chatterbox's upstream research project is archived/unmaintained since Aug 2026; Piper's maintained code is GPL-3.0 and voices have individual licenses; openWakeWord pretrained models are CC BY-NC-SA even though its code is Apache-2.0; Supertonic 3 weights use OpenRAIL-M, not MIT; Qwen3-TTS and Kokoro publish Apache-2.0 weights; Moonshine streaming STT models MIT. CPU-first voice operation reduces competition with Venus's 12GB GPU (AG-D031); *actual* device latency and voice fidelity require future hardware testing.
+
+**Future verification:** VOICE-01..VOICE-22 in the research spec cover licenses/no fees; no-mic/empty-Core boot; device capture consent; STT and audio output; expressive voice; STOP/barge-in/revocation; UI statuses; Avatar receipts; Windows/Debian/VM/Fleet privacy; voice model resource and fallback tests. Existing Voice code is partly wired but host-unverified. **No code, install, model download, live mic enablement, owner-host operation, Platform 1.0 #201 gate change or AG-D028 scope change is authorized by this TODO.**
+
 ## Questions to decide before promoting UX concepts
 
 - Should Core Manager, Model Manager and Module Manager be three windows, or tabs inside one Aegis Control Center?
