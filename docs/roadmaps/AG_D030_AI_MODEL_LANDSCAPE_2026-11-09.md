@@ -20,6 +20,34 @@ It is impossible to certify literally *all* models; this is a cross-family short
 **Memory rule:** download or GGUF file size is NOT peak VRAM; include KV cache, context, framework, CUDA kernels, VAE/text encoder and running Windows display applications. For multi-model roles unload before loading another unless measured residency allows concurrency.
 **Privacy and human rights:** Sensitive/adult tasks default to locally isolated stores and opt-in handling. Only consensual adults, no sexual content of minors or nonconsensual sexual deepfakes. Original character assets and private prompts must not auto-replicate to Hub/peers. No code or model may grant its own permissions.
 
+## 0.1 Owner-only license and cost re-review (binding 2026-11-09)
+
+[The owner-only 1.0 go-live crosswalk](../development/AEGIS_OWNER_ONLY_1_0_GO_LIVE_ACCEPTANCE_2026-11-09.md) makes private, noncommercial use a release constraint. **Re-ranking by legal eligibility must not be confused with re-ranking by measured quality.** The original general/coding winners are retained as **reference benchmarks**, not mandatory cloud dependencies or promises of free use. Candidate selection for an **actual local Aegis default** must establish hardware fit, exact model/voice weight license, no paid API, privacy and acceptable performance.
+
+| Candidate / category | Personal/noncommercial access re-review | 12GB local fit | Revised Aegis role / status |
+| --- | --- | --- | --- |
+| Gemini 4 Carbon / Claude Opus 5.5 / GPT-6 Astra (frontier or hosted coding) | Hosted/API account and pricing/terms differ, **not** assumed free | **NO**, closed hosted models | Overall external reference only; none required for Platform/Core 1.0 |
+| Qwen3.5 9B / Gemma 4 12B | Local models already in owner inventory; verify exact license + quant digest | **Likely**, context-dependent | Existing preferred general A/B stays; actual 12GB acceptance pending |
+| Qwen2.5-Coder 14B / Qwen3.5 9B | Local self-hosted use with checkpoint-specific provenance | **Likely**, 14B tighter | Existing local coding A/B unchanged until same-hardware benchmarks |
+| Huihui-Qwen3.5 9B / Stheno 8B / Rocinante 12B / Magnum variant | **Conditional:** exact fine-tune license + base model terms may differ; no blanket trust from "uncensored" | **8B/9B likely**, 12B quant/context dependent | Adult/private creative comparison eligible for owner-only deployment; local privacy and audience scopes required |
+| **FLUX.1 [dev] / Kontext [dev]** | BFL **Non-Commercial License v2.0** explicitly covers specified personal/hobby use, but carries **non-production, use and distribution restrictions**; read exact variant terms before allowing planned use | **Unverified** on 12GB full pipeline; often needs aggressive offload | **Newly eligible conditional** photoreal/editing comparison, NOT automatic replacement for FLUX3/SDXL |
+| **FLUX.2 [klein] 9B** | BFL states FLUX Non-Commercial license; noncommercial use may qualify, full terms must be checked | **Not assumed resident** on 12GB; 4B Apache variant is easier | Optional quality-versus-resource experiment; not default for Venus |
+| **FLUX.2 [klein] 4B** | BFL lists **Apache-2.0**, local use and commercial rights subject to terms | **More practical** for consumer GPU | Retain as reliable compact comparison for FLUX3 |
+| **FLUX 3 Image Klein INT8** | BFL publisher model card says **FLUX Kommunity License**, permitting certain noncommercial uses, **with specific production/other limits**; not Apache and not an unrestricted redistributable weight | **Publisher claims 8GB+ minimum**, end-to-end memory unmeasured | Still first local photoreal candidate; add legally permitted target-use/voice/Hub transfer review |
+| Pony V6 / NoobAI / Animagine / Illustrious / WAI checkpoints | **Version/author-specific licenses**, sometimes noncommercial, attribution or platform-level restrictions; inspect exact checkpoint + merged base + LoRAs | Often **practical SDXL class**, not guaranteed | Keep local anime/adult candidates, with documented provenance and local-only model asset policy |
+| F5-TTS / XTTS-v2 (voice crossover) | **F5 weights CC BY-NC 4.0; code MIT**. **XTTS-v2 CPML**, explicitly allows qualifying personal/hobby use. | **Benchmark**, not inferred from checkpoint size | Add to Voice AG-D032 adult-safe/private voice-quality comparison; does not require paid APIs |
+| Fish Speech community family (voice crossover) | 2026-10-13 Fish Audio Community License permits certain noncommercial hobby use, but current S2-Pro weights retain separate Research License; commercial and **hosted-service** exceptions need precise classification | Drama 3 35B-A3B not 12GB-ready by file size; S2-Pro 4B requires measurement | Conditional research candidate; do not treat VM/Fleet personal access as automatically outside hosted-service terms |
+
+**Not all published web/hosted models are free.** The *voice baseline* AG-D032 still requires genuinely zero-paid subscriptions/API usage. Private adult conversations/images must not go to an unapproved public model provider. Check FLUX's **non-production** and Fish's **hosted-service** clauses before treating "private" as permission for a deployed Aegis inference endpoint.
+
+**License primary sources:**
+- BFL personal/noncommercial rules: https://bfl.ai/legal/non-commercial-license-terms ; https://help.bfl.ai/articles/9272590838-self-serve-dev-license-overview-pricing
+- FLUX 3 source + Kommunity license: https://huggingface.co/black-forest-labs/flux-3-image-klein
+- FLUX.2 4B vs 9B license: https://github.com/black-forest-labs/flux2
+- XTTS-v2 CPML: https://huggingface.co/coqui/XTTS-v2/blob/v2.0.3/LICENSE.txt
+- F5 pretrained weights/code: https://huggingface.co/SWivid/F5-TTS and https://github.com/SWivid/F5-TTS
+- Fish 2026 community/license family: https://github.com/fishaudio/fish-speech/blob/main/LICENSE ; https://github.com/fishaudio/fish-speech
+
 ## 1. Winners by requested category (research picks, NOT owner-benchmarked)
 
 | User question | First candidate | Key alternates | Evidence / caveat |
