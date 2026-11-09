@@ -10,6 +10,8 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
+from test.library_fixture_support import make_signed_catalog_fixture
+
 from sofia.platform.ops.library_signed_index import (
     SCHEMA, _DOMAIN, SignedLibraryIndexRejected, verify_signed_library_index,
 )
@@ -17,53 +19,7 @@ from sofia.platform.ops.library_signed_index import (
 
 @pytest.fixture
 def signed_catalog():
-    private = Ed25519PrivateKey.generate()
-    public = private.public_key().public_bytes(
-        encoding=serialization.Encoding.Raw,
-        format=serialization.PublicFormat.Raw,
-    )
-    now = datetime(2026, 11, 8, 22, 0, tzinfo=timezone.utc)
-    envelope = {
-        "schema": SCHEMA,
-        "publisher_key_sha256": sha256(public).hexdigest(),
-        "source_platform_id": "primary-library",
-        "target_platform_id": "enrolled-recipient",
-        "catalog_revision": 7,
-        "catalog_generation": 3,
-        "issued_at": (now - timedelta(seconds=5)).isoformat(),
-        "expires_at": (now + timedelta(minutes=1)).isoformat(),
-        "catalog": {
-            "catalog_revision": 7, "catalog_generation": 3,
-            "catalog_fresh_until": (now + timedelta(seconds=30)).isoformat(),
-            "target_platform_id": "enrolled-recipient",
-            "source": {
-                "kind": "OWNER_SELECTED_HUB", "source_id": "primary-library",
-                "last_observed_at": now.isoformat(), "status": "CURRENT",
-            },
-            "page": {"limit": 32, "next_cursor": None, "cursor_state": "CURRENT"},
-            "items": [],
-        },
-    }
-    def sign(candidate=None):
-        body = envelope if candidate is None else candidate
-        payload = json.dumps(
-            body, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
-            allow_nan=False,
-        ).encode("utf-8")
-        sig = private.sign(_DOMAIN + payload)
-        signed = {**body, "signature_b64": b64encode(sig).decode("ascii")}
-        return json.dumps(signed, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    kwargs = dict(
-        trusted_publisher_public_key=public,
-        expected_publisher_key_sha256=sha256(public).hexdigest(),
-        expected_source_platform_id="primary-library",
-        expected_target_platform_id="enrolled-recipient",
-        expected_catalog_generation=3,
-        minimum_catalog_revision=7, now=now,
-        publisher_key_current=lambda _: True,
-    )
-    return envelope, sign, kwargs
-
+    return make_signed_catalog_fixture()
 
 def test_independent_publisher_index_accepts_exact_signed_bytes(signed_catalog):
     env, sign, kwargs = signed_catalog
