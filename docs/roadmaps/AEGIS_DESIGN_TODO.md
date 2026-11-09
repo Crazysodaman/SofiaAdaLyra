@@ -371,6 +371,23 @@ Design: dedicated test environment dashboard for Platform-only clean installs, s
 
 **Owner's updated GO decision:** Platform 1.0 **MUST** ship not only minimal signed Platform-only/offline installation (AG-D011) but also selective one/multi-Core and module acquisition, owner-hosted LAN Hub, verified transfer from an enrolled peer, no-Internet/default-local source selection, quota/retention/recovery, large artifact handling and GUI/TUI/CLI management. Team A/B/C/D/E deliver batches D028-00–07. Team E executes LIB-01–LIB-16 with exact SHA and signed disposable Windows/Debian hosts. These **refine existing 38 #201 rows**, not a row 39. `OfflineArtifactCache` is a reusable local foundation, **not** current hub/peer transfer. The former later-phase/non-blocker sentence is superseded.
 
+### AG-D029 | Optional Pi coding-agent execution module
+
+**Status:** CAPTURED / RESEARCH ONLY (owner request 2026-11-08). **Target release:** Future, after Platform 1.0 and full Artifact Library acceptance. **Implementation:** NOT AUTHORIZED; no installation, runtime wiring, deployment or release-gate change.
+
+**Proposal:** Evaluate [Pi](https://pi.dev/) as an optional, replaceable agent execution backend exposed through an Aegis module tentatively named `agent.pi`. Pi can orchestrate coding/file/shell/test tasks with local Ollama or approved cloud model providers, but must not become a mandatory Platform dependency or replace an Aegis Core.
+
+**Architectural boundaries:**
+- Platform owns generic agent-executor contracts, module lifecycle, authentication, SAFE/STOP, grants, audit, resource limits, Fleet routing, and trusted Artifact Library handling. It remains Core-free and operational without Pi, a model, or any external agent.
+- `agent.pi` is a prospective provider-specific module/adapter; Pi itself runs as a separately managed, restricted process. Evaluate RPC/JSON integration first, with version-pinned protocol and bounded cancellation/recovery.
+- `inference.ollama` is the **existing Ollama inference adapter/module**, with implementation under `src/sofia/modules/inference/ollama_provider.py` and provider construction in `src/sofia/platform/cognition_provider.py`. The Ollama **server** is an external model-serving runtime, not embedded Platform infrastructure. Pi can use Ollama, but neither requires the other to be installed.
+- Sofía and other Cores retain their own immutable identity, memory, personality, policies, and decision authority. Pi sessions are task history, not canonical Core memory.
+- No direct Pi-owned production/Fleet authority, unrestricted shell on protected hosts, bypass of approval/revocation, automatic self-patching, trusted artifact publication, or independent signing authority. Proposed patches remain untrusted until independently authorized and validated by Aegis.
+
+**Research / later acceptance ideas:** inspect Pi license, versioning and API stability; evaluate restricted-UID/container sandboxing and tool allowlists; validate RPC lifecycle/timeouts/cancel/abandoned task recovery; compare Pi vs existing Aegis tools and OpenCode on identical disposable coding tasks with the same Ollama model; measure CPU/GPU/RAM usage, test outcomes, logs, artifact provenance, offline operation and security denials; ensure disabled/uninstalled Pi leaves Platform and Cores healthy.
+
+**Release fence:** This item is *not* an addition to Platform 1.0 issue #201, the AG-D028 Artifact Library gate, any live-test acceptance matrix, or current coding assignments. Promotion requires a separate owner scope/priority decision.
+
 ## Questions to decide before promoting UX concepts
 
 - Should Core Manager, Model Manager and Module Manager be three windows, or tabs inside one Aegis Control Center?
