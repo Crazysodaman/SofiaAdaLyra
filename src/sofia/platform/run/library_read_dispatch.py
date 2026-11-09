@@ -169,11 +169,13 @@ class LibraryReadDispatcher:
                 or verified.catalog["page"]["cursor_state"] != "CURRENT"):
             return deny("NOT_PERMITTED")
         if (verified.catalog_revision != request.expected_revision
-                or type(status.get("library_revision")) is not int
-                or status["library_revision"] != verified.catalog_revision):
+                or (status.get("library_revision") is not None
+                    and (type(status["library_revision"]) is not int
+                         or status["library_revision"] != verified.catalog_revision))):
             return deny("STALE_GENERATION")
         recheck()
-        if self._status().get("library_revision") != verified.catalog_revision:
+        later_revision = self._status().get("library_revision")
+        if later_revision is not None and later_revision != verified.catalog_revision:
             raise PermissionError("Library catalog revision changed during observation")
         if source.publisher_key_current(source.expected_publisher_key_sha256) is not True:
             raise PermissionError("publisher revoked during Library catalog observation")
@@ -183,7 +185,8 @@ class LibraryReadDispatcher:
                 or not verified.matches(verified.catalog)):
             raise PermissionError("signed Library catalog expired before response")
         recheck()
-        if self._status().get("library_revision") != verified.catalog_revision:
+        final_revision = self._status().get("library_revision")
+        if final_revision is not None and final_revision != verified.catalog_revision:
             raise PermissionError("Library catalog revision changed before response")
         return self._reply(
             request, observed=observed, data=verified.catalog,
