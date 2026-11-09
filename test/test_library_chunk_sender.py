@@ -67,3 +67,23 @@ def test_sender_rejects_hardlinked_object(tmp_path):
     (tmp_path / "second").hardlink_to(path)
     with pytest.raises(ChunkTransferRejected):
         read_authorized_cached_chunk(pin, offset=0, length=20, **args)
+
+
+
+def test_sender_rejects_inode_swapped_after_final_owner_grant(tmp_path):
+    data, pin, args = _source(tmp_path)
+    original = args["resolve_verified_cache"](pin)
+    replacement = tmp_path / "swapped-cache"
+    replacement.write_bytes(b"x" * len(data))
+    replacement.chmod(0o600)
+    calls = []
+    def owner_current(_):
+        calls.append(True)
+        # Exact-sized replacement after read and before source revalidation.
+        if len(calls) == 2:
+            os.replace(replacement, original)
+        return True
+    args["publisher_current"] = owner_current
+    with pytest.raises(ChunkTransferRejected, match="source changed"):
+        read_authorized_cached_chunk(pin, offset=0, length=20, **args)
+    assert len(calls) >= 2
