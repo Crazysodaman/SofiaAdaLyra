@@ -138,3 +138,13 @@ def test_signed_index_rejects_unsigned_catalog_edits(signed_catalog):
         verify_signed_library_index(
             json.dumps(signed, separators=(",", ":")).encode("utf-8"), **kwargs,
         )
+
+
+
+def test_signed_but_expired_inner_catalog_refused(signed_catalog):
+    env, sign, kwargs = signed_catalog
+    env["catalog"]["catalog_fresh_until"] = (
+        kwargs["now"] - timedelta(seconds=1)
+    ).isoformat()
+    with pytest.raises(SignedLibraryIndexRejected, match="catalog content"):
+        verify_signed_library_index(sign(), **kwargs)
