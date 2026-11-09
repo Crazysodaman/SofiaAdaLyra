@@ -130,7 +130,9 @@ class HostedLibraryRecipient:
                 raise ChunkTransferRejected("pinned publisher root, epoch or signed selection changed")
         return source
 
-    def _current(self, transfer: PinnedChunkTransfer) -> bool:
+    def _current(
+        self, transfer: PinnedChunkTransfer, *, required_chunk_bytes: int = 1,
+    ) -> bool:
         """Only exact signed enrolled scope, current RUN and owner STOP-free."""
         try:
             status = self.service.status()
@@ -160,6 +162,8 @@ class HostedLibraryRecipient:
                 limit_total = grant.scope.get("max_total_bytes")
                 if (type(limit_chunk) is not int
                         or not 1 <= limit_chunk <= 1024 * 1024
+                        or type(required_chunk_bytes) is not int
+                        or not 1 <= required_chunk_bytes <= limit_chunk
                         or type(limit_total) is not int
                         or limit_total < transfer.size_bytes):
                     continue
@@ -195,8 +199,14 @@ class HostedLibraryRecipient:
         """One foreground, bounded action under existing owner SAFE scopes."""
         if type(approval_id) is not str or not approval_id.strip():
             raise PermissionError("separate one-use owner cache approval required")
-        if not self._current(self.transfer):
-            raise PermissionError("current source peer enrollment or recipient STOP denied")
+        if type(chunk_bytes) is not int or not 1 <= chunk_bytes <= 1024 * 1024:
+            raise ChunkTransferRejected("bounded installed recipient chunk size required")
+        if type(max_chunks) is not int or not 1 <= max_chunks <= 10000:
+            raise ChunkTransferRejected("bounded installed recipient chunk budget required")
+        if not self._current(
+            self.transfer, required_chunk_bytes=min(chunk_bytes, self.transfer.size_bytes),
+        ):
+            raise PermissionError("current source peer enrollment, chunk scope or recipient STOP denied")
         source = self._source()
         if not self._publisher_current(self.transfer):
             raise ChunkTransferRejected("independent publisher or package signer revoked")
