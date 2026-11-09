@@ -48,6 +48,38 @@ It is impossible to certify literally *all* models; this is a cross-family short
 - F5 pretrained weights/code: https://huggingface.co/SWivid/F5-TTS and https://github.com/SWivid/F5-TTS
 - Fish 2026 community/license family: https://github.com/fishaudio/fish-speech/blob/main/LICENSE ; https://github.com/fishaudio/fish-speech
 
+## 0.1 Owner-only model-table re-evaluation (2026-11-09, GO scope clarification)
+
+**Decision:** For a private hobby/personal-use Aegis, **free noncommercial checkpoints are eligible candidates** when the exact terms permit the intended use. This changes *license suitability and candidate pool*, **not** measured quality, VRAM, model safety or model publisher trust. The existing leaderboard picks below remain *historical 2026-11-09 research recommendations*; no updated hardware A/B comparison has occurred. [Binding GO/shakedown overlay](../development/AEGIS_OWNER_ONLY_GO_LIVE_ACCEPTANCE_2026-11-09.md) requires the Platform/Core to honor owner-only operation, but installing the models listed here remains optional.
+
+| Original requested ranking role | Owner-only revision to prior table | Cost/license review status | 12GB GPU / privacy reality |
+| --- | --- | --- | --- |
+| Best overall general (hosted) | **No quality re-rank from private use.** Compare same frontier contenders under current independent evaluation | Provider use terms, data privacy and metered API costs; **not free local weights** | Not local; optional cloud only |
+| Best general for homelab | Keep Qwen3.5 9B / Gemma 4 12B / Qwen3 14B **pending real comparison** | Exact upstream weight license, Ollama GGUF derivative and usage obligations must be pinned; not automatically rejected due commercial terms | Quantized 9B preferred baseline; measure context/VRAM |
+| Best coding overall (hosted) | No quality re-rank; frontier agent performance remains benchmark-based | Cloud cost/provider privacy; separate from voice's mandatory free constraint | Optional only |
+| Best coding for homelab | Keep Qwen2.5-Coder 14B vs Qwen3.5 9B | Per checkpoint and finetune license check; commercial distribution rights *not required* as a ranking prerequisite | 14B VRAM tight; 9B stronger context headroom |
+| Best adult/mature text overall | Hosted low-refusal or roleplay ranking remains provisional | Provider age/terms and permitted mature output; cannot infer policy from model name | Prefer local if owner privacy matters |
+| Best adult/mature text for homelab | Keep Huihui-Qwen3.5-9B plus Rocinante/Stheno/Magnum experiments, **no automatic exclusion of noncommercial weights** | Derivative weights may retain base-model and bespoke conditions; exact checkpoint unknown until pinned | 8–12B quantized comparison |
+| Best photorealistic non-nude overall | Hosted candidate unchanged by personal-use license | Provider terms & credits vary | No local weights implied |
+| Best photorealistic non-nude homelab | FLUX 3 Klein INT8 stays first experiment; **RealVisXL V5** additionally eligible in OpenRAIL++ family | Model card license [OpenRAIL++](https://huggingface.co/SG161222/RealVisXL_V5.0) is not plain MIT; obey terms | Check complete FLUX pipeline; SDXL fallback ~7GB |
+| Best anime non-nude overall | Hosted NovelAI specialist remains preference-dependent | Hosted subscription/terms, not an automatically free product | Local anime candidates below avoid account dependency |
+| Best anime non-nude homelab | **NoobAI XL v-pred**, **Animagine XL 4.0 Opt**, Illustrious variants; expand pool on personal-use terms | [NoobAI Fair AI Public License](https://huggingface.co/Laxhar/noobai-XL-Vpred-1.0); [Animagine CreativeML Open RAIL++-M](https://huggingface.co/iiYonko/animagine-xl-4.0). Must inspect exact derivatives/restrictions | Compatible SDXL variants, LoRA formats matter |
+| Best adult photorealistic overall | Lustify vs CyberRealistic remains **editorial**, not validated benchmark winner | Specific adult model release/license and provider terms unknown until exact pin | Hosted output privacy varies |
+| Best adult photorealistic homelab | CyberRealistic Pony / eligible Lustify SDXL / RealVisXL remain candidates; do **not** disqualify modified noncommercial licenses just for being noncommercial | Verify exact source and finetune terms. [Pony V6](https://huggingface.co/neryK/Pony_Diffusion_V6_XL) has commercial-hosting restrictions in modified Fair AI Public License; private hobby inference may be permitted, verify complete terms | SDXL ~7GB checkpoint class; headroom needed |
+| Best adult anime overall | NovelAI hosted vs WAI/Illustrious open family, style and provider policy dependent | No universal standard adult quality leaderboard; no blanket eligibility claim | Prefer local for private prompts |
+| Best adult anime homelab | WAI-NSFW-Illustrious vs Pony Diffusion V6 XL; personal noncommercial licensing enlarges usable pool | Exact weight/derivative terms and permission for copying across Aegis Fleet remain per-artifact checks | LoRA compatibility differs; generally SDXL-class |
+
+**New free personal-use voice entries affecting AG-D032 (not the image ranking):**
+
+| Voice model | Verified upstream model terms | Personal Aegis implication |
+| --- | --- | --- |
+| **F5-TTS pretrained weights** | [CC BY-NC 4.0](https://huggingface.co/SWivid/F5-TTS) for pretrained checkpoint; code MIT | Newly eligible **voice cloning/naturalness A/B candidate** for private authorized source voice; not automatically a broadly distributable default |
+| **XTTS-v2 pretrained weights** | [Coqui Public Model License](https://huggingface.co/coqui/XTTS-v2/blob/v2.0.3/LICENSE.txt), explicitly allows personal hobby/private entertainment under noncommercial conditions | Newly eligible **multilingual clone/voice comparison**; cannot treat its output license as unrestricted |
+| **Kokoro-82M** | [Apache-2.0](https://huggingface.co/hexgrad/Kokoro-82M) | Remains excellent zero-subscription/lightweight candidate; license not the only quality factor |
+| **Qwen3-TTS / Pocket TTS** | Check exact checkpoint and voice reference artifact licenses | Remain original live/voice-design shortlist pending hardware tests |
+
+**Important separation:** this new license interpretation is not an authorization to fetch weights, copy them to peers, publicly serve files, or run adult/private samples. Cross-node rights are a second separate decision after lawful personal local use. An NC model cannot automatically be shipped in Aegis signed public release bundles. A model's uncensored outputs or a person's voice likeness never authenticate the owner. A third-party public platform's model/content policies remain binding. **Evidence remains NOT TESTED; no new overall quality winner is declared by this update.**
+
 ## 1. Winners by requested category (research picks, NOT owner-benchmarked)
 
 | User question | First candidate | Key alternates | Evidence / caveat |
