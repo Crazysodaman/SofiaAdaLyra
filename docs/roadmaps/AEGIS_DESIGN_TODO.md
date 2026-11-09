@@ -373,7 +373,9 @@ Design: dedicated test environment dashboard for Platform-only clean installs, s
 
 ### AG-D029 | Optional Pi coding-agent execution module
 
-**Status:** CAPTURED / RESEARCH ONLY (owner request 2026-11-08). **Target release:** Future, after Platform 1.0 and full Artifact Library acceptance. **Implementation:** NOT AUTHORIZED; no installation, runtime wiring, deployment or release-gate change.
+**Status:** CAPTURED / RESEARCHED / IMPLEMENTATION NOT SCHEDULED (owner research request 2026-11-09). **Target release:** Future, after Platform 1.0 and full Artifact Library acceptance. **Implementation:** NOT AUTHORIZED; no installation, runtime wiring, deployment or release-gate change.
+
+**Detailed evidence-based study:** [AG-D029 Pi Harness Research and Aegis Integration Design](AG_D029_PI_HARNESS_RESEARCH_AND_DESIGN.md) (Pi 1.x package/API review, two proposed operating profiles, explicit trust and process boundaries, Ollama versus native llama.cpp inference paths, provider-neutral adapter design, failure semantics, 20 proposed acceptance cases PI-01..PI-20, phased evaluation and primary research links). Research is complete as a document, not a functioning prototype.
 
 **Proposal:** Evaluate [Pi](https://pi.dev/) as an optional, replaceable agent execution backend exposed through an Aegis module tentatively named `agent.pi`. Pi can orchestrate coding/file/shell/test tasks with local Ollama or approved cloud model providers, but must not become a mandatory Platform dependency or replace an Aegis Core.
 
@@ -384,7 +386,7 @@ Design: dedicated test environment dashboard for Platform-only clean installs, s
 - Sofía and other Cores retain their own immutable identity, memory, personality, policies, and decision authority. Pi sessions are task history, not canonical Core memory.
 - No direct Pi-owned production/Fleet authority, unrestricted shell on protected hosts, bypass of approval/revocation, automatic self-patching, trusted artifact publication, or independent signing authority. Proposed patches remain untrusted until independently authorized and validated by Aegis.
 
-**Research / later acceptance ideas:** inspect Pi license, versioning and API stability; evaluate restricted-UID/container sandboxing and tool allowlists; validate RPC lifecycle/timeouts/cancel/abandoned task recovery; compare Pi vs existing Aegis tools and OpenCode on identical disposable coding tasks with the same Ollama model; measure CPU/GPU/RAM usage, test outcomes, logs, artifact provenance, offline operation and security denials; ensure disabled/uninstalled Pi leaves Platform and Cores healthy.
+**Research result / later evaluation TODO:** Pi is a genuine separate agent harness, not an inference engine. Prefer a version-pinned, isolated, optional `agent.pi` subprocess over embedding a second cognitive Core or rewriting inference kernels. Pi+Ollama is a disposable baseline; Pi+llama.cpp with approved GGUF imports is the preferred candidate for native inference. Pi 1.x uses `@earendil-works` packages; do not copy stale `@mariozechner` examples without checking pinned-version compatibility. Pi does not provide a sufficient built-in OS security boundary: whole-process sandboxing, direct RPC tool denials, STOP/generation fencing, exact settlement semantics, versioned contracts, evidence-based benchmarks, licenses and disabled/uninstall health must all be independently tested under PI-01..PI-20.
 
 **Release fence:** This item is *not* an addition to Platform 1.0 issue #201, the AG-D028 Artifact Library gate, any live-test acceptance matrix, or current coding assignments. Promotion requires a separate owner scope/priority decision.
 
