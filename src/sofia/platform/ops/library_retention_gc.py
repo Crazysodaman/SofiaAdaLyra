@@ -224,7 +224,7 @@ class GovernedLibraryRetention:
                         os.close(directory)
                 try:
                     audit_hash = audit.append(
-                        actor_id=approval.principal_id,
+                        actor_id=approval.approved_by,
                         event_type="library.cache.gc.completed",
                         payload={
                             **params, "deletion_verified": not path.exists(),
