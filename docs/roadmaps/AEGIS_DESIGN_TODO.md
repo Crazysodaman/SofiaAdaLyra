@@ -404,6 +404,12 @@ Covers the owner-requested top general model, top local model, top coding model,
 
 **Release fence:** This is not a new #201 acceptance row, AG-D028 release blocker, implementation assignment, license approval, adult artifact download, or production model/provider cutover. AG-D005 Model Manager and the existing Artifact Library remain authoritative. Any experiments use approved disposable hosts.
 
+### AG-D031 | Sofía VM with Venus + third-computer Fleet compute efficiency (2026-11-09)
+
+**Status:** OWNER-DESIRED / CAPTURED / NOT SCHEDULED. **Design TODO:** [AG-D031 Sofía VM and distributed hardware efficiency](AG_D031_DISTRIBUTED_COMPUTE_EFFICIENCY_AND_SOFIA_VM.md).
+
+Sofía Core will move to a VM on Artemis while GPU/inference jobs use separately enrolled Venus and a third computer through Aegis Platforms. Design resource-aware placement, no unnecessary resident model copies, real VRAM+KV+buffer headroom, CPU/RAM/VM budgets, gaming-first preemption policy on Venus, measured cold/warm modes and end-to-end performance/power telemetry. The third node's hardware is unspecified, so no capacity is assumed. No migration, code implementation, test-host operations, #201 release-gate expansion or Fleet enrollment is authorized by this TODO.
+
 ## Questions to decide before promoting UX concepts
 
 - Should Core Manager, Model Manager and Module Manager be three windows, or tabs inside one Aegis Control Center?
