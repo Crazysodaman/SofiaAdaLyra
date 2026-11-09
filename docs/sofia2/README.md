@@ -49,6 +49,8 @@ OpenCode is the primary local implementation agent. The owner periodically revie
 - Default: release includes a working desktop, Discord and 2D fox avatar experience. Optional voice availability depends on real quality/receipt evidence.
 - To decide before implementation: initial optional module priority, exact production platform scope for releases, module distribution/signing process, and whether first-release voice is mandatory.
 
+**Owner-only GO requirement (2026-11-09):** The private, single-owner nature of Project Aegis is now mandatory acceptance for Core 1.0 and Platform 1.0. Confirm one authenticated owner across enrolled hosts, one Core identity/writer, private/audience-scoped protected memories and media, provider independence and no commercial customer infrastructure dependency; retain actual Windows/Debian/G8 acceptance and SAFE/STOP. [Binding GO matrix](../development/AEGIS_OWNER_ONLY_GO_LIVE_ACCEPTANCE_2026-11-09.md). Personal/noncommercial weights may qualify for optional local installation under exact license terms, but voice/image/agent model expansions are **not automatically Core 1.0 blockers**.
+
 ## Definition of success
 
 Core and platform are integrated, privacy- and authority-correct, recoverable and independently testable; bundled channels use shared canonical services without duplicating identity. Optional modules can be missing or fail without corrupting personal history. All 780 original task IDs have a traceable destination and retained acceptance requirements. Completion counts are based only on executed evidence.
