@@ -414,6 +414,14 @@ Covers the owner-requested top general model, top local model, top coding model,
 
 **Release fence:** This is not a new #201 acceptance row, AG-D028 release blocker, implementation assignment, license approval, adult artifact download, or production model/provider cutover. AG-D005 Model Manager and the existing Artifact Library remain authoritative. Any experiments use approved disposable hosts.
 
+### AG-D033 | Sofía private local RP, initiative and personality continuity (2026-11-09)
+
+**Status:** OWNER-REQUESTED / RESEARCHED / CAPTURED / NOT SCHEDULED. **Dedicated design and test plan:** [AG-D033 Local RP and Core Continuity Research](AG_D033_LOCAL_RP_AND_CORE_CONTINUITY_RESEARCH_2026-11-09.md).
+
+**Owner ask:** Improve on Grok-style adult creative RP in three distinct ways: reduce false refusals for permitted consenting-adult fiction, enable controllable in-conversation character initiative, and preserve Sofía's personality, emotional/relationship history and Core identity across long conversations, model switches and restart. Local/free/personal-only. First A/B: Rocinante-X 12B Q4 vs Huihui-Qwen3.5 9B; Anubis Mini 8B, Stheno 3.2 8B and Magnum v4 12B remain license-checked comparisons. Core memory/identity is not owned by RP model; no second adult Sofía. Proposed RP-01..RP-16 tests measure qualitative coherence, false refusals, initiative, memory isolation, privacy, 12GB GPU efficiency and SAFE/STOP.
+
+**Release fence:** Research-only backlog addition. Not a new #201, #120, G8, AG-D028 or current acceptance row; no download, deployment, model swap, VM migration, Fleet activation, private-memory transfer or reassignment of active work authorized.
+
 ### AG-D031 | Sofía VM with Venus + third-computer Fleet compute efficiency (2026-11-09)
 
 **Status:** OWNER-DESIRED / CAPTURED / NOT SCHEDULED. **Design TODO:** [AG-D031 Sofía VM and distributed hardware efficiency](AG_D031_DISTRIBUTED_COMPUTE_EFFICIENCY_AND_SOFIA_VM.md).
