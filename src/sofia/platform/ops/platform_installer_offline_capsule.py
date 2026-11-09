@@ -53,6 +53,136 @@ def _read_expected(path: Path, *, maximum: int, exact: int | None = None) -> byt
     return read_artifact_file(path, stat_result.st_size, include_data=True)[1]
 
 
+def _verified_stream_source(
+    path: Path, *, expected_sha256: str, expected_size: int,
+) -> None:
+    """Review a large signed asset in 64KiB blocks, without whole-file RAM.
+
+    The package manifest provides SHA-256 and exact length independently of
+    this path. A changed/redirected inode cannot be silently admitted.
+    """
+    if (type(expected_sha256) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", expected_sha256) is None
+            or type(expected_size) is not int
+            or not 1 <= expected_size <= 512 * 1024**2):
+        raise PlatformReleaseRejected("bounded signed asset reference required")
+    assert_no_redirected_components(path, include_leaf=True)
+    before = path.stat(follow_symlinks=False)
+    if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1
+            or before.st_size != expected_size):
+        raise PlatformReleaseRejected("signed release asset inode or size differs")
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+    descriptor = os.open(path, flags)
+    try:
+        opened = os.fstat(descriptor)
+        identity = (
+            before.st_dev, before.st_ino, before.st_size,
+            before.st_mtime_ns, before.st_ctime_ns,
+        )
+        if (opened.st_dev, opened.st_ino, opened.st_size,
+                opened.st_mtime_ns, opened.st_ctime_ns) != identity:
+            raise PlatformReleaseRejected("signed asset changed before review")
+        digest = sha256()
+        remaining = expected_size
+        with os.fdopen(descriptor, "rb", closefd=False) as reader:
+            while remaining:
+                block = reader.read(min(65536, remaining))
+                if not block:
+                    raise PlatformReleaseRejected("signed release asset truncated")
+                digest.update(block)
+                remaining -= len(block)
+            if reader.read(1):
+                raise PlatformReleaseRejected("signed release asset grew")
+        after = os.fstat(descriptor)
+        assert_no_redirected_components(path, include_leaf=True)
+        final = path.stat(follow_symlinks=False)
+        if (digest.hexdigest() != expected_sha256
+                or (after.st_dev, after.st_ino, after.st_size,
+                    after.st_mtime_ns, after.st_ctime_ns) != identity
+                or (final.st_dev, final.st_ino, final.st_size,
+                    final.st_mtime_ns, final.st_ctime_ns) != identity):
+            raise PlatformReleaseRejected("signed release asset bytes or inode differ")
+    finally:
+        os.close(descriptor)
+
+
+def _archive_file_member(
+    zipper: zipfile.ZipFile, name: str, path: Path, *,
+    expected_sha256: str, expected_size: int,
+) -> None:
+    """Stream a previously reviewed signed file into deterministic ZIP STORED.
+
+    Digest and source identity are checked AGAIN while copying. A racing
+    signer-staged file cannot be replaced between index and archive creation.
+    """
+    if (not name.startswith("aegis/")
+            or any(piece in (".", "..", "") for piece in name.split("/"))):
+        raise PlatformReleaseRejected("offline capsule member name invalid")
+    assert_no_redirected_components(path, include_leaf=True)
+    before = path.stat(follow_symlinks=False)
+    identity = (
+        before.st_dev, before.st_ino, before.st_size,
+        before.st_mtime_ns, before.st_ctime_ns,
+    )
+    if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1 or before.st_size != expected_size:
+        raise PlatformReleaseRejected("reviewed signed ZIP source changed")
+    info = zipfile.ZipInfo(filename=name, date_time=_STAMP)
+    info.compress_type = zipfile.ZIP_STORED
+    info.create_system = 3
+    info.external_attr = (stat.S_IFREG | 0o644) << 16
+    info.file_size = expected_size
+    descriptor = os.open(
+        path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+        | getattr(os, "O_CLOEXEC", 0),
+    )
+    try:
+        opened = os.fstat(descriptor)
+        if (opened.st_dev, opened.st_ino, opened.st_size,
+                opened.st_mtime_ns, opened.st_ctime_ns) != identity:
+            raise PlatformReleaseRejected("signed archive source substituted")
+        digest = sha256()
+        remaining = expected_size
+        with os.fdopen(descriptor, "rb", closefd=False) as reader:
+            with zipper.open(info, "w", force_zip64=True) as archived:
+                while remaining:
+                    block = reader.read(min(65536, remaining))
+                    if not block:
+                        raise PlatformReleaseRejected("signed ZIP asset truncated")
+                    digest.update(block)
+                    archived.write(block)
+                    remaining -= len(block)
+                if reader.read(1):
+                    raise PlatformReleaseRejected("signed ZIP asset grew during packing")
+        after = os.fstat(descriptor)
+        assert_no_redirected_components(path, include_leaf=True)
+        final = path.stat(follow_symlinks=False)
+        if (digest.hexdigest() != expected_sha256
+                or (after.st_dev, after.st_ino, after.st_size,
+                    after.st_mtime_ns, after.st_ctime_ns) != identity
+                or (final.st_dev, final.st_ino, final.st_size,
+                    final.st_mtime_ns, final.st_ctime_ns) != identity):
+            raise PlatformReleaseRejected("signed archive asset bytes or inode changed")
+    finally:
+        os.close(descriptor)
+
+
+def _verify_zip_member_stream(
+    zipper: zipfile.ZipFile, *, name: str, expected_sha256: str,
+    expected_size: int,
+) -> None:
+    """Independently check archive member digest without a giant ZIP read()."""
+    observed = sha256()
+    size = 0
+    with zipper.open(name, "r") as source:
+        while block := source.read(65536):
+            size += len(block)
+            if size > expected_size:
+                raise PlatformReleaseRejected("offline archive member grew")
+            observed.update(block)
+    if size != expected_size or observed.hexdigest() != expected_sha256:
+        raise PlatformReleaseRejected("offline archive member bytes differ")
+
+
 def _archive_member(zipper: zipfile.ZipFile, name: str, data: bytes) -> None:
     if not name.startswith("aegis/") or any(piece in (".", "..", "") for piece in name.split("/")):
         raise PlatformReleaseRejected("offline capsule member name invalid")
