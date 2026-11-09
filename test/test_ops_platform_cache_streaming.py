@@ -113,3 +113,25 @@ def test_real_sparse_512mib_plus_one_streams_into_canonical_b1(tmp_path):
     assert published.stat().st_size == size
     assert cache.resolve(_artifact(digest.hexdigest())) == published
     assert peak < 12 * 1024**2
+
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX CAS inode and hard-link policy")
+def test_new_streaming_cas_has_single_link_before_strict_resolve(tmp_path):
+    """The temporary hard link MUST be gone before strict digest() sees CAS."""
+    payload = b"owner-reviewed-publisher-bytes" * 120
+    source = tmp_path / "signed-source"
+    source.write_bytes(payload)
+    cache = OfflineArtifactCache(tmp_path / "cache", max_bytes=65536)
+    artifact = _artifact(sha256(payload).hexdigest())
+    published = cache.import_artifact(artifact, source)
+    assert published.is_file()
+    assert published.stat().st_nlink == 1
+    assert cache.digest(published) == artifact.sha256
+    assert cache.resolve(artifact) == published
+    assert not list(cache.root.glob(".artifact-*"))
+    # A real external hard link is not silently blessed by existing CAS.
+    external = tmp_path / "foreign-link"
+    os.link(published, external)
+    with pytest.raises(PermissionError, match="hardlink|unsafe|unbounded"):
+        cache.resolve(artifact)
