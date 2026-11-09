@@ -158,7 +158,6 @@ def admit_owner_enrolled_library_chunk(
                 or type(state.get("generation")) is not int
                 or state["generation"] != expected_generation
                 or state.get("operator_stop") is not False
-                or state.get("core_started") is not False
                 or stop.current().active):
             return False
         # This read re-joins one-use owner proof with current credential
