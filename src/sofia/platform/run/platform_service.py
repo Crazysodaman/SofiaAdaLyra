@@ -75,7 +75,14 @@ class PlatformServiceSession:
     """Hold existing local RUN authority plus an OS lifetime lock, never a Core lease."""
 
     def __init__(self, identity_home: Path, state_path: Path, expected_id: str,
-                 expected_public_key_sha256: str):
+                 expected_public_key_sha256: str, *,
+                 installed_signed_catalog=None):
+        # B1/owner enrollment supplies a separately pinned, read-only profile
+        # provider. Stock Core-free installation has none and reports
+        # UNAVAILABLE, not a self-signed publisher or synthetic "healthy".
+        if installed_signed_catalog is not None and not callable(installed_signed_catalog):
+            raise TypeError("canonical installed Library catalog provider required")
+        self._installed_signed_catalog = installed_signed_catalog
         self.identity_store = InstallationIdentityStore(identity_home)
         self.identity = self.identity_store.load()
         if (self.identity.identity.canonical_uuid != expected_id
@@ -142,7 +149,10 @@ class PlatformServiceSession:
         library_dispatcher = LibraryReadDispatcher(
             current_status=self.status,
             authorize_os_peer=library_peer,
-            installed_signed_catalog=lambda: None,
+            installed_signed_catalog=(
+                self._installed_signed_catalog if self._installed_signed_catalog
+                is not None else lambda: None
+            ),
         )
         read_mux = LocalReadMultiplexer(
             management=dispatcher, library=library_dispatcher,
