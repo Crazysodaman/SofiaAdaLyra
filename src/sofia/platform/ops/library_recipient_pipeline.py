@@ -12,7 +12,7 @@ returned offset and the same signed transfer and enrolled certificate pin.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 import ssl
 from typing import Callable
@@ -133,6 +133,7 @@ def acquire_from_independently_signed_index(
     chunk_bytes: int = MAX_CHUNK,
     max_chunks: int = 128,
     now: datetime | None = None,
+    current_time: Callable[[], datetime] | None = None,
 ) -> dict[str, object]:
     """Verify publisher-signed selection and run bounded B1 acquisition.
 
@@ -140,8 +141,9 @@ def acquire_from_independently_signed_index(
     enrollment, package-signature verification and owner SAFE/STOP authority.
     None of those can be replaced by a Hub-provided boolean or UI selection.
     """
-    from datetime import timezone
     moment = datetime.now(timezone.utc) if now is None else now
+    if current_time is not None and not callable(current_time):
+        raise ChunkTransferRejected("canonical service clock required")
     offer = verify_selected_signed_transfer(
         raw_signed_index=raw_signed_index, transfer=transfer,
         expected_artifact_id=expected_artifact_id,
@@ -154,7 +156,20 @@ def acquire_from_independently_signed_index(
         raise ChunkTransferRejected("independently signed catalog changed after review")
 
     def current_publisher(t: PinnedChunkTransfer) -> bool:
-        return (publisher_key_current(expected_publisher_key_sha256) is True
+        # A valid signature cannot keep an expired publisher index alive.
+        # The real service clock is re-observed before every chunk and before
+        # cache publication, not frozen at the initial selection time.
+        checked_at = (datetime.now(timezone.utc) if current_time is None
+                      else current_time())
+        if not isinstance(checked_at, datetime) or checked_at.utcoffset() is None:
+            return False
+        observed = checked_at.astimezone(timezone.utc)
+        fresh_until = datetime.fromisoformat(
+            offer.index.catalog["catalog_fresh_until"].replace("Z", "+00:00")
+        ).astimezone(timezone.utc)
+        return (observed < offer.index.expires_at
+                and observed < fresh_until
+                and publisher_key_current(expected_publisher_key_sha256) is True
                 and publisher_current(t) is True
                 and offer.still_matches())
 
