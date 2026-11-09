@@ -1,6 +1,7 @@
 """D028 disposable mTLS resume orchestration, not installed-host certification."""
 from __future__ import annotations
 
+from hashlib import sha256
 import os
 import socket
 import ssl
@@ -39,6 +40,7 @@ def test_authenticated_reconnect_resumes_durable_receiver(tmp_path):
     client_ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile=str(ca))
     client_ctx.minimum_version = client_ctx.maximum_version = ssl.TLSVersion.TLSv1_3
     client_ctx.load_cert_chain(str(client_cert), str(client_key))
+    enrolled_server_sha256 = sha256(ssl.PEM_cert_to_DER_cert(server_cert.read_text())).hexdigest()
 
     def tls_pair():
         a, b = socket.socketpair()
@@ -94,6 +96,7 @@ def test_authenticated_reconnect_resumes_durable_receiver(tmp_path):
     # First invocation must STOP after its declared chunk budget.
     partial = fetch_resumable_chunks(
         transfer=transfer, receiver=receiver, open_enrolled_tls=open_tls,
+        expected_peer_certificate_sha256=enrolled_server_sha256,
         authorize_peer=grant, publisher_current=lambda _: True,
         chunk_bytes=16384, max_chunks=2,
     )
@@ -130,6 +133,7 @@ def test_revoked_publisher_does_not_fetch_or_write(tmp_path):
     with pytest.raises(ChunkTransferRejected, match="publisher trust"):
         fetch_resumable_chunks(
             transfer=transfer, receiver=receiver, open_enrolled_tls=should_not_open,
+            expected_peer_certificate_sha256="a" * 64,
             authorize_peer=lambda *_: True, publisher_current=lambda _: False,
             chunk_bytes=1024,
         )
@@ -141,7 +145,9 @@ def test_reject_missing_canonical_tls_source(tmp_path):
     with pytest.raises(ChunkTransferRejected, match="canonical quarantine receiver"):
         fetch_resumable_chunks(
             transfer=transfer, receiver=object(),
-            open_enrolled_tls=lambda: None, authorize_peer=lambda *_: True,
+            open_enrolled_tls=lambda: None,
+            expected_peer_certificate_sha256="a" * 64,
+            authorize_peer=lambda *_: True,
             publisher_current=lambda _: True,
         )
 
@@ -158,8 +164,74 @@ def test_reject_invalid_resume_cursor_without_network(tmp_path):
             fetch_resumable_chunks(
                 transfer=transfer, receiver=receiver,
                 open_enrolled_tls=must_not_dial,
+                expected_peer_certificate_sha256="a" * 64,
                 authorize_peer=lambda *_: True,
                 publisher_current=lambda _: True,
                 start_offset=bad_offset,
             )
     assert not opened
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX private CAS mode verification")
+def test_wrong_enrolled_peer_certificate_denied_before_transfer(tmp_path):
+    payload = b"wrong-peer" * 100
+    transfer = _transfer(payload)
+    receiver = ChunkedArtifactReceiver(tmp_path / "quarantine", max_bytes=65536)
+    ca, (server_cert, server_key), (client_cert, client_key) = tls_material(tmp_path)
+    server_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    server_ctx.minimum_version = server_ctx.maximum_version = ssl.TLSVersion.TLSv1_3
+    server_ctx.verify_mode = ssl.CERT_REQUIRED
+    server_ctx.load_verify_locations(cafile=str(ca))
+    server_ctx.load_cert_chain(str(server_cert), str(server_key))
+    client_ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile=str(ca))
+    client_ctx.minimum_version = client_ctx.maximum_version = ssl.TLSVersion.TLSv1_3
+    client_ctx.load_cert_chain(str(client_cert), str(client_key))
+    worker_threads = []
+    def open_tls():
+        left, right = socket.socketpair()
+        server = server_ctx.wrap_socket(left, server_side=True, do_handshake_on_connect=False)
+        client = client_ctx.wrap_socket(
+            right, server_hostname="localhost", do_handshake_on_connect=False,
+        )
+        server.settimeout(5)
+        client.settimeout(5)
+        def handshake():
+            try:
+                server.do_handshake()
+            finally:
+                server.close()
+        thread = Thread(target=handshake)
+        thread.start()
+        worker_threads.append(thread)
+        client.do_handshake()
+        return client
+
+    with pytest.raises(ChunkTransferRejected, match="owner-enrolled certificate"):
+        fetch_resumable_chunks(
+            transfer=transfer, receiver=receiver,
+            open_enrolled_tls=open_tls,
+            expected_peer_certificate_sha256="0" * 64,
+            authorize_peer=lambda *_: True,
+            publisher_current=lambda _: True,
+            chunk_bytes=1000,
+        )
+    for worker in worker_threads:
+        worker.join(timeout=8)
+        assert not worker.is_alive()
+    assert receiver.received_bytes(transfer, authorize=lambda _: True) == 0
+
+
+def test_missing_enrolled_cert_pin_denied_before_network(tmp_path):
+    transfer = _transfer(b"some content")
+    receiver = ChunkedArtifactReceiver(tmp_path / "quarantine", max_bytes=65536)
+    calls = []
+    def do_not_dial():
+        calls.append("dial")
+        raise AssertionError("untrusted peer must not dial")
+    with pytest.raises(ChunkTransferRejected, match="certificate pin"):
+        fetch_resumable_chunks(
+            transfer=transfer, receiver=receiver, open_enrolled_tls=do_not_dial,
+            expected_peer_certificate_sha256="untrusted",
+            authorize_peer=lambda *_: True, publisher_current=lambda _: True,
+        )
+    assert calls == []
