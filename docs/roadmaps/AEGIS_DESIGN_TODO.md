@@ -371,11 +371,13 @@ Design: dedicated test environment dashboard for Platform-only clean installs, s
 
 **Owner's updated GO decision:** Platform 1.0 **MUST** ship not only minimal signed Platform-only/offline installation (AG-D011) but also selective one/multi-Core and module acquisition, owner-hosted LAN Hub, verified transfer from an enrolled peer, no-Internet/default-local source selection, quota/retention/recovery, large artifact handling and GUI/TUI/CLI management. Team A/B/C/D/E deliver batches D028-00–07. Team E executes LIB-01–LIB-16 with exact SHA and signed disposable Windows/Debian hosts. These **refine existing 38 #201 rows**, not a row 39. `OfflineArtifactCache` is a reusable local foundation, **not** current hub/peer transfer. The former later-phase/non-blocker sentence is superseded.
 
-### AG-D029 | Optional Pi coding-agent execution module
+### AG-D029 | Optional agent-harness evaluation (Pi, Goose, OpenCode and native inference)
 
 **Status:** CAPTURED / RESEARCHED / IMPLEMENTATION NOT SCHEDULED (owner research request 2026-11-09). **Target release:** Future, after Platform 1.0 and full Artifact Library acceptance. **Implementation:** NOT AUTHORIZED; no installation, runtime wiring, deployment or release-gate change.
 
 **Detailed evidence-based study:** [AG-D029 Pi Harness Research and Aegis Integration Design](AG_D029_PI_HARNESS_RESEARCH_AND_DESIGN.md) (Pi 1.x package/API review, two proposed operating profiles, explicit trust and process boundaries, Ollama versus native llama.cpp inference paths, provider-neutral adapter design, failure semantics, 20 proposed acceptance cases PI-01..PI-20, phased evaluation and primary research links). Research is complete as a document, not a functioning prototype.
+
+**Expanded alternatives review (2026-11-09):** [Agent harness, inference runtime and model downloader comparison](AG_D029_AGENT_AND_INFERENCE_ALTERNATIVES_2026-11-09.md). Compare Pi vs Goose (Rust + optional local inference) vs OpenCode/OpenHands, llama.cpp vs Ollama/LM Studio/vLLM/SGLang, and Hugging Face direct GGUF acquisition vs Ollama-only downloads. **Key compatibility risk:** some Ollama GGUF metadata/tensor layouts require its own compatibility layer, so generic llama.cpp import must be proven, not assumed. The tentative path is an optional agent backend, llama.cpp inference, source-agnostic Model Manager, and existing AG-D028 artifact authority. No build, install or deployment is authorized by research.
 
 **Proposal:** Evaluate [Pi](https://pi.dev/) as an optional, replaceable agent execution backend exposed through an Aegis module tentatively named `agent.pi`. Pi can orchestrate coding/file/shell/test tasks with local Ollama or approved cloud model providers, but must not become a mandatory Platform dependency or replace an Aegis Core.
 
