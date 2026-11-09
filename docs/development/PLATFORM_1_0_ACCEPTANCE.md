@@ -4,6 +4,10 @@ Platform-only shakedown and full-project shakedown are separate verdicts.
 Both are **NO**. G8 (#129) remains deferred. Authority: #120; original
 700-task coding register #132 remains unchanged. No production activation.
 
+## Binding owner-only release criterion (2026-11-09)
+
+**Owner decision: Platform 1.0 is an owner-operated private homelab release, not a public SaaS or commercial model marketplace.** The [Platform/Core owner-only acceptance crosswalk](AEGIS_OWNER_ONLY_1_0_GO_LIVE_ACCEPTANCE_2026-11-09.md) is **required for GO** and maps private-by-default offline install, single owner / multiple enrolled nodes, approved personal LAN Hub, no account/billing/cloud prerequisite, precise license handling and unchanged security to existing **38** rows. This adds **no 39th row, no LIB-17 and no PASS**. Personal/noncommercial models are permitted as *candidate data artifacts* if exact legal terms allow the contemplated use; do not demand commercial redistribution rights for local use, and do not bypass origin/trust/transfer verification. Platform still boots with **zero Core/model/Voice**, and protected owner state remains separate. Verify on disposable installed Windows/Debian hosts before releasing.
+
 ## Reconciled source inventory
 
 Initial inspected baseline: `81371ac8ca45f00657f3eed02a05d8b11a0be3fb`.
