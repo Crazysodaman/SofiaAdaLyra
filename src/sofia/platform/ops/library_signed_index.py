@@ -190,9 +190,9 @@ def verify_signed_library_index(
     return VerifiedLibraryIndex(
         catalog=catalog, signed_index_sha256=sha256(raw).hexdigest(),
         catalog_sha256=sha256(json.dumps(
-            catalog, sort_keys=True, separators=(\",\", \":\"),
+            catalog, sort_keys=True, separators=(",", ":"),
             ensure_ascii=False, allow_nan=False,
-        ).encode(\"utf-8\")).hexdigest(),
+        ).encode("utf-8")).hexdigest(),
         publisher_key_sha256=expected_publisher_key_sha256,
         source_platform_id=expected_source_platform_id,
         target_platform_id=expected_target_platform_id,
