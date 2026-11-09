@@ -2,6 +2,12 @@
 
 **Scope:** 39 active logical requirements, 1 deferred feature. They do not imply 39 separate services, nor establish that implementations are complete.
 
+## Binding owner-only Core 1.0 GO LIVE and G8 shakedown criterion (2026-11-09)
+
+**Owner decision:** Aegis and Sofía are a **private, personal, noncommercial single-owner ecosystem** across multiple separately enrolled Platforms and possible distinct Cores. This belongs to Core 1.0 release acceptance, not merely a future TODO. See [one-owner Platform/Core acceptance crosswalk](../development/AEGIS_OWNER_ONLY_1_0_GO_LIVE_ACCEPTANCE_2026-11-09.md) and [owner-only use policy](../roadmaps/AEGIS_OWNER_ONLY_SCOPE_AND_LICENSE_POLICY.md).
+
+Within existing CORE-01,07,11,13,15,16,20,33,35–40 and batches B00–B08, certify protected persistent Sofía identity, single writer, authenticated owner/audience boundaries, private/adult memory separation, legal free personal/noncommercial model eligibility, no mandatory paid API/cloud account, and real Venus↔Artemis Core Link continuity. The existing RM-VOICE/AG-D032 **zero-subscription local voice path must be proven if included and claimed supported in the Core 1.0 companion**; unsupported or untested voice must be reported honestly, not silently promoted to a mandatory Core identity/Platform 1.0 dependency. Real connected-host voice/avatar and migration evidence are part of separately authorized G8 (#129), never satisfied by design text. Preserve current **39 active/1 deferred** logical Core requirements and do not renumber IDs or change historical verdicts.
+
 ## Core feature inventory
 
 | ID | Feature | Brief responsibility |
