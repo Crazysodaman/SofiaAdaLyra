@@ -10,6 +10,24 @@ import pytest
 from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
+@pytest.fixture(scope="module")
+def platform_wheels(tmp_path_factory):
+    """Shared canonical signed-release wheel fixture for every installer suite.
+
+    Installed-wheel verification deliberately suppresses checkout Python path;
+    importing a fixture from another test module is insufficient in that
+    environment. Conftest registers it without relaxing installed-wheel origin.
+    """
+    from sofia.platform.verify.component_artifacts import build_component
+
+    root = Path(__file__).resolve().parents[1]
+    destination = tmp_path_factory.mktemp("release-wheels")
+    return {
+        kind: build_component(kind, destination, repo=root)
+        for kind in ("sdk", "platform")
+    }
+
+
 @pytest.fixture
 def canonical_state_path(tmp_path: Path) -> Path:
     """Explicit authorized bootstrap for tests that exercise state owners."""
