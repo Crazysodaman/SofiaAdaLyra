@@ -67,8 +67,7 @@ class LibraryReadDispatcher:
                 and status.get("platform_id") == request.target_platform_id
                 and type(status.get("generation")) is int
                 and status["generation"] == request.expected_generation
-                and status.get("operator_stop") is False
-                and status.get("core_started") is False)
+                and status.get("operator_stop") is False)
 
     @staticmethod
     def _reply(
@@ -174,6 +173,8 @@ class LibraryReadDispatcher:
                 or status["library_revision"] != verified.catalog_revision):
             return deny("STALE_GENERATION")
         recheck()
+        if self._status().get("library_revision") != verified.catalog_revision:
+            raise PermissionError("Library catalog revision changed during observation")
         if source.publisher_key_current(source.expected_publisher_key_sha256) is not True:
             raise PermissionError("publisher revoked during Library catalog observation")
         observed = self._clock()
@@ -182,6 +183,8 @@ class LibraryReadDispatcher:
                 or not verified.matches(verified.catalog)):
             raise PermissionError("signed Library catalog expired before response")
         recheck()
+        if self._status().get("library_revision") != verified.catalog_revision:
+            raise PermissionError("Library catalog revision changed before response")
         return self._reply(
             request, observed=observed, data=verified.catalog,
         )
