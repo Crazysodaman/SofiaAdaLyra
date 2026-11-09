@@ -159,7 +159,8 @@ def verify_signed_library_index(
             or type(catalog["catalog_generation"]) is not int
             or catalog["catalog_generation"] != envelope["catalog_generation"]
             or catalog["target_platform_id"] != envelope["target_platform_id"]
-            or _utc(catalog["catalog_fresh_until"]) > expires):
+            or _utc(catalog["catalog_fresh_until"]) > expires
+            or _utc(catalog["catalog_fresh_until"]) <= moment):
         raise SignedLibraryIndexRejected("catalog content differs from signed scope")
     if (type(catalog["items"]) is not list or len(catalog["items"]) > 128
             or type(catalog["source"]) is not dict or type(catalog["page"]) is not dict):
