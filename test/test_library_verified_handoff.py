@@ -46,7 +46,7 @@ class FakeApproval:
         if not self.allowed:
             raise PermissionError("missing one-use SAFE owner grant")
         assert approval_id == "owner-current-proof"
-        assert capability == "platform.library.cache_admit_verified_seed"
+        assert capability == "platform.library.cache_admit_enrolled_peer"
         assert parameters["source"] == "ENROLLED_PEER"
         assert parameters["content_digest"] == parameters["content_digest"].lower()
         self.recorded.append(dict(parameters))
@@ -173,3 +173,12 @@ def test_revocation_after_signed_review_cannot_import(prepared):
         admit_signed_transferred_asset(**args)
     assert FakeApproval.recorded == []
     assert not (args["cache"].root / artifact.sha256).exists()
+
+
+
+def test_remote_cache_approval_cannot_use_offline_seed_capability(prepared):
+    args, raw, artifact = prepared
+    assert "ENROLLED_PEER" not in "OFFLINE_MEDIA"
+    import sofia.platform.ops.library_verified_handoff as handoff
+    assert handoff.LIBRARY_PEER_CACHE_ADMIT != "platform.library.cache_admit_verified_seed"
+    assert "cache_admit_enrolled_peer" in handoff.LIBRARY_PEER_CACHE_ADMIT
