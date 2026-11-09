@@ -271,6 +271,10 @@ _REVERSIBLE = frozenset({
     "local.service.restart",
     # Local Platform read enrollment; requires exact current owner-approved scope.
     "platform.management.read",
+    # D028 read-only, public-digest peer chunks. Only exact owner-approved
+    # short-lived standing scope binds both Platform IDs, TLS cert, signer,
+    # revision and bounded bytes. No automatic grant or install authority.
+    "library.peer.fetch",
     "hyperv.vm.start",
     "hyperv.vm.stop",
     "storage.write_text",
