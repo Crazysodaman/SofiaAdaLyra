@@ -147,3 +147,28 @@ def test_private_scope_overhead_cannot_consume_content_quota(tmp_path):
         authorize=lambda _: True,
     ) == len(raw)
     assert receiver.finalize(pin, authorize=lambda _: True).read_bytes() == raw
+
+
+
+def test_quarantine_writer_is_single_owned_across_two_receiver_instances(tmp_path):
+    raw, pin, receiver = setup(tmp_path)
+    other = ChunkedArtifactReceiver(receiver.root, max_bytes=len(raw))
+    fragment = raw[:73]
+    # Cross-process lock also rejects a second handle in the same process.
+    # A real process exit releases this OS lock, leaving the durable plan
+    # metadata for independently re-authorized recovery.
+    with receiver._writer_lock():
+        with pytest.raises(RuntimeError, match="already owns"):
+            other.append_chunk(
+                pin, offset=0, chunk=fragment,
+                chunk_sha256=sha256(fragment).hexdigest(),
+                authorize=lambda _: True,
+            )
+        with pytest.raises(RuntimeError, match="already owns"):
+            other.received_bytes(pin, authorize=lambda _: True)
+    assert other.received_bytes(pin, authorize=lambda _: True) == 0
+    assert other.append_chunk(
+        pin, offset=0, chunk=fragment,
+        chunk_sha256=sha256(fragment).hexdigest(),
+        authorize=lambda _: True,
+    ) == 73
