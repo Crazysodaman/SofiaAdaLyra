@@ -272,12 +272,26 @@ class UntrustedLibraryRequest:
     deadline: str
 
     @classmethod
-    def parse(cls, raw: bytes, *, now: datetime) -> "UntrustedLibraryRequest":
+    def parse(
+        cls, raw: bytes, *, now: datetime,
+        expected_target_platform_id: str | None = None,
+    ) -> "UntrustedLibraryRequest":
+        """Parse syntax, optionally enforce the installed service audience.
+
+        A missing audience pin leaves this a syntax-only DTO and must never
+        be used as host enrollment, owner authentication or permission.
+        The installed Rust/Python broker supplies the independently pinned
+        identity, not the client body or the Hub response.
+        """
         doc = _object(_decode(raw), _REQUEST_KEYS)
         if doc["schema"] != LIBRARY_REQUEST_SCHEMA or doc["protocol"] != LIBRARY_PROTOCOL:
             raise ValueError("unsupported Library protocol version")
         for name in ("request_id", "correlation_id", "target_platform_id"):
             _id(doc[name])
+        if expected_target_platform_id is not None:
+            _id(expected_target_platform_id)
+            if doc["target_platform_id"] != expected_target_platform_id:
+                raise PermissionError("Library request targets another installed Platform")
         generation = _int(doc["expected_generation"], 1)
         revision = _int(doc["expected_revision"])
         if doc["operation"] not in _READ:
