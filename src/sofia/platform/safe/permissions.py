@@ -505,7 +505,8 @@ def _validate_library_peer_standing_scope(
         value = scope[field]
         if type(value) is not str or _LIBRARY_DIGEST.fullmatch(value) is None:
             raise PermissionError("Library peer grant requires pinned SHA-256 digests")
-    if (scope["artifact_kind"] not in _LIBRARY_KINDS
+    if (type(scope["artifact_kind"]) is not str
+            or scope["artifact_kind"] not in _LIBRARY_KINDS
             or scope["license_distribution"] != "permitted"
             or scope["data_class"] != "public"):
         raise PermissionError("Library peer grant cannot distribute private or unknown content")
@@ -703,8 +704,14 @@ class PermissionStore:
             raise PermissionError(
                 f"{capability} does not permit standing grants at level {int(policy.level)}"
             )
+        if capability == "library.peer.fetch" and now is not None and (
+            not isinstance(now, datetime) or now.utcoffset() is None
+        ):
+            raise PermissionError("Library grant requires an aware service clock")
         moment = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
         if expires_at is not None:
+            if not isinstance(expires_at, datetime):
+                raise ValueError("expires_at must be a datetime")
             if expires_at.tzinfo is None or expires_at.utcoffset() is None:
                 raise ValueError("expires_at must be timezone-aware")
             expires_at = expires_at.astimezone(timezone.utc)
