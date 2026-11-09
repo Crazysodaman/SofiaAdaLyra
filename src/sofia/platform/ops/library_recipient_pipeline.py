@@ -186,7 +186,7 @@ def acquire_from_independently_signed_index(
                 active_offer.index.catalog["catalog_fresh_until"].replace("Z", "+00:00")
             ).astimezone(timezone.utc)
             if (read_current_signed_index is not None
-                    and checked_at + timedelta(seconds=30)
+                    and checked_at + timedelta(seconds=15)
                     >= min(active_offer.index.expires_at, fresh_until)):
                 new_raw = read_current_signed_index()
                 if type(new_raw) is not bytes:
