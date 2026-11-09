@@ -386,6 +386,94 @@ class OwnerLibraryTrustStore:
             raise RuntimeError("owner publisher revocation needs reconciliation")
         return result
 
+    def accept_signed_catalog(self, raw_signed_index: bytes) -> str:
+        """Save only short-lived publisher-signed metadata in owner local SQLite.
+
+        No network listener or owner-grant issuance. Signed bytes are verified
+        against the existing independently enrolled root and exact source,
+        target, generation and rollback floor. Replayed signed pages cannot
+        replace a newer verified page within the same root generation.
+        """
+        if type(raw_signed_index) is not bytes or not 1 <= len(raw_signed_index) <= 65536:
+            raise OwnerLibraryTrustDenied("bounded signed catalog index required")
+        moment = self._now()
+        old_pin = self.current()
+        if old_pin is None or not old_pin.active or self.stop.current().active:
+            raise OwnerLibraryTrustDenied("current owner enrollment and STOP-free Platform required")
+        verified = verify_signed_library_index(
+            raw_signed_index,
+            trusted_publisher_public_key=old_pin.public_key,
+            expected_publisher_key_sha256=old_pin.public_key_sha256,
+            expected_source_platform_id=old_pin.source_platform_id,
+            expected_target_platform_id=old_pin.platform_id,
+            expected_catalog_generation=old_pin.catalog_generation,
+            minimum_catalog_revision=old_pin.minimum_catalog_revision,
+            now=moment,
+            publisher_key_current=lambda key: self.publisher_current(
+                key, old_pin.trust_generation,
+            ),
+        )
+        envelope = json.loads(raw_signed_index)
+        issued = datetime.fromisoformat(
+            envelope["issued_at"].replace("Z", "+00:00")
+        ).astimezone(timezone.utc)
+        digest = verified.signed_index_sha256
+        with closing(self._connect()) as db:
+            with db:
+                db.execute("BEGIN IMMEDIATE")
+                pin = self._read(db)
+                if (pin is None or not pin.active
+                        or pin.platform_id != old_pin.platform_id
+                        or pin.source_platform_id != old_pin.source_platform_id
+                        or pin.public_key_sha256 != old_pin.public_key_sha256
+                        or pin.trust_generation != old_pin.trust_generation
+                        or pin.catalog_generation != old_pin.catalog_generation):
+                    raise OwnerLibraryTrustDenied("owner publisher changed during signed index review")
+                if self.stop.current().active:
+                    raise OwnerLibraryTrustDenied("STOP prevents catalog updates")
+                self._create_index_schema(db)
+                previous = self._index(db)
+                if previous is not None:
+                    if previous["trust_generation"] != pin.trust_generation:
+                        raise OwnerLibraryTrustDenied("index belongs to stale owner root")
+                    if previous["signed_index_sha256"] == digest:
+                        return digest
+                    previous_issued = datetime.fromisoformat(
+                        previous["issued_at"]
+                    ).astimezone(timezone.utc)
+                    if (verified.catalog_revision < previous["catalog_revision"]
+                            or issued <= previous_issued):
+                        raise OwnerLibraryTrustDenied("signed index replay or revision rollback denied")
+                db.execute("""
+                    INSERT INTO platform_library_owner_index (
+                        singleton,trust_generation,catalog_revision,issued_at,
+                        signed_index_sha256,signed_index
+                    ) VALUES (1,?,?,?,?,?)
+                    ON CONFLICT(singleton) DO UPDATE SET
+                        trust_generation=excluded.trust_generation,
+                        catalog_revision=excluded.catalog_revision,
+                        issued_at=excluded.issued_at,
+                        signed_index_sha256=excluded.signed_index_sha256,
+                        signed_index=excluded.signed_index
+                """, (
+                    pin.trust_generation, verified.catalog_revision,
+                    issued.isoformat(), digest, raw_signed_index,
+                ))
+                self.audit.append_in_transaction(
+                    db, actor_id="platform-service",
+                    event_type="library.owner.signed_catalog.accepted",
+                    occurred_at=moment,
+                    payload={
+                        "platform_id": pin.platform_id,
+                        "source_platform_id": pin.source_platform_id,
+                        "trust_generation": pin.trust_generation,
+                        "catalog_revision": verified.catalog_revision,
+                        "signed_index_sha256": digest,
+                    },
+                )
+                db.commit()
+        return digest
+
     def __call__(self):
         """Read current installed signed catalog, or None on fresh installs.
 
