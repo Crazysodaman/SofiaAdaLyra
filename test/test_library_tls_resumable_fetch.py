@@ -106,6 +106,7 @@ def test_authenticated_reconnect_resumes_durable_receiver(tmp_path):
     # A second call uses durable bytes, never rewinds or trusts Hub offsets.
     final = fetch_resumable_chunks(
         transfer=transfer, receiver=receiver, open_enrolled_tls=open_tls,
+        expected_peer_certificate_sha256=enrolled_server_sha256,
         authorize_peer=grant, publisher_current=lambda _: True,
         chunk_bytes=16384, max_chunks=20, start_offset=partial,
     )
