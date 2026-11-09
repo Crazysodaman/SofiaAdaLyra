@@ -245,6 +245,7 @@ class OfflineArtifactCache:
                 raise RuntimeError("offline artifact cache resource limit exceeded")
             descriptor, name = tempfile.mkstemp(prefix=".artifact-", dir=self.root)
             temporary = Path(name)
+            descriptor_open = True
             try:
                 restrict_new_owner_private_path(temporary, directory=False)
                 digest = sha256()
@@ -276,6 +277,7 @@ class OfflineArtifactCache:
                 finally:
                     os.close(src_fd)
                     os.close(descriptor)
+                    descriptor_open = False
                 if digest.hexdigest() != artifact.sha256:
                     raise ValueError("artifact bytes do not match approved SHA-256")
                 if self.digest(temporary) != artifact.sha256:
@@ -294,6 +296,8 @@ class OfflineArtifactCache:
                         os.close(directory)
                 return self.resolve(artifact)
             finally:
+                if descriptor_open:
+                    os.close(descriptor)
                 temporary.unlink(missing_ok=True)
 
     def resolve(self, artifact: PlatformArtifact) -> Path:
