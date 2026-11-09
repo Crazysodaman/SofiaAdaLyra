@@ -264,18 +264,26 @@ def build_reviewed_offline_capsule(
     if manifest.digest != result["manifest_sha256"]:
         raise PlatformReleaseRejected("signed manifest drifted during capsule assembly")
     signature_bytes = _read_expected(root / "release-signature.json", maximum=8192)
-    members = [
-        ("aegis/release-manifest.json", manifest_bytes),
-        ("aegis/release-signature.json", signature_bytes),
+    # Tiny metadata stays in RAM; signed runtime/SDK assets remain file
+    # sources so packaging never allocates hundreds of MiB per member.
+    members: list[tuple[str, bytes | Path, str, int]] = [
+        ("aegis/release-manifest.json", manifest_bytes,
+         sha256(manifest_bytes).hexdigest(), len(manifest_bytes)),
+        ("aegis/release-signature.json", signature_bytes,
+         sha256(signature_bytes).hexdigest(), len(signature_bytes)),
     ]
     exact_signed_assets = []
     for asset in manifest.assets:
         reference = asset.reference
         file = root / "assets" / reference.path
-        value = _read_expected(file, maximum=512 * 1024**2, exact=reference.size_bytes)
-        if sha256(value).hexdigest() != reference.sha256:
-            raise PlatformReleaseRejected("signed asset drifted during capsule build")
-        members.append(("aegis/assets/" + reference.path, value))
+        _verified_stream_source(
+            file, expected_sha256=reference.sha256,
+            expected_size=reference.size_bytes,
+        )
+        members.append((
+            "aegis/assets/" + reference.path, file,
+            reference.sha256, reference.size_bytes,
+        ))
         exact_signed_assets.append({
             "kind": asset.kind,
             "path": reference.path,
@@ -286,7 +294,7 @@ def build_reviewed_offline_capsule(
     for src, target in _STATIC:
         source = project.joinpath(*src.split("/"))
         data = _read_expected(source, maximum=2 * 1024**2)
-        members.append((target, data))
+        members.append((target, data, sha256(data).hexdigest(), len(data)))
         independently_unsigned_delivery_assets.append({
             "path": target,
             "sha256": sha256(data).hexdigest(),
@@ -300,16 +308,21 @@ def build_reviewed_offline_capsule(
     # Bounded ASCII tab format avoids requiring Python or jq before verification.
     members.sort(key=lambda x: x[0])
     index_lines = ["aegis.delivery-index.v1"]
-    for filename, data in members:
+    for filename, _source, expected_sha256, expected_size in members:
         if (not filename.isascii()
                 or any(c in filename for c in ("\t", "\n", "\r"))):
             raise PlatformReleaseRejected("unsafe offline delivery inventory path")
-        index_lines.append(f"{sha256(data).hexdigest()}\t{len(data)}\t{filename}")
+        index_lines.append(
+            f"{expected_sha256}\t{expected_size}\t{filename}"
+        )
     index_bytes = ("\n".join(index_lines) + "\n").encode("ascii")
     if len(index_bytes) > 131072 or len(index_lines) > 130:
         raise PlatformReleaseRejected("offline delivery index outside fixed bounds")
     index_name = "aegis/delivery-index.v1"
-    members.append((index_name, index_bytes))
+    members.append((
+        index_name, index_bytes, sha256(index_bytes).hexdigest(),
+        len(index_bytes),
+    ))
     independently_unsigned_delivery_assets.append({
         "path": index_name,
         "sha256": sha256(index_bytes).hexdigest(),
@@ -317,9 +330,9 @@ def build_reviewed_offline_capsule(
         "publisher_signature_verified": False,
     })
     members.sort(key=lambda x: x[0])
-    if len({name.casefold() for name, _ in members}) != len(members):
+    if len({name.casefold() for name, *_ in members}) != len(members):
         raise PlatformReleaseRejected("offline capsule has ambiguous duplicate member paths")
-    if sum(len(data) for _, data in members) > _MAX_MEDIA_BYTES:
+    if sum(size for _, _, _, size in members) > _MAX_MEDIA_BYTES:
         raise PlatformReleaseRejected("offline capsule exceeds reviewed media bound")
 
     ensure_owner_private_directory(destination.parent)
@@ -329,15 +342,25 @@ def build_reviewed_offline_capsule(
     try:
         os.close(descriptor)
         with zipfile.ZipFile(temporary, mode="w", allowZip64=True) as zipper:
-            for name, data in members:
-                _archive_member(zipper, name, data)
+            for name, payload, expected_sha256, expected_size in members:
+                if isinstance(payload, Path):
+                    _archive_file_member(
+                        zipper, name, payload,
+                        expected_sha256=expected_sha256,
+                        expected_size=expected_size,
+                    )
+                else:
+                    _archive_member(zipper, name, payload)
         with zipfile.ZipFile(temporary, mode="r") as zipper:
             filenames = zipper.namelist()
-            if len(filenames) != len(members) or filenames != [n for n, _ in members]:
+            if len(filenames) != len(members) or filenames != [n for n, *_ in members]:
                 raise PlatformReleaseRejected("archive inventory differs after assembly")
-            for name, expected in members:
-                if sha256(zipper.read(name)).digest() != sha256(expected).digest():
-                    raise PlatformReleaseRejected("archive member bytes differ")
+            for name, _payload, expected_sha256, expected_size in members:
+                _verify_zip_member_stream(
+                    zipper, name=name,
+                    expected_sha256=expected_sha256,
+                    expected_size=expected_size,
+                )
         size = temporary.stat(follow_symlinks=False).st_size
         if size < 1 or size > _MAX_MEDIA_BYTES:
             raise PlatformReleaseRejected("produced archive size outside bound")
