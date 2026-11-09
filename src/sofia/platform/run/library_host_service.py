@@ -55,6 +55,7 @@ class HostedLibraryHub:
         artifact: PlatformArtifact,
         cache: OfflineArtifactCache,
         expected_recipient_certificate_sha256: str,
+        read_current_signed_index: Callable[[], bytes] | None = None,
         clock: Callable[[], datetime] | None = None,
         timeout_seconds: int = 10,
     ) -> None:
@@ -70,6 +71,8 @@ class HostedLibraryHub:
                 raise ChunkTransferRejected("independent trusted publisher/package checks required")
         if clock is not None and not callable(clock):
             raise TypeError("trusted installed service clock required")
+        if read_current_signed_index is not None and not callable(read_current_signed_index):
+            raise TypeError("installed publisher catalog renewal supplier required")
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         instant = self._clock()
         if not isinstance(instant, datetime) or instant.utcoffset() is None:
@@ -90,6 +93,8 @@ class HostedLibraryHub:
             expected_catalog_generation=expected_catalog_generation,
             now=instant, publisher_key_current=publisher_key_current,
         )
+        if self._offer.index.catalog["source"]["kind"] != "OWNER_SELECTED_HUB":
+            raise ChunkTransferRejected("only an owner-selected Hub catalog can authorize Hub serving")
         if (artifact.artifact_id != self._offer.artifact_id
                 or artifact.version != self._offer.version
                 or artifact.signer_key_id != self._offer.signer_key_id
@@ -114,6 +119,9 @@ class HostedLibraryHub:
         self._package_signer_current = package_signer_current
         self._source_generation = generation
         self._expected_key_sha = expected_publisher_key_sha256
+        self._trusted_public_key = trusted_publisher_public_key
+        self._expected_catalog_generation = expected_catalog_generation
+        self._read_index = read_current_signed_index
 
         permissions = PermissionStore(service.storage.path)
         self._hub_grant = CurrentLibraryHubAuthority(
@@ -126,17 +134,47 @@ class HostedLibraryHub:
         def current_publisher(t: PinnedChunkTransfer) -> bool:
             try:
                 at = self._clock()
-                return (t == self.transfer
-                        and isinstance(at, datetime) and at.utcoffset() is not None
-                        and at.astimezone(timezone.utc) < self._offer.index.expires_at
-                        and at.astimezone(timezone.utc) < datetime.fromisoformat(
-                            self._offer.index.catalog["catalog_fresh_until"].replace("Z", "+00:00")
-                        ).astimezone(timezone.utc)
-                        and self._offer.still_matches()
-                        and self._publisher_key_current(self._expected_key_sha) is True
-                        and self._package_signer_current(self.artifact.signer_key_id) is True
-                        and self._hub_grant() is True)
-            except (ValueError, PermissionError, RuntimeError, OSError):
+                if (t != self.transfer or not isinstance(at, datetime)
+                        or at.utcoffset() is None
+                        or self._publisher_key_current(self._expected_key_sha) is not True
+                        or self._package_signer_current(self.artifact.signer_key_id) is not True
+                        or self._hub_grant() is not True
+                        or not self._offer.still_matches()):
+                    return False
+                # A multi-GiB LAN transfer outlives one short-lived index.
+                # Owner's installed B1 publisher may renew the SAME signed
+                # artifact selection. Each renewal independently authenticates
+                # exact publisher root, target, source, manifest/content SHA,
+                # signer/receipt identity, epoch, revocation and license.
+                # If no trusted renewal source is installed, expiry denies.
+                candidate = (self._offer if self._read_index is None else
+                             verify_selected_signed_transfer(
+                                 raw_signed_index=self._read_index(),
+                                 transfer=self.transfer,
+                                 expected_artifact_id=self._offer.artifact_id,
+                                 trusted_publisher_public_key=self._trusted_public_key,
+                                 expected_publisher_key_sha256=self._expected_key_sha,
+                                 expected_catalog_generation=self._expected_catalog_generation,
+                                 now=at,
+                                 publisher_key_current=self._publisher_key_current,
+                             ))
+                index = candidate.index
+                fresh_until = datetime.fromisoformat(
+                    index.catalog["catalog_fresh_until"].replace("Z", "+00:00")
+                ).astimezone(timezone.utc)
+                moment = at.astimezone(timezone.utc)
+                return (candidate.artifact_id == self._offer.artifact_id
+                        and candidate.signer_key_id == self._offer.signer_key_id
+                        and candidate.signature_receipt_ref == self._offer.signature_receipt_ref
+                        and candidate.version == self._offer.version
+                        and index.catalog["source"]["kind"] == "OWNER_SELECTED_HUB"
+                        and index.source_platform_id == self.transfer.source_platform_id
+                        and index.target_platform_id == self.transfer.target_platform_id
+                        and index.catalog_revision == self.transfer.catalog_revision
+                        and moment < index.expires_at
+                        and moment < fresh_until
+                        and candidate.still_matches())
+            except (ValueError, TypeError, PermissionError, RuntimeError, OSError):
                 return False
 
         self._current_publisher = current_publisher
