@@ -100,6 +100,7 @@ FILENAME_PACKAGE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("test_library_module_plan.py", ("pkg_run", "pkg_safe", "pkg_verify")),
     ("test_library_module_recipient.py", ("pkg_run", "pkg_safe", "pkg_verify")),
     ("test_library_catalog_adapter.py", ("pkg_run", "pkg_safe", "pkg_verify")),
+    ("test_module_catalog_consolidation.py", ("pkg_run", "pkg_safe", "pkg_verify")),
     ("test_python_runtime_artifacts.py", ("pkg_verify", "pkg_integrate", "pkg_safe")),
     ("test_aegis_debian_vm_runner.py", ("pkg_verify", "pkg_run", "pkg_safe")),
     ("test_platform_release_", ("pkg_verify", "pkg_integrate", "pkg_safe")),
