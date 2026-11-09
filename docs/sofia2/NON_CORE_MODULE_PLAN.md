@@ -63,6 +63,8 @@ Own structured logs, trace IDs, sanitized diagnostics, source/task evidence proj
 **Failure plan:** rendering crash doesn't remove text or identity; missing assets use approved fallback.
 **Acceptance:** actual rendered frame/asset receipt before claiming a visual change; layered rigs verified; production UI renders independently of model text.
 
+**Owner-only 1.0 release interpretation (2026-11-09):** [Binding Platform/Core shakedown crosswalk](../development/AEGIS_OWNER_ONLY_1_0_GO_LIVE_ACCEPTANCE_2026-11-09.md). This is for one private owner. In the Core 1.0 companion, any Voice capability claimed supported must demonstrate an actual free local path (STT + Core + TTS), consent, interruption and true output receipts. No mandatory paid API, SaaS login or cloud fallback. This is not a new Core-free Platform 1.0 requirement and does not prove live voice success.
+
 ### RM-VOICE: Speech (initial release candidate, not automatic release blocker)
 **Detailed free/local expansion research (AG-D032, 2026-11-09):** [Free Local Voice Research and Design](../roadmaps/AG_D032_FREE_LOCAL_VOICE_RESEARCH_AND_DESIGN_2026-11-09.md). Owner requires no paid APIs/subscriptions or mandatory cloud for full PTT → local STT → Core → local TTS operation. Candidate Moonshine / Whisper / Silero / Pocket TTS / Kokoro / Qwen3-TTS provider upgrades preserve existing Voice protocols and consent/receipt authority. **Research only**; voice host certification and implementation not completed, no new Platform 1.0 blocker.
 **Purpose:** natural, intelligible speech and optional listening using explicit consent.
