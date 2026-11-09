@@ -18,19 +18,14 @@ from hashlib import sha256
 import re
 import ssl
 
-from sofia.platform.safe.permissions import PermissionStore
+from sofia.platform.safe.permissions import PermissionStore, LIBRARY_PEER_SCOPE
 from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.platform.ops.library_chunk_receiver import PinnedChunkTransfer
 
 CAPABILITY = "library.peer.fetch"
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _PEER_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,159}$")
-_SCOPE = frozenset({
-    "source_platform_id", "target_platform_id", "certificate_sha256",
-    "manifest_digest", "content_digest", "artifact_kind",
-    "catalog_revision", "data_class", "license_distribution",
-    "max_chunk_bytes", "max_total_bytes",
-})
+_SCOPE = LIBRARY_PEER_SCOPE
 _MAX_CHUNK = 1024 * 1024
 _MAX_INTEGER = 2**53 - 1
 
