@@ -128,7 +128,7 @@ def test_gc_preview_is_readonly_and_does_not_consume_owner_proof(gc_environment)
     assert len(snapshot["pin_graph_sha256"]) == 64
     assert snapshot["deletion_executed"] is False
     assert FakeApproval.called == []
-    assert cache.resolve(artifact).is_file()
+    assert (cache.root / artifact.sha256).is_file()
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX immutable CAS inode and private mode")
@@ -143,7 +143,7 @@ def test_gc_owner_proof_deletes_exactly_one_unpinned_verified_blob(gc_environmen
     assert receipt["deletion_executed"] is True
     assert receipt["owner_approved"] is True
     assert receipt["cache_state"] == "REMOVED"
-    assert receipt["installed"] is None if "installed" in receipt else True
+    assert receipt["install_executed"] is False
     assert not (cache.root / artifact.sha256).exists()
     assert len(FakeApproval.called) == 1
     assert FakeAudit.calls[0][0] == "library-gc:owner-one-time"
