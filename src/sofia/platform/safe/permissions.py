@@ -272,6 +272,9 @@ _REVERSIBLE = frozenset({
     "local.service.restart",
     # Local Platform read enrollment; requires exact current owner-approved scope.
     "platform.management.read",
+    # D028 local OS-authenticated read-only Library catalog; separate owner
+    # enrollment from platform.status and from effectful peer/cache grants.
+    "platform.library.read",
     # D028 read-only, public-digest peer chunks. Only exact owner-approved
     # short-lived standing scope binds both Platform IDs, TLS cert, signer,
     # revision and bounded bytes. No automatic grant or install authority.
@@ -709,7 +712,7 @@ class PermissionStore:
             raise PermissionError(
                 f"{capability} does not permit standing grants at level {int(policy.level)}"
             )
-        if capability == "library.peer.fetch" and now is not None and (
+        if capability in {"library.peer.fetch", "platform.library.read"} and now is not None and (
             not isinstance(now, datetime) or now.utcoffset() is None
         ):
             raise PermissionError("Library grant requires an aware service clock")
@@ -735,6 +738,18 @@ class PermissionStore:
             _validate_library_peer_standing_scope(
                 normalized_scope, moment=moment, expires_at=expires_at,
             )
+        if capability == "platform.library.read":
+            if (set(normalized_scope) != {"platform_id", "peer", "operation"}
+                    or any(type(normalized_scope.get(field)) is not str
+                           or not normalized_scope[field]
+                           or len(normalized_scope[field]) > 160
+                           for field in ("platform_id", "peer", "operation"))
+                    or normalized_scope["operation"] != "library.catalog.snapshot.v1"
+                    or not (normalized_scope["peer"].startswith("unix:uid:")
+                            or normalized_scope["peer"].startswith("windows:sid:"))
+                    or expires_at is None or expires_at <= moment
+                    or expires_at - moment > timedelta(hours=1)):
+                raise PermissionError("Library read grant requires exact OS peer, operation and one-hour expiry")
         encoded_scope = self._scope_json(normalized_scope)
         if not approval_id:
             raise PermissionError(
