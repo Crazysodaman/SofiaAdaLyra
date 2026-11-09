@@ -160,6 +160,16 @@ class OwnerLibraryTrustStore:
         self.approvals = ExecutionApprovalVerifier(self.path)
         self.stop = OperatorStopStore(self.path)
 
+    def _require_audit_intact(self) -> None:
+        """A broken canonical SAFE audit chain never gains new trust history.
+
+        Called only for owner effects and signed-index cache publication, not
+        every inexpensive current-publisher check or TLS chunk.
+        """
+        valid, _reason = self.audit.verify()
+        if valid is not True:
+            raise OwnerLibraryTrustDenied("canonical owner SAFE audit chain broken")
+
     def _now(self) -> datetime:
         at = self.clock()
         if not isinstance(at, datetime) or at.utcoffset() is None:
@@ -281,6 +291,7 @@ class OwnerLibraryTrustStore:
     ) -> OwnerLibraryPublisher:
         """One owner-approved pin; no trust-on-first-use or silent key rotation."""
         now = self._now()
+        self._require_audit_intact()
         if self.stop.current().active:
             raise OwnerLibraryTrustDenied("STOP prevents owner trust enrollment")
         if type(approval_id) is not str or not approval_id.strip():
@@ -352,6 +363,7 @@ class OwnerLibraryTrustStore:
     def revoke(self, *, approval_id: str) -> OwnerLibraryPublisher:
         """Explicit owner revocation, even during STOP, transactionally audited."""
         now = self._now()
+        self._require_audit_intact()
         if type(approval_id) is not str or not approval_id.strip():
             raise OwnerLibraryTrustDenied("authenticated owner revocation required")
         with closing(self._connect()) as db:
@@ -397,6 +409,7 @@ class OwnerLibraryTrustStore:
         if type(raw_signed_index) is not bytes or not 1 <= len(raw_signed_index) <= 65536:
             raise OwnerLibraryTrustDenied("bounded signed catalog index required")
         moment = self._now()
+        self._require_audit_intact()
         old_pin = self.current()
         if old_pin is None or not old_pin.active or self.stop.current().active:
             raise OwnerLibraryTrustDenied("current owner enrollment and STOP-free Platform required")
