@@ -265,3 +265,59 @@ Response policy: When uncertainty is high, ask or respond normally rather than s
 - pyannote offline diarization community pipeline and initial gated download: https://github.com/pyannote/pyannote-audio
 - SpeechBrain emotional-audio benchmark caveats: https://github.com/speechbrain/speechbrain/tree/develop/recipes/IEMOCAP
 - 2026 empirical warning about unreliable prosodic shortcuts for sarcasm: https://aclanthology.org/2026.findings-emnlp.1464/
+
+## 13. Core-owned voice description and voluntary text-first communication
+
+**Owner direction (2026-11-10):** The *descriptive identity of a voice* belongs to each individually installed Core, rather than to the shared voice engine or Platform; a Core may prefer typing/text, speaking, or dynamically choosing a channel. All choices remain subordinate to owner consent, mute/STOP, audience, and device/transport capability. This is a **design TODO**, not coded or a new Platform 1.0 release gate.
+
+### 13.1 Ownership split and multi-Core separation
+
+| Owner | Owns | Does not own |
+| --- | --- | --- |
+| **Core definition / persistent Core identity** | Its own default expressive voice description and voice-profile ID, optional allowed pronunciation/style traits, and configurable communication preference (`text_preferred`, `voice_preferred`, `adaptive`, `text_only`). Every Core has a distinct identity and protected namespace. | Installed TTS engines, microphones, driver/device access, Fleet resources, or SAFE permissions. |
+| **Per-Core protected asset state** | Owner-approved revisions of voice description; reference/audio/embedding pointers and licensing/provenance where explicitly selected; pronunciation lexicon and per-Core voice asset revision/rollback; optional user-authorized edits. | Direct arbitrary executable model assets or unreviewed uploads accepted as authority. |
+| **Existing generic RM-VOICE service** | TTS/STT model-adapter registry, model loading/scheduling, synthesis, capture and playback, capability negotiation, real receipts, fallback and nonresident modes. Any Core may request it through approved SDK. | Any single Core's persona, chosen spoken identity, emotion history, or a forced requirement for every Core to speak. |
+| **Platform/SAFE + authenticated clients** | Grants, mic/speaker permissions, STOP, audience/device restrictions, output sink, worker allocation and cross-Fleet transport. | Selection of Core personality or self-professed preferences. |
+
+The Core's descriptive voice fields must be **provider-agnostic**. Engines translate only supported traits; an unsupported trait is shown as skipped, not silently claimed to work. One TTS engine can serve multiple Cores with separate speaker embeddings/refs, protected per-Core isolation, no cross-voice asset leakage, and model unloading when unused. A Core that has no approved audio reference can still have a durable text voice description, but TTS must never pretend that description guarantees a specific timbre.
+
+### 13.2 Mode selection and Core preferences
+
+Four proposed values:
+- `text_only`: Core communicates via text only; no default TTS generation; no need to install, preload or reserve speech models. Explicit future opt-in can revise the preference after appropriate approval; voice-independent cognition remains healthy.
+- `text_preferred`: The Core ordinarily writes responses, including to status questions; speech is possible only when allowed and specifically appropriate or requested, and Core can express a preference for typing.
+- `voice_preferred`: The Core prefers speaking where the user/channel allows speech, otherwise it falls back to text.
+- `adaptive`: The Core uses reviewed context, selected client capabilities and expressed preference, without arbitrary mood-driven mic activation or unexplained modality switches.
+
+**Non-negotiable priority:** owner mute/STOP + verified grants + audience/transport/device availability + explicit user-selected output restrictions override Core preferences. No preference authorizes a hot mic, audio transmission to another host, public/private audience downgrade, privileged action, or departure from an enforced text-only channel. Where user asks for speech and a Core is text-preferred, it may accept and talk when permitted or communicate its preference in text; it must never pretend audio played. No user or Core preference should require a deployed audio module on a Core-free Platform.
+
+**Important conceptual distinction:** the profile is *how the Core would sound if it speaks*; its communication preference is *whether/when it wants to speak*. A voice reference and the running speech engine are separate from both. Sofía's reviewed emotion/expression plans remain Core-owned cognition; RM-VOICE merely renders a permitted request.
+
+### 13.3 Proposed provider-neutral schema (illustrative only)
+
+```yaml
+core_identity_id: <immutable-core-uuid>
+voice_identity:
+  voice_profile_id: <core-private-uuid>
+  description: "Grounded, mid-register, precise, dry-witted; clear, not breathy."
+  language: en
+  style_constraints: ["avoid excessive breathiness", "avoid theatrical exaggeration"]
+  approved_reference_asset_id: null     # optional, Core-scoped asset pointer
+  revision: 1
+communication:
+  preference: text_preferred          # text_only | text_preferred | voice_preferred | adaptive
+  allow_voice_on_explicit_request: true
+```
+
+The above is **not a committed runtime configuration or API contract**. Schema shape/field names must be reconciled with existing Core-definition packaging, immutable Core identity, signed assets, signed optional modules and owner-facing Control Center settings before code changes. New Core installations never inherit Sofía's voice, reference recordings or personal speech preference by accident.
+
+### 13.4 Acceptance research additions, NOT TESTED
+
+- **VOICE-33:** Two distinct installed Cores have independent voice descriptions, reference assets, voice IDs and preference revisions; changing one never changes the other.
+- **VOICE-34:** Newly installed Core with `text_only` completes dialogue and restart without RM-VOICE installed, no TTS model load, GPU residency or microphone access.
+- **VOICE-35:** `text_preferred`, `voice_preferred`, `adaptive`, `text_only` are applied predictably across desktop text UI, optional voice client, and constrained text-only transport.
+- **VOICE-36:** Owner mute/STOP, explicit channel restrictions, audience safeguards, revoked voice grants and unavailable devices always override Core preference; no fake spoken/heard receipts.
+- **VOICE-37:** One shared TTS provider can render separately authorized Core voices without cross-Core voice samples, caches or references bleeding into another Core; capability negotiation and model unload visible.
+- **VOICE-38:** New Core defaults can be declared in signed package, but preference/reference changes are durable, authorized, reversible and never silently mutate another Core's identity.
+
+**Scope fence:** Adds no requirement to Platform-only release row #201; these are future module/Core research checks. No live owner device changes, service provisioning, permission grants, audio download or Fleet enrollment occur here.
