@@ -515,7 +515,7 @@ mod tests {
             assert!(!valid_management_endpoint("mgmt-7.sock", id, 7));
             assert!(!valid_management_endpoint("/run/../tmp/mgmt-7.sock", id, 7));
         }
-        assert!(!valid_management_endpoint("socket\\nforged", id, 7));
+        assert!(!valid_management_endpoint("socket\nforged", id, 7));
         assert!(!valid_management_endpoint("", id, 7));
         assert!(!valid_management_endpoint("ignored", id, 0));
     }
