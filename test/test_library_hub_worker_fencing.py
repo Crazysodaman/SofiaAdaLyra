@@ -174,3 +174,23 @@ def test_session_refuses_release_when_hub_still_has_active_worker(
         hub.force_failure = False
         service.close()
     assert service.lease is None
+
+def test_supervised_hub_rejects_concurrent_foreground_accept():
+    started = Event()
+    finish = Event()
+    def occupied():
+        started.set()
+        finish.wait(timeout=3)
+    worker = Thread(target=occupied, daemon=True)
+    worker.start()
+    assert started.wait(3)
+    hub = object.__new__(HostedLibraryHub)
+    hub._serve_thread = worker
+    hub._closed = False
+    try:
+        with pytest.raises(ChunkTransferRejected, match="supervised serving worker"):
+            HostedLibraryHub.serve_once(hub)
+    finally:
+        finish.set()
+        worker.join(timeout=3)
+    assert not worker.is_alive()
