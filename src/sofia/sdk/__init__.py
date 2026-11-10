@@ -32,6 +32,12 @@ _EXPORTS = {
         )
     },
     **{
+        name: ("voice_expression", name) for name in (
+            "VoiceExpressionCue", "VOICE_EXPRESSION_SCHEMA",
+            "VOICE_SYNTHESIZE_SCOPE",
+        )
+    },
+    **{
         name: ("core_link", name) for name in (
             "CoreLinkRequest", "CoreLinkResponse", "CoreLinkResponseStatus",
         )
