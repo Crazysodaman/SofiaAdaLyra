@@ -697,6 +697,21 @@ def test_library_rollback_pin_source_reads_only_real_signed_b1_history(
         item.reference.sha256 for item in manifest.assets
     )))
     assert pinned == expected
+    # Prove the real B1 signed verifier feeds the existing fail-closed
+    # Library GC pin graph, not a hand-written list of trusted CAS names.
+    from sofia.platform.ops.library_retention_graph import (
+        LIVE_PIN_REASONS, build_library_pin_graph,
+    )
+    graph = build_library_pin_graph(
+        store=store, platform_id='installed-owner-platform',
+        run_generation=11,
+        independently_verified_assets_for_manifest=pin_source,
+        read_current_live_pins=lambda: {
+            reason: tuple() for reason in LIVE_PIN_REASONS
+        },
+    )
+    assert graph.installed_manifest_sha256 == (manifest.digest,)
+    assert graph.pin_reasons(pinned[0]) == ('ROLLBACK_RETAINED',)
     assert len(store.history()) == earlier_history
     assert store.checkpoint().minimum_accepted_revision == 1
     assert store.checkpoint().active_release_id is None
