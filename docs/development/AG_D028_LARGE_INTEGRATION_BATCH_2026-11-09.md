@@ -140,3 +140,34 @@ python -m pytest -q test/test_library_signed_index.py test/test_library_signed_s
 2. Freeze D028-00 protocol and exact Rust/Python/UI/installer contracts with real same-SHA review; activate native TUI/GUI from verified installed service pins. Implement Windows pipe re-ACL/restart for new owner enrollment.
 3. Fully signed Core/module/package dependency closure, actual B1 stage/install/activate/rollback, retention/GC crash reconciliation, owner-proof gating and native service restart.
 4. Resolve outstanding branch collision semantics to canonical main. Run focused tests, then full final GitHub CI, then owner-approved real live host shakedown. **No production GO asserted.**
+
+
+## Follow-on | crash-safe signed handoff, 2026-11-09
+
+**Scope:** single-owner private LAN Artifact Library, original Platform RUN/SAFE and B1 CAS. Source-only; NO disposable host run and NO final CI were executed during this pass.
+
+### Repaired a real data-loss window
+
+- `src/sofia/platform/ops/library_chunk_receiver.py` now distinguishes an in-progress partial, a verified CAS published but not fully committed, and a complete receiver object that must retain its signed transfer scope until owner-approved B1 admission.
+- `recover_interrupted_publication(transfer, authorize=...)` accepts **only** a current exact authorized transfer, its surviving owner-private signed scope and an independent full SHA-256 of the same completed single-link inode. It refuses foreign, unbound, changed, revoked or incomplete bytes. This does not assert publisher or install trust.
+- Finalization checks and fsyncs the destination before unlinking the partial. If the last metadata commit fails after unlink, the verified complete object is **not** deleted; it raises explicit `CAS OUTCOME_UNKNOWN`. A surviving scope permits reauthorization and recovery. If final scope cleanup has occurred but the last fsync fails, operator reconciliation is required; no false success is returned.
+- `src/sofia/platform/ops/library_verified_handoff.py` now retains provenance across independent package verification, a distinct one-use `platform.library.cache_admit_enrolled_peer` SAFE approval and canonical B1 CAS import. A denied owner approval or transient publisher-verifier problem no longer strands otherwise complete bytes. Upon successful B1 import, complete signed-transfer provenance is reverified and cleared.
+- Tests: `test/test_library_chunk_resume_scope.py` and `test/test_library_verified_handoff.py` cover interrupted publication, tampered completed content, wrong-manifest adoption, revoked STOP/SAFE, missing one-use owner proof, approval retry without redownload and successful cleanup.
+
+### Personal-only integration facts
+
+- `OwnerLibraryTrustStore`, `library_owner_cli` and `library_owner_catalog_publish` already exist on `main` and explicitly use the canonical per-Platform owner SQLite and independently approved publisher keys. No new cloud trust service, customer registry, paid CA, tenant model, commercial marketplace or public artifact host is required.
+- Signed catalog presence is **not** permission to copy private/no-copy model, voice or Core data across machines. Approved private LAN transfers still require current enrolled mTLS source/recipient certificates, exact owner SAFE scopes, signed artifact provenance and separate B1 effect approval.
+- Usable local one-owner interface and behavior are documented in `docs/operations/AEGIS_PERSONAL_LIBRARY_OWNER_COMMISSIONING.md`; source availability is not evidence that installed GUI/TUI/Windows service has passed live validation.
+- Historical branch triage identifies additive alternatives already incorporated or superseded. No whole-fork replay, force-push or branch deletion was performed.
+
+### Focused tests to execute on full original checkout (none claimed passed)
+
+```bash
+python -m compileall -q src/sofia/platform/ops/library_chunk_receiver.py src/sofia/platform/ops/library_verified_handoff.py
+python -m pytest -q test/test_library_chunk_resume_scope.py test/test_library_verified_handoff.py test/test_library_chunk_receiver.py test/test_library_two_platform_b1_hub.py
+```
+
+### Unchanged release gates
+
+D028-00 real Rust/Python same-SHA agreement and original owner-enrolled signed release authority; complete signed B1 install/activate/rollback + GC; native Windows/Linux UI/TUI/CLI; exact-host multi-device acceptance LIB-01..16 and full 38 Platform release rows. Source commits do not promote ledger PASS, unlock a live production deployment or authorize a host migration. Full CI remains deferred to the final agreed development gate.
