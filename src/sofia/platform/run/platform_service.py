@@ -393,6 +393,70 @@ class PlatformServiceSession:
         finally:
             self._recipient_transfer_lock.release()
 
+    def acquire_owner_approved_library_sdk(
+        self, *, approval_id: str,
+        transfer, expected_artifact_id: str,
+        receiver, cache, open_enrolled_tls,
+        enrolled_source_certificate_sha256: str,
+        signed_b1_sdk_envelope: bytes,
+        b1_verifier, b1_installation,
+        expected_source_sha: str, expected_target,
+        trusted_signer_key_id: str, signer_current,
+        start_offset: int = 0,
+        chunk_bytes: int = 1024 * 1024, max_chunks: int = 128,
+        signed_catalog_source=None, clock=None,
+    ) -> dict[str, object]:
+        """One private owner-approved SDK cache admission via REAL B1 trust.
+
+        The caller supplies the installed B1 publisher verifier and original
+        signed release envelope, NOT a Hub-supplied 'verified' boolean. The
+        canonical SDK parser checks the selected wheel; separate SAFE owner
+        proof, current enrolled TLS and cache import remain mandatory. No
+        Platform installer, GUI action, Core activation or model loading.
+        """
+        from sofia.platform.ops.library_b1_sdk_publisher import (
+            InstalledB1SignedSdkVerifier,
+        )
+        from sofia.platform.ops.library_chunk_receiver import (
+            ChunkTransferRejected, PinnedChunkTransfer,
+        )
+        if (not isinstance(transfer, PinnedChunkTransfer)
+                or transfer.artifact_kind != "sdk"):
+            raise ChunkTransferRejected(
+                "dedicated signed B1 SDK acquisition required"
+            )
+        publisher = InstalledB1SignedSdkVerifier(
+            verifier=b1_verifier, installation=b1_installation,
+            signed_envelope=signed_b1_sdk_envelope,
+            expected_source_sha=expected_source_sha,
+            expected_target=expected_target,
+            trusted_signer_key_id=trusted_signer_key_id,
+            signer_current=signer_current,
+        )
+        if (
+            publisher.signed_manifest_sha256 != transfer.manifest_sha256
+            or publisher._manifest.release_id != expected_artifact_id
+        ):
+            raise ChunkTransferRejected(
+                "SDK signed B1 manifest or release differs from selected offer"
+            )
+        trusted = dict(
+            transfer=transfer, expected_artifact_id=expected_artifact_id,
+            receiver=receiver, cache=cache,
+            open_enrolled_tls=open_enrolled_tls,
+            enrolled_source_certificate_sha256=enrolled_source_certificate_sha256,
+            verify_independent_package=publisher,
+            package_signer_current=signer_current,
+        )
+        if signed_catalog_source is not None:
+            trusted["signed_catalog_source"] = signed_catalog_source
+        if clock is not None:
+            trusted["clock"] = clock
+        return self.acquire_owner_approved_library_asset(
+            approval_id=approval_id, start_offset=start_offset,
+            chunk_bytes=chunk_bytes, max_chunks=max_chunks, **trusted,
+        )
+
     def close(self):
         """Drain child Hub and recipient work BEFORE relinquishing RUN authority.
 
