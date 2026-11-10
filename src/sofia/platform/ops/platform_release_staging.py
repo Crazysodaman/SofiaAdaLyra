@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 from sofia.platform.ops.platform_release import PlatformReleaseVerifier, PlatformReleaseRejected
+from sofia.platform.ops.platform_signed_asset_copy import copy_verified_signed_asset
 from sofia.platform.state.artifact_file import read_artifact_file
 from sofia.platform.state.private_file import (
     assert_no_redirected_components, assert_owner_private_path,
@@ -75,11 +76,12 @@ def stage_platform_release(*, verifier, payload, signature_b64, signer_key_id,
     assets.mkdir(mode=0o700)
     for item in manifest.assets:
         reference=item.reference
-        digest,data=read_artifact_file(source.joinpath(*reference.path.split('/')),
-            reference.size_bytes,include_data=True)
-        if digest!=reference.sha256:
-            raise PlatformReleaseRejected('release source changed before staging')
-        _write_new(assets.joinpath(*reference.path.split('/')),data)
+        copy_verified_signed_asset(
+            source.joinpath(*reference.path.split('/')),
+            assets.joinpath(*reference.path.split('/')),
+            expected_sha256=reference.sha256,
+            expected_size=reference.size_bytes,
+        )
     # Reverify copied bytes, not their original path or a cached boolean result.
     verifier.verify(manifest.to_payload(),assets_root=assets,**scope)
     runtime=next(item.reference for item in manifest.assets if item.kind=='python-runtime')
