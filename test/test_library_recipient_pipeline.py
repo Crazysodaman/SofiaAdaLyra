@@ -313,3 +313,21 @@ def test_completed_quarantine_retry_refuses_ambiguous_partial_offset(environment
         acquire_selected_signed_platform_asset(**args)
     assert calls == []
     assert complete.read_bytes() == data
+
+
+
+def test_unbound_completed_blob_never_triggers_retransfer_or_cache_approval(
+    environment,
+):
+    args, calls, data = environment
+    receiver = args["receiver"]
+    pin = args["transfer"]
+    complete = receiver.completed / pin.content_sha256
+    complete.write_bytes(data)
+    complete.chmod(0o600)
+    # A previously completed object without its current exact signed scope
+    # must not be silently adopted, redownloaded or promoted as B1 trust.
+    with pytest.raises(ChunkTransferRejected, match="lacks exact signed"):
+        acquire_selected_signed_platform_asset(**args)
+    assert calls == []
+    assert complete.read_bytes() == data
