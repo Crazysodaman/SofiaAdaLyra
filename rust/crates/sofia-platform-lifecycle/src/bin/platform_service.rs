@@ -18,6 +18,21 @@ const SCHEMA: &str = "aegis.platform.service-control.v1";
 const INITIAL_REPLY_TIMEOUT: Duration = Duration::from_secs(12);
 const HEALTH_REPLY_TIMEOUT: Duration = Duration::from_secs(5);
 type Failure = Box<dyn std::error::Error + Send + Sync>;
+// Reject arbitrary 36-character labels before starting a privileged service.
+// Keep the lexical check dependency-free and accept UUID versions supported by
+// the durable identity store (not just random v4 UUIDs).
+fn valid_platform_uuid(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() == 36
+        && bytes.iter().enumerate().all(|(i, byte)| {
+            if matches!(i, 8 | 13 | 18 | 23) {
+                *byte == b'-'
+            } else {
+                byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()
+            }
+        })
+}
+
 
 #[derive(Clone)]
 struct Configuration {
@@ -57,7 +72,7 @@ impl Configuration {
             || !config.python.is_file()
             || !config.identity.is_absolute()
             || !config.state.is_absolute()
-            || config.platform_id.len() != 36
+            || !valid_platform_uuid(&config.platform_id)
             || config.public_key.len() != 64
             || !config
                 .public_key
@@ -377,6 +392,16 @@ mod tests {
         let mut extra = value;
         extra["owner_authorized"] = json!(true);
         assert!(serde_json::from_value::<Reply>(extra).is_err());
+    }
+    #[test]
+    fn platform_id_requires_canonical_lowercase_uuid() {
+        assert!(valid_platform_uuid("12345678-1234-4abc-8abc-1234567890ab"));
+        assert!(valid_platform_uuid("00000000-0000-0000-0000-000000000000"));
+        assert!(!valid_platform_uuid("x".repeat(36).as_str()));
+        assert!(!valid_platform_uuid("1234567812344abc8abc1234567890ab"));
+        assert!(!valid_platform_uuid("12345678_1234_4abc_8abc_1234567890ab"));
+        assert!(!valid_platform_uuid("12345678-1234-4ABC-8abc-1234567890ab"));
+        assert!(!valid_platform_uuid("12345678-1234-4abc-8abc-1234567890ab "));
     }
     #[test]
     fn no_arbitrary_program_or_incomplete_configuration() {
