@@ -135,3 +135,74 @@ def test_existing_owner_cli_preflight_never_grants_or_opens_listener(
         assert hub["grant_created"] is False
         assert hub["authorization_required"] == "EXISTING_OWNER_SAFE_ONE_USE"
         assert not service._hosted_library_hubs
+
+
+
+def test_readonly_preflight_does_not_initialize_or_write_lease_schema(
+    tmp_path, monkeypatch,
+):
+    """A status preview must not call the write-capable RUN store constructor."""
+    from sofia.platform.run.lease import LocalRunLeaseStore
+    from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
+    identity, current, state, owner = _owner(tmp_path)
+    # Existing installation bootstrap may have schema, but previewing must
+    # not initialize RUN state, migrate tables or acquire a lease.
+    with CanonicalSQLiteGuard(state).connect(read_only=True) as db:
+        before = tuple(db.execute(
+            "SELECT name,sql FROM sqlite_master WHERE type='table' ORDER BY name"
+        ))
+    def reject_constructor(*_args, **_kwargs):
+        raise AssertionError("read-only preflight attempted RUN writer construction")
+    monkeypatch.setattr(LocalRunLeaseStore, "__init__", reject_constructor)
+    with pytest.raises(OwnerLibraryPreflightDenied, match="RUN"):
+        preview_personal_hub_grant(
+            store=owner, bind_host="127.0.0.1", bind_port=47321,
+        )
+    with CanonicalSQLiteGuard(state).connect(read_only=True) as db:
+        after = tuple(db.execute(
+            "SELECT name,sql FROM sqlite_master WHERE type='table' ORDER BY name"
+        ))
+    assert before == after
+
+
+def test_pinned_readonly_lease_observer_matches_real_service_run(tmp_path):
+    from sofia.platform.run.lease import LocalRunLeaseStore
+    identity, current, state, owner = _owner(tmp_path)
+    at = datetime.now(timezone.utc)
+    assert LocalRunLeaseStore.peek_existing(
+        state, lease_key="platform-service", now=at,
+    ) is None
+    with PlatformServiceSession(
+        identity.home, state, current.identity.canonical_uuid,
+        current.public_key_sha256,
+    ) as service:
+        observed = service.status()
+        pin = LocalRunLeaseStore.peek_existing(
+            state, lease_key="platform-service",
+            now=datetime.now(timezone.utc),
+        )
+        assert pin is not None
+        assert pin.epoch == observed["generation"]
+        assert pin.lease_key == "platform-service"
+        assert pin.owner_id
+    assert LocalRunLeaseStore.peek_existing(
+        state, lease_key="platform-service", now=datetime.now(timezone.utc),
+    ) is None
+
+
+def test_readonly_lease_observer_refuses_future_clock_and_invalid_inputs(tmp_path):
+    from datetime import timedelta
+    from sofia.platform.run.lease import LocalRunLeaseStore
+    identity, current, state, owner = _owner(tmp_path)
+    with pytest.raises(ValueError, match="timezone-aware"):
+        LocalRunLeaseStore.peek_existing(
+            state, lease_key="platform-service", now=datetime.utcnow(),
+        )
+    with PlatformServiceSession(
+        identity.home, state, current.identity.canonical_uuid,
+        current.public_key_sha256,
+    ) as service:
+        assert LocalRunLeaseStore.peek_existing(
+            state, lease_key="platform-service",
+            now=datetime.now(timezone.utc) + timedelta(hours=1),
+        ) is None
