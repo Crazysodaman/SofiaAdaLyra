@@ -186,3 +186,86 @@ def test_runtime_rejects_untrusted_archive_before_creating_candidate(tmp_path, d
             target=PlatformReleaseTarget.WINDOWS_X86_64 if defect == 'target' else prepared.manifest.target,
             python_version='3.12.17' if defect == 'version' else '3.12.16')
     assert not destination.exists()
+
+
+
+def test_runtime_builder_verifier_and_materializer_stream_non_native_bytes(
+        tmp_path, monkeypatch):
+    """One actual signed-format CPython ZIP through all original B1 stages.
+
+    Non-executable source files and the complete ZIP must never use the
+    eager 512MiB reader. The original native header is still read in full
+    (at most 64MiB) because architecture verification needs native bytes.
+    """
+    import tracemalloc
+    import sofia.platform.verify.python_runtime as module
+
+    prefix = fake_prefix(tmp_path)
+    large_source = prefix / 'lib/python3.12/os.py'
+    with large_source.open('wb') as output:
+        output.truncate(16 * 1024 * 1024 + 3)
+
+    original = module.read_artifact_file
+    eager = []
+    def checked_reader(path, size, *, include_data=False):
+        if include_data:
+            eager.append(str(path))
+            assert Path(path).name == 'python3.12'
+        return original(path, size, include_data=include_data)
+    monkeypatch.setattr(module, 'read_artifact_file', checked_reader)
+
+    runtime = tmp_path / 'signed-python-runtime.zip'
+    destination = tmp_path / 'owner-private-materialized-runtime'
+    tracemalloc.start()
+    try:
+        packaged = module.build_python_runtime(
+            prefix, runtime, target=PlatformReleaseTarget.DEBIAN12_X86_64,
+            python_version='3.12.16',
+        )
+        observed = module.verify_python_runtime(
+            runtime, expected=packaged.reference,
+            target=PlatformReleaseTarget.DEBIAN12_X86_64,
+            python_version='3.12.16',
+        )
+        extracted = module.materialize_python_runtime(
+            runtime, destination, expected=packaged.reference,
+            target=PlatformReleaseTarget.DEBIAN12_X86_64,
+            python_version='3.12.16',
+        )
+        _current, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+
+    assert observed == packaged.manifest == extracted
+    assert (destination / 'python/lib/python3.12/os.py').stat().st_size == (
+        16 * 1024 * 1024 + 3
+    )
+    assert not list(destination.rglob('sofia.db'))
+    assert len(eager) == 1
+    assert peak < 12 * 1024 * 1024
+
+
+def test_runtime_streaming_review_denies_corrupted_publisher_signed_zip(
+        tmp_path):
+    from sofia.platform.verify.python_runtime import (
+        build_python_runtime, verify_python_runtime,
+    )
+    from sofia.sdk.artifact import ArtifactReference
+
+    prefix = fake_prefix(tmp_path)
+    output = tmp_path / 'signed-runtime.zip'
+    packaged = build_python_runtime(
+        prefix, output, target=PlatformReleaseTarget.DEBIAN12_X86_64,
+        python_version='3.12.16',
+    )
+    raw = bytearray(output.read_bytes())
+    # Mutating one byte of the outer ZIP with the SAME declared ArtifactReference
+    # must fail before any runtime materialization or installation.
+    raw[len(raw) // 2] ^= 1
+    output.write_bytes(raw)
+    with pytest.raises((ValueError, PermissionError)):
+        verify_python_runtime(
+            output, expected=packaged.reference,
+            target=PlatformReleaseTarget.DEBIAN12_X86_64,
+            python_version='3.12.16',
+        )
