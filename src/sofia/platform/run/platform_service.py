@@ -135,6 +135,8 @@ class PlatformServiceSession:
         # One owner-approved private signed Library Hub per current RUN
         # service. Explicitly opened children are closed BEFORE lease release.
         self._hosted_library_hubs = []
+        self._closing = False
+        self._closed = False
         # Recipient's quarantine is single-writer even across repeated
         # foreground resumptions. A second simultaneous acquire is refused.
         self._recipient_transfer_lock = Lock()
@@ -269,6 +271,8 @@ class PlatformServiceSession:
 
     def status(self):
         with self._status_lock:
+            if self._closing or self._closed:
+                raise RuntimeError("Platform service shutdown has begun")
             if self.lease is None or self.identity_store.load() != self.identity:
                 raise RuntimeError('Platform service identity unavailable')
             self.storage.validate()
@@ -315,6 +319,8 @@ class PlatformServiceSession:
         """
         from sofia.platform.run.library_host_service import HostedLibraryHub
         with self._status_lock:
+            if self._closing or self._closed:
+                raise RuntimeError("cannot start Hub while Platform is stopping")
             self.status()
             if any(not child._closed for child in self._hosted_library_hubs):
                 raise PermissionError("single owner-selected Library Hub already serving")
@@ -365,22 +371,52 @@ class PlatformServiceSession:
             self._recipient_transfer_lock.release()
 
     def close(self):
+        """Drain child Hub and recipient work BEFORE relinquishing RUN authority.
+
+        A second service must NEVER acquire a fresh generation while an
+        older Hub worker can still emit signed bytes from the previous one.
+        Close is idempotent on success; a failed drain keeps the original
+        process/lease fence for explicit owner reconciliation.
+        """
+        with self._status_lock:
+            if self._closed:
+                return
+            self._closing = True
+            children = tuple(reversed(self._hosted_library_hubs))
+        errors = []
+        # No status lock while joining: a worker may be checking RUN/STOP
+        # and must be able to finish rather than deadlocking on close().
+        for hub in children:
+            try:
+                hub.close()
+            except BaseException as exc:
+                errors.append(exc)
         try:
-            with self._status_lock:
-                try:
-                    for hub in reversed(self._hosted_library_hubs):
-                        hub.close()
-                finally:
-                    self._hosted_library_hubs.clear()
             self._stop_management()
-        finally:
-            with self._status_lock:
-                try:
-                    if self.lease is not None:
-                        self.leases.release(self.lease, now=datetime.now(timezone.utc))
-                        self.lease = None
-                finally:
-                    self.lock.release()
+        except BaseException as exc:
+            errors.append(exc)
+        # A foreground recipient must finish its current bounded TLS read,
+        # see service shutdown and refuse the next SAFE/cache effect. Do not
+        # release RUN while any transfer still holds the owner session lock.
+        if self._recipient_transfer_lock.acquire(timeout=30):
+            self._recipient_transfer_lock.release()
+        else:
+            errors.append(RuntimeError("recipient acquisition did not drain"))
+        if errors:
+            raise RuntimeError(
+                "Platform RUN lease retained because service work did not drain"
+            ) from errors[0]
+        with self._status_lock:
+            self._hosted_library_hubs.clear()
+            try:
+                if self.lease is not None:
+                    self.leases.release(
+                        self.lease, now=datetime.now(timezone.utc),
+                    )
+                    self.lease = None
+            finally:
+                self.lock.release()
+                self._closed = True
 
     def __enter__(self):
         return self
