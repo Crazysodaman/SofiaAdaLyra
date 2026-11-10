@@ -16,6 +16,8 @@ from sofia.platform.safe.permissions import PermissionStore
 
 LIBRARY_READ_CAPABILITY = "platform.library.read"
 CATALOG_OPERATION = "library.catalog.snapshot.v1"
+SOURCES_OPERATION = "library.sources.snapshot.v1"
+READ_OPERATIONS = frozenset((CATALOG_OPERATION, SOURCES_OPERATION))
 _SCOPE = frozenset({"platform_id", "peer", "operation"})
 
 
@@ -37,7 +39,7 @@ class CurrentLibraryReadPeerAuthority:
         if (type(authenticated_peer) is not str or not (
                 authenticated_peer.startswith("unix:uid:")
                 or authenticated_peer.startswith("windows:sid:"))
-                or operation != CATALOG_OPERATION):
+                or operation not in READ_OPERATIONS):
             return False
         now = self.clock()
         if not isinstance(now, datetime) or now.utcoffset() is None:
@@ -45,7 +47,7 @@ class CurrentLibraryReadPeerAuthority:
         expected = {
             "platform_id": self.platform_id,
             "peer": authenticated_peer,
-            "operation": CATALOG_OPERATION,
+            "operation": operation,
         }
         for grant in self.permissions.grants(active_only=False):
             if (grant.capability == LIBRARY_READ_CAPABILITY
@@ -70,7 +72,7 @@ class CurrentLibraryReadPeerAuthority:
                     or type(grant.scope) is not dict
                     or set(grant.scope) != _SCOPE
                     or grant.scope.get("platform_id") != self.platform_id
-                    or grant.scope.get("operation") != CATALOG_OPERATION
+                    or grant.scope.get("operation") not in READ_OPERATIONS
                     or not grant.matches(grant.scope, now=now)):
                 continue
             peer = grant.scope.get("peer")
