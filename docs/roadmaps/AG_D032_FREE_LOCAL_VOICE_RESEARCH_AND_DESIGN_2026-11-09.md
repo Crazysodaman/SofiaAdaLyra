@@ -321,3 +321,54 @@ The above is **not a committed runtime configuration or API contract**. Schema s
 - **VOICE-38:** New Core defaults can be declared in signed package, but preference/reference changes are durable, authorized, reversible and never silently mutate another Core's identity.
 
 **Scope fence:** Adds no requirement to Platform-only release row #201; these are future module/Core research checks. No live owner device changes, service provisioning, permission grants, audio download or Fleet enrollment occur here.
+
+## 14. Dynamic weighted voice expression matrix: emotion, environment and context
+
+**Owner idea (2026-11-10):** Extend the *existing* `VoiceProsodyMatrix` and canonical `ContextualInfluenceMatrix` rather than creating a competing emotion, environment, personality or voice identity system. Permit each Core to shape **how** it speaks through weights over reviewed Core emotion, communication intent, relationship, time/daylight and consented audible surroundings; weather/season may color expression but must not invent emotion or assert environmental cause. Owner-only/private and no paid API remain unchanged. **Design TODO, NOT IMPLEMENTED OR LIVE-VERIFIED.**
+
+### 14.1 Existing implementation and exact gap
+
+- `src/sofia/modules/voice/prosody_matrix.py` already has `VoiceProsodyProfile` with rate [0.75,1.25], pitch [-2,+2] semitones, energy [0.60,1.40], volume [0.60,1.30] and pauses [0.70,1.40], plus curated targets for modeled emotions, subtle daypart offsets and urgency.
+- `src/sofia/core/cognition/matrix/influence.py` already authorizes `VOICE_EXPRESSION`: **EMOTION = BOUNDED_BIAS**, **DAYPART = BOUNDED_BIAS**, **WEATHER = EXPRESSION_ONLY**, **SEASON = EXPRESSION_ONLY**. Active signals require evidence/provenance and freshness.
+- `src/sofia/core/personality/influence.py` already supplies reviewed emotional foreground/background, local daypart, weather freshness, temperature/daylight and scoped evidence refs. Current prosody planner uses one foreground or primary emotion, not a weighted mixture or interpolation across multiple signals.
+- Existing typed prosody controls are **proposals**, not evidence that any SAPI or neural TTS backend applied them. The configured voice must negotiate actual supported controls and generate honest receipts.
+
+### 14.2 Voice-influence layers and proposed weights
+
+**Core-voice identity is invariant:** Each Core owns provider-neutral voice identity and approved reference asset, stable across modes, seasons, model changes and signal updates. A Core with `text_only` has no synthesis work, no installed TTS dependency, and zero resident model cost.
+
+Proposed **illustrative starting influence weights** (sum 100 for owner review, but are *not* literal output percentages or blindly mixed decibel/semitone scalars):
+
+| Signal | Initial share | Permitted effect | Caveat |
+| --- | ---: | --- | --- |
+| Core-modeled emotion | 35 | Bounded prosody + explicit supported expressive tags | Evidence-linked, foreground dominates persistent relational background; no fabrication |
+| Turn intent / conversational setting | 25 | Technical clarity vs social/playful/reflective pacing; question/response emphasis | Actual verified conversation context, not unsupported intent inference |
+| Relationship + audience-scoped familiarity | 15 | Subtle warmth and delivery familiarity | Never privilege, permission, intimacy or public voice leak |
+| Local daypart and trustworthy daylight | 10 | Small cadence/energy changes | Local to the authenticated conversation endpoint and its time zone, not arbitrary VM clock |
+| Observed listening environment | 10 | Clarity/emphasis and optional intelligibility profile for **consented** mic/noise data | Must not auto-open mic, change OS master volume or infer user feelings from loudness |
+| Weather/season | 5 | **Expression-only** atmosphere or style suggestions; no direct numeric prosody from these signals under current policy | No “rain makes her sad”; fresh sourced location/weather required |
+
+**Weighted compositing concept:** For each permitted output axis `x`, calculate `target_x = clamp(base_x + sum(eligible_weight_i * confidence_i * intensity_i * approved_delta_i), axis_bounds)`. Normalize shares only among *eligible signals for that axis*, or retain explicit fixed global shares and omit unavailable ones with no compensatory escalation; choose and document one deterministic policy during implementation. `eligible` requires verified evidence, freshness, audience and per-signal policy. Unknown/stale/missing signals have zero influence. `EXPRESSION_ONLY` signals may contribute to allowed style text/tag choices but **never** to numeric deltas without separately reviewed policy change. Operational clarity (urgency and audibility) is a distinct bounded overlay, not an emotional ingredient or permission grant.
+
+**Do not equate numeric rate/pitch shifts with subjective feeling.** An interface can explain “applied a small evening pacing bias” without claiming “Sofia feels sleepy.” Core emotions, observed user's audio affect, environment data and Core communication preference are separate sources and owners.
+
+### 14.3 Temporal blending, expressivity and runtime safety
+
+- Use short, bounded **smoothing/hysteresis** across consecutive utterances so emotion/clock changes do not abruptly jump pitch, speed or timbre. Immediate exceptions for a verified time-critical safety/urgency requirement, still only for delivery clarity, never to grant an action.
+- Per-Core **voice matrix preset** (e.g. balanced, expressive, understated) stores weight ceilings and enabled signals under protected Core preferences; allow reversible owner edits and evidence-reviewed Core-proposed changes through existing EVOLVE. User mute/STOP, client preferences and channel capabilities supersede Core-proposed speech.
+- Preserve **same voice identity and pronunciation** under varied emotional and ambient conditions; do not switch to an unrelated speaker/reference/timbre because the weather changed. If TTS backend does not support `energy`, style tags or direct pitch control, record `skipped_unsupported`, never fake application.
+- Proposed auditable `VoiceInfluencePlan` includes `core_identity_id`, `voice_profile_revision`, `conversation_id`, `audience_id`, `output_device`, `signal`, `effective_weight`, `evidence_refs`, `freshness`, `approved_delta`, `clamp_result`, `model_capability_mapping` and `synthesis/playback receipts`. No second data-authority writer.
+- **Examples:** A late-evening low-stakes personal chat may have slightly longer pauses; a verified operational fault gets deliberate crisp delivery; amusement adds subtle brightness. A thunderstorm alone cannot force fear/sadness, alter identity, activate a microphone, generate an unsolicited urgent alert or turn on spoken replies for a text-only Core.
+- Keep computation tiny: deterministic weight arithmetic on CPU; no additional always-resident LLM/GPU model. Per-device microphone noise measurement is opt-in and local; caching uses bounded provenance-aware expiry; raw audio retention remains disabled.
+
+### 14.4 Proposed acceptance checks (ALL NOT TESTED)
+
+- **VOICE-39:** Deterministic signed-policy baseline retains current verified EMOTION/DAYPART vs WEATHER/SEASON mode separation; no accidental change to existing `VOICE_EXPRESSION` allowlist.
+- **VOICE-40:** Weighted composition produces bounded deterministic numeric results, tested for missing/stale/untrusted/contradictory emotion, clock, season, weather and surroundings evidence and no unauthorized weight renormalization.
+- **VOICE-41:** Temporal smoothing avoids audible pitch/rate jumps for ordinary delivery; meaningful urgent delivery remains clear without exceeding ranges or granting security authority.
+- **VOICE-42:** Same Core voice identity and pronunciation persist across weighted modes and backend fallback; different Cores retain separate presets and zero shared reference leakage.
+- **VOICE-43:** Text-preferred/text-only, owner mute/STOP/revocation and constrained transport avoid TTS/mic activity even when voice matrix weights suggest a spoken tone.
+- **VOICE-44:** UI/TUI can inspect raw signal/evidence, weights, calculated and actual applied controls, skipped backend controls and truthful output-sink playback receipts; dry-run and reset presets are supported.
+- **VOICE-45:** Real owner-authorized Windows/Linux/Fleet experiments compare balanced/unweighted/expressive modes by listening consistency, intelligibility, CPU time, memory/VRAM and power. No paper design claims audible quality or production readiness.
+
+**Dependency fence:** Preserve current AG-D028/Platform 1.0 acceptance and existing Core/Voice module status; this is not an installation, owner microphone enrollment, voice activation, Fleet scheduling approval, or release-gate expansion.
