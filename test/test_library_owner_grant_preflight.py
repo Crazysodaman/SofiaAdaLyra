@@ -206,3 +206,25 @@ def test_readonly_lease_observer_refuses_future_clock_and_invalid_inputs(tmp_pat
             state, lease_key="platform-service",
             now=datetime.now(timezone.utc) + timedelta(hours=1),
         ) is None
+
+def test_owner_cli_previews_separate_short_lived_sources_read_scope(
+    tmp_path, capsys,
+):
+    identity, current, state, owner = _owner(tmp_path)
+    with PlatformServiceSession(
+        identity.home, state, current.identity.canonical_uuid,
+        current.public_key_sha256,
+    ):
+        assert main([
+            "--state", str(state), "--platform-id", current.identity.canonical_uuid,
+            "prepare-local-read", "--operation", "library.sources.snapshot.v1",
+        ]) == 0
+        preview = json.loads(capsys.readouterr().out)
+        assert preview["scope"]["operation"] == "library.sources.snapshot.v1"
+        assert preview["capability"] == "platform.library.read"
+        assert preview["grant_created"] is False
+        assert preview["authorization_required"] == "EXISTING_OWNER_SAFE_ONE_USE"
+        with pytest.raises(OwnerLibraryPreflightDenied, match="exact catalog"):
+            preview_personal_local_read_grant(
+                store=owner, operation="library.install.execute.v1",
+            )
