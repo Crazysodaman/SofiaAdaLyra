@@ -35,6 +35,12 @@ const CATALOG_ITEM_KEYS: [&str; 17] = [
     "sdk_range", "abi_range", "license_distribution",
     "data_class", "distribution_allowed",
 ];
+pub const OWNER_SOURCES_STATUS_SCHEMA: &str = "aegis.library.owner-sources.v1";
+const SOURCES_STATUS_KEYS: [&str; 8] = [
+    "schema", "owner_mode", "source_platform_id", "publisher_state",
+    "catalog_state", "hub_state", "served_chunks", "served_bytes",
+];
+
 const TRANSFER_KEYS: [&str; 13] = [
     "job_id", "artifact_content_digest", "target_platform_id",
     "source_platform_id", "source_kind", "received_bytes",
@@ -309,6 +315,42 @@ impl UntrustedLibraryRequest {
     }
 }
 
+fn owner_sources(
+    data: &Value,
+    expected: &UntrustedLibraryRequest,
+) -> Result<(), ContractError> {
+    let obj = fields(data, &SOURCES_STATUS_KEYS)?;
+    if str_field(obj, "schema")? != OWNER_SOURCES_STATUS_SCHEMA
+        || str_field(obj, "owner_mode")? != "SINGLE_OWNER_PRIVATE"
+        || expected.expected_revision != 0
+    {
+        return Err(invalid("unsupported owner-only Library status"));
+    }
+    let source = &obj["source_platform_id"];
+    if !source.is_null() {
+        id(source.as_str().ok_or_else(|| invalid("bad publisher source"))?)?;
+    }
+    let publisher = str_field(obj, "publisher_state")?;
+    let catalog_state = str_field(obj, "catalog_state")?;
+    let hub_state = str_field(obj, "hub_state")?;
+    if !["UNENROLLED", "CURRENT", "REVOKED", "UNKNOWN"].contains(&publisher)
+        || !["UNAVAILABLE", "CURRENT", "UNVERIFIED"].contains(&catalog_state)
+        || !["CLOSED", "OPEN_IDLE", "SERVING", "UNKNOWN"].contains(&hub_state)
+    {
+        return Err(invalid("unreviewed owner Library source state"));
+    }
+    if publisher == "UNENROLLED" && !source.is_null() {
+        return Err(invalid("unenrolled publisher cannot assert source"));
+    }
+    if catalog_state == "CURRENT" && publisher != "CURRENT" {
+        return Err(invalid("signed catalog requires owner publisher"));
+    }
+    exact_int(&obj["served_chunks"], 0)?;
+    exact_int(&obj["served_bytes"], 0)?;
+    Ok(())
+}
+
+
 fn catalog(
     data: &Value,
     expected: &UntrustedLibraryRequest,
@@ -512,6 +554,8 @@ impl UntrustedLibraryResponse {
                 }
                 if expected.operation == "library.catalog.snapshot.v1" {
                     catalog(&obj["data"], expected, now)?;
+                } else if expected.operation == "library.sources.snapshot.v1" {
+                    owner_sources(&obj["data"], expected)?;
                 } else if expected.operation == "library.transfer.status.v1" {
                     transfer(&obj["data"], expected, now)?;
                 } else {
