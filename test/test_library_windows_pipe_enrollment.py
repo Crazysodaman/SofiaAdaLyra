@@ -59,3 +59,24 @@ def test_library_pipe_refuses_conflicting_or_group_operator_acl(management, libr
 
 def test_windows_pipe_unenrolled_operator_has_no_client_sid():
     assert select_enrolled_windows_pipe_sid(None, None) is None
+
+def test_sources_status_only_owner_windows_sid_is_eligible_for_same_pipe(tmp_path):
+    identity, current, state = provision(tmp_path)
+    permissions = PermissionStore(state)
+    authority = CurrentLibraryReadPeerAuthority(
+        permissions, platform_id=current.identity.canonical_uuid,
+    )
+    scope = {
+        "platform_id": current.identity.canonical_uuid,
+        "peer": "windows:sid:" + SID,
+        "operation": "library.sources.snapshot.v1",
+    }
+    owner_grant = grant_with_signed_owner(
+        permissions, "platform.library.read", scope=scope,
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+    )
+    assert authority.enrolled_windows_operator_sid() == SID
+    assert authority(scope["peer"], "library.sources.snapshot.v1") is True
+    assert authority(scope["peer"], "library.catalog.snapshot.v1") is False
+    revoke_with_signed_owner(permissions, owner_grant.grant_id)
+    assert authority.enrolled_windows_operator_sid() is None
