@@ -262,6 +262,8 @@ def _owner_sources(
             raise ValueError("invalid personal Library observation state")
     if data["publisher_state"] == "UNENROLLED" and source is not None:
         raise ValueError("unenrolled publisher cannot claim a known source")
+    if data["publisher_state"] == "CURRENT" and source is None:
+        raise ValueError("current publisher requires an enrolled source identity")
     if (data["catalog_state"] == "CURRENT"
             and data["publisher_state"] != "CURRENT"):
         raise ValueError("current Library catalog requires owner-pinned publisher")
