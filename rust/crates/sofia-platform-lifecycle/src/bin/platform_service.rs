@@ -105,6 +105,20 @@ struct Reply {
     management_endpoint: Option<String>,
 }
 
+// The child is not an independent authority: every response must remain
+// pinned to the installed Platform, its generation and its first READY serial.
+fn reply_matches_identity(reply: &Reply, config: &Configuration, serial: Option<&str>) -> bool {
+    reply.schema == SCHEMA
+        && reply.platform_id == config.platform_id
+        && reply.public_key_sha256 == config.public_key
+        && !reply.core_started
+        && reply.generation != 0
+        && reply.serial.starts_with("AEG-P-")
+        && reply.serial.len() <= 128
+        && reply.serial.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+        && serial.is_none_or(|pinned| reply.serial == pinned)
+}
+
 struct Worker {
     child: Child,
     input: Option<ChildStdin>,
@@ -204,13 +218,11 @@ impl Worker {
             .replies
             .recv_timeout(timeout)?
             .map_err(|_| "canonical Platform service unavailable")?;
-        if value.schema != SCHEMA
-            || value.platform_id != self.config.platform_id
-            || value.public_key_sha256 != self.config.public_key
-            || value.core_started
-            || value.generation == 0
-            || !value.serial.starts_with("AEG-P-")
-        {
+        if !reply_matches_identity(
+            &value,
+            &self.config,
+            if self.serial.is_empty() { None } else { Some(&self.serial) },
+        ) {
             return Err("service identity response differs".into());
         }
         Ok(value)
@@ -406,6 +418,34 @@ mod tests {
         assert!(!valid_platform_uuid("12345678_1234_4abc_8abc_1234567890ab"));
         assert!(!valid_platform_uuid("12345678-1234-4ABC-8abc-1234567890ab"));
         assert!(!valid_platform_uuid("12345678-1234-4abc-8abc-1234567890ab "));
+    }
+    #[test]
+    fn reply_serial_cannot_change_after_ready() {
+        let config = Configuration {
+            python: PathBuf::from("/unused/python"),
+            identity: PathBuf::from("/unused/identity"),
+            state: PathBuf::from("/unused/state"),
+            platform_id: "12345678-1234-4abc-8abc-1234567890ab".to_owned(),
+            public_key: "a".repeat(64),
+        };
+        let mut reply: Reply = serde_json::from_value(json!({
+            "schema": SCHEMA, "phase":"ready",
+            "platform_id":config.platform_id,
+            "public_key_sha256":config.public_key,
+            "serial":"AEG-P-original", "generation":1,
+            "core_started":false, "operator_stop":false,
+            "sequence":null, "pid":1, "supervisor_pid":2,
+        })).expect("valid reply");
+        assert!(reply_matches_identity(&reply, &config, None));
+        assert!(reply_matches_identity(&reply, &config, Some("AEG-P-original")));
+        assert!(!reply_matches_identity(&reply, &config, Some("AEG-P-replaced")));
+        reply.serial = "AEG-P-replaced".to_owned();
+        assert!(!reply_matches_identity(&reply, &config, Some("AEG-P-original")));
+        reply.serial = "AEG-P-original\\nforged".to_owned();
+        assert!(!reply_matches_identity(&reply, &config, None));
+        reply.serial = "AEG-P-original".to_owned();
+        reply.core_started = true;
+        assert!(!reply_matches_identity(&reply, &config, None));
     }
     #[test]
     fn no_arbitrary_program_or_incomplete_configuration() {
