@@ -17,7 +17,7 @@ import os
 from pathlib import Path
 from typing import Callable
 
-from sofia.platform.run.lease import LocalRunLeaseStore
+from sofia.platform.run.lease import LocalRunLeaseStore, RunLeaseError
 from sofia.platform.run.library_source_gate import (
     HUB_CAPABILITY, selected_hub_grant_scope,
 )
@@ -42,9 +42,14 @@ def _current(store: OwnerLibraryTrustStore, *, now: datetime | None) -> tuple[st
     # Never initialize a lease owner or run CREATE/ALTER on a supposedly
     # read-only owner commissioning preview. Use the canonical in-place
     # read-only lease observer with the same current epoch/time fences.
-    current = LocalRunLeaseStore.peek_existing(
-        store.path, lease_key="platform-service", now=instant,
-    )
+    try:
+        current = LocalRunLeaseStore.peek_existing(
+            store.path, lease_key="platform-service", now=instant,
+        )
+    except RunLeaseError as exc:
+        raise OwnerLibraryPreflightDenied(
+            "installed Platform RUN lease unavailable or corrupt"
+        ) from exc
     if current is None:
         raise OwnerLibraryPreflightDenied("installed Platform RUN is not current")
     return store.platform_id, current.epoch
