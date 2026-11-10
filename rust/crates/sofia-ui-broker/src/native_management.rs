@@ -383,6 +383,132 @@ pub mod linux {
         }
     }
 
+    /// Current owner-only local Platform source states. These observations
+    /// do NOT certify package signatures, cache admission or Core startup.
+    #[derive(Debug, Clone)]
+    pub struct NativeOwnerSourcesSnapshot {
+        pub platform_id: String,
+        pub platform_generation: u64,
+        pub observed_at: String,
+        pub source_platform_id: Option<String>,
+        pub publisher_state: String,
+        pub catalog_state: String,
+        pub hub_state: String,
+        pub served_chunks: u64,
+        pub served_bytes: u64,
+    }
+
+    /// OS-authenticated read-only owner status, usable before a Hub or a
+    /// publisher exists. Requires the same externally B1-verified installed
+    /// service pins as platform.status and a SEPARATE current SAFE owner
+    /// grant for library.sources.snapshot.v1. No UI-supplied credentials.
+    pub struct NativeLinuxOwnerSourcesReader {
+        pins: InstalledNativeServicePins,
+        verified_endpoint: Option<(u64, u64)>,
+    }
+
+    impl NativeLinuxOwnerSourcesReader {
+        #[must_use]
+        pub fn from_verified_installation(pins: InstalledNativeServicePins) -> Self {
+            Self { pins, verified_endpoint: None }
+        }
+
+        /// Query the same pinned native Unix socket, not a Hub endpoint.
+        ///
+        /// # Errors
+        /// No owner grant, STOP, stale RUN, unknown/corrupt local socket,
+        /// unreviewed source states or impossible counters fail closed.
+        pub fn sources(&mut self) -> Result<NativeOwnerSourcesSnapshot, ReadFailure> {
+            let inode = verify_endpoint(&self.pins)?;
+            if self.verified_endpoint.is_some_and(|prior| prior != inode) {
+                return Err(ReadFailure::Unverified);
+            }
+            let now = Utc::now().fixed_offset();
+            let mut random = [0_u8; 16];
+            getrandom::getrandom(&mut random).map_err(|_| ReadFailure::Unverified)?;
+            let mut random_id = String::new();
+            for value in random {
+                write!(&mut random_id, "{value:02x}")
+                    .map_err(|_| ReadFailure::Unverified)?;
+            }
+            let raw = serde_json::to_vec(&serde_json::json!({
+                "schema": LIBRARY_REQUEST_SCHEMA,
+                "protocol": LIBRARY_PROTOCOL,
+                "request_id": format!("request:{random_id}"),
+                "correlation_id": format!("correlation:{random_id}"),
+                "operation": "library.sources.snapshot.v1",
+                "target_platform_id": self.pins.platform_id.clone(),
+                "expected_generation": self.pins.generation,
+                "expected_revision": 0,
+                "idempotency_key": null,
+                "created_at": now.to_rfc3339_opts(SecondsFormat::Micros, true),
+                "deadline": (now + ChronoDuration::seconds(5))
+                    .to_rfc3339_opts(SecondsFormat::Micros, true),
+                "parameters": {},
+            }))
+            .map_err(|_| ReadFailure::Unverified)?;
+            if raw.len() > MAX_LIBRARY_CONTROL_BYTES {
+                return Err(ReadFailure::Unverified);
+            }
+            let expected = UntrustedLibraryRequest::parse(&raw, now)
+                .map_err(|_| ReadFailure::Unverified)?;
+            let mut connection = UnixStream::connect(&self.pins.socket_path)
+                .map_err(|_| ReadFailure::Offline)?;
+            connection.set_write_timeout(Some(IO_TIMEOUT))
+                .map_err(|_| ReadFailure::Unverified)?;
+            verify_os_peer(&connection, &self.pins)?;
+            if verify_endpoint(&self.pins)? != inode {
+                return Err(ReadFailure::Unverified);
+            }
+            connection.write_all(&raw)
+                .and_then(|()| connection.write_all(b"\n"))
+                .map_err(|_| ReadFailure::Offline)?;
+            let reply = read_one(&mut connection)?;
+            if reply.len() > MAX_LIBRARY_CONTROL_BYTES
+                || verify_endpoint(&self.pins)? != inode
+            {
+                return Err(ReadFailure::Unverified);
+            }
+            let response = UntrustedLibraryResponse::parse(
+                &reply, &expected, Utc::now().fixed_offset(),
+            ).map_err(|_| ReadFailure::Unverified)?;
+            self.verified_endpoint = Some(inode);
+            if response.outcome == "DENIED" {
+                return Err(
+                    response.denial_code.as_ref()
+                        .and_then(|code| from_verified_denial(code))
+                        .unwrap_or(ReadFailure::Unverified),
+                );
+            }
+            if response.outcome != "OK" {
+                return Err(ReadFailure::Unverified);
+            }
+            let source = response.data.ok_or(ReadFailure::Unverified)?;
+            let source_id = if source["source_platform_id"].is_null() {
+                None
+            } else {
+                Some(source["source_platform_id"]
+                    .as_str().ok_or(ReadFailure::Unverified)?.to_owned())
+            };
+            Ok(NativeOwnerSourcesSnapshot {
+                platform_id: response.platform_id,
+                platform_generation: response.platform_generation,
+                observed_at: response.observed_at,
+                source_platform_id: source_id,
+                publisher_state: source["publisher_state"]
+                    .as_str().ok_or(ReadFailure::Unverified)?.to_owned(),
+                catalog_state: source["catalog_state"]
+                    .as_str().ok_or(ReadFailure::Unverified)?.to_owned(),
+                hub_state: source["hub_state"]
+                    .as_str().ok_or(ReadFailure::Unverified)?.to_owned(),
+                served_chunks: source["served_chunks"]
+                    .as_u64().ok_or(ReadFailure::Unverified)?,
+                served_bytes: source["served_bytes"]
+                    .as_u64().ok_or(ReadFailure::Unverified)?,
+            })
+        }
+    }
+
     fn no_symlinks(path: &Path) -> Result<(), ReadFailure> {
         for component in path.ancestors() {
             let info = fs::symlink_metadata(component)
