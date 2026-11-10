@@ -100,6 +100,57 @@ class LocalRunLeaseStore:
         return db
 
     @staticmethod
+    def peek_existing(
+        state_path: str | Path, *, lease_key: str, now: datetime,
+    ) -> RunLease | None:
+        """Observe a live installed lease without starting a new lease owner.
+
+        Owner-only status/commissioning must not open a SQLite writer or run
+        CREATE/ALTER statements just to inspect RUN state. This uses the
+        same inode-pinned canonical SQLite guard but opens read-only. It is
+        not a remote Fleet authority or proof that a PID is still serving.
+        """
+        moment = _utc(now)
+        selected_key = _id(lease_key, "lease_key")
+        guard = CanonicalSQLiteGuard(state_path)
+        with closing(guard.connect(read_only=True)) as db:
+            db.execute("PRAGMA query_only=ON")
+            try:
+                row = db.execute(
+                    "SELECT owner_id,epoch,acquired_at,renewed_at,"
+                    "expires_at,released_at FROM run_local_lease "
+                    "WHERE lease_key=?",
+                    (selected_key,),
+                ).fetchone()
+            except sqlite3.OperationalError as exc:
+                raise RunLeaseError(
+                    "installed Platform lease schema unavailable"
+                ) from exc
+        guard.validate()
+        if row is None or row[5] is not None:
+            return None
+        try:
+            if (
+                type(row[0]) is not str or not row[0]
+                or type(row[1]) is not int or row[1] <= 0
+            ):
+                raise ValueError("corrupt RUN identity")
+            lease = RunLease(
+                owner_id=row[0], epoch=row[1],
+                acquired_at=_utc(datetime.fromisoformat(row[2])),
+                renewed_at=_utc(datetime.fromisoformat(row[3])),
+                expires_at=_utc(datetime.fromisoformat(row[4])),
+                lease_key=selected_key,
+            )
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise RunLeaseError(
+                "installed Platform RUN lease record corrupt"
+            ) from exc
+        if moment < lease.renewed_at or moment >= lease.expires_at:
+            return None
+        return lease
+
+    @staticmethod
     def _ttl(ttl_seconds: int) -> int:
         if type(ttl_seconds) is not int or not 5 <= ttl_seconds <= 300:
             raise ValueError("ttl_seconds must be an integer in 5..300")
