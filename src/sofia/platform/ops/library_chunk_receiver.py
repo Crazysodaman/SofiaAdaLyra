@@ -350,6 +350,11 @@ class ChunkedArtifactReceiver:
             completed = self.completed / transfer.content_sha256
             scope = self._scope_path(transfer)
             if not scope.is_file() or not completed.is_file():
+                if completed.exists() or completed.is_symlink():
+                    raise ChunkTransferRejected(
+                        "completed CAS lacks exact signed transfer provenance; "
+                        "review existing B1 cache or reconcile interrupted owner admission"
+                    )
                 return False
             if part.exists() or part.is_symlink():
                 raise ChunkTransferRejected(
