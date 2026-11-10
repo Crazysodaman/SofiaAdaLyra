@@ -365,3 +365,36 @@ def test_expression_intent_reports_actual_modal_acknowledgements(tmp_path):
     assert historical.fresh is False
     assert historical.voice_acknowledged is True
     assert historical.avatar_acknowledged is True
+
+def test_settled_expression_exports_voice_handoff_without_tts_or_scope_leak(tmp_path):
+    from datetime import timedelta
+    from sofia.sdk.voice_expression import VoiceExpressionCue
+
+    runtime, record, principal = decision(tmp_path)
+    cue = runtime.voice_handoff_for_message(
+        record.message_id, principal=principal,
+        core_identity_id="identity:sofia", voice_profile_id="voice:sofia",
+        voice_profile_revision=2, now=NOW + timedelta(seconds=1),
+    )
+    assert isinstance(cue, VoiceExpressionCue)
+    assert cue.decision_id == record.decision_id
+    assert cue.text_sha256 == record.text_sha256
+    assert cue.rate_units == round(record.prosody.rate_scale * 10000)
+    assert cue.tone_tags == record.prosody.tone_tags
+    assert cue.audience_id == principal.audience_id
+    assert runtime.receipts(record.decision_id)[0].output == "text"
+    assert all(item.output != "voice" for item in runtime.receipts(record.decision_id))
+
+    other = PrincipalContext(
+        principal.principal_id, "audience:someone-else", AudienceKind.PRIVATE, "Other",
+    )
+    assert runtime.voice_handoff_for_message(
+        record.message_id, principal=other,
+        core_identity_id="identity:sofia", voice_profile_id="voice:sofia",
+        voice_profile_revision=2, now=NOW,
+    ) is None
+    assert runtime.voice_handoff_for_message(
+        record.message_id, principal=principal,
+        core_identity_id="identity:sofia", voice_profile_id="voice:sofia",
+        voice_profile_revision=2, now=NOW + timedelta(minutes=6),
+    ) is None
