@@ -182,3 +182,51 @@ def test_remote_cache_approval_cannot_use_offline_seed_capability(prepared):
     import sofia.platform.ops.library_verified_handoff as handoff
     assert handoff.LIBRARY_PEER_CACHE_ADMIT != "platform.library.cache_admit_verified_seed"
     assert "cache_admit_enrolled_peer" in handoff.LIBRARY_PEER_CACHE_ADMIT
+
+
+
+def test_interrupted_receiver_commit_recovered_only_after_independent_b1_proof(
+    prepared,
+):
+    """Crash between part unlink and durable scope cleanup does not lose data."""
+    from hashlib import sha256
+    import os
+    from sofia.platform.ops.library_verified_handoff import admit_signed_transferred_asset
+
+    args, raw, artifact = prepared
+    pin = args["transfer"]
+    receiver = args["receiver"]
+    part = receiver.incoming / (pin.content_sha256 + ".part")
+    complete = receiver.completed / pin.content_sha256
+    scope = receiver.incoming / (pin.content_sha256 + ".scope")
+    assert scope.is_file()
+    os.link(part, complete)
+    part.unlink()
+    assert complete.read_bytes() == raw
+    assert scope.is_file()
+
+    result = admit_signed_transferred_asset(**args)
+    assert result["cache_state"] == "CACHED_VERIFIED"
+    assert result["owner_proof_consumed"] is True
+    assert result["install_executed"] is False
+    assert not scope.exists()
+    assert args["cache"].resolve(artifact).read_bytes() == raw
+    assert len(FakeApproval.recorded) == 1
+
+
+def test_recovered_cas_still_requires_separate_one_use_owner_approval(prepared):
+    import os
+    args, raw, artifact = prepared
+    pin = args["transfer"]
+    receiver = args["receiver"]
+    part = receiver.incoming / (pin.content_sha256 + ".part")
+    complete = receiver.completed / pin.content_sha256
+    scope = receiver.incoming / (pin.content_sha256 + ".scope")
+    os.link(part, complete)
+    part.unlink()
+    FakeApproval.allowed = False
+    with pytest.raises(PermissionError, match="owner grant"):
+        admit_signed_transferred_asset(**args)
+    assert complete.read_bytes() == raw
+    assert not scope.exists()  # verified recovery, NOT owner-approved B1 import
+    assert not (args["cache"].root / artifact.sha256).exists()
