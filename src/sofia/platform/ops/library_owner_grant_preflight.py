@@ -44,7 +44,7 @@ def _current(store: OwnerLibraryTrustStore, *, now: datetime | None) -> tuple[st
     # A read-only preflight must never create even those tables on an
     # uncommissioned host. Require the canonical lease schema to exist first.
     store.state.validate()
-    with closing(store.state.connect()) as connection:
+    with closing(store.state.connect(read_only=True)) as connection:
         existing = connection.execute(
             "SELECT 1 FROM sqlite_master "
             "WHERE type='table' AND name='run_local_lease'"
