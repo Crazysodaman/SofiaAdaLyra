@@ -332,6 +332,85 @@ class ChunkedArtifactReceiver:
                 os.close(fd)
             return current + len(chunk)
 
+    def recover_interrupted_publication(
+        self, transfer: PinnedChunkTransfer, *,
+        authorize: Callable[[PinnedChunkTransfer], bool],
+    ) -> Path:
+        """Resume a crash after CAS link and before scope cleanup.
+
+        Caller must independently reauthorize under current SAFE/STOP. A
+        completed file is never an installer receipt or publisher signature.
+        The originally durable exact transfer scope is still required.
+        """
+        with self._writer_lock():
+            self._approve(transfer, authorize)
+            self._check_roots()
+            part = self.incoming / (transfer.content_sha256 + ".part")
+            complete = self.completed / transfer.content_sha256
+            if self._existing_file(part):
+                raise ChunkTransferRejected(
+                    "pending partial transfer requires ordinary finalize"
+                )
+            self._check_scope(
+                transfer, part_size=0, allow_create=False,
+            )
+            scope = self._scope_path(transfer)
+            if not scope.is_file():
+                raise ChunkTransferRejected(
+                    "unbound completed CAS cannot be adopted"
+                )
+            if self._existing_file(complete) != transfer.size_bytes:
+                raise ChunkTransferRejected(
+                    "no exact completed object to recover"
+                )
+            # Rehash the whole verified CAS, not just its filename: an inode
+            # left behind by a crash does not prove final SHA or publisher.
+            flags = (
+                os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+                | getattr(os, "O_CLOEXEC", 0)
+            )
+            descriptor = os.open(complete, flags)
+            digest = sha256()
+            try:
+                before = os.fstat(descriptor)
+                if (
+                    not stat.S_ISREG(before.st_mode)
+                    or before.st_nlink != 1
+                    or before.st_size != transfer.size_bytes
+                ):
+                    raise ChunkTransferRejected("unsafe recovered CAS inode")
+                with os.fdopen(descriptor, "rb", closefd=False) as reader:
+                    while block := reader.read(65536):
+                        digest.update(block)
+                after = os.fstat(descriptor)
+                if (
+                    (before.st_dev, before.st_ino, before.st_size,
+                     before.st_mtime_ns, before.st_ctime_ns)
+                    != (after.st_dev, after.st_ino, after.st_size,
+                        after.st_mtime_ns, after.st_ctime_ns)
+                    or digest.hexdigest() != transfer.content_sha256
+                ):
+                    raise ChunkTransferRejected(
+                        "interrupted CAS publication content changed"
+                    )
+            finally:
+                os.close(descriptor)
+            self._approve(transfer, authorize)
+            self._check_scope(
+                transfer, part_size=0, allow_create=False,
+            )
+            scope.unlink()
+            if os.name != "nt":
+                directory = os.open(
+                    self.incoming,
+                    os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+                )
+                try:
+                    os.fsync(directory)
+                finally:
+                    os.close(directory)
+            return complete
+
     def finalize(self, transfer: PinnedChunkTransfer, *, authorize: Callable[[PinnedChunkTransfer], bool]) -> Path:
         with self._writer_lock():
             self._approve(transfer, authorize)
@@ -367,39 +446,59 @@ class ChunkedArtifactReceiver:
             destination = self.completed / transfer.content_sha256
             if destination.exists() or destination.is_symlink():
                 raise ChunkTransferRejected("immutable object already exists")
-            os.link(part, destination, follow_symlinks=False)
+            # Do not destroy the only verified copy after partial unlink:
+            # failure in the final fsync/scope cleanup is recoverable using
+            # recover_interrupted_publication() and the same signed plan.
+            removed_partial = False
             try:
                 self._check_roots()
                 published = destination.lstat()
                 previous = part.lstat()
                 if (not stat.S_ISREG(published.st_mode)
-                        or (published.st_dev, published.st_ino) != (previous.st_dev, previous.st_ino)
+                        or (published.st_dev, published.st_ino)
+                           != (previous.st_dev, previous.st_ino)
                         or published.st_size != transfer.size_bytes
                         or (published.st_dev, published.st_ino, published.st_size,
                             published.st_mtime_ns) != verified_identity
                         or published.st_nlink != 2):
                     raise ChunkTransferRejected("published object failed identity check")
+                self._check_scope(
+                    transfer, part_size=transfer.size_bytes,
+                    allow_create=False,
+                )
+                self._approve(transfer, authorize)
+                if os.name != "nt":
+                    directory = os.open(
+                        self.completed,
+                        os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+                    )
+                    try:
+                        os.fsync(directory)
+                    finally:
+                        os.close(directory)
                 part.unlink()
+                removed_partial = True
                 if self._existing_file(destination) != transfer.size_bytes:
                     raise ChunkTransferRejected("immutable object link count did not settle")
-                self._check_scope(
-                    transfer, part_size=0, allow_create=False,
-                )
-                # Remove only matching immutable scope after same-inode publication.
+                self._check_scope(transfer, part_size=0, allow_create=False)
                 self._scope_path(transfer).unlink()
                 if os.name != "nt":
-                    for directory_path in (self.incoming, self.completed):
-                        directory = os.open(
-                            directory_path,
-                            os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
-                        )
-                        try:
-                            os.fsync(directory)
-                        finally:
-                            os.close(directory)
-                # VERIFIED BYTES only. No publisher signature or install receipt.
+                    directory = os.open(
+                        self.incoming,
+                        os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+                    )
+                    try:
+                        os.fsync(directory)
+                    finally:
+                        os.close(directory)
+                # Digest verified bytes only; publisher and B1 approval remain separate.
                 return destination
-            except Exception:
-                destination.unlink(missing_ok=True)
-                raise
+            except BaseException as exc:
+                if not removed_partial:
+                    destination.unlink(missing_ok=True)
+                    raise
+                raise RuntimeError(
+                    "CAS OUTCOME_UNKNOWN: full bytes retained; recover using "
+                    "original signed transfer and current SAFE authority"
+                ) from exc
 
