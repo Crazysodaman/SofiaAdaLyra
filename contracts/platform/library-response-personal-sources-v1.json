@@ -1,0 +1,23 @@
+{
+  "schema": "aegis.platform.library.response.v1",
+  "protocol": "1.0",
+  "request_id": "request:owner-source-check",
+  "correlation_id": "correlation:owner-source-check",
+  "operation": "library.sources.snapshot.v1",
+  "platform_id": "platform:recipient",
+  "platform_generation": 7,
+  "state_revision": 0,
+  "observed_at": "2026-11-08T04:00:01Z",
+  "outcome": "OK",
+  "data": {
+    "schema": "aegis.library.owner-sources.v1",
+    "owner_mode": "SINGLE_OWNER_PRIVATE",
+    "source_platform_id": "platform:hub",
+    "publisher_state": "CURRENT",
+    "catalog_state": "CURRENT",
+    "hub_state": "SERVING",
+    "served_chunks": 3,
+    "served_bytes": 3145728
+  },
+  "denial": null
+}
