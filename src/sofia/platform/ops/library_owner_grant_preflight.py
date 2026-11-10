@@ -12,6 +12,7 @@ authenticate the owner and consume a separate one-use approval.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from contextlib import closing
 import json
 import os
 from pathlib import Path
@@ -39,6 +40,19 @@ def _current(store: OwnerLibraryTrustStore, *, now: datetime | None) -> tuple[st
         raise OwnerLibraryPreflightDenied("trusted aware current clock required")
     if store.stop.current().active:
         raise OwnerLibraryPreflightDenied("operator STOP blocks new Library grants")
+    # LocalRunLeaseStore.__init__ normally initializes its own tables.
+    # A read-only preflight must never create even those tables on an
+    # uncommissioned host. Require the canonical lease schema to exist first.
+    store.state.validate()
+    with closing(store.state.connect()) as connection:
+        existing = connection.execute(
+            "SELECT 1 FROM sqlite_master "
+            "WHERE type='table' AND name='run_local_lease'"
+        ).fetchone()
+    if existing is None:
+        raise OwnerLibraryPreflightDenied(
+            "installed Platform RUN lease is not initialized"
+        )
     current = LocalRunLeaseStore(
         store.path, lease_key="platform-service",
     ).current(now=instant)
