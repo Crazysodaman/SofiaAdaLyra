@@ -19,6 +19,7 @@ from sofia.core.cognition.matrix import (
 from sofia.core.personality.influence import ContinuityInfluence
 from sofia.core.social.model import AudienceKind, PrincipalContext
 from sofia.modules.voice.prosody_matrix import VoiceProsodyMatrix, VoiceProsodyProfile
+from sofia.sdk.voice_expression import VoiceExpressionCue
 
 
 @dataclass(frozen=True, slots=True)
@@ -443,6 +444,37 @@ class ExpressionRuntime:
             voice_acknowledged=result["voice"][1],
             avatar_acknowledged=result["avatar"][1],
             receipt_ids=tuple(item.receipt_id for item in records),
+        )
+
+    def voice_handoff_for_message(
+        self, message_id: str, *, principal: PrincipalContext,
+        core_identity_id: str, voice_profile_id: str,
+        voice_profile_revision: int, now: datetime,
+    ) -> VoiceExpressionCue | None:
+        """Export one previously settled Core expression as bounded voice metadata.
+
+        The caller supplies Core/profile identifiers resolved through trusted
+        Platform identity/asset state. This is read-only: it neither starts
+        TTS nor grants Core/module authority. The separate Platform broker
+        must independently check the live Core binding and permissions.
+        """
+        intent = self.intent_projection(
+            message_id, principal=principal, now=now,
+        )
+        if intent is None or not intent.fresh or not intent.text_acknowledged:
+            return None
+        decision = intent.decision
+        return VoiceExpressionCue.from_profile(
+            core_identity_id=core_identity_id,
+            voice_profile_id=voice_profile_id,
+            voice_profile_revision=voice_profile_revision,
+            decision_id=decision.decision_id,
+            message_id=decision.message_id,
+            audience_id=decision.audience_id,
+            text_sha256=decision.text_sha256,
+            profile=intent.voice_style,
+            created_at=decision.created_at,
+            expires_at=intent.expires_at,
         )
 
     def receipts(self, decision_id: str) -> tuple[ExpressionReceipt, ...]:
