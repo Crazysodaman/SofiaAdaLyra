@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
-from io import BytesIO
 import os
 from pathlib import Path
 import re
@@ -12,7 +11,9 @@ import tempfile
 import zipfile
 
 from sofia.platform.state.artifact_file import read_artifact_file
-from sofia.platform.state.private_file import assert_no_redirected_components
+from sofia.platform.state.private_file import (
+    assert_no_redirected_components, restrict_new_owner_private_path,
+)
 from sofia.platform.verify.native_artifact import verify_native_target
 from sofia.sdk.artifact import ArtifactReference
 from sofia.sdk.cognition_json import loads_strict_model_json
@@ -136,33 +137,43 @@ def build_python_runtime(prefix, output, *, target, python_version):
 
 
 def _verified_runtime_snapshot(path, *, expected, target, python_version):
-    """Inspect the same bounded snapshot that matched the supplied artifact hash.
+    """Verify the signed runtime ZIP without allocating its entire byte stream.
 
-    An outer signed release verifier must authenticate this reference before any
-    installer uses it. A constructible reference is not an installation permit.
+    The caller independently authenticates the outer signed Platform release.
+    This verifier checks full ZIP SHA-256 before and after inspection, strict
+    canonical metadata and each bounded member's uncompressed digest. Only
+    the vetted native executable may be buffered (maximum 64 MiB) for ABI
+    verification. Everything else is processed in <=64KiB chunks.
     """
     if not isinstance(expected, ArtifactReference) or not isinstance(target, PlatformReleaseTarget):
         raise TypeError('typed expected artifact and target required')
     if expected.size_bytes > 512 * 1024**2:
         raise ValueError('runtime archive exceeds bound')
-    digest, raw = read_artifact_file(Path(path), expected.size_bytes, include_data=True)
+    path = Path(path).absolute()
+    digest, _ = read_artifact_file(path, expected.size_bytes)
     if digest != expected.sha256:
         raise ValueError('runtime archive digest differs')
-    with zipfile.ZipFile(BytesIO(raw)) as archive:
+    with zipfile.ZipFile(path) as archive:
         entries = archive.infolist()
         if not 4 <= len(entries) <= 8193 or sum(item.file_size for item in entries) > 514 * 1024**2:
             raise ValueError('runtime archive inventory exceeds bound')
         names = [item.filename for item in entries]
-        if len(set(names)) != len(names) or any(item.orig_filename != item.filename for item in entries):
+        if (len(set(names)) != len(names)
+                or any(item.orig_filename != item.filename for item in entries)):
             raise ValueError('ambiguous runtime archive names')
         metadata = archive.getinfo('runtime-manifest.json')
         if not 1 <= metadata.file_size <= 2 * 1024**2:
             raise ValueError('runtime metadata exceeds bound')
         encoded = archive.read(metadata)
-        manifest = PythonRuntimeManifest.from_payload(loads_strict_model_json(encoded.decode('utf-8')))
-        if manifest.canonical_bytes != encoded or manifest.target is not target or manifest.python_version != python_version:
+        manifest = PythonRuntimeManifest.from_payload(
+            loads_strict_model_json(encoded.decode('utf-8'))
+        )
+        if (manifest.canonical_bytes != encoded or manifest.target is not target
+                or manifest.python_version != python_version):
             raise ValueError('runtime manifest differs from expected target/version')
-        wanted = {'runtime-manifest.json'} | {'python/' + item.path for item in manifest.files}
+        wanted = {'runtime-manifest.json'} | {
+            'python/' + item.path for item in manifest.files
+        }
         if set(names) != wanted:
             raise ValueError('runtime archive files differ from manifest')
         for item in entries:
@@ -171,47 +182,117 @@ def _verified_runtime_snapshot(path, *, expected, target, python_version):
                 raise ValueError('runtime archive member has unsafe type/mode')
         for member in manifest.files:
             info = archive.getinfo('python/' + member.path)
-            if info.file_size != member.size_bytes or (info.external_attr >> 16) & 0o777 != (0o755 if member.executable else 0o644):
+            if (info.file_size != member.size_bytes
+                    or (info.external_attr >> 16) & 0o777
+                    != (0o755 if member.executable else 0o644)):
                 raise ValueError('runtime archive member metadata differs')
-            payload = archive.read(info)
-            if sha256(payload).hexdigest() != member.sha256:
+            content_digest = sha256()
+            length = 0
+            native_chunks = [] if member.path == manifest.executable else None
+            with archive.open(info) as stream:
+                while block := stream.read(65536):
+                    length += len(block)
+                    if length > member.size_bytes:
+                        raise ValueError('runtime ZIP member expanded beyond signed length')
+                    content_digest.update(block)
+                    if native_chunks is not None:
+                        native_chunks.append(block)
+            if length != member.size_bytes or content_digest.hexdigest() != member.sha256:
                 raise ValueError('runtime archive member digest differs')
-            if member.path == manifest.executable:
-                verify_native_target(payload, target)
-    return manifest, raw
+            if native_chunks is not None:
+                verify_native_target(b''.join(native_chunks), target)
+    # Recheck source after ZIP metadata/CRC, per-member SHA and native ABI.
+    # A foreign replacement path never becomes a verified runtime snapshot.
+    checked, _ = read_artifact_file(path, expected.size_bytes)
+    if checked != expected.sha256:
+        raise ValueError('runtime archive changed during verification')
+    return manifest
 
 
 def verify_python_runtime(path, *, expected, target, python_version):
     """Read-only byte verification; never an owner, install or health permit."""
-    return _verified_runtime_snapshot(path, expected=expected, target=target,
-        python_version=python_version)[0]
+    return _verified_runtime_snapshot(
+        path, expected=expected, target=target,
+        python_version=python_version,
+    )
 
 
 def materialize_python_runtime(path, destination, *, expected, target, python_version):
-    """Write verified code into a new private candidate directory only.
+    """Extract only signed runtime members through bounded streams.
 
-    A partial failure leaves that new directory quarantined for review. Existing
-    data is never repaired, replaced or activated, and no Platform state is opened.
+    Files stay in a fresh private candidate. Any failure leaves it
+    quarantined for owner reconciliation, never silently activating code.
+    The complete signed ZIP and each extracted member are rechecked.
     """
     destination = Path(destination).absolute()
     if destination.exists() or destination.is_symlink():
         raise FileExistsError('runtime candidate must not replace existing data')
     assert_no_redirected_components(destination.parent, include_leaf=True)
-    manifest, raw = _verified_runtime_snapshot(path, expected=expected, target=target,
-        python_version=python_version)
+    manifest = _verified_runtime_snapshot(
+        path, expected=expected, target=target, python_version=python_version,
+    )
+    path = Path(path).absolute()
     destination.mkdir(mode=0o700)
-    with zipfile.ZipFile(BytesIO(raw)) as archive:
-        for member in archive.infolist():
-            target_path = destination.joinpath(*member.filename.split('/'))
+    if os.name == 'nt':
+        restrict_new_owner_private_path(destination, directory=True)
+    mapped = {'runtime-manifest.json': (
+        manifest.canonical_bytes, None,
+    )}
+    mapped.update({
+        'python/' + item.path: (item.sha256, item)
+        for item in manifest.files
+    })
+    with zipfile.ZipFile(path) as archive:
+        entries = archive.infolist()
+        names = [item.filename for item in entries]
+        if (len(names) != len(mapped) or len(set(names)) != len(names)
+                or set(names) != set(mapped)
+                or any(item.orig_filename != item.filename for item in entries)):
+            raise ValueError('runtime ZIP changed its signed member inventory')
+        for member in entries:
+            name = member.filename
+            target_path = destination.joinpath(*name.split('/'))
             target_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
             assert_no_redirected_components(target_path.parent, include_leaf=True)
+            if os.name == 'nt':
+                restrict_new_owner_private_path(target_path.parent, directory=True)
+            expected_value, file_info = mapped[name]
+            expected_length = (
+                len(expected_value) if file_info is None else file_info.size_bytes
+            )
+            expected_digest = (
+                sha256(expected_value).hexdigest()
+                if file_info is None else file_info.sha256
+            )
+            expected_mode = (
+                0o644 if file_info is None
+                else 0o755 if file_info.executable else 0o644
+            )
+            mode = member.external_attr >> 16
+            if (not stat.S_ISREG(mode)
+                    or mode & 0o7777 != expected_mode
+                    or member.file_size != expected_length):
+                raise ValueError('runtime ZIP member mode or length changed')
+            hasher = sha256()
+            observed = 0
             with target_path.open('xb') as output:
+                if os.name == 'nt':
+                    restrict_new_owner_private_path(target_path, directory=False)
                 with archive.open(member) as source:
-                    while chunk := source.read(65536):
-                        output.write(chunk)
+                    while block := source.read(65536):
+                        observed += len(block)
+                        if observed > expected_length:
+                            raise ValueError('runtime extraction expanded beyond signed length')
+                        hasher.update(block)
+                        output.write(block)
                 output.flush()
                 os.fsync(output.fileno())
-            target_path.chmod((member.external_attr >> 16) & 0o777)
+            if observed != expected_length or hasher.hexdigest() != expected_digest:
+                raise ValueError('runtime extracted bytes differ from signed manifest')
+            target_path.chmod(expected_mode)
+    checked, _ = read_artifact_file(path, expected.size_bytes)
+    if checked != expected.sha256:
+        raise ValueError('runtime archive changed during extraction')
     if os.name != 'nt':
         for directory in sorted((p for p in destination.rglob('*') if p.is_dir()),
                 key=lambda p: len(p.parts), reverse=True) + [destination]:
