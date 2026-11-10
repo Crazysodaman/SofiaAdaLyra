@@ -33,6 +33,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import stat
 import sqlite3
 import subprocess
 from queue import Empty, Queue
@@ -83,6 +84,90 @@ def _write_new(path, data):
         output.write(data)
         output.flush()
         os.fsync(output.fileno())
+
+
+def _copy_new_verified_asset(source, destination, *, expected_sha256, expected_size):
+    """Stream one signed B1 staged asset into a new private installation tree.
+
+    The staged release manifest was independently Ed25519-verified by B1.
+    Never concatenate signed runtime or SDK bytes into Python RAM. Pin the
+    complete source inode and contents during the copy, write an exclusively
+    created destination, and recheck its exact SHA-256 before returning.
+    The caller subsequently reruns the independent signed release verifier
+    over the ENTIRE installed tree before recording an installation receipt.
+    """
+    from sofia.sdk.artifact import MAX_ARTIFACT_BYTES
+
+    if (type(expected_sha256) is not str or len(expected_sha256) != 64
+            or any(c not in "0123456789abcdef" for c in expected_sha256)
+            or type(expected_size) is not int
+            or not 1 <= expected_size <= MAX_ARTIFACT_BYTES):
+        raise PlatformReleaseRejected("bounded signed installation asset required")
+    source, destination = Path(source).absolute(), Path(destination).absolute()
+    assert_no_redirected_components(source, include_leaf=True)
+    assert_owner_private_path(source, directory=False)
+    before = source.stat(follow_symlinks=False)
+    if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1
+            or before.st_size != expected_size):
+        raise PlatformReleaseRejected("staged signed asset inode or size changed")
+
+    identity = (before.st_dev, before.st_ino, before.st_size,
+                before.st_mtime_ns, before.st_ctime_ns)
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+    src_fd = os.open(source, flags)
+    try:
+        opened = os.fstat(src_fd)
+        if (opened.st_dev, opened.st_ino, opened.st_size,
+                opened.st_mtime_ns, opened.st_ctime_ns) != identity:
+            raise PlatformReleaseRejected("staged asset was substituted before copy")
+
+        destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        assert_no_redirected_components(destination, include_leaf=True)
+        dest_fd = os.open(
+            destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL
+            | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0),
+            0o600,
+        )
+        try:
+            # On Windows, set the owner/System-only DACL BEFORE signed content
+            # enters the new file. POSIX creation is 0600, even with umask 000.
+            restrict_new_owner_private_path(destination, directory=False)
+            digest = sha256()
+            with os.fdopen(src_fd, "rb", closefd=False) as reader:
+                with os.fdopen(dest_fd, "wb", closefd=False) as writer:
+                    remaining = expected_size
+                    while remaining:
+                        block = reader.read(min(65536, remaining))
+                        if not block:
+                            raise PlatformReleaseRejected("signed staged asset truncated")
+                        writer.write(block)
+                        digest.update(block)
+                        remaining -= len(block)
+                    if reader.read(1):
+                        raise PlatformReleaseRejected("signed staged asset grew during copy")
+                    writer.flush()
+                    os.fsync(writer.fileno())
+            after = os.fstat(src_fd)
+            assert_no_redirected_components(source, include_leaf=True)
+            current = source.stat(follow_symlinks=False)
+            if (digest.hexdigest() != expected_sha256
+                    or (after.st_dev, after.st_ino, after.st_size,
+                        after.st_mtime_ns, after.st_ctime_ns) != identity
+                    or (current.st_dev, current.st_ino, current.st_size,
+                        current.st_mtime_ns, current.st_ctime_ns) != identity):
+                raise PlatformReleaseRejected("signed staged bytes or inode changed during copy")
+            # The installed destination must still independently hash to the
+            # original publisher-signed SHA after the stream is closed.
+            installed_sha, _ = read_artifact_file(destination, expected_size)
+            if installed_sha != expected_sha256:
+                raise PlatformReleaseRejected("installed signed asset differs after streaming copy")
+        except BaseException:
+            destination.unlink(missing_ok=True)
+            raise
+        finally:
+            os.close(dest_fd)
+    finally:
+        os.close(src_fd)
 
 
 def _sync_directories(destination):
@@ -444,12 +529,12 @@ def _publish_verified_tree(candidate, destination, *, verifier, operation, now,
     for asset in manifest.assets:
         reference = asset.reference
         source = staging_asset_path(candidate.staging_path, reference.path)
-        size = source.stat(follow_symlinks=False).st_size
-        digest, data = read_artifact_file(source, size, include_data=True)
-        if digest != reference.sha256:
-            raise PlatformReleaseRejected('staged source changed before installation')
         target_asset = assets.joinpath(*reference.path.split('/'))
-        _write_new(target_asset, data)
+        _copy_new_verified_asset(
+            source, target_asset,
+            expected_sha256=reference.sha256,
+            expected_size=reference.size_bytes,
+        )
         if asset.kind == 'service' and os.name != 'nt':
             # Native systemd ExecStart must be executable. This only changes
             # POSIX owner mode (0600 -> 0700), never the signed ELF bytes.
