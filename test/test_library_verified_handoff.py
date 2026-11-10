@@ -228,5 +228,45 @@ def test_recovered_cas_still_requires_separate_one_use_owner_approval(prepared):
     with pytest.raises(PermissionError, match="owner grant"):
         admit_signed_transferred_asset(**args)
     assert complete.read_bytes() == raw
-    assert not scope.exists()  # verified recovery, NOT owner-approved B1 import
+    # Provenance must survive an unapproved B1 import so a later distinct
+    # owner proof can reuse the verified bytes without accepting a new source.
+    assert scope.exists()
+    assert not (args["cache"].root / artifact.sha256).exists()
+
+
+
+def test_explicit_owner_approval_retry_reuses_verified_bytes_after_denial(prepared):
+    """Same immutable signed transfer survives denial, no redownload required."""
+    args, raw, artifact = prepared
+    pin = args["transfer"]
+    receiver = args["receiver"]
+    original = receiver.incoming / (pin.content_sha256 + ".part")
+    scope = receiver.incoming / (pin.content_sha256 + ".scope")
+    FakeApproval.allowed = False
+    with pytest.raises(PermissionError, match="owner grant"):
+        admit_signed_transferred_asset(**args)
+    complete = receiver.completed / pin.content_sha256
+    assert complete.read_bytes() == raw
+    assert scope.is_file()
+    assert not original.exists()
+    assert not (args["cache"].root / artifact.sha256).exists()
+
+    FakeApproval.allowed = True
+    result = admit_signed_transferred_asset(**args)
+    assert result["cache_state"] == "CACHED_VERIFIED"
+    assert args["cache"].resolve(artifact).read_bytes() == raw
+    assert not scope.exists()
+    assert len(FakeApproval.recorded) == 1
+
+
+def test_bad_publisher_verification_retains_scope_for_correct_retry(prepared):
+    args, raw, artifact = prepared
+    pin = args["transfer"]
+    scope = args["receiver"].incoming / (pin.content_sha256 + ".scope")
+    args["verify_independent_publisher"] = lambda *_: None
+    with pytest.raises(ChunkTransferRejected, match="independent publisher"):
+        admit_signed_transferred_asset(**args)
+    assert scope.is_file()
+    assert (args["receiver"].completed / pin.content_sha256).read_bytes() == raw
+    assert FakeApproval.recorded == []
     assert not (args["cache"].root / artifact.sha256).exists()
