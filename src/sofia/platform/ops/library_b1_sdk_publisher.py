@@ -205,3 +205,89 @@ class InstalledB1SignedSdkVerifier:
             signature_verified=True,
             source="independent-b1-signed-sdk-envelope",
         )
+
+
+
+def review_personal_b1_sdk_offer(
+    *,
+    verifier: InstalledB1SignedSdkVerifier,
+    transfer: PinnedChunkTransfer,
+    verified_local_sdk_path: Path,
+    owner_private_copy_allowed: Callable[[PlatformArtifact], bool],
+):
+    """Build a catalog candidate ONLY from a genuine installed B1 receipt.
+
+    The independently signed release and SDK bytes are verified again,
+    current signer and B1 rollback floor remain enforced, and an installed
+    source receipt must match this exact domain-hashed B1 manifest. For
+    personal-only use a separate license policy must explicitly permit
+    copying this SDK between the owner's enrolled machines. This helper
+    never signs the catalog or grants any peer SAFE permission.
+    """
+    from sofia.platform.ops.library_owner_catalog_publish import (
+        OwnerPublishedAsset,
+    )
+
+    if not isinstance(verifier, InstalledB1SignedSdkVerifier):
+        raise TypeError("independent B1 signed SDK verifier required")
+    if not callable(owner_private_copy_allowed):
+        raise ChunkTransferRejected(
+            "current explicit personal-copy license decision required"
+        )
+    if transfer.manifest_sha256 != verifier.signed_manifest_sha256:
+        raise ChunkTransferRejected(
+            "source signed SDK envelope differs from selected transfer"
+        )
+    before = verifier.installation.receipt_for_release(
+        verifier._manifest.release_id,
+    )
+    if (before is None or before["result"] != "SUCCEEDED"
+            or before["manifest_sha256"] != verifier._manifest.digest
+            or before["revision"] != verifier._manifest.revision):
+        raise ChunkTransferRejected(
+            "source signed SDK has no matching installed B1 release receipt"
+        )
+    if verifier.installation.pending_attempts():
+        raise ChunkTransferRejected(
+            "unresolved B1 installation prevents personal Hub publication"
+        )
+    artifact = verifier(transfer, verified_local_sdk_path)
+    if owner_private_copy_allowed(artifact) is not True:
+        raise ChunkTransferRejected(
+            "owner personal-copy policy forbids private peer distribution"
+        )
+    after = verifier.installation.receipt_for_release(
+        verifier._manifest.release_id,
+    )
+    if (after is None
+            or (before["receipt_id"], before["manifest_sha256"],
+                before["revision"], before["result"])
+            != (after["receipt_id"], after["manifest_sha256"],
+                after["revision"], after["result"])
+            or verifier.installation.pending_attempts()
+            or verifier.installation.revision_floor()
+               > verifier._manifest.revision
+            or verifier.signer_current(verifier.trusted_signer) is not True
+            or owner_private_copy_allowed(artifact) is not True):
+        raise ChunkTransferRejected(
+            "B1 receipt, copy policy or signing authority changed during offer review"
+        )
+    return OwnerPublishedAsset(
+        artifact_id=artifact.artifact_id,
+        kind="sdk",
+        version=artifact.version,
+        revision=verifier._manifest.revision,
+        manifest_digest=verifier.signed_manifest_sha256,
+        content_digest=artifact.sha256,
+        size_bytes=verifier._asset.reference.size_bytes,
+        publisher=verifier.trusted_signer,
+        signer_key_id=verifier.trusted_signer,
+        signature_receipt_ref=after["receipt_id"],
+        target_os_arch=verifier.target.value,
+        sdk_range=str(verifier._manifest.sdk_protocol),
+        abi_range=verifier._manifest.python_version,
+        license_distribution="permitted",
+        data_class="public",
+        distribution_allowed=True,
+        independent_package_verified=True,
+    )
