@@ -87,9 +87,22 @@ def admit_signed_transferred_asset(
     # Check current authorization before any received-byte or cache access.
     if current(transfer) is not True:
         raise PermissionError("current recipient approval unavailable")
-    if receiver.received_bytes(transfer, authorize=current) != transfer.size_bytes:
+    observed = receiver.received_bytes(transfer, authorize=current)
+    if observed == transfer.size_bytes:
+        complete = receiver.finalize(transfer, authorize=current)
+    elif (observed == 0
+            and (receiver.incoming / (transfer.content_sha256 + ".scope")).is_file()
+            and (receiver.completed / transfer.content_sha256).is_file()):
+        # A crash after publishing the identical inode but before clearing
+        # the private transfer scope must NOT require redownloading the asset.
+        # This path rechecks the original durable signed scope, whole SHA-256,
+        # current owner enrollment and STOP. Publisher + one-use B1 proof are
+        # independently checked again BELOW, exactly as for a new transfer.
+        complete = receiver.recover_interrupted_publication(
+            transfer, authorize=current,
+        )
+    else:
         raise ChunkTransferRejected("incomplete transfer cannot enter B1 CAS")
-    complete = receiver.finalize(transfer, authorize=current)
 
     # Re-verify the exact locally received bytes and independent signed root.
     # A typed object or a boolean from the Hub itself cannot satisfy this gate.
