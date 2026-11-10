@@ -16,6 +16,8 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 import ssl
+from threading import Event, Lock, Thread, current_thread
+from time import monotonic
 from typing import TYPE_CHECKING
 
 from sofia.platform.ops.library_chunk_receiver import (
@@ -254,6 +256,13 @@ class HostedLibraryHub:
             timeout_seconds=timeout_seconds,
         )
         self._closed = False
+        self._serve_stop = Event()
+        self._serve_lock = Lock()
+        self._serve_thread: Thread | None = None
+        self._serve_successes = 0
+        self._serve_rejections = 0
+        self._serve_bytes = 0
+        self._serve_error: str | None = None
         self.endpoint = self._hub.open()
 
     def publish_current_signed_catalog(
@@ -347,10 +356,117 @@ class HostedLibraryHub:
             total += self.serve_once()
         return total
 
+    def start_bounded_serving(
+        self, *, max_connections: int, max_rejections: int = 64,
+        max_idle_seconds: int = 3600,
+    ) -> None:
+        """Explicit one-owner worker, bounded by grant/STOP and resource caps.
+
+        Merely creating an approved Hub never spawns this worker. An installed
+        service caller must ask for it, and shutdown must drain it BEFORE the
+        Platform's RUN lease and process lock can be released.
+        """
+        if (type(max_connections) is not int or not 1 <= max_connections <= 10000
+                or type(max_rejections) is not int or not 1 <= max_rejections <= 1024
+                or type(max_idle_seconds) is not int or not 1 <= max_idle_seconds <= 3600):
+            raise ChunkTransferRejected("bounded owner Hub worker budget required")
+        self._require_current()
+        with self._serve_lock:
+            if self._serve_thread is not None:
+                raise ChunkTransferRejected("Hub worker already started for this RUN")
+            self._serve_stop.clear()
+            self._serve_successes = 0
+            self._serve_rejections = 0
+            self._serve_bytes = 0
+            self._serve_error = None
+
+            def serve() -> None:
+                deadline = monotonic() + max_idle_seconds
+                try:
+                    while self._serve_successes < max_connections:
+                        if self._serve_stop.is_set() or self._closed:
+                            break
+                        if monotonic() >= deadline:
+                            self._serve_error = "IDLE_BUDGET_EXPIRED"
+                            break
+                        try:
+                            size = self.serve_once()
+                        except ChunkTransferRejected as exc:
+                            if self._serve_stop.is_set() or self._closed:
+                                break
+                            # Bounded accept timeout is a normal opportunity
+                            # to recheck owner STOP and RUN generation.
+                            if str(exc) == "bounded Hub accept unavailable":
+                                continue
+                            self._serve_rejections += 1
+                            if self._serve_rejections >= max_rejections:
+                                self._serve_error = "REJECTION_BUDGET_EXHAUSTED"
+                                break
+                            # Never publish a peer exception or private grant
+                            # into a UI observation. A failed TLS handshake
+                            # has no read authority and consumes the budget.
+                            continue
+                        if type(size) is not int or size <= 0 or size > 1024 * 1024:
+                            raise ChunkTransferRejected("bounded Hub chunk count invalid")
+                        self._serve_successes += 1
+                        self._serve_bytes += size
+                        deadline = monotonic() + max_idle_seconds
+                except (PermissionError, RuntimeError, OSError, ValueError,
+                        ChunkTransferRejected):
+                    self._serve_error = "OWNER_AUTHORITY_OR_HUB_UNAVAILABLE"
+                finally:
+                    # A drained/expired worker cannot leave a LAN listener
+                    # open outside its own bounded service authority.
+                    self._serve_stop.set()
+                    self._closed = True
+                    self._hub.close()
+
+            self._serve_thread = Thread(
+                target=serve,
+                name="AegisOwnerLibraryHub",
+                daemon=True,
+            )
+            self._serve_thread.start()
+
+    def serving_status(self) -> dict[str, object]:
+        """Local-only truthful worker observation, not an owner grant."""
+        with self._serve_lock:
+            worker = self._serve_thread
+            return {
+                "schema": "aegis.platform.library.hub-worker.v1",
+                "state": (
+                    "CLOSED" if self._closed and (worker is None or not worker.is_alive())
+                    else "SERVING" if worker is not None and worker.is_alive()
+                    else "OPEN_IDLE"
+                ),
+                "served_chunks": self._serve_successes,
+                "served_bytes": self._serve_bytes,
+                "rejected_connections": self._serve_rejections,
+                "last_failure_code": self._serve_error,
+                "installed": None,
+                "core_started": None,
+                "owner_approved": None,
+            }
+
     def close(self) -> None:
+        # Closing the listener does not necessarily cancel an accepted TLS
+        # handshake on another thread. Hold the Platform's RUN authority
+        # until the worker has actually drained. Called from the worker itself
+        # during revoked SAFE checks without self-join.
+        stopping = getattr(self, "_serve_stop", None)
+        if stopping is not None:
+            stopping.set()
         if not self._closed:
             self._closed = True
             self._hub.close()
+        worker = getattr(self, "_serve_thread", None)
+        if worker is not None and worker is not current_thread():
+            worker.join(timeout=max(3, self._hub._timeout + 3))
+            if worker.is_alive():
+                raise RuntimeError(
+                    "Hub worker not drained; preserve Platform RUN lease "
+                    "and reconcile before replacement"
+                )
 
     def __enter__(self) -> "HostedLibraryHub":
         self._require_current()
