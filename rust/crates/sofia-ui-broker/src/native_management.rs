@@ -819,6 +819,138 @@ pub mod linux {
             ).is_err());
         }
 
+        fn fake_owner_sources_service(
+            result: &'static str,
+        ) -> (tempfile::TempDir, InstalledNativeServicePins, thread::JoinHandle<()>) {
+            let home = tempfile::tempdir().unwrap();
+            let path = home.path().join("mgmt-17.sock");
+            let listener = UnixListener::bind(&path).unwrap();
+            fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).unwrap();
+            let stat = fs::metadata(home.path()).unwrap();
+            let pins = InstalledNativeServicePins::from_externally_verified_installation(
+                path, "platform:recipient".into(), 17,
+                stat.uid(), stat.gid(), None,
+                Some(i32::try_from(std::process::id()).unwrap()),
+            ).unwrap();
+            let handle = thread::spawn(move || {
+                let (mut socket, _) = listener.accept().unwrap();
+                let mut request_bytes = Vec::new();
+                BufReader::new(&socket).read_until(b'\n', &mut request_bytes).unwrap();
+                if result == "EOF" {
+                    return;
+                }
+                let request: serde_json::Value =
+                    serde_json::from_slice(&request_bytes).unwrap();
+                assert_eq!(request["operation"], "library.sources.snapshot.v1");
+                let mut message = serde_json::json!({
+                    "schema": "aegis.platform.library.response.v1",
+                    "protocol": "1.0",
+                    "request_id": request["request_id"],
+                    "correlation_id": request["correlation_id"],
+                    "operation": request["operation"],
+                    "platform_id": request["target_platform_id"],
+                    "platform_generation": request["expected_generation"],
+                    "state_revision": request["expected_revision"],
+                    "observed_at": Utc::now()
+                        .to_rfc3339_opts(SecondsFormat::Micros, true),
+                    "outcome": "OK",
+                    "data": {
+                        "schema": "aegis.library.owner-sources.v1",
+                        "owner_mode": "SINGLE_OWNER_PRIVATE",
+                        "source_platform_id": null,
+                        "publisher_state": "UNENROLLED",
+                        "catalog_state": "UNAVAILABLE",
+                        "hub_state": "CLOSED",
+                        "served_chunks": 0,
+                        "served_bytes": 0
+                    },
+                    "denial": null
+                });
+                match result {
+                    "CURRENT" => {
+                        message["data"]["publisher_state"] =
+                            serde_json::json!("CURRENT");
+                        message["data"]["source_platform_id"] =
+                            serde_json::json!("platform:hub");
+                        message["data"]["catalog_state"] =
+                            serde_json::json!("CURRENT");
+                        message["data"]["hub_state"] = serde_json::json!("SERVING");
+                        message["data"]["served_chunks"] = serde_json::json!(2);
+                        message["data"]["served_bytes"] = serde_json::json!(2097152);
+                    }
+                    "STOPPED" | "REVOKED" | "UNAVAILABLE" => {
+                        message["outcome"] = serde_json::json!("DENIED");
+                        message["data"] = serde_json::Value::Null;
+                        message["denial"] = serde_json::json!({"code":result});
+                    }
+                    "UNSIGNED_READY" => {
+                        message["data"]["catalog_state"] =
+                            serde_json::json!("CURRENT");
+                    }
+                    "BOGUS_READY" => {
+                        message["data"]["hub_state"] = serde_json::json!("READY");
+                    }
+                    "EXTRA_OWNER_SECRET" => {
+                        message["data"]["owner_secret"] =
+                            serde_json::json!("not-allowed");
+                    }
+                    "BAD_COUNTER" => {
+                        message["data"]["served_bytes"] = serde_json::json!(-1);
+                    }
+                    "WRONG_PLATFORM" => {
+                        message["platform_id"] = serde_json::json!("other-platform");
+                    }
+                    _ => {}
+                }
+                socket.write_all(message.to_string().as_bytes()).unwrap();
+                socket.write_all(b"\n").unwrap();
+            });
+            (home, pins, handle)
+        }
+
+        #[test]
+        fn native_owner_status_works_before_publisher_enrollment() {
+            let (_home, pins, worker) = fake_owner_sources_service("UNENROLLED");
+            let mut client = NativeLinuxOwnerSourcesReader::from_verified_installation(pins);
+            let snapshot = client.sources().expect("local owner status");
+            assert_eq!(snapshot.platform_id, "platform:recipient");
+            assert_eq!(snapshot.platform_generation, 17);
+            assert_eq!(snapshot.publisher_state, "UNENROLLED");
+            assert_eq!(snapshot.catalog_state, "UNAVAILABLE");
+            assert_eq!(snapshot.hub_state, "CLOSED");
+            assert!(snapshot.source_platform_id.is_none());
+            assert_eq!(snapshot.served_bytes, 0);
+            worker.join().unwrap();
+        }
+
+        #[test]
+        fn native_owner_status_reports_current_internal_hub_without_install_claim() {
+            let (_home, pins, worker) = fake_owner_sources_service("CURRENT");
+            let mut client = NativeLinuxOwnerSourcesReader::from_verified_installation(pins);
+            let snapshot = client.sources().expect("verified native service observation");
+            assert_eq!(snapshot.source_platform_id.as_deref(), Some("platform:hub"));
+            assert_eq!(snapshot.catalog_state, "CURRENT");
+            assert_eq!(snapshot.hub_state, "SERVING");
+            assert_eq!(snapshot.served_chunks, 2);
+            assert_eq!(snapshot.served_bytes, 2097152);
+            worker.join().unwrap();
+        }
+
+        #[test]
+        fn native_owner_status_denials_and_forgeries_never_claim_hub_readiness() {
+            for case in [
+                "STOPPED", "REVOKED", "UNAVAILABLE", "EOF",
+                "UNSIGNED_READY", "BOGUS_READY", "EXTRA_OWNER_SECRET",
+                "BAD_COUNTER", "WRONG_PLATFORM",
+            ] {
+                let (_home, pins, worker) = fake_owner_sources_service(case);
+                let mut client =
+                    NativeLinuxOwnerSourcesReader::from_verified_installation(pins);
+                assert!(client.sources().is_err(), "{case} must fail closed");
+                worker.join().unwrap();
+            }
+        }
+
         #[test]
         fn synthetic_native_peer_returns_only_a_correlated_status() {
             let (_home, pins, thread) = fake_service("OK");
