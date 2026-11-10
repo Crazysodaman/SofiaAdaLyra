@@ -163,3 +163,128 @@ def test_b1_sdk_cannot_claim_arbitrary_manifest_parent(installed_sdk):
         InstalledB1SignedSdkVerifier(
             **{**args, "expected_parent_manifest_sha256": "f" * 64},
         )
+
+
+
+def _record_test_only_installed_release(store, manifest):
+    """Disposable B1 receipt fixture, never an installed production claim."""
+    from datetime import datetime, timezone
+    with sqlite3.connect(store.path) as db:
+        db.execute(
+            "INSERT INTO ops_platform_installation_receipt "
+            "(receipt_id,release_id,operation,result,revision,"
+            "manifest_sha256,staging_path,destination,installed_at,"
+            "activated,checkpoint_revision) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            (
+                "receipt:owner-only-b1", manifest.release_id, "install",
+                "SUCCEEDED", manifest.revision, manifest.digest,
+                "/disposable/staging", "/disposable/installed",
+                datetime.now(timezone.utc).isoformat(), 0,
+                manifest.revision,
+            ),
+        )
+
+
+def test_personal_hub_offer_requires_real_matching_installed_b1_receipt(
+    installed_sdk,
+):
+    from sofia.platform.ops.library_b1_sdk_publisher import (
+        review_personal_b1_sdk_offer,
+    )
+    manifest, signer, path, pin, store, args, authority = installed_sdk
+    verifier = InstalledB1SignedSdkVerifier(**args)
+    with pytest.raises(ChunkTransferRejected, match="installed B1 release receipt"):
+        review_personal_b1_sdk_offer(
+            verifier=verifier, transfer=pin, verified_local_sdk_path=path,
+            owner_private_copy_allowed=lambda _: True,
+        )
+    _record_test_only_installed_release(store, manifest)
+    offer = review_personal_b1_sdk_offer(
+        verifier=verifier, transfer=pin, verified_local_sdk_path=path,
+        owner_private_copy_allowed=lambda _: True,
+    )
+    assert offer.artifact_id == manifest.release_id
+    assert offer.manifest_digest == pin.manifest_sha256
+    assert offer.content_digest == pin.content_sha256
+    assert offer.signature_receipt_ref == "receipt:owner-only-b1"
+    assert offer.independent_package_verified is True
+    assert offer.distribution_allowed is True
+    assert offer.as_catalog_item()["kind"] == "sdk"
+
+
+def test_signed_b1_sdk_owner_catalog_roundtrip_rejects_peer_key_invention(
+    installed_sdk,
+):
+    """Real local B1 signature -> receipt -> personal catalog signature -> selection."""
+    from datetime import datetime, timezone
+    from cryptography.hazmat.primitives import serialization
+    from sofia.platform.ops.library_b1_sdk_publisher import (
+        review_personal_b1_sdk_offer,
+    )
+    from sofia.platform.ops.library_owner_catalog_publish import (
+        publish_signed_owner_catalog,
+    )
+    from sofia.platform.ops.library_signed_selection import (
+        verify_selected_signed_transfer,
+    )
+    manifest, signer, path, pin, store, args, authority = installed_sdk
+    _record_test_only_installed_release(store, manifest)
+    verifier = InstalledB1SignedSdkVerifier(**args)
+    offer = review_personal_b1_sdk_offer(
+        verifier=verifier, transfer=pin, verified_local_sdk_path=path,
+        owner_private_copy_allowed=lambda _: True,
+    )
+    public = signer.public_key().public_bytes(
+        serialization.Encoding.Raw,
+        serialization.PublicFormat.Raw,
+    )
+    instant = datetime.now(timezone.utc)
+    signed_catalog = publish_signed_owner_catalog(
+        source_platform_id=pin.source_platform_id,
+        target_platform_id=pin.target_platform_id,
+        trusted_publisher_public_key=public,
+        catalog_generation=3,
+        catalog_revision=pin.catalog_revision,
+        selected_assets=[offer],
+        sign_external=signer.sign,
+        owner_hub_current=lambda: True,
+        publisher_current=lambda _: True,
+        time_now=lambda: instant,
+    )
+    chosen = verify_selected_signed_transfer(
+        raw_signed_index=signed_catalog,
+        transfer=pin,
+        expected_artifact_id=offer.artifact_id,
+        trusted_publisher_public_key=public,
+        expected_publisher_key_sha256=sha256(public).hexdigest(),
+        expected_catalog_generation=3,
+        now=instant,
+        publisher_key_current=lambda _: True,
+    )
+    assert chosen.transfer == pin
+    assert chosen.signer_key_id == "test-release"
+    assert chosen.signature_receipt_ref == "receipt:owner-only-b1"
+    assert verifier(pin, path).sha256 == chosen.transfer.content_sha256
+
+
+def test_personal_copy_license_is_independent_of_verified_b1_signature(
+    installed_sdk,
+):
+    from sofia.platform.ops.library_b1_sdk_publisher import (
+        review_personal_b1_sdk_offer,
+    )
+    manifest, signer, path, pin, store, args, authority = installed_sdk
+    _record_test_only_installed_release(store, manifest)
+    verifier = InstalledB1SignedSdkVerifier(**args)
+    with pytest.raises(ChunkTransferRejected, match="copy policy forbids"):
+        review_personal_b1_sdk_offer(
+            verifier=verifier, transfer=pin, verified_local_sdk_path=path,
+            owner_private_copy_allowed=lambda _: False,
+        )
+    decisions = iter([True, False])
+    with pytest.raises(ChunkTransferRejected, match="changed"):
+        review_personal_b1_sdk_offer(
+            verifier=verifier, transfer=pin, verified_local_sdk_path=path,
+            owner_private_copy_allowed=lambda _: next(decisions),
+        )
+    assert store.receipt_for_release(manifest.release_id) is not None
