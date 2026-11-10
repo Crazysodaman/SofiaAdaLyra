@@ -172,3 +172,88 @@ def test_quarantine_writer_is_single_owned_across_two_receiver_instances(tmp_pat
         chunk_sha256=sha256(fragment).hexdigest(),
         authorize=lambda _: True,
     ) == 73
+
+
+
+def test_recover_crash_after_part_unlinked_preserves_verified_bytes(tmp_path):
+    """A real interrupted CAS commit is recoverable, not deleted as failure."""
+    raw, pin, receiver = setup(tmp_path)
+    receiver.append_chunk(
+        pin, offset=0, chunk=raw,
+        chunk_sha256=sha256(raw).hexdigest(),
+        authorize=lambda _: True,
+    )
+    part = receiver.incoming / (pin.content_sha256 + ".part")
+    completed = receiver.completed / pin.content_sha256
+    scope = receiver.incoming / (pin.content_sha256 + ".scope")
+    # Exact crash window: link published, partial unlinked, original
+    # transfer-scope metadata retained until final fsync/cleanup.
+    os.link(part, completed)
+    part.unlink()
+    assert completed.stat().st_nlink == 1
+    assert scope.is_file()
+    restarted = ChunkedArtifactReceiver(receiver.root, max_bytes=len(raw))
+    result = restarted.recover_interrupted_publication(
+        pin, authorize=lambda _: True,
+    )
+    assert result == completed
+    assert result.read_bytes() == raw
+    assert not scope.exists()
+
+
+def test_recovery_rejects_wrong_manifest_and_owner_revocation(tmp_path):
+    raw, pin, receiver = setup(tmp_path)
+    receiver.append_chunk(
+        pin, offset=0, chunk=raw,
+        chunk_sha256=sha256(raw).hexdigest(),
+        authorize=lambda _: True,
+    )
+    part = receiver.incoming / (pin.content_sha256 + ".part")
+    completed = receiver.completed / pin.content_sha256
+    os.link(part, completed)
+    part.unlink()
+    restarted = ChunkedArtifactReceiver(receiver.root, max_bytes=len(raw))
+    with pytest.raises(ChunkTransferRejected, match="scope"):
+        restarted.recover_interrupted_publication(
+            replace(pin, manifest_sha256="f" * 64),
+            authorize=lambda _: True,
+        )
+    with pytest.raises(ChunkTransferRejected, match="SAFE"):
+        restarted.recover_interrupted_publication(
+            pin, authorize=lambda _: False,
+        )
+    assert completed.read_bytes() == raw
+
+
+def test_recovery_rehashes_exact_completed_bytes_before_clearing_scope(tmp_path):
+    raw, pin, receiver = setup(tmp_path)
+    receiver.append_chunk(
+        pin, offset=0, chunk=raw,
+        chunk_sha256=sha256(raw).hexdigest(),
+        authorize=lambda _: True,
+    )
+    part = receiver.incoming / (pin.content_sha256 + ".part")
+    completed = receiver.completed / pin.content_sha256
+    scope = receiver.incoming / (pin.content_sha256 + ".scope")
+    os.link(part, completed)
+    part.unlink()
+    completed.write_bytes(b"x" * len(raw))
+    restarted = ChunkedArtifactReceiver(receiver.root, max_bytes=len(raw))
+    with pytest.raises(ChunkTransferRejected, match="content changed"):
+        restarted.recover_interrupted_publication(
+            pin, authorize=lambda _: True,
+        )
+    assert scope.is_file()
+    assert completed.read_bytes() != raw
+
+
+def test_recovery_refuses_unbound_foreign_completed_object(tmp_path):
+    raw, pin, receiver = setup(tmp_path)
+    completed = receiver.completed / pin.content_sha256
+    completed.write_bytes(raw)
+    completed.chmod(0o600)
+    with pytest.raises(ChunkTransferRejected, match="unbound completed"):
+        receiver.recover_interrupted_publication(
+            pin, authorize=lambda _: True,
+        )
+    assert completed.read_bytes() == raw
