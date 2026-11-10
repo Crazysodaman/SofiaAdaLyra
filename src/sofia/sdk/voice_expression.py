@@ -17,6 +17,7 @@ VOICE_SYNTHESIZE_SCOPE = "voice.synthesize"
 _SCALE = 10_000
 _ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}\Z")
 _SHA = re.compile(r"[0-9a-f]{64}\Z")
+_TAG = re.compile(r"[a-z][a-z0-9_.:-]{0,79}\Z")
 _FIELDS = frozenset({
     "schema", "core_identity_id", "voice_profile_id", "voice_profile_revision",
     "decision_id", "message_id", "audience_id", "text_sha256",
@@ -89,7 +90,7 @@ class VoiceExpressionCue:
             values = getattr(self, name)
             if (
                 type(values) is not tuple or len(values) > 16
-                or any(type(tag) is not str or not 0 < len(tag) <= 80 or not tag.strip()
+                or any(type(tag) is not str or _TAG.fullmatch(tag) is None
                        for tag in values)
             ):
                 raise ValueError(f"{name} must be a bounded tuple of tags")
