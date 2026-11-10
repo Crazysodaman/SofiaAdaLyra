@@ -342,6 +342,9 @@ fn owner_sources(
     if publisher == "UNENROLLED" && !source.is_null() {
         return Err(invalid("unenrolled publisher cannot assert source"));
     }
+    if publisher == "CURRENT" && source.is_null() {
+        return Err(invalid("current publisher needs enrolled source"));
+    }
     if catalog_state == "CURRENT" && publisher != "CURRENT" {
         return Err(invalid("signed catalog requires owner publisher"));
     }
