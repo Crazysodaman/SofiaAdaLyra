@@ -73,8 +73,25 @@ owner approval, and do not start a Hub or a Core:
 
 ```powershell
 python -m sofia.platform.ops.library_owner_cli --state $State --platform-id $PlatformId prepare-local-read
+python -m sofia.platform.ops.library_owner_cli --state $State --platform-id $PlatformId prepare-local-read --operation library.sources.snapshot.v1
 python -m sofia.platform.ops.library_owner_cli --state $State --platform-id $PlatformId prepare-private-hub --bind-host 127.0.0.1 --bind-port 47321
 ```
+
+The second local read is a **separate** source-status permission. It permits
+your attended native reader to observe the current publisher pin, signed
+catalog and Hub worker state, even on a fresh uncommissioned Platform. It
+does not authorize catalog browsing, peer transfers or installations. Its
+single-owner status vocabulary deliberately distinguishes:
+
+- `publisher_state = UNENROLLED/CURRENT/REVOKED/UNKNOWN`
+- `catalog_state = UNAVAILABLE/CURRENT/UNVERIFIED`
+- `hub_state = CLOSED/OPEN_IDLE/SERVING/UNKNOWN`
+
+`SERVING` only means the current owner-approved local Hub worker is
+observed serving; it is not a test of remote reachability, package
+activation, model availability, TLS enrollment or Core health. An absent
+external publisher signer/Hub is normal. The response contains no
+password, signing key, private asset path, Owner proof or personal data.
 
 Each prints the current `run_generation`, exact `capability`, JSON `scope`
 and compact `scope_json`. The private Hub preview only permits canonical
