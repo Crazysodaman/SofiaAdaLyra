@@ -34,6 +34,10 @@ from sofia.platform.run.library_owner_trust import (
     OwnerLibraryTrustStore, enrollment_parameters, revocation_parameters,
 )
 from sofia.platform.safe.execution_approval import execution_fingerprint
+from sofia.platform.ops.library_owner_grant_preflight import (
+    OwnerLibraryPreflightDenied, preview_personal_hub_grant,
+    preview_personal_local_read_grant,
+)
 from sofia.platform.state.private_file import assert_no_redirected_components
 
 
@@ -103,6 +107,12 @@ def main(argv: list[str] | None = None) -> int:
                         help="the installed immutable Platform ID, not a new name")
     actions = parser.add_subparsers(dest="action", required=True)
     actions.add_parser("status")
+    # Read-only exact grant scope builders. The existing SAFE permissions CLI
+    # performs separately attended one-use owner verification and grant.
+    actions.add_parser("prepare-local-read")
+    personal_hub = actions.add_parser("prepare-private-hub")
+    personal_hub.add_argument("--bind-host", required=True)
+    personal_hub.add_argument("--bind-port", type=int, required=True)
     for name in ("prepare-enroll", "enroll", "enroll-attended"):
         command = actions.add_parser(name)
         command.add_argument("--source-platform-id", required=True)
@@ -123,6 +133,15 @@ def main(argv: list[str] | None = None) -> int:
         store = OwnerLibraryTrustStore(
             args.state, platform_id=args.platform_id,
         )
+        if args.action == "prepare-local-read":
+            _result(preview_personal_local_read_grant(store=store))
+            return 0
+        if args.action == "prepare-private-hub":
+            _result(preview_personal_hub_grant(
+                store=store, bind_host=args.bind_host,
+                bind_port=args.bind_port,
+            ))
+            return 0
         if args.action == "status":
             pin = store.current()
             audit_ok, _audit_reason = store.audit.verify()
@@ -254,7 +273,8 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         raise OwnerLibraryTrustDenied("unknown owner Library operation")
     except (
-        OwnerLibraryTrustDenied, PermissionError, RuntimeError,
+        OwnerLibraryTrustDenied, OwnerLibraryPreflightDenied,
+        PermissionError, RuntimeError,
         ValueError, TypeError, OSError, sqlite3.Error,
     ) as exc:
         print(
