@@ -632,3 +632,41 @@ def test_activation_rejects_forged_pid_even_with_valid_owner_approval(
                    for row in store.history())
     finally:
         runtime.close()
+
+
+
+def test_canonical_stage_then_install_streams_assets_without_any_eager_reader(
+        tmp_path, builder, monkeypatch):
+    """Both signed B1 stages now use the same bounded streaming asset copier.
+
+    This exercises a real disposable Ed25519 signer, full signed release
+    verification, the canonical B1 receipts and the original install path.
+    No live operating-system service or production owner trust is asserted.
+    """
+    import sofia.platform.ops.platform_release_staging as stage_module
+    import sofia.platform.ops.platform_installation as install_module
+
+    def fail_eager_read(path, size, *, include_data=False):
+        if include_data:
+            raise AssertionError(
+                'staging or installation must not allocate whole signed assets'
+            )
+        return original_reader(path, size, include_data=include_data)
+
+    original_reader = install_module.read_artifact_file
+    monkeypatch.setattr(stage_module, 'read_artifact_file', fail_eager_read)
+    monkeypatch.setattr(install_module, 'read_artifact_file', fail_eager_read)
+    stage, manifest, _signed_receipt = builder.stage(
+        release_id='streamed-private-b1', revision=1,
+    )
+    store = PlatformInstallationStore(tmp_path / 'signed-install.db')
+    target = tmp_path / 'installed-streamed-private-b1'
+    installed = install_staged_release(
+        stage, target, store=store, verifier=builder.verifier,
+    )
+    assert installed['release_id'] == 'streamed-private-b1'
+    assert installed['activated'] is False
+    assert store.checkpoint().minimum_accepted_revision == 1
+    assert not list(target.rglob('sofia.db'))
+    assert verify_installed(target, store=store,
+                            verifier=builder.verifier)['manifest_sha256'] == manifest.digest
