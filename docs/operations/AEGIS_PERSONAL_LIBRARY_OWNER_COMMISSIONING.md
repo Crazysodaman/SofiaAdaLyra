@@ -65,6 +65,46 @@ Successful catalog import means **SIGNED_CATALOG_CACHED**, not download, install
 
 Owner trust revocation takes effect on the very next provider/reader check. The existing operator **STOP** makes the catalog unavailable and blocks imports; a separately owner-approved trust revocation remains possible during STOP. After revocation, re-enrollment requires a newly approved action and a **strictly increased catalog generation**; the rollback floor cannot decrease.
 
+## Review current personal SAFE grants without manually assembling JSON
+
+These source-only commands work against the **existing installed** Platform
+identity and its current RUN lease. They create **no grant**, do not consume an
+owner approval, and do not start a Hub or a Core:
+
+```powershell
+python -m sofia.platform.ops.library_owner_cli --state $State --platform-id $PlatformId prepare-local-read
+python -m sofia.platform.ops.library_owner_cli --state $State --platform-id $PlatformId prepare-private-hub --bind-host 127.0.0.1 --bind-port 47321
+```
+
+Each prints the current `run_generation`, exact `capability`, JSON `scope`
+and compact `scope_json`. The private Hub preview only permits canonical
+numeric private/loopback addresses, never `0.0.0.0`, public IPs or DNS names.
+The local-read preview derives the **actual** current OS operator UID/GID
+on Linux or verifies the attended Windows owner SID; it does not accept a
+caller-supplied client identity. A missing/expired RUN lease or STOP is a
+hard denial, not a fallback to a fabricated local Platform.
+
+To actually create the narrowly scoped 10-minute grant, the owner separately
+uses the existing attended SAFE permission command with the exact displayed
+`capability` and `scope_json`. For example, on the **authorized host's
+attended console**, copy the exact JSON produced by the preflight:
+
+```powershell
+python -m sofia.platform.safe.permissions_cli --state-path $State grant platform.library.read --scope-json '<exact JSON scope from prepare-local-read>' --expires-minutes 10
+```
+
+The SAFE CLI requests the existing 256-bit owner secret or verified WebAuthn
+approval. It does **not** accept a preflight preview as an owner grant. On
+an unattended Linux Platform, local Windows-only owner-secret authentication
+deliberately refuses; enroll by the separately approved host-specific owner
+workflow, not by copying credentials into a Linux service.
+
+An owner-approved Hub grant and an enrolled peer TLS certificate/grant remain
+**separate**. A `prepare-private-hub` result is not proof a publisher
+signing key, eligible signed package or remote mTLS identity is installed.
+Likewise, a local Library-read grant does not permit transfer, installation
+or deletion.
+
 ## Owner-selected private LAN publisher, with no signing key in Aegis
 
 The primary Hub can construct a **complete Ed25519-signed catalog index**
