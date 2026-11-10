@@ -119,6 +119,37 @@ fn reply_matches_identity(reply: &Reply, config: &Configuration, serial: Option<
         && serial.is_none_or(|pinned| reply.serial == pinned)
 }
 
+// Never declare the native management interface ready just because the
+// child returned a non-empty string. Require this RUN generation's endpoint.
+fn valid_management_endpoint(endpoint: &str, platform_id: &str, generation: u64) -> bool {
+    if endpoint.is_empty()
+        || endpoint.len() > 256
+        || generation == 0
+        || endpoint.chars().any(char::is_control)
+    {
+        return false;
+    }
+    #[cfg(windows)]
+    {
+        let expected = format!(
+            r"\\.\pipe\AegisPlatform-{}-{}",
+            platform_id.replace('-', ""), generation,
+        );
+        endpoint == expected
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = platform_id;
+        let path = std::path::Path::new(endpoint);
+        path.is_absolute()
+            && !path.components().any(|part| matches!(part, std::path::Component::ParentDir))
+            && path.file_name().is_some_and(|name| {
+                name == std::ffi::OsStr::new(&format!("mgmt-{generation}.sock"))
+                    || name == std::ffi::OsStr::new("management.sock")
+            })
+    }
+}
+
 struct Worker {
     child: Child,
     input: Option<ChildStdin>,
@@ -199,8 +230,11 @@ impl Worker {
         worker.serial = ready.serial.clone();
         worker.management_endpoint = ready.management_endpoint.clone().unwrap_or_default();
         if !ready.management_listening
-            || worker.management_endpoint.is_empty()
-            || worker.management_endpoint.len() > 256
+            || !valid_management_endpoint(
+                &worker.management_endpoint,
+                &config.platform_id,
+                worker.generation,
+            )
         {
             return Err("authenticated management listener not ready".into());
         }
@@ -446,6 +480,28 @@ mod tests {
         reply.serial = "AEG-P-original".to_owned();
         reply.core_started = true;
         assert!(!reply_matches_identity(&reply, &config, None));
+    }
+    #[test]
+    fn native_management_endpoint_is_generation_bound() {
+        let id = "12345678-1234-4abc-8abc-1234567890ab";
+        #[cfg(windows)]
+        {
+            let good = format!(r"\\.\pipe\AegisPlatform-{}-7", id.replace('-', ""));
+            assert!(valid_management_endpoint(&good, id, 7));
+            assert!(!valid_management_endpoint(&good, id, 8));
+            assert!(!valid_management_endpoint(r"\\.\pipe\SomeOtherService", id, 7));
+        }
+        #[cfg(not(windows))]
+        {
+            assert!(valid_management_endpoint("/run/aegis/mgmt-7.sock", id, 7));
+            assert!(valid_management_endpoint("/tmp/aegis-mgmt-test/management.sock", id, 7));
+            assert!(!valid_management_endpoint("/run/aegis/mgmt-7.sock", id, 8));
+            assert!(!valid_management_endpoint("mgmt-7.sock", id, 7));
+            assert!(!valid_management_endpoint("/run/../tmp/mgmt-7.sock", id, 7));
+        }
+        assert!(!valid_management_endpoint("socket\\nforged", id, 7));
+        assert!(!valid_management_endpoint("", id, 7));
+        assert!(!valid_management_endpoint("ignored", id, 0));
     }
     #[test]
     fn no_arbitrary_program_or_incomplete_configuration() {
