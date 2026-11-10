@@ -1,7 +1,8 @@
+import pytest
 from dataclasses import replace
 from sofia.core.cognition.matrix import InfluenceMode,InfluenceSignal,InfluenceSurface
 from sofia.core.personality.influence import ContinuityInfluence
-from sofia.modules.voice import VoiceProsodyMatrix,VoiceUrgency
+from sofia.modules.voice import VoiceProsodyMatrix,VoiceProsodyWeights,VoiceUrgency
 from sofia.core.emotion.catalog import EMOTIONS
 from sofia.modules.voice.prosody_matrix import _TARGETS
 def influence(**x):
@@ -52,3 +53,50 @@ def test_background_relational_emotion_gets_only_a_subtle_voice_bias():
     profile=VoiceProsodyMatrix().plan(influence(daypart="afternoon",foreground_emotion=None,foreground_intensity=0,foreground_emotion_evidence_refs=())).profile
     assert "emotion:fondness" in profile.tone_tags
     assert .97 <= profile.rate_scale <= 1.02
+
+def test_default_voice_weights_preserve_existing_matrix_output():
+    info = influence(foreground_emotion="excitement", foreground_intensity=.7)
+    default = VoiceProsodyMatrix().plan(info).profile
+    configured = VoiceProsodyMatrix(weights=VoiceProsodyWeights()).plan(info).profile
+    assert configured == default
+
+
+def test_core_emotion_gain_blends_without_weather_becoming_numeric():
+    info = influence(
+        daypart="afternoon", foreground_emotion="excitement",
+        foreground_intensity=.8,
+        foreground_emotion_evidence_refs=("emotion:reviewed-excitement",),
+    )
+    dry = VoiceProsodyMatrix(weights=VoiceProsodyWeights(emotion=0)).plan(info).profile
+    half = VoiceProsodyMatrix(weights=VoiceProsodyWeights(emotion=.5)).plan(info).profile
+    full = VoiceProsodyMatrix(weights=VoiceProsodyWeights(emotion=1)).plan(info).profile
+    assert dry.rate_scale < half.rate_scale < full.rate_scale
+    assert dry.energy_scale < half.energy_scale < full.energy_scale
+    assert not any(tag.startswith("emotion:") for tag in dry.tone_tags)
+    assert "emotion:excitement" in full.tone_tags
+    summer = replace(info, weather_condition="clear", season="summer")
+    assert numeric(VoiceProsodyMatrix(weights=VoiceProsodyWeights(emotion=.5)).plan(summer).profile) == numeric(half)
+
+
+def test_core_daypart_gain_zero_disables_night_offset_without_disabling_urgency():
+    info = influence(
+        daypart="night", foreground_emotion=None, foreground_intensity=0,
+        foreground_emotion_evidence_refs=(), primary_emotion=None,
+        primary_intensity=0, primary_emotion_evidence_refs=(),
+    )
+    neutral = VoiceProsodyMatrix(weights=VoiceProsodyWeights(daypart=0)).plan(info).profile
+    softened = VoiceProsodyMatrix(weights=VoiceProsodyWeights(daypart=1)).plan(info).profile
+    assert neutral.rate_scale == 1.0 and neutral.pause_scale == 1.0
+    assert softened.rate_scale < neutral.rate_scale
+    assert softened.pause_scale > neutral.pause_scale
+    urgent = VoiceProsodyMatrix(weights=VoiceProsodyWeights(emotion=0, daypart=0)).plan(
+        info, urgency=VoiceUrgency.URGENT,
+    ).profile
+    assert urgent.rate_scale >= 1.10
+    assert urgent.energy_scale >= 1.16
+
+
+@pytest.mark.parametrize("value", [-0.1, 1.01, float("nan"), float("inf"), True, "strong"])
+def test_voice_weight_limits_are_strict(value):
+    with pytest.raises((TypeError, ValueError)):
+        VoiceProsodyWeights(emotion=value)
