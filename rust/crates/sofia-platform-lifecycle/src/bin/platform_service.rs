@@ -112,6 +112,7 @@ struct Worker {
     generation: u64,
     sequence: u64,
     operator_stop: bool,
+    serial: String,
     management_endpoint: String,
     config: Configuration,
 }
@@ -174,12 +175,14 @@ impl Worker {
             generation: 0,
             sequence: 0,
             operator_stop: false,
+            serial: String::new(),
             management_endpoint: String::new(),
             config: config.clone(),
         };
         let ready = worker.receive(INITIAL_REPLY_TIMEOUT)?;
         worker.generation = ready.generation;
         worker.operator_stop = ready.operator_stop;
+        worker.serial = ready.serial.clone();
         worker.management_endpoint = ready.management_endpoint.clone().unwrap_or_default();
         if !ready.management_listening
             || worker.management_endpoint.is_empty()
@@ -224,6 +227,7 @@ impl Worker {
         input.flush()?;
         let value = self.receive(HEALTH_REPLY_TIMEOUT)?;
         if value.sequence != Some(self.sequence)
+            || value.serial != self.serial
             || value.pid.is_some()
             || value.supervisor_pid.is_some()
             || value.generation != self.generation
