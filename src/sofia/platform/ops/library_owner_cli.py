@@ -109,7 +109,12 @@ def main(argv: list[str] | None = None) -> int:
     actions.add_parser("status")
     # Read-only exact grant scope builders. The existing SAFE permissions CLI
     # performs separately attended one-use owner verification and grant.
-    actions.add_parser("prepare-local-read")
+    personal_read = actions.add_parser("prepare-local-read")
+    personal_read.add_argument(
+        "--operation",
+        choices=("library.catalog.snapshot.v1", "library.sources.snapshot.v1"),
+        default="library.catalog.snapshot.v1",
+    )
     personal_hub = actions.add_parser("prepare-private-hub")
     personal_hub.add_argument("--bind-host", required=True)
     personal_hub.add_argument("--bind-port", type=int, required=True)
@@ -134,7 +139,9 @@ def main(argv: list[str] | None = None) -> int:
             args.state, platform_id=args.platform_id,
         )
         if args.action == "prepare-local-read":
-            _result(preview_personal_local_read_grant(store=store))
+            _result(preview_personal_local_read_grant(
+                store=store, operation=args.operation,
+            ))
             return 0
         if args.action == "prepare-private-hub":
             _result(preview_personal_hub_grant(
