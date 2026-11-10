@@ -335,6 +335,7 @@ class ChunkedArtifactReceiver:
     def recover_interrupted_publication(
         self, transfer: PinnedChunkTransfer, *,
         authorize: Callable[[PinnedChunkTransfer], bool],
+        retain_scope: bool = False,
     ) -> Path:
         """Resume a crash after CAS link and before scope cleanup.
 
@@ -399,19 +400,24 @@ class ChunkedArtifactReceiver:
             self._check_scope(
                 transfer, part_size=0, allow_create=False,
             )
-            scope.unlink()
-            if os.name != "nt":
-                directory = os.open(
-                    self.incoming,
-                    os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
-                )
-                try:
-                    os.fsync(directory)
-                finally:
-                    os.close(directory)
+            if not retain_scope:
+                scope.unlink()
+                if os.name != "nt":
+                    directory = os.open(
+                        self.incoming,
+                        os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+                    )
+                    try:
+                        os.fsync(directory)
+                    finally:
+                        os.close(directory)
             return complete
 
-    def finalize(self, transfer: PinnedChunkTransfer, *, authorize: Callable[[PinnedChunkTransfer], bool]) -> Path:
+    def finalize(
+        self, transfer: PinnedChunkTransfer, *,
+        authorize: Callable[[PinnedChunkTransfer], bool],
+        retain_scope: bool = False,
+    ) -> Path:
         with self._writer_lock():
             self._approve(transfer, authorize)
             self._check_roots()
@@ -481,7 +487,8 @@ class ChunkedArtifactReceiver:
                 if self._existing_file(destination) != transfer.size_bytes:
                     raise ChunkTransferRejected("immutable object link count did not settle")
                 self._check_scope(transfer, part_size=0, allow_create=False)
-                self._scope_path(transfer).unlink()
+                if not retain_scope:
+                    self._scope_path(transfer).unlink()
                 if os.name != "nt":
                     directory = os.open(
                         self.incoming,
