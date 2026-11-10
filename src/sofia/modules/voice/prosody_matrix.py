@@ -82,8 +82,31 @@ _TARGETS = {
 def _blend(b,t,s): return b+(t-b)*s
 def _clamp(v,lo,hi): return max(lo,min(hi,v))
 
+@dataclass(frozen=True, slots=True)
+class VoiceProsodyWeights:
+    """Core-selectable bounded influence gains; 1.0 preserves legacy delivery.
+
+    Weather and season remain expression-only under ContextualInfluenceMatrix;
+    they cannot gain numerical control by setting a weight here.
+    """
+    emotion: float = 1.0
+    daypart: float = 1.0
+
+    def __post_init__(self):
+        for name in ("emotion", "daypart"):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise TypeError(f"{name} weight must be numeric")
+            if not 0.0 <= float(value) <= 1.0:
+                raise ValueError(f"{name} weight must be in [0, 1]")
+
+
 class VoiceProsodyMatrix:
-    def __init__(self,influence_matrix=None): self._matrix=influence_matrix or ContextualInfluenceMatrix()
+    def __init__(self, influence_matrix=None, *, weights: VoiceProsodyWeights | None = None):
+        if weights is not None and not isinstance(weights, VoiceProsodyWeights):
+            raise TypeError("weights must be VoiceProsodyWeights or None")
+        self._matrix = influence_matrix or ContextualInfluenceMatrix()
+        self._weights = weights or VoiceProsodyWeights()
     def plan(self,influence: ContinuityInfluence,*,urgency: VoiceUrgency=VoiceUrgency.NORMAL):
         if not isinstance(influence,ContinuityInfluence): raise TypeError("influence must be ContinuityInfluence")
         if not isinstance(urgency,VoiceUrgency): raise TypeError("urgency must be VoiceUrgency")
@@ -97,15 +120,22 @@ class VoiceProsodyMatrix:
                 influence.foreground_intensity
                 if influence.foreground_emotion is not None
                 else min(influence.primary_intensity, .20)
-            ),0,1)
-            rate=_blend(rate,target[0],s); pitch=_blend(pitch,target[1],s); energy=_blend(energy,target[2],s); volume=_blend(volume,target[3],s); pause=_blend(pause,target[4],s)
-            tags.append(f"emotion:{name}"); reasons.append("evidence-linked modeled emotion applied as bounded prosody")
+            ) * self._weights.emotion,0,1)
+            if s > 0:
+                rate=_blend(rate,target[0],s); pitch=_blend(pitch,target[1],s); energy=_blend(energy,target[2],s); volume=_blend(volume,target[3],s); pause=_blend(pause,target[4],s)
+                tags.append(f"emotion:{name}"); reasons.append("evidence-linked modeled emotion applied as bounded prosody")
+            else:
+                reasons.append("Core emotion weight suppresses numeric emotion prosody")
         else: reasons.append("no reviewed evidence-linked emotion prosody adjustment applied")
-        if ip.mode_for(InfluenceSignal.DAYPART) is not InfluenceMode.NONE:
-            if influence.daypart=="night": rate*=.96; energy*=.94; volume*=.94; pause*=1.06
-            elif influence.daypart=="evening": rate*=.99; energy*=.98; volume*=.98; pause*=1.02
-            elif influence.daypart=="morning": rate*=1.01; energy*=1.02; volume*=1.01; pause*=.98
-            tags.append(f"daypart:{influence.daypart}"); reasons.append("trusted daypart applied only as a subtle delivery bias")
+        if ip.mode_for(InfluenceSignal.DAYPART) is not InfluenceMode.NONE and self._weights.daypart > 0:
+            w = self._weights.daypart
+            if influence.daypart=="night":
+                rate*=_blend(1,.96,w); energy*=_blend(1,.94,w); volume*=_blend(1,.94,w); pause*=_blend(1,1.06,w)
+            elif influence.daypart=="evening":
+                rate*=_blend(1,.99,w); energy*=_blend(1,.98,w); volume*=_blend(1,.98,w); pause*=_blend(1,1.02,w)
+            elif influence.daypart=="morning":
+                rate*=_blend(1,1.01,w); energy*=_blend(1,1.02,w); volume*=_blend(1,1.01,w); pause*=_blend(1,.98,w)
+            tags.append(f"daypart:{influence.daypart}"); reasons.append("trusted daypart applied with Core-bounded weight")
         if ip.mode_for(InfluenceSignal.WEATHER) is InfluenceMode.EXPRESSION_ONLY and influence.weather_condition: ambient.append("weather:"+influence.weather_condition.casefold())
         if ip.mode_for(InfluenceSignal.SEASON) is InfluenceMode.EXPRESSION_ONLY and influence.season: ambient.append("season:"+influence.season.casefold())
         if urgency is VoiceUrgency.IMPORTANT: rate=max(rate,1.03); energy=max(energy,1.06); volume=max(volume,1.02); pause=min(pause,.96); tags.append("urgency:important"); reasons.append("important delivery raises clarity without changing authority")
