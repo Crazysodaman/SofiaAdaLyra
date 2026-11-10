@@ -111,3 +111,18 @@ certifying the source.
 
 These are not new acceptance-row IDs. **Do not promote LIB 0/16 or
 Platform 0/38 on the strength of source commits.**
+
+## Additional fail-closed publisher liveness and CI cost note
+
+A Hub worker reported as `SERVING` is downgraded to `UNKNOWN` if
+the current local Hub owner SAFE grant **or** the original signed B1
+publisher/catalog identity no longer validates. A live thread is not itself
+proof of a current signing root. The only authoritative transfer decision
+still occurs at each bounded encrypted chunk.
+
+**CI budget:** Existing repository `push` triggers automatically queued
+multiple GitHub Actions workflows on this source batch. Those were not
+manually launched final release CI. Going forward, stage related GitHub
+file changes into **one atomic `main` commit** using a tree/commit/ref
+fast-forward with exact expected HEAD, rather than one push per file.
+Do not disable or misrepresent existing security CI workflows.

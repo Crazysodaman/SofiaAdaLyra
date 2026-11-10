@@ -94,9 +94,14 @@ def owner_library_source_status(
         # Alive thread alone is not current owner authority. A revoked
         # session can be draining and must not appear as serving READY.
         if hub_state == "SERVING":
-            if not callable(getattr(hosted_hub, "_hub_grant", None)):
-                raise PermissionError("missing current owner Hub grant reader")
-            if hosted_hub._hub_grant() is not True:
+            if (not callable(getattr(hosted_hub, "_hub_grant", None))
+                    or not callable(getattr(hosted_hub, "_current_publisher", None))
+                    or not hasattr(hosted_hub, "transfer")):
+                raise PermissionError("missing current owner and publisher Hub authority")
+            # Liveness is not signing trust. The owner grant and the original
+            # signed B1 package+catalog must STILL be current while displayed.
+            if (hosted_hub._hub_grant() is not True
+                    or hosted_hub._current_publisher(hosted_hub.transfer) is not True):
                 hub_state = "UNKNOWN"
 
     return {

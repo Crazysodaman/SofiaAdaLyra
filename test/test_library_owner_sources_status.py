@@ -168,3 +168,48 @@ def test_unenrolled_peer_gets_no_owner_status_even_when_hub_active():
     )
     with pytest.raises(PermissionError, match="owner-enrolled"):
         dispatcher.dispatch(raw, authenticated_peer=PEER, now=NOW)
+
+
+def test_alive_hub_never_looks_ready_after_source_publisher_revocation():
+    class Hub:
+        def __init__(self):
+            self.transfer = object()
+            self.source_ok = True
+            self.grant_ok = True
+
+        def serving_status(self):
+            return {
+                "schema": "aegis.platform.library.hub-worker.v1",
+                "state": "SERVING",
+                "served_chunks": 7,
+                "served_bytes": 7 * 1024 * 1024,
+            }
+
+        def _hub_grant(self):
+            return self.grant_ok
+
+        def _current_publisher(self, transfer):
+            return transfer is self.transfer and self.source_ok
+
+    hub = Hub()
+    state = {
+        "platform_id": "platform:source",
+        "generation": 3, "operator_stop": False,
+    }
+    current = owner_library_source_status(
+        status=state, owner_trust=None, hosted_hub=hub,
+    )
+    assert current["hub_state"] == "SERVING"
+    assert current["served_bytes"] == 7 * 1024 * 1024
+    hub.source_ok = False
+    stale = owner_library_source_status(
+        status=state, owner_trust=None, hosted_hub=hub,
+    )
+    assert stale["hub_state"] == "UNKNOWN"
+    hub.source_ok = True
+    hub.grant_ok = False
+    denied = owner_library_source_status(
+        status=state, owner_trust=None, hosted_hub=hub,
+    )
+    assert denied["hub_state"] == "UNKNOWN"
+    assert denied["served_bytes"] == 7 * 1024 * 1024
