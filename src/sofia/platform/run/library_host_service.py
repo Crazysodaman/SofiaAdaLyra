@@ -342,6 +342,12 @@ class HostedLibraryHub:
 
     def serve_once(self) -> int:
         """Handle one bounded TLS connection, then return to Platform owner."""
+        worker = getattr(self, "_serve_thread", None)
+        if (worker is not None and worker.is_alive()
+                and worker is not current_thread()):
+            raise ChunkTransferRejected(
+                "owner Hub already has a supervised serving worker"
+            )
         self._require_current()
         try:
             return self._hub.serve_once()
