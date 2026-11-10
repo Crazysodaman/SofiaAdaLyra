@@ -101,6 +101,25 @@ def test_installed_rust_service_stops_gracefully_and_excludes_duplicate(tmp_path
         child.wait(timeout=5)
 
 
+@pytest.mark.parametrize('bad_id', [
+    'x' * 36,
+    '1234567812344abc8abc1234567890ab',
+    '12345678_1234_4abc_8abc_1234567890ab',
+    '12345678-1234-4ABC-8abc-1234567890ab',
+    '12345678-1234-4abc-8abc-1234567890ab ',
+])
+def test_installed_rust_service_rejects_malformed_platform_ids_before_spawn(
+        tmp_path, service_environment, bad_id):
+    identity, current, state = provision(tmp_path)
+    args = arguments(service_environment, identity, current, state)
+    args[-3] = bad_id
+    result = subprocess.run(args, capture_output=True, text=True, timeout=15)
+    assert result.returncode == 2, result.stderr
+    assert result.stdout == ''
+    assert identity.load() == current
+    assert not list(tmp_path.rglob('sofia.db'))
+
+
 def test_installed_rust_service_does_not_claim_ready_with_wrong_identity(tmp_path, service_environment):
     identity, current, state = provision(tmp_path)
     args = arguments(service_environment, identity, current, state)
