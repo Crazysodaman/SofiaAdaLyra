@@ -22,7 +22,7 @@ from sofia.platform.run.library_source_gate import (
     HUB_CAPABILITY, selected_hub_grant_scope,
 )
 from sofia.platform.run.library_read_authority import (
-    LIBRARY_READ_CAPABILITY, CATALOG_OPERATION,
+    LIBRARY_READ_CAPABILITY, CATALOG_OPERATION, READ_OPERATIONS,
 )
 from sofia.platform.run.library_owner_trust import OwnerLibraryTrustStore
 
@@ -95,7 +95,12 @@ def preview_personal_hub_grant(
 def preview_personal_local_read_grant(
     *, store: OwnerLibraryTrustStore, now: datetime | None = None,
     native_peer: Callable[[], str] | None = None,
+    operation: str = CATALOG_OPERATION,
 ) -> dict[str, object]:
+    if type(operation) is not str or operation not in READ_OPERATIONS:
+        raise OwnerLibraryPreflightDenied(
+            "only exact catalog or owner-source status read operations allowed"
+        )
     platform_id, generation = _current(store, now=now)
     if native_peer is None:
         if os.name == "nt":
@@ -123,7 +128,7 @@ def preview_personal_local_read_grant(
     scope = {
         "platform_id": platform_id,
         "peer": peer,
-        "operation": CATALOG_OPERATION,
+        "operation": operation,
     }
     return _preview(
         platform_id=platform_id, generation=generation,
