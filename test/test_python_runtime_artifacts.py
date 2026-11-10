@@ -1,6 +1,7 @@
 """Portable runtime artifacts contain code, never a Core or installed identity."""
 from dataclasses import replace
 from hashlib import sha256
+from pathlib import Path
 
 import pytest
 
