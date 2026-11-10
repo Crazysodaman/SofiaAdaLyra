@@ -235,3 +235,81 @@ def test_expired_signed_index_denied_at_runtime_before_fetch(
                "current_time": lambda: signed_args["now"] + timedelta(minutes=3)},
         )
     assert calls == []
+
+
+
+def _prepare_complete_pending_import(args, data):
+    """Real receiver CAS commit, but defer owner B1 approval."""
+    from hashlib import sha256
+    transfer = args["transfer"]
+    receiver = args["receiver"]
+    receiver.append_chunk(
+        transfer, offset=0, chunk=data,
+        chunk_sha256=sha256(data).hexdigest(),
+        authorize=lambda _: True,
+    )
+    complete = receiver.finalize(
+        transfer, authorize=lambda _: True, retain_scope=True,
+    )
+    assert complete.read_bytes() == data
+    assert (receiver.incoming / (transfer.content_sha256 + ".scope")).is_file()
+    return complete
+
+
+@pytest.mark.parametrize("resume_cursor", ("zero", "complete"))
+def test_completed_quarantine_retry_never_dials_peer(environment, resume_cursor):
+    args, calls, data = environment
+    complete = _prepare_complete_pending_import(args, data)
+    args["open_enrolled_tls"] = lambda: (_ for _ in ()).throw(
+        AssertionError("full signed CAS must NOT redownload")
+    )
+    args["start_offset"] = (
+        0 if resume_cursor == "zero" else args["transfer"].size_bytes
+    )
+    result = acquire_selected_signed_platform_asset(**args)
+    assert result["cache_state"] == "CACHED_VERIFIED"
+    assert result["network_attempted"] is False
+    assert result["reused_complete_quarantine"] is True
+    assert result["received_bytes"] == len(data)
+    assert result["verified_bytes"] == len(data)
+    assert result["install_executed"] is False
+    assert result["installed"] is None and result["active"] is None
+    assert calls == [("admit", args["transfer"].content_sha256)]
+    assert complete.read_bytes() == data
+
+
+def test_completed_quarantine_retry_refuses_wrong_signed_scope_before_network(environment):
+    from dataclasses import replace
+    args, calls, data = environment
+    complete = _prepare_complete_pending_import(args, data)
+    args["transfer"] = replace(
+        args["transfer"], manifest_sha256="f" * 64,
+    )
+    with pytest.raises(ChunkTransferRejected, match="scope"):
+        acquire_selected_signed_platform_asset(**args)
+    assert calls == []
+    assert complete.read_bytes() == data
+
+
+def test_completed_quarantine_retry_requires_current_owner_and_publisher(environment):
+    args, calls, data = environment
+    complete = _prepare_complete_pending_import(args, data)
+    args["current_host_admit"] = lambda _: False
+    with pytest.raises(PermissionError, match="SAFE"):
+        acquire_selected_signed_platform_asset(**args)
+    args["current_host_admit"] = lambda _: True
+    args["publisher_current"] = lambda _: False
+    with pytest.raises(ChunkTransferRejected, match="publisher"):
+        acquire_selected_signed_platform_asset(**args)
+    assert calls == []
+    assert complete.read_bytes() == data
+
+
+def test_completed_quarantine_retry_refuses_ambiguous_partial_offset(environment):
+    args, calls, data = environment
+    complete = _prepare_complete_pending_import(args, data)
+    args["start_offset"] = 22
+    with pytest.raises(ChunkTransferRejected, match="retry cursor"):
+        acquire_selected_signed_platform_asset(**args)
+    assert calls == []
+    assert complete.read_bytes() == data
