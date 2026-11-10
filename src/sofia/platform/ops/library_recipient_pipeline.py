@@ -64,6 +64,46 @@ def acquire_selected_signed_platform_asset(
     if not callable(publisher_current) or publisher_current(transfer) is not True:
         raise ChunkTransferRejected("signed publisher is not current")
 
+    # A complete artifact may survive a crash or a denied B1 owner approval
+    # with its immutable signed transfer scope deliberately retained. Do NOT
+    # redownload it, invent a new TLS grant or discard it because the peer
+    # is temporarily offline. Recheck the signed plan, current SAFE/STOP,
+    # publisher signature, whole-object digest and independent one-use B1
+    # owner approval through the exact existing admission path.
+    def current_signed_plan(t: PinnedChunkTransfer) -> bool:
+        return (
+            t == transfer
+            and publisher_current(t) is True
+            and current_host_admit(t) is True
+        )
+
+    if receiver.pending_signed_cache_admission(
+        transfer, authorize=current_signed_plan,
+    ):
+        if type(start_offset) is not int or start_offset not in (
+            0, transfer.size_bytes,
+        ):
+            raise ChunkTransferRejected(
+                "completed quarantine retry cursor differs from signed transfer"
+            )
+        admission = admit_signed_transferred_asset(
+            transfer=transfer, receiver=receiver, cache=cache,
+            canonical_safe_state=canonical_safe_state, approval_id=approval_id,
+            verify_independent_publisher=verify_independent_publisher,
+            publisher_current=publisher_current,
+            current_host_admit=current_host_admit, now=now,
+        )
+        return {
+            **admission,
+            "source_platform_id": transfer.source_platform_id,
+            "catalog_revision": transfer.catalog_revision,
+            "received_bytes": transfer.size_bytes,
+            "verified_bytes": transfer.size_bytes,
+            "total_bytes": transfer.size_bytes,
+            "network_attempted": False,
+            "reused_complete_quarantine": True,
+        }
+
     received = fetch_resumable_chunks(
         transfer=transfer, receiver=receiver,
         open_enrolled_tls=open_enrolled_tls,
