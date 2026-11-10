@@ -645,6 +645,68 @@ mod tests {
     }
 
     #[test]
+    fn shared_python_owner_sources_are_correlated_without_grant_claims() {
+        let request = UntrustedLibraryRequest::parse(
+            include_str!(
+                "../../../../contracts/platform/library-request-personal-sources-v1.json"
+            ).as_bytes(), clock(),
+        ).expect("typed personal-only source request");
+        assert_eq!(request.operation, "library.sources.snapshot.v1");
+        let reply = UntrustedLibraryResponse::parse(
+            include_str!(
+                "../../../../contracts/platform/library-response-personal-sources-v1.json"
+            ).as_bytes(), &request, clock(),
+        ).expect("strict source projection");
+        assert_eq!(reply.state_revision, 0);
+        let data = reply.data.expect("owner-only data");
+        assert_eq!(data["owner_mode"], "SINGLE_OWNER_PRIVATE");
+        assert_eq!(data["publisher_state"], "CURRENT");
+        assert_eq!(data["hub_state"], "SERVING");
+        assert_eq!(data["served_bytes"], 3145728);
+        assert!(data.get("installed").is_none());
+        assert!(data.get("private_key").is_none());
+    }
+
+    #[test]
+    fn personal_sources_refuse_fake_ready_and_leaked_authority() {
+        let req_bytes = include_str!(
+            "../../../../contracts/platform/library-request-personal-sources-v1.json"
+        );
+        let request = UntrustedLibraryRequest::parse(
+            req_bytes.as_bytes(), clock(),
+        ).expect("expected source read");
+        let fixture = include_str!(
+            "../../../../contracts/platform/library-response-personal-sources-v1.json"
+        );
+        let original: Value = serde_json::from_str(fixture).expect("source fixture");
+        let mut invalid = original.clone();
+        invalid["data"]["publisher_state"] = json!("UNENROLLED");
+        assert!(UntrustedLibraryResponse::parse(
+            invalid.to_string().as_bytes(), &request, clock(),
+        ).is_err());
+        invalid = original.clone();
+        invalid["data"]["owner_proof"] = json!("forged");
+        assert!(UntrustedLibraryResponse::parse(
+            invalid.to_string().as_bytes(), &request, clock(),
+        ).is_err());
+        invalid = original.clone();
+        invalid["data"]["hub_state"] = json!("READY");
+        assert!(UntrustedLibraryResponse::parse(
+            invalid.to_string().as_bytes(), &request, clock(),
+        ).is_err());
+        invalid = original.clone();
+        invalid["data"]["served_bytes"] = json!(-1);
+        assert!(UntrustedLibraryResponse::parse(
+            invalid.to_string().as_bytes(), &request, clock(),
+        ).is_err());
+        invalid = original.clone();
+        invalid["state_revision"] = json!(1);
+        assert!(UntrustedLibraryResponse::parse(
+            invalid.to_string().as_bytes(), &request, clock(),
+        ).is_err());
+    }
+
+    #[test]
     fn hostile_library_authority_fields_and_versions_fail_closed() {
         let request_fixture =
             include_str!("../../../../contracts/platform/library-request-catalog-preview-v1.json");
