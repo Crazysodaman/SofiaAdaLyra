@@ -332,7 +332,11 @@ class HostedLibraryHub:
         return published
 
     def _require_current(self) -> None:
-        if self._closed or self._hub_grant() is not True or not self._current_publisher(self.transfer):
+        if self._closed:
+            raise ChunkTransferRejected("owner-approved Hub session closed")
+        if (self._hub_grant() is not True
+                or not self._current_publisher(self.transfer)):
+            self._serve_error = "OWNER_AUTHORITY_OR_HUB_UNAVAILABLE"
             self.close()
             raise ChunkTransferRejected("owner-approved Hub session STOP, revoked or stale")
 
