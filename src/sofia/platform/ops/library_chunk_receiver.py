@@ -332,6 +332,34 @@ class ChunkedArtifactReceiver:
                 os.close(fd)
             return current + len(chunk)
 
+    def pending_signed_cache_admission(
+        self, transfer: PinnedChunkTransfer, *,
+        authorize: Callable[[PinnedChunkTransfer], bool],
+    ) -> bool:
+        """Check for fully received bytes still bound to the exact transfer.
+
+        Read-only and NO trust promotion: the later B1 admission must fully
+        rehash the CAS, verify the independent publisher and consume a
+        separate current one-use owner approval. A foreign or mismatched
+        .scope is never silently adopted as a cache-ready object.
+        """
+        with self._writer_lock():
+            self._approve(transfer, authorize)
+            self._check_roots()
+            part = self.incoming / (transfer.content_sha256 + ".part")
+            completed = self.completed / transfer.content_sha256
+            scope = self._scope_path(transfer)
+            if not scope.is_file() or not completed.is_file():
+                return False
+            if part.exists() or part.is_symlink():
+                raise ChunkTransferRejected(
+                    "ambiguous pending partial and completed signed transfer"
+                )
+            self._check_scope(
+                transfer, part_size=0, allow_create=False,
+            )
+            return self._existing_file(completed) == transfer.size_bytes
+
     def recover_interrupted_publication(
         self, transfer: PinnedChunkTransfer, *,
         authorize: Callable[[PinnedChunkTransfer], bool],
