@@ -257,3 +257,51 @@ def test_recovery_refuses_unbound_foreign_completed_object(tmp_path):
             pin, authorize=lambda _: True,
         )
     assert completed.read_bytes() == raw
+
+
+
+def test_full_bytes_can_remain_bound_to_transfer_until_b1_owner_approval(tmp_path):
+    raw, pin, receiver = setup(tmp_path)
+    assert receiver.append_chunk(
+        pin, offset=0, chunk=raw,
+        chunk_sha256=sha256(raw).hexdigest(),
+        authorize=lambda _: True,
+    ) == len(raw)
+    completed = receiver.finalize(
+        pin, authorize=lambda _: True, retain_scope=True,
+    )
+    scope = receiver.incoming / (pin.content_sha256 + ".scope")
+    assert completed.read_bytes() == raw
+    assert scope.is_file()
+    assert not (receiver.incoming / (pin.content_sha256 + ".part")).exists()
+    # An independently validated signed plan can retry after failure of
+    # package verification or a missing one-time owner cache approval.
+    restarted = ChunkedArtifactReceiver(receiver.root, max_bytes=len(raw))
+    assert restarted.recover_interrupted_publication(
+        pin, authorize=lambda _: True, retain_scope=True,
+    ) == completed
+    assert scope.is_file()
+    assert restarted.recover_interrupted_publication(
+        pin, authorize=lambda _: True, retain_scope=False,
+    ) == completed
+    assert not scope.exists()
+
+
+def test_retained_completed_transfer_never_adopts_other_manifest(tmp_path):
+    raw, pin, receiver = setup(tmp_path)
+    receiver.append_chunk(
+        pin, offset=0, chunk=raw,
+        chunk_sha256=sha256(raw).hexdigest(),
+        authorize=lambda _: True,
+    )
+    finished = receiver.finalize(
+        pin, authorize=lambda _: True, retain_scope=True,
+    )
+    scope = receiver.incoming / (pin.content_sha256 + ".scope")
+    with pytest.raises(ChunkTransferRejected, match="scope"):
+        receiver.recover_interrupted_publication(
+            replace(pin, manifest_sha256="f" * 64),
+            authorize=lambda _: True, retain_scope=False,
+        )
+    assert finished.read_bytes() == raw
+    assert scope.is_file()
