@@ -184,6 +184,28 @@ class PlatformServiceSession:
         library_peer = CurrentLibraryReadPeerAuthority(
             permissions, platform_id=platform_id,
         )
+        def read_owner_sources():
+            # Only this already-authenticated installed Platform service may
+            # supply live local Hub status and the canonical SQLite owner root.
+            # No UI/HUB callback can inject a publisher readiness assertion.
+            from sofia.platform.run.library_owner_trust import OwnerLibraryTrustStore
+            from sofia.platform.run.library_owner_sources import owner_library_source_status
+            with self._status_lock:
+                current = self.status()
+                last_hub = (
+                    self._hosted_library_hubs[-1]
+                    if self._hosted_library_hubs else None
+                )
+                owner = (
+                    self._installed_signed_catalog
+                    if isinstance(self._installed_signed_catalog, OwnerLibraryTrustStore)
+                    else None
+                )
+                return owner_library_source_status(
+                    status=current, owner_trust=owner,
+                    hosted_hub=last_hub,
+                )
+
         library_dispatcher = LibraryReadDispatcher(
             current_status=self.status,
             authorize_os_peer=library_peer,
@@ -191,6 +213,7 @@ class PlatformServiceSession:
                 self._installed_signed_catalog if self._installed_signed_catalog
                 is not None else lambda: None
             ),
+            read_owner_sources=read_owner_sources,
         )
         read_mux = LocalReadMultiplexer(
             management=dispatcher, library=library_dispatcher,
