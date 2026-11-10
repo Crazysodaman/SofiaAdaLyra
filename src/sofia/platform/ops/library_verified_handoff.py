@@ -89,7 +89,9 @@ def admit_signed_transferred_asset(
         raise PermissionError("current recipient approval unavailable")
     observed = receiver.received_bytes(transfer, authorize=current)
     if observed == transfer.size_bytes:
-        complete = receiver.finalize(transfer, authorize=current)
+        complete = receiver.finalize(
+            transfer, authorize=current, retain_scope=True,
+        )
     elif (observed == 0
             and (receiver.incoming / (transfer.content_sha256 + ".scope")).is_file()
             and (receiver.completed / transfer.content_sha256).is_file()):
@@ -99,7 +101,7 @@ def admit_signed_transferred_asset(
         # current owner enrollment and STOP. Publisher + one-use B1 proof are
         # independently checked again BELOW, exactly as for a new transfer.
         complete = receiver.recover_interrupted_publication(
-            transfer, authorize=current,
+            transfer, authorize=current, retain_scope=True,
         )
     else:
         raise ChunkTransferRejected("incomplete transfer cannot enter B1 CAS")
@@ -142,6 +144,14 @@ def admit_signed_transferred_asset(
     current(transfer)
     if imported != cache.resolve(artifact):
         raise ChunkTransferRejected("B1 CAS publication did not resolve exact signed content")
+    # The pinned provenance remains on disk if publisher verification, owner
+    # approval or B1 publication fails. Remove it only AFTER independently
+    # verifying the committed complete bytes and current SAFE again. This is
+    # not installation or activation.
+    if receiver.recover_interrupted_publication(
+        transfer, authorize=current, retain_scope=False,
+    ) != complete:
+        raise ChunkTransferRejected("verified receipt does not match B1 source")
     return {
         "schema": "aegis.platform.library.enrolled-peer-cache-admission.v1",
         "source": "ENROLLED_PEER",
