@@ -107,16 +107,25 @@ struct Reply {
 
 // The child is not an independent authority: every response must remain
 // pinned to the installed Platform, its generation and its first READY serial.
+// Identity serial v1 encodes exactly the UUID bits as four uppercase
+// eight-digit hex groups. Never accept a plausible-looking substitute.
+fn canonical_platform_serial(uuid: &str) -> String {
+    let hex = uuid.replace('-', "").to_ascii_uppercase();
+    format!(
+        "AEG-P-{}-{}-{}-{}",
+        &hex[0..8], &hex[8..16], &hex[16..24], &hex[24..32],
+    )
+}
+
 fn reply_matches_identity(reply: &Reply, config: &Configuration, serial: Option<&str>) -> bool {
     reply.schema == SCHEMA
         && reply.platform_id == config.platform_id
         && reply.public_key_sha256 == config.public_key
         && !reply.core_started
         && reply.generation != 0
-        && reply.serial.starts_with("AEG-P-")
-        && reply.serial.len() <= 128
-        && reply.serial.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
-        && serial.is_none_or(|pinned| reply.serial == pinned)
+        && valid_platform_uuid(&config.platform_id)
+        && reply.serial == canonical_platform_serial(&config.platform_id)
+        && serial.map_or(true, |pinned| reply.serial == pinned)
 }
 
 // Never declare the native management interface ready just because the
@@ -454,6 +463,13 @@ mod tests {
         assert!(!valid_platform_uuid("12345678-1234-4abc-8abc-1234567890ab "));
     }
     #[test]
+    fn platform_serial_matches_identity_contract() {
+        assert_eq!(
+            canonical_platform_serial("01234567-89ab-cdef-fedc-ba9876543210"),
+            "AEG-P-01234567-89ABCDEF-FEDCBA98-76543210",
+        );
+    }
+    #[test]
     fn reply_serial_cannot_change_after_ready() {
         let config = Configuration {
             python: PathBuf::from("/unused/python"),
@@ -466,18 +482,18 @@ mod tests {
             "schema": SCHEMA, "phase":"ready",
             "platform_id":config.platform_id,
             "public_key_sha256":config.public_key,
-            "serial":"AEG-P-original", "generation":1,
+            "serial":"AEG-P-12345678-12344ABC-8ABC1234-567890AB", "generation":1,
             "core_started":false, "operator_stop":false,
             "sequence":null, "pid":1, "supervisor_pid":2,
         })).expect("valid reply");
         assert!(reply_matches_identity(&reply, &config, None));
-        assert!(reply_matches_identity(&reply, &config, Some("AEG-P-original")));
-        assert!(!reply_matches_identity(&reply, &config, Some("AEG-P-replaced")));
-        reply.serial = "AEG-P-replaced".to_owned();
-        assert!(!reply_matches_identity(&reply, &config, Some("AEG-P-original")));
-        reply.serial = "AEG-P-original\\nforged".to_owned();
+        assert!(reply_matches_identity(&reply, &config, Some("AEG-P-12345678-12344ABC-8ABC1234-567890AB")));
+        assert!(!reply_matches_identity(&reply, &config, Some("AEG-P-00000000-00000000-00000000-00000000")));
+        reply.serial = "AEG-P-00000000-00000000-00000000-00000000".to_owned();
+        assert!(!reply_matches_identity(&reply, &config, Some("AEG-P-12345678-12344ABC-8ABC1234-567890AB")));
+        reply.serial = "AEG-P-12345678-12344ABC-8ABC1234-567890AB\\nforged".to_owned();
         assert!(!reply_matches_identity(&reply, &config, None));
-        reply.serial = "AEG-P-original".to_owned();
+        reply.serial = "AEG-P-12345678-12344ABC-8ABC1234-567890AB".to_owned();
         reply.core_started = true;
         assert!(!reply_matches_identity(&reply, &config, None));
     }
