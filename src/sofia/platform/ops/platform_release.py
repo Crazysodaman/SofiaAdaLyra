@@ -98,8 +98,19 @@ class PlatformReleaseVerifier:
     def __init__(self,trusted_keys):
         self.signatures=Ed25519ComponentSignatureVerifier(trusted_keys)
 
-    def verify(self,payload,*,signature_b64,signer_key_id,assets_root,expected_source_sha,
-               expected_target,minimum_revision,expected_parent_manifest_sha256=None,state_schema_revision=1):
+    def verify_manifest_reference(
+        self, payload, *, signature_b64, signer_key_id, expected_source_sha,
+        expected_target, minimum_revision, expected_parent_manifest_sha256=None,
+        state_schema_revision=1,
+    ):
+        """Authenticate release metadata WITHOUT requiring every asset present.
+
+        Useful for independently validating one bounded SDK blob received by
+        a personal homelab Platform. This grants NO cache/install/activation
+        authority and does NOT assert any remote package bytes are good.
+        The signature, source, target, protocol and B1 rollback floor share
+        the EXACT contract of the full release verifier below.
+        """
         try:
             manifest=PlatformReleaseManifest.from_payload(payload)
             if not isinstance(expected_target,PlatformReleaseTarget) or manifest.target is not expected_target:
@@ -115,6 +126,27 @@ class PlatformReleaseVerifier:
             if type(state_schema_revision) is not int or not manifest.state_schema_min <= state_schema_revision <= manifest.state_schema_max:
                 raise PlatformReleaseRejected('unsupported Platform state schema')
             self.signatures.verify_digest(manifest.digest,signature_b64=signature_b64,signer_key_id=signer_key_id)
+            return manifest
+        except PlatformReleaseRejected:
+            raise
+        except (OSError, ValueError, TypeError, KeyError,
+                CoreComponentInstallError, ComponentArtifactError) as error:
+            raise PlatformReleaseRejected(
+                'signed Platform release manifest rejected'
+            ) from error
+
+    def verify(self,payload,*,signature_b64,signer_key_id,assets_root,expected_source_sha,
+               expected_target,minimum_revision,expected_parent_manifest_sha256=None,state_schema_revision=1):
+        try:
+            manifest=self.verify_manifest_reference(
+                payload, signature_b64=signature_b64,
+                signer_key_id=signer_key_id,
+                expected_source_sha=expected_source_sha,
+                expected_target=expected_target,
+                minimum_revision=minimum_revision,
+                expected_parent_manifest_sha256=expected_parent_manifest_sha256,
+                state_schema_revision=state_schema_revision,
+            )
             root=Path(assets_root).absolute()
             assert_no_redirected_components(root,include_leaf=True)
             if not root.is_dir(): raise PlatformReleaseRejected('release root unavailable')
