@@ -13,7 +13,7 @@ from .factory import (
     create_stt_service_from_settings,
     create_tts_service_from_environment,
 )
-from .prosody_matrix import VoiceProsodyMatrix, VoiceProsodyPlan, VoiceProsodyProfile, VoiceUrgency
+from .prosody_matrix import VoiceProsodyMatrix, VoiceProsodyPlan, VoiceProsodyProfile, VoiceProsodyWeights, VoiceUrgency
 from .sapi import WindowsSapiBackend
 from .tts import (
     TTSBackendProbe,
@@ -38,6 +38,7 @@ __all__ = [
     "VoiceProsodyMatrix",
     "VoiceProsodyPlan",
     "VoiceProsodyProfile",
+    "VoiceProsodyWeights",
     "VoiceUrgency",
     "WindowsSapiBackend",
     "WindowsSpeechRecognitionBackend",
