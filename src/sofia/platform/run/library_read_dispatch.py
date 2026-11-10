@@ -21,7 +21,9 @@ import json
 from sofia.platform.ops.library_signed_index import (
     VerifiedLibraryIndex, verify_signed_library_index,
 )
-from sofia.platform.run.library_read_authority import CATALOG_OPERATION
+from sofia.platform.run.library_read_authority import (
+    CATALOG_OPERATION, SOURCES_OPERATION,
+)
 from sofia.sdk.platform_library import (
     LIBRARY_PROTOCOL, LIBRARY_RESPONSE_SCHEMA,
     UntrustedLibraryRequest, UntrustedLibraryResponse,
@@ -49,6 +51,7 @@ class LibraryReadDispatcher:
         current_status: Callable[[], Mapping[str, object]],
         authorize_os_peer: Callable[[str, str], bool],
         installed_signed_catalog: Callable[[], InstalledSignedCatalogSource | None],
+        read_owner_sources: Callable[[], dict[str, object]] | None = None,
         clock: Callable[[], datetime] | None = None,
     ) -> None:
         for callback in (current_status, authorize_os_peer, installed_signed_catalog):
@@ -57,6 +60,9 @@ class LibraryReadDispatcher:
         self._status = current_status
         self._authorize = authorize_os_peer
         self._catalog = installed_signed_catalog
+        if read_owner_sources is not None and not callable(read_owner_sources):
+            raise TypeError("canonical owner Library source status callback required")
+        self._sources = read_owner_sources
         self._clock = clock or (lambda: datetime.now(timezone.utc))
 
     @staticmethod
@@ -140,6 +146,21 @@ class LibraryReadDispatcher:
             return deny("STALE_GENERATION")
         if not self._status_current(status, request):
             raise PermissionError("Library current Platform service unavailable")
+        if request.operation == SOURCES_OPERATION:
+            if request.expected_revision != 0:
+                return deny("STALE_GENERATION")
+            if self._sources is None:
+                return deny("UNAVAILABLE")
+            snapshot = self._sources()
+            if type(snapshot) is not dict:
+                raise PermissionError("owner-only Library source status unavailable")
+            recheck()
+            observed = self._clock()
+            if (not isinstance(observed, datetime)
+                    or observed.utcoffset() is None):
+                raise PermissionError("trusted source observation clock required")
+            recheck()
+            return self._reply(request, observed=observed, data=snapshot)
         if request.operation != CATALOG_OPERATION:
             return deny("NOT_PERMITTED")
         source = self._catalog()
