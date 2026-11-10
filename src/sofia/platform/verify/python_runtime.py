@@ -78,6 +78,62 @@ def _write_member(archive, name, data, executable=False):
     archive.writestr(info, data, compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
 
 
+def _write_verified_source_member(archive, *, name, path, reference):
+    """Write one signed-inventory CPython member in bounded blocks.
+
+    The source was independently hashed while building the manifest. This
+    additional copy-time digest and inode check prevents stage-file changes
+    from being packaged under the previously reviewed reference.
+    """
+    if not isinstance(reference, RuntimeFile):
+        raise TypeError('typed runtime file identity required')
+    path = Path(path).absolute()
+    assert_no_redirected_components(path, include_leaf=True)
+    before = path.stat(follow_symlinks=False)
+    if (not stat.S_ISREG(before.st_mode)
+            or before.st_size != reference.size_bytes):
+        raise ValueError('runtime producer source size changed')
+    identity = (before.st_dev, before.st_ino, before.st_size,
+                before.st_mtime_ns, before.st_ctime_ns)
+    info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+    info.create_system = 3
+    info.external_attr = (
+        stat.S_IFREG | (0o755 if reference.executable else 0o644)
+    ) << 16
+    info.compress_type = zipfile.ZIP_DEFLATED
+    info._compresslevel = 9
+    flags = (os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0)
+             | getattr(os, 'O_NONBLOCK', 0) | getattr(os, 'O_CLOEXEC', 0))
+    with os.fdopen(os.open(path, flags), 'rb') as reader:
+        opened = os.fstat(reader.fileno())
+        if (not stat.S_ISREG(opened.st_mode)
+                or (opened.st_dev, opened.st_ino, opened.st_size,
+                    opened.st_mtime_ns, opened.st_ctime_ns) != identity):
+            raise ValueError('runtime producer source replaced before ZIP copy')
+        digest = sha256()
+        with archive.open(info, 'w') as member_writer:
+            remaining = reference.size_bytes
+            while remaining:
+                block = reader.read(min(65536, remaining))
+                if not block:
+                    raise ValueError('runtime producer source truncated')
+                digest.update(block)
+                member_writer.write(block)
+                remaining -= len(block)
+            if reader.read(1):
+                raise ValueError('runtime producer source grew')
+        after = os.fstat(reader.fileno())
+        assert_no_redirected_components(path, include_leaf=True)
+        current = path.stat(follow_symlinks=False)
+        if (digest.hexdigest() != reference.sha256
+                or (after.st_dev, after.st_ino, after.st_size,
+                    after.st_mtime_ns, after.st_ctime_ns) != identity
+                or (current.st_dev, current.st_ino, current.st_size,
+                    current.st_mtime_ns, current.st_ctime_ns) != identity):
+            raise ValueError('runtime producer source changed while packaging')
+
+
+
 def build_python_runtime(prefix, output, *, target, python_version):
     """Snapshot a vetted full CPython prefix, excluding every site-package tree.
 
@@ -94,29 +150,38 @@ def build_python_runtime(prefix, output, *, target, python_version):
     if not isinstance(target, PlatformReleaseTarget):
         raise TypeError('typed runtime target required')
     primary = 'python.exe' if target is PlatformReleaseTarget.WINDOWS_X86_64 else 'bin/python3.12'
-    files, snapshots = [], {}
+    files, sources = [], {}
     total = 0
     for path in _members(prefix, target):
-        size = path.stat().st_size
+        size = path.stat(follow_symlinks=False).st_size
         if size > 64 * 1024**2:
             raise ValueError('runtime file exceeds 64-MiB bound')
         total += size
         if total > 512 * 1024**2:
             raise ValueError('runtime bytes exceed bundle bound')
-        digest, data = read_artifact_file(path, size, include_data=True)
         name = path.relative_to(prefix).as_posix()
         executable = name == primary
+        # Only the bounded interpreter native binary needs an in-memory
+        # byte snapshot for ABI checks. All other signed payloads are hashed
+        # and written to the ZIP via 64KiB streaming.
+        digest, native = read_artifact_file(
+            path, size, include_data=executable,
+        )
+        if executable:
+            verify_native_target(native, target)
         files.append(RuntimeFile(name, digest, size, executable))
-        snapshots[name] = data
+        sources[name] = path
     manifest = PythonRuntimeManifest(python_version, target, primary, tuple(files))
-    verify_native_target(snapshots[primary], target)
     with tempfile.NamedTemporaryFile(prefix='.runtime-', suffix='.zip', dir=output.parent, delete=False) as temporary:
         temporary_path = Path(temporary.name)
     try:
         with zipfile.ZipFile(temporary_path, 'w') as archive:
             _write_member(archive, 'runtime-manifest.json', manifest.canonical_bytes)
             for member in manifest.files:
-                _write_member(archive, 'python/' + member.path, snapshots[member.path], member.executable)
+                _write_verified_source_member(
+                    archive, name='python/' + member.path,
+                    path=sources[member.path], reference=member,
+                )
         size = temporary_path.stat().st_size
         digest, _ = read_artifact_file(temporary_path, size)
         expected = ArtifactReference(output.name, digest, size)
