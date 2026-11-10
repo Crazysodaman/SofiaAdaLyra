@@ -775,7 +775,10 @@ class PermissionStore:
                            or not normalized_scope[field]
                            or len(normalized_scope[field]) > 160
                            for field in ("platform_id", "peer", "operation"))
-                    or normalized_scope["operation"] != "library.catalog.snapshot.v1"
+                    or normalized_scope["operation"] not in {
+                        "library.catalog.snapshot.v1",
+                        "library.sources.snapshot.v1",
+                    }
                     or not (normalized_scope["peer"].startswith("unix:uid:")
                             or normalized_scope["peer"].startswith("windows:sid:"))
                     or expires_at is None or expires_at <= moment
