@@ -75,6 +75,18 @@ _ITEM = frozenset({
     "sdk_range", "abi_range", "license_distribution",
     "data_class", "distribution_allowed",
 })
+# D028 single-owner native Platform observation. It is read-only service
+# state, never a publisher receipt, owner grant or install attestation.
+SOURCES_STATUS_SCHEMA = "aegis.library.owner-sources.v1"
+_SOURCES_STATUS_KEYS = frozenset({
+    "schema", "owner_mode", "source_platform_id", "publisher_state",
+    "catalog_state", "hub_state", "served_chunks", "served_bytes",
+})
+_PUBLISHER_STATES = frozenset({"UNENROLLED", "CURRENT", "REVOKED", "UNKNOWN"})
+_CATALOG_STATES = frozenset({"UNAVAILABLE", "CURRENT", "UNVERIFIED"})
+_HUB_STATES = frozenset({"CLOSED", "OPEN_IDLE", "SERVING", "UNKNOWN"})
+
+
 _TRANSFER_DATA = frozenset({
     "job_id", "artifact_content_digest", "target_platform_id",
     "source_platform_id", "source_kind", "received_bytes",
@@ -224,6 +236,39 @@ def _catalog(data: Mapping[str, object], request: "UntrustedLibraryRequest", now
         if (item["license_distribution"] != "permitted"
                 or item["data_class"] != "public") and item["distribution_allowed"]:
             raise PermissionError("restricted Library bytes offered as distributable")
+
+
+def _owner_sources(
+    data: Mapping[str, object], request: "UntrustedLibraryRequest",
+) -> None:
+    """Strict single-owner Platform source states, no inferred distribution.
+
+    This is an independently authenticated local service observation, not
+    a Hub assertion about a remote machine, signed package or installed Core.
+    """
+    _object(data, _SOURCES_STATUS_KEYS)
+    if (data["schema"] != SOURCES_STATUS_SCHEMA
+            or data["owner_mode"] != "SINGLE_OWNER_PRIVATE"):
+        raise ValueError("unsupported personal Library source snapshot")
+    source = data["source_platform_id"]
+    if source is not None:
+        _id(source)
+    for name, allowed in (
+        ("publisher_state", _PUBLISHER_STATES),
+        ("catalog_state", _CATALOG_STATES),
+        ("hub_state", _HUB_STATES),
+    ):
+        if type(data[name]) is not str or data[name] not in allowed:
+            raise ValueError("invalid personal Library observation state")
+    if data["publisher_state"] == "UNENROLLED" and source is not None:
+        raise ValueError("unenrolled publisher cannot claim a known source")
+    if (data["catalog_state"] == "CURRENT"
+            and data["publisher_state"] != "CURRENT"):
+        raise ValueError("current Library catalog requires owner-pinned publisher")
+    _int(data["served_chunks"])
+    _int(data["served_bytes"])
+    if request.expected_revision != 0:
+        raise ValueError("personal Library sources require revision-zero read")
 
 
 def _transfer(data: Mapping[str, object], request: "UntrustedLibraryRequest", now: datetime) -> None:
@@ -389,6 +434,8 @@ class UntrustedLibraryResponse:
             data = doc["data"]
             if expected.operation == "library.catalog.snapshot.v1":
                 _catalog(data, expected, moment)
+            elif expected.operation == "library.sources.snapshot.v1":
+                _owner_sources(data, expected)
             elif expected.operation == "library.transfer.status.v1":
                 _transfer(data, expected, moment)
             else:
