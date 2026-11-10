@@ -670,3 +670,97 @@ def test_canonical_stage_then_install_streams_assets_without_any_eager_reader(
     assert not list(target.rglob('sofia.db'))
     assert verify_installed(target, store=store,
                             verifier=builder.verifier)['manifest_sha256'] == manifest.digest
+
+
+
+def test_library_rollback_pin_source_reads_only_real_signed_b1_history(
+        tmp_path, builder):
+    """GC protects historically installed signed bytes, not self-claimed paths."""
+    from sofia.platform.ops.library_b1_rollback_pins import SignedB1RollbackAssetSource
+
+    staged, manifest, _ = builder.stage(
+        revision=1, release_id='retained-owner-release',
+    )
+    store = PlatformInstallationStore(tmp_path / 'installed-receipts.db')
+    installed = tmp_path / 'retained-release'
+    install_staged_release(
+        staged, installed, store=store, verifier=builder.verifier,
+    )
+    shutil.rmtree(staged)
+    earlier_history = len(store.history())
+    pin_source = SignedB1RollbackAssetSource(
+        store=store, verifier=builder.verifier,
+        publisher_signer_current=lambda signer: signer == builder.signer_key_id,
+    )
+    pinned = pin_source(manifest.digest)
+    expected = tuple(sorted(set(
+        item.reference.sha256 for item in manifest.assets
+    )))
+    assert pinned == expected
+    assert len(store.history()) == earlier_history
+    assert store.checkpoint().minimum_accepted_revision == 1
+    assert store.checkpoint().active_release_id is None
+    assert not list(installed.rglob('sofia.db'))
+
+
+def test_library_signed_b1_rollback_pins_refuse_revocation_or_changed_asset(
+        tmp_path, builder):
+    from sofia.platform.ops.library_b1_rollback_pins import SignedB1RollbackAssetSource
+    from sofia.platform.ops.library_retention_graph import LibraryRetentionDenied
+
+    staged, manifest, _ = builder.stage(
+        revision=1, release_id='retention-revocation',
+    )
+    store = PlatformInstallationStore(tmp_path / 'installed-receipts.db')
+    installed = tmp_path / 'retained-release'
+    install_staged_release(
+        staged, installed, store=store, verifier=builder.verifier,
+    )
+    revoked = SignedB1RollbackAssetSource(
+        store=store, verifier=builder.verifier,
+        publisher_signer_current=lambda _: False,
+    )
+    with pytest.raises(LibraryRetentionDenied, match='revoked'):
+        revoked(manifest.digest)
+
+    original = SignedB1RollbackAssetSource(
+        store=store, verifier=builder.verifier,
+        publisher_signer_current=lambda _: True,
+    )
+    with pytest.raises(LibraryRetentionDenied, match='history'):
+        original('f' * 64)
+
+    # A formerly successful receipt does not authorize a tampered release.
+    component = next(item.reference for item in manifest.assets
+                     if item.kind == 'service')
+    service_asset = installed / 'assets' / component.path
+    with service_asset.open('ab') as writer:
+        writer.write(b'tampered after signed B1 install')
+    with pytest.raises((ValueError, PermissionError)):
+        original(manifest.digest)
+
+
+def test_library_rollback_pin_resolution_blocks_unreviewed_inflight_install(
+        tmp_path, builder):
+    from sofia.platform.ops.library_b1_rollback_pins import SignedB1RollbackAssetSource
+    from sofia.platform.ops.library_retention_graph import LibraryRetentionDenied
+
+    staged, manifest, _ = builder.stage(
+        revision=1, release_id='retention-pending',
+    )
+    store = PlatformInstallationStore(tmp_path / 'installed-receipts.db')
+    installed = tmp_path / 'retained-release'
+    install_staged_release(
+        staged, installed, store=store, verifier=builder.verifier,
+    )
+    pin_source = SignedB1RollbackAssetSource(
+        store=store, verifier=builder.verifier,
+        publisher_signer_current=lambda _: True,
+    )
+    store.begin_attempt(
+        'unreviewed-new-release', 'f' * 64, tmp_path / 'pending-target',
+        INSTALL, datetime.now(timezone.utc),
+    )
+    with pytest.raises(LibraryRetentionDenied, match='unresolved'):
+        pin_source(manifest.digest)
+    assert installed.is_dir()
