@@ -755,14 +755,44 @@ class WindowsScmNativeService:
                     time.sleep(0.1)
                 else:
                     raise RuntimeError("SCM stop deadline; outcome unknown")
+            # SCM DeleteService marks the object for deletion. It is not
+            # necessarily absent until every handle is closed. Never issue
+            # a completed removal receipt before observing actual absence.
             api.DeleteService(service)
-            return dict(schema="aegis.native-service-receipt.v1",
-                        service=_SERVICE_WINDOWS, process_state="REMOVED",
-                        platform_id=spec.platform_id,
-                        release_manifest_sha256=spec.manifest_sha256,
-                        identity_policy="RETAIN", core_activated=False,
-                        service_health="UNKNOWN", fully_healthy=False)
         finally:
             if service is not None:
                 api.CloseServiceHandle(service)
             api.CloseServiceHandle(scm)
+
+        # Only query access after the effect, never create/adopt a service.
+        reader = api.OpenSCManager(None, None, api.SC_MANAGER_CONNECT)
+        try:
+            deadline = time.monotonic() + 30
+            while time.monotonic() < deadline:
+                probe = None
+                try:
+                    probe = api.OpenService(
+                        reader, _SERVICE_WINDOWS, api.SERVICE_QUERY_STATUS,
+                    )
+                except self._error_type as error:
+                    code = getattr(error, "winerror", None)
+                    if code == 1060:  # ERROR_SERVICE_DOES_NOT_EXIST
+                        return dict(
+                            schema="aegis.native-service-receipt.v1",
+                            service=_SERVICE_WINDOWS, process_state="REMOVED",
+                            platform_id=spec.platform_id,
+                            release_manifest_sha256=spec.manifest_sha256,
+                            identity_policy="RETAIN", core_activated=False,
+                            service_health="UNKNOWN", fully_healthy=False,
+                        )
+                    if code != 1072:  # ERROR_SERVICE_MARKED_FOR_DELETE
+                        raise
+                finally:
+                    if probe is not None:
+                        api.CloseServiceHandle(probe)
+                time.sleep(0.1)
+            raise RuntimeError(
+                "SCM deletion not yet confirmed; native outcome needs reconciliation"
+            )
+        finally:
+            api.CloseServiceHandle(reader)
