@@ -148,6 +148,27 @@ def test_double_signed_stage_rejects_tamper_or_untrusted_scope(
     assert not (host / "sofia.db").exists()
 
 
+def test_inert_capsule_media_never_forges_canonical_B1_stage_receipt(
+        sealed_stage, canonical_state_path):
+    args, staged, _capsule, _manifest, home = sealed_stage
+    store = PlatformInstallationStore(home / "b1-stage-refusal.db")
+    with pytest.raises((PlatformReleaseRejected, PermissionError)):
+        signed_capsule_code_publication_request(
+            **args,
+            b1_staging_candidate=staged / "aegis",
+            destination=home / "must-remain-unpublished",
+            identity_home=home / "protected-identity",
+            state_path=canonical_state_path, store=store,
+        )
+    assert not (staged / "aegis/stage-receipt.json").exists()
+    assert store.history() == []
+    with pytest.raises((PlatformReleaseRejected, PermissionError)):
+        stage_sealed_capsule_for_b1(
+            **args, b1_staging_candidate=staged / "unsafe-nested-stage",
+        )
+    assert not (staged / "unsafe-nested-stage").exists()
+
+
 def test_sealed_media_to_B1_code_publication_requires_distinct_owner_approval(
         sealed_stage, canonical_state_path):
     args, staged, capsule, manifest, host = sealed_stage
