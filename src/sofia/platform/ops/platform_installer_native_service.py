@@ -316,7 +316,7 @@ class DebianSystemdNativeService:
             "ExecStart=" + command + "\n"
             "WorkingDirectory=" + str(spec.local_state.parent) + "\n"
             "UMask=0077\nRestart=on-failure\nRestartSec=20\n"
-            "TimeoutStartSec=15\nTimeoutStopSec=20\n"
+            "TimeoutStartSec=30\nTimeoutStopSec=90\n"
             "KillMode=mixed\nNoNewPrivileges=true\n"
             "PrivateTmp=false\nProtectSystem=strict\nProtectHome=true\n"
             # Scope the only writable filesystem carve-out to the exact
