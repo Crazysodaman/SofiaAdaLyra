@@ -161,6 +161,43 @@ def test_systemd_restart_refuses_success_when_service_exits(native_spec, tmp_pat
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX native systemd path semantics")
+@pytest.mark.parametrize("tamper", ("huge", "same_length", "symlink"))
+def test_systemd_rejects_foreign_unit_bytes_without_adoption(
+        native_spec, tmp_path, monkeypatch, tamper):
+    import sofia.platform.ops.platform_installer_native_service as mod
+    service = DebianSystemdNativeService(unit_path=tmp_path / "aegis-platform.service")
+    monkeypatch.setattr(service, "_require_root", lambda: None)
+    monkeypatch.setattr(service, "_require_service_identity", lambda _spec: None)
+
+    def ctl(*args):
+        if args[0] == "show":
+            if not service.unit_path.exists():
+                return "LoadState=not-found\\nFragmentPath=\\n"
+            return (f"LoadState=loaded\\nFragmentPath={service.unit_path}\\n"
+                    "ActiveState=active\\nSubState=running\\nMainPID=2345\\n")
+        return ""
+
+    monkeypatch.setattr(mod, "_run_systemctl", ctl)
+    service.register(native_spec)
+    original = service.unit_path.read_bytes()
+    if tamper == "huge":
+        service.unit_path.write_bytes(b"X" * 131072)
+    elif tamper == "same_length":
+        service.unit_path.write_bytes(b"X" * len(original))
+    else:
+        service.unit_path.unlink()
+        foreign = tmp_path / "foreign-unit"
+        foreign.write_bytes(original)
+        service.unit_path.symlink_to(foreign)
+    with pytest.raises((PlatformInstallationDenied, PermissionError, ValueError)):
+        service.observe(native_spec)
+    with pytest.raises((PlatformInstallationDenied, PermissionError, ValueError)):
+        service.stop_and_unregister(native_spec)
+    # The executor never deletes an unknown unit or follows a symlink.
+    assert service.unit_path.exists()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX native systemd path semantics")
 def test_systemd_refuses_foreign_existing_unit_without_changing_it(native_spec, tmp_path, monkeypatch):
     import sofia.platform.ops.platform_installer_native_service as mod
     service = DebianSystemdNativeService(unit_path=tmp_path / "aegis-platform.service")
