@@ -266,6 +266,55 @@ def test_sealed_media_to_B1_code_publication_requires_distinct_owner_approval(
     assert len(store.history()) == 1
 
 
+def test_sealed_capsule_changed_during_B1_copy_requires_reconciliation(
+        sealed_stage, canonical_state_path, monkeypatch):
+    import sofia.platform.ops.platform_installer_sealed_publication as publisher
+
+    args, _staged, capsule, manifest, home = sealed_stage
+    candidate = _stage_original_signed_capsule_as_B1_candidate(args, home)
+    store = PlatformInstallationStore(home / "b1-mid-copy-media.db")
+    now = datetime.now(timezone.utc)
+    params = dict(
+        **args, b1_staging_candidate=candidate,
+        destination=home / "durable-published-code",
+        identity_home=home / "protected-identity",
+        state_path=canonical_state_path, store=store,
+    )
+    plan = signed_capsule_code_publication_request(**params)["code_publication"]
+    approval = ExecutionApproval(
+        approval_id="approval:sealed-media-changed-during-copy",
+        capability=plan["capability"],
+        request_fingerprint=plan["fingerprint"],
+        approved_by="person:sparks",
+        approved_at=now - timedelta(seconds=1),
+        expires_at=now + timedelta(minutes=5),
+    )
+    record_verified_owner_approval(
+        ExecutionApprovalVerifier(canonical_state_path), approval,
+    )
+    original = publisher.publish_owner_approved_code
+    effects = []
+
+    def publish_then_tamper(*positional, **keywords):
+        receipt = original(*positional, **keywords)
+        effects.append(receipt)
+        with capsule.open("ab") as writer:
+            writer.write(b"tampered-after-approved-code-copy")
+        return receipt
+
+    monkeypatch.setattr(publisher, "publish_owner_approved_code", publish_then_tamper)
+    with pytest.raises(PermissionError, match="reconcile B1 receipt"):
+        publish_owner_approved_sealed_capsule_code(
+            **params, approval_id=approval.approval_id, now=now,
+        )
+    assert len(effects) == 1  # B1 effect may have completed.
+    assert store.history()  # Durable state must be reconciled, not discarded.
+    assert (params["destination"] / "release-manifest.json").is_file()
+    assert not (home / "protected-identity").exists()
+    assert store.checkpoint().active_release_id is None
+    assert effects[0]["os_service_registered"] is False
+
+
 def test_sealed_code_publication_refuses_changed_stage_before_safe_consumption(
         sealed_stage, canonical_state_path):
     args, staged, _capsule, _manifest, host = sealed_stage
