@@ -314,6 +314,48 @@ def test_operator_stop_before_effect_denies_native_registration(
     assert calls == []
 
 
+def test_consumed_owner_proof_current_check_never_authorizes_replay(
+        installed_scope):
+    import sqlite3
+
+    scope = dict(installed_scope)
+    backend, effects = fake_backend()
+    now = datetime.now(timezone.utc)
+    request = native_service_operation_request(**scope)
+    approval = grant_for_request(
+        scope, id="approval:b2-current-proof-read-only", now=now,
+    )
+    verifier = ExecutionApprovalVerifier(scope["canonical_safe_state"])
+    # An unconsumed approval is not evidence that an OS effect happened.
+    assert not verifier.consumed_owner_proof_remains_current(
+        approval_id=approval.approval_id,
+        capability=request["capability"], parameters=request["parameters"],
+    )
+    apply_owner_approved_native_service(
+        **scope, backend=backend, approval_id=approval.approval_id, now=now,
+    )
+    assert len(effects) == 1
+    assert verifier.consumed_owner_proof_remains_current(
+        approval_id=approval.approval_id,
+        capability=request["capability"], parameters=request["parameters"],
+    )
+    assert not verifier.consumed_owner_proof_remains_current(
+        approval_id=approval.approval_id,
+        capability=request["capability"], parameters={"forged": "different"},
+    )
+    with sqlite3.connect(scope["canonical_safe_state"]) as db:
+        db.execute(
+            "UPDATE safe_owner_credential SET revoked_at=? "
+            "WHERE revoked_at IS NULL",
+            (now.isoformat(),),
+        )
+    assert not verifier.consumed_owner_proof_remains_current(
+        approval_id=approval.approval_id,
+        capability=request["capability"], parameters=request["parameters"],
+    )
+    assert len(effects) == 1  # Read-only proof verification never acts.
+
+
 def test_owner_credential_revoked_during_native_effect_requires_reconciliation(
         installed_scope):
     import sqlite3
