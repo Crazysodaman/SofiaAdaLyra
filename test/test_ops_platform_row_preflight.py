@@ -294,6 +294,28 @@ def test_d028_runnable_harness_rejects_changed_bytes_wrong_sha_and_links(
     assert not report["release_accepted"]
 
 
+@pytest.mark.skipif(__import__("os").name == "nt", reason="POSIX linked evidence inode semantics")
+def test_d028_intake_rejects_hardlinked_artifact_bytes(tmp_path):
+    import os
+    exact = "e" * 40
+    source = tmp_path / "other.bin"
+    source.write_bytes(b"source-only untrusted artifact")
+    artifacts = tmp_path / "artifacts"
+    artifacts.mkdir()
+    os.link(source, artifacts / "payload.bin")
+    (tmp_path / "signed-artifacts.json").write_text(json.dumps({
+        "source_sha": exact,
+        "artifacts": [{"path": "artifacts/payload.bin",
+                       "sha256": sha256(source.read_bytes()).hexdigest()}],
+    }), encoding="utf-8")
+    report = make_d028_four_host_preflight(
+        exact, topology=_d028_plan(), evidence_dir=tmp_path,
+    )
+    assert "artifact[0]:BYTE_INTEGRITY_FAILED" in report["evidence_invalid"]
+    assert report["byte_digests_verified_only"] == []
+    assert not report["release_accepted"]
+
+
 def test_d028_runnable_harness_fails_closed_on_symlinked_signed_metadata(
     tmp_path: Path,
 ) -> None:
