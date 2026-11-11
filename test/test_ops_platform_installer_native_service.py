@@ -103,6 +103,11 @@ def test_systemd_register_stop_and_remove_only_exact_new_unit(native_spec, tmp_p
     assert "SOFIA_" not in service.unit_path.read_text()
     removed = service.stop_and_unregister(native_spec)
     assert removed["identity_policy"] == "RETAIN"
+    assert removed["platform_id"] == native_spec.platform_id
+    assert removed["release_manifest_sha256"] == native_spec.manifest_sha256
+    assert removed["service_health"] == "UNKNOWN"
+    assert removed["fully_healthy"] is False
+    assert removed["core_activated"] is False
     assert not service.unit_path.exists()
     assert ("stop", "aegis-platform.service") in calls
     assert ("disable", "aegis-platform.service") in calls
@@ -467,6 +472,12 @@ def test_windows_scm_register_reject_duplicate_and_uninstall(native_spec):
         driver.register(spec)
     removed = driver.stop_and_unregister(spec)
     assert removed["process_state"] == "REMOVED"
+    assert removed["platform_id"] == spec.platform_id
+    assert removed["release_manifest_sha256"] == spec.manifest_sha256
+    assert removed["identity_policy"] == "RETAIN"
+    assert removed["service_health"] == "UNKNOWN"
+    assert removed["fully_healthy"] is False
+    assert removed["core_activated"] is False
     assert fake.events[-2:] == ["stopped", "removed"]
 
 
