@@ -166,6 +166,11 @@ fn valid_management_endpoint(endpoint: &str, platform_id: &str, generation: u64)
             };
             return valid_installed_unix_endpoint(endpoint, generation, runtime);
         }
+        // If systemd launched this service, a missing RuntimeDirectory is
+        // a broken installed unit, not permission to fall back to /tmp.
+        if std::env::var_os("INVOCATION_ID").is_some() {
+            return false;
+        }
         // The explicit foreground/developer mode has no systemd runtime.
         // Its private temporary listener is not a production enrollment.
         let path = std::path::Path::new(endpoint);
