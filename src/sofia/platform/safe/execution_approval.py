@@ -419,6 +419,64 @@ class ExecutionApprovalVerifier:
             and moment < approval.expires_at.astimezone(timezone.utc)
         )
 
+    def consumed_owner_proof_remains_current(
+        self, *, approval_id: str, capability: str, parameters: dict,
+    ) -> bool:
+        """Read-only post-effect owner revocation fence for a consumed approval.
+
+        This is NOT a new grant and cannot authorize another operation.
+        It only verifies that the exact consumed approval still has its
+        originally authenticated, unrevoked owner binding. A credential
+        revoked while the native OS effect ran must force reconciliation.
+        """
+        if type(approval_id) is not str or not approval_id.strip():
+            return False
+        try:
+            fingerprint = execution_fingerprint(capability, parameters)
+        except (TypeError, ValueError):
+            return False
+        with closing(self._connect()) as db:
+            row = db.execute(
+                """
+                SELECT
+                    a.capability, a.request_fingerprint,
+                    a.approved_by, a.consumed_at,
+                    EXISTS(
+                        SELECT 1 FROM safe_execution_owner_auth_binding b
+                        JOIN safe_owner_challenge ch
+                          ON b.authentication_event_id =
+                            ('owner-webauthn:' || ch.challenge_digest)
+                        JOIN safe_owner_credential cr
+                          ON cr.credential_id = ch.credential_id
+                        WHERE b.approval_id = a.approval_id
+                          AND ch.consumed_at IS NOT NULL
+                          AND cr.revoked_at IS NULL
+                    ) OR EXISTS(
+                        SELECT 1 FROM safe_execution_owner_auth_binding b
+                        JOIN safe_owner_secret_proof p
+                          ON b.authentication_event_id =
+                            ('owner-secret:' || p.proof_id)
+                        JOIN safe_owner_secret secret
+                          ON secret.singleton = 1 AND p.version = secret.version
+                        JOIN safe_audit_event au
+                          ON au.event_id = b.authentication_event_id
+                        WHERE b.approval_id = a.approval_id
+                          AND au.event_type = 'owner.secret.verified'
+                    ) AS owner_proof_bound
+                FROM safe_execution_approval a
+                WHERE a.approval_id = ?
+                """,
+                (approval_id,),
+            ).fetchone()
+        return bool(
+            row is not None
+            and row[0] == capability
+            and row[1] == fingerprint
+            and row[2] in _OWNER_APPROVAL_REFERENCES
+            and row[3] is not None
+            and row[4] == 1
+        )
+
     def consume(
         self,
         *,
