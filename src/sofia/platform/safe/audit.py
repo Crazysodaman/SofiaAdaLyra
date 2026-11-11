@@ -231,23 +231,28 @@ class AuditChain:
             """
         )
         for row in rows:
-            if row["previous_hash"] != previous:
+            # Caller-owned SQLite connections may use the default tuple
+            # factory or sqlite3.Row. Both yield column values in SELECT
+            # order; never alter a caller's row_factory or transaction.
+            (event_id, occurred_at, actor_id, event_type, payload_json,
+             previous_hash, event_hash) = row
+            if previous_hash != previous:
                 return False, (
-                    f"audit previous-hash mismatch at event {row['event_id']}"
+                    f"audit previous-hash mismatch at event {event_id}"
                 )
             expected = self._event_hash(
-                event_id=row["event_id"],
-                occurred_at=row["occurred_at"],
-                actor_id=row["actor_id"],
-                event_type=row["event_type"],
-                payload_json=row["payload_json"],
-                previous_hash=row["previous_hash"],
+                event_id=event_id,
+                occurred_at=occurred_at,
+                actor_id=actor_id,
+                event_type=event_type,
+                payload_json=payload_json,
+                previous_hash=previous_hash,
             )
-            if row["event_hash"] != expected:
+            if event_hash != expected:
                 return False, (
-                    f"audit event-hash mismatch at event {row['event_id']}"
+                    f"audit event-hash mismatch at event {event_id}"
                 )
-            previous = row["event_hash"]
+            previous = event_hash
         return True, None
 
     def verify(self) -> tuple[bool, str | None]:
