@@ -362,3 +362,57 @@ def test_capsule_member_inspector_rejects_bounded_decompression_overflow(
     )
     assert result.returncode != 0
     assert "MEMBERS_HASHED_NOT_INSTALLABLE" not in result.stdout
+
+
+@pytest.mark.skipif(
+    os.name == "nt" or shutil.which("openssl") is None or shutil.which("unzip") is None,
+    reason="requires stock Linux publisher/ZIP staging tools",
+)
+@pytest.mark.parametrize("defect", (
+    "missing-final-newline", "duplicate-delivery-record", "reversed-inventory",
+))
+def test_offline_stage_rejects_malformed_freshly_sealed_inventory(
+        reviewed, tmp_path, defect):
+    """Even a newly signed ZIP cannot make a malformed inventory installable."""
+    builder, _staged, _manifest, pins = reviewed
+    original = tmp_path / "valid-capsule.zip"
+    build_reviewed_offline_capsule(**capsule_args(reviewed, original))
+    altered = tmp_path / "altered-but-test-signed.zip"
+    with zipfile.ZipFile(original, "r") as archive:
+        entries = [(entry, archive.read(entry.filename)) for entry in archive.infolist()]
+    index_name = "aegis/delivery-index.v1"
+    index = next(content for entry, content in entries if entry.filename == index_name)
+    if defect == "missing-final-newline":
+        index = index.rstrip(b"\\n")
+    elif defect == "duplicate-delivery-record":
+        index += index.splitlines(keepends=True)[1]
+    else:
+        records = index.splitlines(keepends=True)
+        records[1], records[2] = records[2], records[1]
+        index = b"".join(records)
+    with zipfile.ZipFile(altered, "w") as archive:
+        for entry, content in entries:
+            archive.writestr(
+                entry, index if entry.filename == index_name else content,
+            )
+    detached = tmp_path / "test-disposable-signature.raw64"
+    digest = sha256(altered.read_bytes()).hexdigest()
+    detached.write_bytes(builder._key.sign(
+        offline_capsule_publisher_seal_message(
+            capsule_sha256=digest, signer_key_id=pins["trusted_signer_key_id"],
+        ),
+    ))
+    tmp_path.chmod(0o700)
+    output = tmp_path / "must-not-stage"
+    result = subprocess.run([
+        "bash", str(PROJECT_ROOT / "packaging/installers/install-aegis.sh"),
+        "--stage-capsule", str(altered),
+        "--capsule-signature", str(detached),
+        "--publisher-key", str(pins["trusted_public_key"]),
+        "--publisher-sha256", pins["trusted_key_sha256"],
+        "--publisher-signer", pins["trusted_signer_key_id"],
+        "--staging-destination", str(output),
+    ], capture_output=True, text=True, timeout=30)
+    assert result.returncode != 0
+    assert "SIGNED_MEDIA_STAGED_NOT_INSTALLED" not in result.stdout
+    assert not output.exists()
