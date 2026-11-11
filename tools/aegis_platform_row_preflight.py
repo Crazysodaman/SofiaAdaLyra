@@ -172,6 +172,42 @@ def _read_bounded_json(root: Path, relative: str) -> dict | None:
         os.close(fd)
 
 
+def _hash_bounded_evidence_artifact(root: Path, relative: str) -> str:
+    """Hash one original private evidence inode, never redirected package bytes.
+
+    This only checks SHA-256 integrity. It cannot authenticate publishers,
+    grants, installed service observations or signed release provenance.
+    """
+    if not relative.startswith("artifacts/"):
+        raise ValueError("only isolated artifacts/ bytes are inspected")
+    path = _safe_evidence_path(root, relative)
+    fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+    try:
+        before = os.fstat(fd)
+        if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1
+                or not 1 <= before.st_size <= 512 * 1024 * 1024):
+            raise ValueError("unsafe or unbounded artifact evidence inode")
+        digest = sha256()
+        total = 0
+        with os.fdopen(fd, "rb", closefd=False) as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                total += len(chunk)
+                if total > before.st_size:
+                    raise ValueError("evidence artifact grew while hashing")
+                digest.update(chunk)
+        after = os.fstat(fd)
+        current = os.lstat(path)
+        pinned = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+        if (total != before.st_size or not stat.S_ISREG(current.st_mode)
+                or pinned != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
+                or pinned != (current.st_dev, current.st_ino,
+                              current.st_size, current.st_mtime_ns)):
+            raise ValueError("artifact evidence replaced during inspection")
+        return digest.hexdigest()
+    finally:
+        os.close(fd)
+
+
 def make_d028_four_host_preflight(
     source_sha: str, *, topology: dict, evidence_dir: Path | None = None,
 ) -> dict:
@@ -273,18 +309,9 @@ def make_d028_four_host_preflight(
                     invalid.append(f"artifact[{idx}]:INVALID_SHA256")
                     continue
                 try:
-                    if not isinstance(name, str) or not name.startswith("artifacts/"):
-                        raise ValueError("only isolated artifacts/ bytes are inspected")
-                    p = _safe_evidence_path(root, name)
-                    if not p.is_file():
-                        raise ValueError("artifact bytes absent")
-                    if p.stat().st_size > 512 * 1024 * 1024:
-                        raise ValueError("individual artifact exceeds bounded chunk")
-                    digest = sha256()
-                    with p.open("rb") as stream:
-                        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-                            digest.update(chunk)
-                    if digest.hexdigest() != expected:
+                    if not isinstance(name, str):
+                        raise ValueError("artifact path required")
+                    if _hash_bounded_evidence_artifact(root, name) != expected:
                         raise ValueError("artifact byte SHA256 mismatch")
                     verified_byte_digests.append(expected)
                 except (ValueError, OSError):
