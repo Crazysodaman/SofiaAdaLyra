@@ -30,6 +30,7 @@ from sofia.platform.state.installation_identity import InstallationIdentityStore
 from sofia.sdk.platform_release import PlatformReleaseTarget
 from test.owner_auth_fixture import record_verified_owner_approval
 from test.test_ops_platform_installation import SignedReleaseBuilder
+from test.test_platform_release_verifier import platform_wheels
 from test.test_platform_service_session import provision
 
 pytestmark = [
