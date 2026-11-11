@@ -88,8 +88,9 @@ class InstalledVoiceProfile:
             raise ValueError("invalid bound Core identity")
         if not isinstance(self.reference_text, str) or not self.reference_text.strip() or len(self.reference_text) > 4000:
             raise ValueError("actual reference transcript is required")
-        if not isinstance(self.wav_sha256, str) or re.fullmatch(r"[a-f0-9]{64}", self.wav_sha256) is None:
-            raise ValueError("invalid reference audio hash")
+        for digest in (self.wav_sha256, self.source_sha256):
+            if not isinstance(digest, str) or re.fullmatch(r"[a-f0-9]{64}", digest) is None:
+                raise ValueError("invalid reference audio hash")
         validate_wav(self.wav_path)
         if file_sha256(self.wav_path) != self.wav_sha256:
             raise ValueError("voice reference was modified after installation")
@@ -149,6 +150,13 @@ def import_round9_medium(
     if (r6.get("round") != 6 or r6.get("variant") != "03_rook_bluehour"
             or r9.get("source_sha256") != r6.get("audio_sha256")):
         raise ValueError("Round 9 reference does not match original Round 6 Bluehour")
+    # Require the actual original Round 6 bytes as provenance, not metadata alone.
+    original_wav = round6_meta.with_suffix(" .wav".strip())
+    if original_wav.name != "sofia_03_rook_bluehour.wav":
+        raise ValueError("unexpected original Round 6 reference name")
+    validate_wav(original_wav)
+    if file_sha256(original_wav) != r6.get("audio_sha256"):
+        raise ValueError("original Round 6 WAV digest does not match metadata")
     ref_text = r6.get("text")
     if not isinstance(ref_text, str) or not ref_text.strip() or len(ref_text) > 4000:
         raise ValueError("original Round 6 transcript is required")
