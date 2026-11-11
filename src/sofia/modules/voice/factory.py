@@ -1,4 +1,4 @@
-"""Production TTS composition from environment configuration."""
+"""Production TTS/STT composition. Voice modules remain opt-in and Core-free."""
 from __future__ import annotations
 
 import os
@@ -27,14 +27,9 @@ def create_tts_service_from_environment(
 ) -> TextToSpeechService:
     if settings is not None and not isinstance(settings, RuntimeUserSettings):
         raise TypeError("settings must be RuntimeUserSettings or None")
-    backend_name = os.environ.get(
-        "SOFIA_TTS_BACKEND",
-        "sapi",
-    ).strip().casefold()
-    if backend_name not in {"sapi", "windows-sapi"}:
-        raise ValueError(
-            "SOFIA_TTS_BACKEND currently supports only 'sapi'"
-        )
+    backend_name = os.environ.get("SOFIA_TTS_BACKEND", "sapi").strip().casefold()
+    if backend_name not in {"sapi", "windows-sapi", "qwen3-local-bluehour"}:
+        raise ValueError("SOFIA_TTS_BACKEND supports 'sapi' and 'qwen3-local-bluehour'")
     voice_hint = os.environ.get("SOFIA_TTS_VOICE")
     if voice_hint is not None:
         voice_hint = voice_hint.strip() or None
@@ -43,19 +38,29 @@ def create_tts_service_from_environment(
     enabled = (
         _env_bool("SOFIA_TTS_ENABLED", False)
         if "SOFIA_TTS_ENABLED" in os.environ
-        else bool(
-            settings is not None
-            and settings.voice_output_enabled
-            and not settings.voice_muted
-        )
+        else bool(settings is not None and settings.voice_output_enabled and not settings.voice_muted)
     )
     if settings is not None and settings.voice_muted:
         enabled = False
-    return TextToSpeechService(
-        WindowsSapiBackend(),
-        enabled=enabled,
-        voice_hint=voice_hint,
-    )
+    if backend_name == "qwen3-local-bluehour":
+        from .qwen_local import QwenLocalBluehourBackend
+        from .voice_asset import VOICE_PROFILE_ID
+        location = os.environ.get("AEGIS_VOICE_PROFILE_DIR", "").strip()
+        core_id = os.environ.get("AEGIS_VOICE_CORE_ID", "").strip()
+        if not location or not core_id:
+            raise ValueError("AEGIS_VOICE_PROFILE_DIR and AEGIS_VOICE_CORE_ID required for neural voice")
+        if voice_hint not in (None, VOICE_PROFILE_ID):
+            raise ValueError("requested TTS voice is not the approved Bluehour profile")
+        backend = QwenLocalBluehourBackend(
+            location, core_identity_id=core_id,
+            allow_model_download=_env_bool("AEGIS_VOICE_ALLOW_DOWNLOAD", False),
+            keep_model_warm=_env_bool("AEGIS_VOICE_KEEP_MODEL_WARM", False),
+            playback_device=os.environ.get("AEGIS_VOICE_OUTPUT_DEVICE") or None,
+        )
+        voice_hint = VOICE_PROFILE_ID
+    else:
+        backend = WindowsSapiBackend()
+    return TextToSpeechService(backend, enabled=enabled, voice_hint=voice_hint)
 
 
 def create_stt_service_from_settings(
@@ -64,8 +69,6 @@ def create_stt_service_from_settings(
     if not isinstance(settings, RuntimeUserSettings):
         raise TypeError("settings must be RuntimeUserSettings")
     return SpeechInputService(
-        WindowsSpeechRecognitionBackend(),
-        enabled=settings.voice_input_enabled,
-        muted=settings.voice_muted,
-        device_id=settings.voice_input_device,
+        WindowsSpeechRecognitionBackend(), enabled=settings.voice_input_enabled,
+        muted=settings.voice_muted, device_id=settings.voice_input_device,
     )
