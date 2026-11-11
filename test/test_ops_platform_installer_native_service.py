@@ -525,6 +525,56 @@ def test_systemd_rejects_runtime_parent_without_owner_traverse(
     assert not driver.unit_path.exists()
 
 
+@pytest.mark.skipif(os.name == "nt", reason="POSIX SQLite ownership preflight")
+def test_systemd_refuses_readonly_sqlite_database_before_registration(
+        native_spec, tmp_path, monkeypatch):
+    import grp
+    import pwd
+    import stat
+    import sofia.platform.ops.platform_installer_native_service as mod
+
+    service = DebianSystemdNativeService(
+        unit_path=tmp_path / "aegis-platform.service",
+    )
+    monkeypatch.setattr(service, "_require_root", lambda: None)
+    monkeypatch.setattr(mod, "_check_spec", lambda *_args: None)
+    monkeypatch.setattr(
+        pwd, "getpwnam", lambda _name: SimpleNamespace(
+            pw_uid=40411, pw_gid=40412, pw_shell="/usr/sbin/nologin",
+        ),
+    )
+    monkeypatch.setattr(
+        grp, "getgrnam", lambda _name: SimpleNamespace(gr_gid=40412),
+    )
+    release_root = native_spec.executable.parent.parent
+    state_directory = native_spec.local_state.parent
+    original_stat = Path.stat
+
+    def synthetic_stat(path, *, follow_symlinks=True):
+        actual = original_stat(path, follow_symlinks=follow_symlinks)
+        protected = (
+            path == release_root or release_root in path.parents
+            or path == native_spec.identity_home
+            or path == native_spec.local_state
+            or path == state_directory
+        )
+        if protected:
+            file = path in (
+                native_spec.executable, native_spec.python_executable,
+                native_spec.local_state,
+            )
+            mode = (stat.S_IFREG if file else stat.S_IFDIR) | 0o700
+            if path == native_spec.local_state:
+                mode = stat.S_IFREG | 0o400
+            return SimpleNamespace(st_uid=40411, st_gid=40412, st_mode=mode)
+        return actual
+
+    monkeypatch.setattr(Path, "stat", synthetic_stat)
+    with pytest.raises(PlatformInstallationDenied, match="SQLite database"):
+        service.register(native_spec)
+    assert not service.unit_path.exists()
+
+
 @pytest.mark.skipif(os.name == "nt", reason="POSIX kernel UID/GID/file-mode assumptions")
 @pytest.mark.parametrize("failure", ("wrong-uid", "not-writable"))
 def test_systemd_refuses_nonwritable_or_foreign_sqlite_parent(
