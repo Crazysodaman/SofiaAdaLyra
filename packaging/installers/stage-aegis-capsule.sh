@@ -93,7 +93,21 @@ IFS= read -r header < "$index" || exit 3
 count=0
 total=0
 previous=''
-while IFS=
+while read -r digest size relative; do
+  [[ "$digest" =~ ^[0-9a-f]{64}$ && "$size" =~ ^[1-9][0-9]{0,11}$ &&
+     "$relative" =~ ^aegis/[A-Za-z0-9._/+@-]{1,240}$ ]] || exit 3
+  [[ "$relative" != *'//'* && "$relative" != */../* &&
+     "$relative" != */./* && "$relative" != */.. && "$relative" != */. ]] || exit 3
+  if [[ -n "$previous" ]]; then
+    [[ "$relative" > "$previous" ]] || exit 3
+  fi
+  previous="$relative"
+  ((count+=1))
+  ((count <= 128 && size <= 536870912)) || exit 3
+  total=$((total+size))
+  ((total <= 1075838976)) || exit 3
+  file="$work/$relative"
+  mkdir -p -- "$(dirname -- "$file")"
   # Explicit redirection creates a normal file, NEVER follows a ZIP symlink.
   # head and pipefail stop an oversized decompressor before unbounded output.
   if ! unzip -p "$capsule" "$relative" | head -c "$((size+1))" > "$file"; then
