@@ -346,7 +346,11 @@ class DebianSystemdNativeService:
             os.fsync(stream.fileno())
         _run_systemctl("daemon-reload")
         _run_systemctl("start", _SERVICE_LINUX)
-        return self.observe(spec)
+        # A successful systemctl start is not proof the child stayed alive.
+        # Fail before enabling an immediately dead service at boot.
+        self._require_running(self.observe(spec))
+        _run_systemctl("enable", _SERVICE_LINUX)
+        return self._require_running(self.observe(spec))
 
     def observe(self, spec: NativeServiceSpecification) -> dict[str, object]:
         _check_spec(spec, PlatformReleaseTarget.DEBIAN12_X86_64)
@@ -375,13 +379,23 @@ class DebianSystemdNativeService:
                     service_health="UNKNOWN", core_activated=False,
                     fully_healthy=False)
 
+    @staticmethod
+    def _require_running(receipt: dict[str, object]) -> dict[str, object]:
+        if (receipt.get("process_state") != "RUNNING"
+                or type(receipt.get("process_id")) is not int
+                or receipt["process_id"] <= 0):
+            raise PlatformInstallationDenied(
+                "native service not running; reconcile host before retry"
+            )
+        return receipt
+
     def restart_verified(self, spec: NativeServiceSpecification) -> dict[str, object]:
         """Repair only a matching signed unit; never rewrite unknown configuration."""
         self._require_root()
         self._require_service_identity(spec)
         self.observe(spec)
         _run_systemctl("restart", _SERVICE_LINUX)
-        return self.observe(spec)
+        return self._require_running(self.observe(spec))
 
     def replace_verified(
         self, previous: NativeServiceSpecification, candidate: NativeServiceSpecification,
@@ -418,7 +432,7 @@ class DebianSystemdNativeService:
         os.replace(pending, self.unit_path)
         _run_systemctl("daemon-reload")
         _run_systemctl("start", _SERVICE_LINUX)
-        return self.observe(candidate)
+        return self._require_running(self.observe(candidate))
 
     def stop_and_unregister(self, spec: NativeServiceSpecification) -> dict[str, object]:
         self._require_root()
