@@ -10,7 +10,7 @@ import stat
 import tempfile
 import zipfile
 
-from sofia.platform.state.artifact_file import read_artifact_file
+from sofia.platform.state.artifact_file import read_artifact_file, pinned_source_identity
 from sofia.platform.state.private_file import (
     assert_no_redirected_components, restrict_new_owner_private_path,
 )
@@ -93,8 +93,7 @@ def _write_verified_source_member(archive, *, name, path, reference):
     if (not stat.S_ISREG(before.st_mode)
             or before.st_size != reference.size_bytes):
         raise ValueError('runtime producer source size changed')
-    identity = (before.st_dev, before.st_ino, before.st_size,
-                before.st_mtime_ns, before.st_ctime_ns)
+    identity = pinned_source_identity(before)
     info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
     info.create_system = 3
     info.external_attr = (
@@ -107,8 +106,7 @@ def _write_verified_source_member(archive, *, name, path, reference):
     with os.fdopen(os.open(path, flags), 'rb') as reader:
         opened = os.fstat(reader.fileno())
         if (not stat.S_ISREG(opened.st_mode)
-                or (opened.st_dev, opened.st_ino, opened.st_size,
-                    opened.st_mtime_ns, opened.st_ctime_ns) != identity):
+                or pinned_source_identity(opened) != identity):
             raise ValueError('runtime producer source replaced before ZIP copy')
         digest = sha256()
         with archive.open(info, 'w') as member_writer:
@@ -126,10 +124,8 @@ def _write_verified_source_member(archive, *, name, path, reference):
         assert_no_redirected_components(path, include_leaf=True)
         current = path.stat(follow_symlinks=False)
         if (digest.hexdigest() != reference.sha256
-                or (after.st_dev, after.st_ino, after.st_size,
-                    after.st_mtime_ns, after.st_ctime_ns) != identity
-                or (current.st_dev, current.st_ino, current.st_size,
-                    current.st_mtime_ns, current.st_ctime_ns) != identity):
+                or pinned_source_identity(after) != identity
+                or pinned_source_identity(current) != identity):
             raise ValueError('runtime producer source changed while packaging')
 
 
