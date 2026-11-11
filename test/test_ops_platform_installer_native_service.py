@@ -715,7 +715,8 @@ def test_systemd_rejects_runtime_parent_without_owner_traverse(
         actual = original_stat(path, follow_symlinks=follow_symlinks)
         if (path == release_root or release_root in path.parents
                 or path == native_spec.identity_home
-                or path == native_spec.local_state):
+                or path == native_spec.local_state
+                or path == native_spec.local_state.parent):
             is_file = path in (
                 native_spec.executable,
                 native_spec.python_executable,
