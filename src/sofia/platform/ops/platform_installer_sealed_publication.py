@@ -70,14 +70,21 @@ def signed_capsule_code_publication_request(
     verifier = _publisher_verifier(
         trusted_public_key, trusted_key_sha256, trusted_signer_key_id,
     )
-    publication = signed_code_publication_request(
-        staged_candidate=Path(b1_staging_candidate).absolute(),
-        destination=destination, identity_home=identity_home,
-        state_path=state_path, store=store,
-        verifier=verifier, expected_target=expected_target,
-        outer_capsule_sha256=review["capsule_sha256"],
-        delivery_index_sha256=review["delivery_index_sha256"],
-    )
+    try:
+        publication = signed_code_publication_request(
+            staged_candidate=Path(b1_staging_candidate).absolute(),
+            destination=destination, identity_home=identity_home,
+            state_path=state_path, store=store,
+            verifier=verifier, expected_target=expected_target,
+            outer_capsule_sha256=review["capsule_sha256"],
+            delivery_index_sha256=review["delivery_index_sha256"],
+        )
+    except FileNotFoundError as exc:
+        # A verified media directory is not a genuine B1 stage receipt.
+        # The separate authority-free stage_platform_release MUST create it.
+        raise PlatformInstallationDenied(
+            "canonical signed B1 stage receipt is missing"
+        ) from exc
     if (publication["parameters"]["manifest_sha256"] !=
             review["inner_release"]["manifest_sha256"]):
         raise PlatformInstallationDenied("signed media and B1 code review diverged")
