@@ -435,13 +435,14 @@ class ExecutionApprovalVerifier:
             fingerprint = execution_fingerprint(capability, parameters)
         except (TypeError, ValueError):
             return False
-        # A still-enrolled credential cannot rescue a broken canonical SAFE
-        # audit chain. This verifier is read-only, and an invalid chain
-        # must force reconciliation rather than endorsing a completed effect.
-        integrity_ok, _ = self.audit.verify()
-        if integrity_ok is not True:
-            return False
+        # Audit integrity and owner binding MUST be checked in one SQLite
+        # read snapshot. Separate connections could observe different
+        # generations if revocation or tampering races between their reads.
         with closing(self._connect()) as db:
+            db.execute("BEGIN")
+            integrity_ok, _ = self.audit.verify_in_connection(db)
+            if integrity_ok is not True:
+                return False
             row = db.execute(
                 """
                 SELECT
