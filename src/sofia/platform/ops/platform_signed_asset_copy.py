@@ -18,7 +18,7 @@ from pathlib import Path
 import stat
 
 from sofia.platform.ops.platform_release import PlatformReleaseRejected
-from sofia.platform.state.artifact_file import read_artifact_file
+from sofia.platform.state.artifact_file import read_artifact_file, pinned_source_identity
 from sofia.platform.state.private_file import (
     assert_no_redirected_components, assert_owner_private_path,
     ensure_owner_private_directory, restrict_new_owner_private_path,
@@ -47,8 +47,7 @@ def copy_verified_signed_asset(
     before = src.stat(follow_symlinks=False)
     if not stat.S_ISREG(before.st_mode) or before.st_size != expected_size:
         raise PlatformReleaseRejected("signed Platform source size or type changed")
-    identity = (before.st_dev, before.st_ino, before.st_size,
-                before.st_mtime_ns, before.st_ctime_ns)
+    identity = pinned_source_identity(before)
 
     # Nonblocking reads prevent a racing FIFO substitution from hanging the
     # owner-controlled installer. O_NOFOLLOW is still required on POSIX.
@@ -57,8 +56,7 @@ def copy_verified_signed_asset(
     with os.fdopen(os.open(src, flags), "rb") as reader:
         opened = os.fstat(reader.fileno())
         if (not stat.S_ISREG(opened.st_mode)
-                or (opened.st_dev, opened.st_ino, opened.st_size,
-                    opened.st_mtime_ns, opened.st_ctime_ns) != identity):
+                or pinned_source_identity(opened) != identity):
             raise PlatformReleaseRejected("signed Platform asset substituted before copy")
         ensure_owner_private_directory(dst.parent)
         assert_no_redirected_components(dst, include_leaf=True)
@@ -89,10 +87,8 @@ def copy_verified_signed_asset(
             assert_no_redirected_components(src, include_leaf=True)
             final = src.stat(follow_symlinks=False)
             if (digest.hexdigest() != expected_sha256
-                    or (after.st_dev, after.st_ino, after.st_size,
-                        after.st_mtime_ns, after.st_ctime_ns) != identity
-                    or (final.st_dev, final.st_ino, final.st_size,
-                        final.st_mtime_ns, final.st_ctime_ns) != identity):
+                    or pinned_source_identity(after) != identity
+                    or pinned_source_identity(final) != identity):
                 raise PlatformReleaseRejected("signed Platform source changed during copy")
             assert_owner_private_path(dst, directory=False)
             verified_sha256, _ = read_artifact_file(dst, expected_size)
