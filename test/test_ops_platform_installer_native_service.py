@@ -374,6 +374,25 @@ def test_windows_scm_replace_requires_unchanged_platform_identity(native_spec):
     with pytest.raises(PlatformInstallationDenied, match="identity|Platform UUID"):
         driver.replace_verified(replacement, replace(spec, platform_id="forged"))
 
+def test_windows_scm_stop_wait_respects_bounded_library_drain(monkeypatch):
+    import sofia.platform.ops.platform_installer_native_service as mod
+    clock = {"time": 0.0}
+    monkeypatch.setattr(mod.time, "monotonic", lambda: clock["time"])
+    monkeypatch.setattr(mod.time, "sleep", lambda _seconds: clock.__setitem__(
+        "time", clock["time"] + 5,
+    ))
+
+    class SlowlyDrainingScm:
+        SERVICE_STOPPED = 1
+
+        def QueryServiceStatus(self, _handle):
+            return (0, 1 if clock["time"] >= 65 else 3)
+
+    WindowsScmNativeService._wait_stopped(SlowlyDrainingScm(), "owned-service")
+    assert clock["time"] >= 65
+    assert clock["time"] < 90
+
+
 @pytest.mark.parametrize("attribute, forged", [
     ("service_type", 999),
     ("start_type", FakeScm.SERVICE_DEMAND_START),
