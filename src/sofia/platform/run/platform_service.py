@@ -310,6 +310,11 @@ class PlatformServiceSession:
             thread = self._management_thread
             if listener is None or thread is None or not thread.is_alive():
                 raise RuntimeError("Platform management listener lost")
+            # A live serving thread is not proof the OS endpoint still
+            # belongs to this RUN. The Unix listener owns the original
+            # inode/UID/mode checks; revalidate before reporting READY.
+            if isinstance(listener, ManagementUnixListener):
+                listener._require_owned_endpoint()
             return dict(platform_id=self.identity.identity.canonical_uuid,
                 public_key_sha256=self.identity.public_key_sha256,
                 serial=self.identity.identity.serial, generation=self.lease.epoch,
