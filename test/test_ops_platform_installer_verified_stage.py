@@ -32,6 +32,11 @@ from datetime import datetime, timedelta, timezone
 from sofia.platform.ops.platform_release import PlatformReleaseRejected
 from test.test_ops_platform_installer_bundle import reviewed
 from test.test_ops_platform_installer_capsule import capsule_args
+from sofia.platform.ops.platform_installer_native_transaction import (
+    apply_owner_approved_native_service, native_service_operation_request,
+)
+from sofia.platform.ops.platform_installer_native_service import DebianSystemdNativeService
+from test.test_platform_service_session import provision
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 pytestmark = [
@@ -226,3 +231,94 @@ def test_sealed_code_publication_refuses_changed_stage_before_safe_consumption(
         )
     assert not installed.exists()
     assert store.history() == []
+
+
+def test_sealed_capsule_publishes_B1_then_registers_only_with_second_owner_proof(
+        sealed_stage, canonical_state_path):
+    args, staged, _capsule, manifest, home = sealed_stage
+    now = datetime.now(timezone.utc)
+    identity_store, installed_identity, local_state = provision(home / "host")
+    b1 = PlatformInstallationStore(home / "b1-two-authorities.db")
+    release = home / "private-installed-code"
+    code = dict(
+        **args, destination=release,
+        identity_home=identity_store.home, state_path=canonical_state_path,
+        store=b1,
+    )
+
+    def approve(plan, identifier):
+        grant = ExecutionApproval(
+            approval_id=identifier,
+            capability=plan["capability"],
+            request_fingerprint=plan["fingerprint"],
+            approved_by="person:sparks",
+            approved_at=now - timedelta(seconds=1),
+            expires_at=now + timedelta(minutes=5),
+        )
+        record_verified_owner_approval(
+            ExecutionApprovalVerifier(canonical_state_path), grant,
+        )
+        return identifier
+
+    preview = signed_capsule_code_publication_request(**code)
+    code_request = preview["code_publication"]
+    first = approve(
+        code_request, "approval:sealed-media-code-publish-only",
+    )
+    published = publish_owner_approved_sealed_capsule_code(
+        **code, approval_id=first, now=now,
+    )
+    assert published["result"] == "PLATFORM_RELEASE_INSTALLED"
+    assert published["native_service_registered"] is False
+    assert published["reviewed_inner_manifest_sha256"] == manifest.digest
+
+    native = dict(
+        operation="register",
+        store=b1, verifier=__import__(
+            "sofia.platform.ops.platform_release",
+            fromlist=["PlatformReleaseVerifier"],
+        ).PlatformReleaseVerifier({
+            args["trusted_signer_key_id"]:
+                Path(args["trusted_public_key"]).read_bytes(),
+        }),
+        expected_target=args["expected_target"],
+        destination=release,
+        identity_home=identity_store.home,
+        local_state=local_state,
+        canonical_safe_state=canonical_state_path,
+    )
+    backend = DebianSystemdNativeService()
+    effects = []
+
+    def observed_native(spec):
+        effects.append((spec.platform_id, spec.manifest_sha256))
+        return dict(
+            schema="aegis.native-service-receipt.v1",
+            service=spec.service_name, process_state="RUNNING",
+            platform_id=spec.platform_id,
+            release_manifest_sha256=spec.manifest_sha256,
+            service_health="UNKNOWN", core_activated=False,
+        )
+
+    backend.register = observed_native
+    # The previous one-use code publication proof CANNOT register the service.
+    with pytest.raises((PermissionError, PlatformReleaseRejected)):
+        apply_owner_approved_native_service(
+            **native, backend=backend, approval_id=first, now=now,
+        )
+    assert effects == []
+    second_plan = native_service_operation_request(**native)
+    assert second_plan["fingerprint"] != code_request["fingerprint"]
+    second = approve(
+        second_plan, "approval:sealed-media-native-register-separate",
+    )
+    observed = apply_owner_approved_native_service(
+        **native, backend=backend, approval_id=second, now=now,
+    )
+    assert observed["process_state"] == "RUNNING"
+    assert observed["service_health"] == "UNKNOWN"
+    assert observed["full_health_certified"] is False
+    assert observed["core_activated"] is False
+    assert effects == [(installed_identity.identity.canonical_uuid, manifest.digest)]
+    assert b1.checkpoint().active_release_id is None
+    assert len(effects) == 1
