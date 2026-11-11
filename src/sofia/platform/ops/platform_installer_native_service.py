@@ -339,9 +339,26 @@ class DebianSystemdNativeService:
                 if source.read(len(expected) + 1) != expected:
                     raise PlatformInstallationDenied("foreign or changed systemd unit refused")
             after = os.fstat(fd)
-            if (details.st_dev, details.st_ino, details.st_size, details.st_mtime_ns) != (
-                after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns
-            ):
+            # Reading the original descriptor is not enough if another
+            # process swapped the unit pathname after open. Pin the on-disk
+            # entry to the same inode before returning to any native effect.
+            try:
+                on_disk = os.lstat(self.unit_path)
+            except OSError as error:
+                raise PlatformInstallationDenied(
+                    "systemd unit disappeared during inspection"
+                ) from error
+            before_identity = (
+                details.st_dev, details.st_ino, details.st_size, details.st_mtime_ns
+            )
+            if (not stat.S_ISREG(on_disk.st_mode)
+                    or before_identity != (
+                        after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns
+                    )
+                    or before_identity != (
+                        on_disk.st_dev, on_disk.st_ino,
+                        on_disk.st_size, on_disk.st_mtime_ns
+                    )):
                 raise PlatformInstallationDenied("systemd unit changed during inspection")
         finally:
             os.close(fd)
