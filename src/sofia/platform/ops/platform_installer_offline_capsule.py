@@ -23,7 +23,7 @@ import zipfile
 
 from sofia.platform.ops.platform_installer_offline_seed import review_core_free_offline_seed
 from sofia.platform.ops.platform_release import PlatformReleaseRejected
-from sofia.platform.state.artifact_file import read_artifact_file
+from sofia.platform.state.artifact_file import read_artifact_file, pinned_source_identity
 from sofia.platform.state.private_file import (
     assert_no_redirected_components, ensure_owner_private_directory,
 )
@@ -76,12 +76,8 @@ def _verified_stream_source(
     descriptor = os.open(path, flags)
     try:
         opened = os.fstat(descriptor)
-        identity = (
-            before.st_dev, before.st_ino, before.st_size,
-            before.st_mtime_ns, before.st_ctime_ns,
-        )
-        if (opened.st_dev, opened.st_ino, opened.st_size,
-                opened.st_mtime_ns, opened.st_ctime_ns) != identity:
+        identity = pinned_source_identity(before)
+        if pinned_source_identity(opened) != identity:
             raise PlatformReleaseRejected("signed asset changed before review")
         digest = sha256()
         remaining = expected_size
@@ -98,10 +94,8 @@ def _verified_stream_source(
         assert_no_redirected_components(path, include_leaf=True)
         final = path.stat(follow_symlinks=False)
         if (digest.hexdigest() != expected_sha256
-                or (after.st_dev, after.st_ino, after.st_size,
-                    after.st_mtime_ns, after.st_ctime_ns) != identity
-                or (final.st_dev, final.st_ino, final.st_size,
-                    final.st_mtime_ns, final.st_ctime_ns) != identity):
+                or pinned_source_identity(after) != identity
+                or pinned_source_identity(final) != identity):
             raise PlatformReleaseRejected("signed release asset bytes or inode differ")
     finally:
         os.close(descriptor)
@@ -121,10 +115,7 @@ def _archive_file_member(
         raise PlatformReleaseRejected("offline capsule member name invalid")
     assert_no_redirected_components(path, include_leaf=True)
     before = path.stat(follow_symlinks=False)
-    identity = (
-        before.st_dev, before.st_ino, before.st_size,
-        before.st_mtime_ns, before.st_ctime_ns,
-    )
+    identity = pinned_source_identity(before)
     if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1 or before.st_size != expected_size:
         raise PlatformReleaseRejected("reviewed signed ZIP source changed")
     info = zipfile.ZipInfo(filename=name, date_time=_STAMP)
@@ -138,8 +129,7 @@ def _archive_file_member(
     )
     try:
         opened = os.fstat(descriptor)
-        if (opened.st_dev, opened.st_ino, opened.st_size,
-                opened.st_mtime_ns, opened.st_ctime_ns) != identity:
+        if pinned_source_identity(opened) != identity:
             raise PlatformReleaseRejected("signed archive source substituted")
         digest = sha256()
         remaining = expected_size
@@ -158,10 +148,8 @@ def _archive_file_member(
         assert_no_redirected_components(path, include_leaf=True)
         final = path.stat(follow_symlinks=False)
         if (digest.hexdigest() != expected_sha256
-                or (after.st_dev, after.st_ino, after.st_size,
-                    after.st_mtime_ns, after.st_ctime_ns) != identity
-                or (final.st_dev, final.st_ino, final.st_size,
-                    final.st_mtime_ns, final.st_ctime_ns) != identity):
+                or pinned_source_identity(after) != identity
+                or pinned_source_identity(final) != identity):
             raise PlatformReleaseRejected("signed archive asset bytes or inode changed")
     finally:
         os.close(descriptor)
