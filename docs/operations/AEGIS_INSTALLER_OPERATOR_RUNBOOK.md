@@ -60,6 +60,50 @@ The `--status` probe intentionally returns exit code **3** and
 `status=UNAVAILABLE source=UNVERIFIED`. It must not report a connected,
 healthy or installed service without authenticated IPC.
 
+## Signed offline capsule staging (Debian Bash; inert files only)
+
+The one-script Bash launcher now has an explicit, **non-service** staging mode.
+Use an independently trusted copy of the launcher and its companion
+`verify-aegis-capsule.sh`, `inspect-aegis-capsule-members.sh`, and
+`stage-aegis-capsule.sh`. Do not execute copies from an unverified ZIP.
+The public publisher key and its SHA-256 pin MUST be obtained separately from
+the capsule, with current publisher trust/revocation reviewed out of band.
+
+Create or select an existing owner-owned **0700 directory** for the new stage
+parent, then run (no sudo or owner secret):
+
+```bash
+bash ./packaging/installers/install-aegis.sh \
+  --stage-capsule /path/to/aegis-offline.zip \
+  --capsule-signature /path/to/publisher-capsule.raw64 \
+  --publisher-key /separately/trusted/publisher.pem \
+  --publisher-sha256 ACTUAL_INDEPENDENTLY_PINNED_SHA256 \
+  --publisher-signer ACTUAL_APPROVED_SIGNER_ID \
+  --staging-destination /private/0700-parent/new-release-staging
+```
+
+The launcher delegates to the existing stock OpenSSL Ed25519 outer publisher
+seal verifier and the exact ZIP member index checker **before creating the
+staging destination**. It then re-hashes every extracted member, caps each
+member to 512 MiB, refuses path redirection and occupied destinations, uses
+owner-private directories and regular files, and re-hashes the complete ZIP
+before publishing a new staging directory without overwriting anything.
+
+The only successful result is
+`SIGNED_MEDIA_STAGED_NOT_INSTALLED`, with
+`native_service_registered=false`, `owner_approved=false`, and
+`core_activated=false`. This does **not** independently validate the inner
+PlatformReleaseManifest schema/signature using the bundled Python verifier,
+establish publisher revocation freshness, create a Platform identity, enroll
+Fleet, install code into B1, or start/enable any native service. Those steps
+still need the separate canonical B1 and attended SAFE/native transaction
+chain. The staging script has no automatic installation fallback.
+
+For interrupted staging, inspect the owner-private parent for
+`.aegis-stage-*` directories. Do not manually adopt any intermediate bytes
+as a verified release. Check the caller's exit code and repeat only after
+reconciling the exact capsule and publisher pins.
+
 ## Available internal signed verifier and lifecycle planning (not shell-enabled)
 
 The Platform Python package now exposes `verify_offline_installer_bundle` in
