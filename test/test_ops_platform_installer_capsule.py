@@ -242,13 +242,13 @@ def test_signed_offline_capsule_stages_inert_private_bytes_only(reviewed, tmp_pa
     tmp_path.chmod(0o700)
     destination = tmp_path / "verified-staging"
     command = [
-        "bash", str(PROJECT_ROOT / "packaging/installers/stage-aegis-capsule.sh"),
-        "--capsule", str(capsule),
-        "--signature", str(signature),
+        "bash", str(PROJECT_ROOT / "packaging/installers/install-aegis.sh"),
+        "--stage-capsule", str(capsule),
+        "--capsule-signature", str(signature),
         "--publisher-key", str(pins["trusted_public_key"]),
         "--publisher-sha256", pins["trusted_key_sha256"],
         "--publisher-signer", pins["trusted_signer_key_id"],
-        "--destination", str(destination),
+        "--staging-destination", str(destination),
     ]
     outcome = subprocess.run(command, capture_output=True, text=True, timeout=120)
     assert outcome.returncode == 0, outcome.stderr[:500]
@@ -315,12 +315,12 @@ def test_offline_stager_does_not_follow_untrusted_parent_or_accept_wrong_signer(
     owner_private.mkdir(mode=0o700)
     alias.symlink_to(owner_private, target_is_directory=True)
     args = [
-        "bash", str(PROJECT_ROOT / "packaging/installers/stage-aegis-capsule.sh"),
-        "--capsule", str(capsule), "--signature", str(signature),
+        "bash", str(PROJECT_ROOT / "packaging/installers/install-aegis.sh"),
+        "--stage-capsule", str(capsule), "--capsule-signature", str(signature),
         "--publisher-key", str(pins["trusted_public_key"]),
         "--publisher-sha256", pins["trusted_key_sha256"],
         "--publisher-signer", "wrong-signer",
-        "--destination", str(owner_private / "new-stage"),
+        "--staging-destination", str(owner_private / "new-stage"),
     ]
     denied_signer = subprocess.run(args, capture_output=True, text=True, timeout=20)
     assert denied_signer.returncode != 0
