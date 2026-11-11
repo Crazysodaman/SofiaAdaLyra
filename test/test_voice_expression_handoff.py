@@ -76,7 +76,7 @@ def request(c):
 
 
 def harness():
-    flags = dict(core=CORE, module=MODULE, authorized=True, output=True, text=TEXT)
+    flags = dict(core=CORE, module=MODULE, authorized=True, output=True, profile=True, text=TEXT)
     seen = set()
     sink = FakeSink()
 
@@ -91,6 +91,7 @@ def harness():
         current_module=lambda _id: flags["module"],
         authorize=lambda _request, _cue: flags["authorized"],
         output_allowed=lambda _id, _aud: flags["output"],
+        profile_allowed=lambda _core, _profile, _revision: flags["profile"],
         settled_text=lambda _id, _aud: flags["text"],
         claim_once=claim_once,
         sink=sink,
@@ -128,7 +129,7 @@ def test_broker_hands_authorized_cue_to_sink_once_without_modifying_voice():
 
 @pytest.mark.parametrize("change", [
     "unauthorized", "muted", "wrong_text", "wrong_core", "wrong_module",
-    "no_core", "no_module", "wrong_scope", "wrong_audience",
+    "no_core", "no_module", "wrong_scope", "wrong_audience", "profile_denied",
     "tampered_payload", "wrong_generation", "expired_cue", "future_cue",
     "wrong_correlation", "wrong_core_id",
 ])
@@ -142,6 +143,8 @@ def test_broker_denies_untrusted_or_stale_handoff_before_tts(change):
         flags["authorized"] = False
     elif change == "muted":
         flags["output"] = False
+    elif change == "profile_denied":
+        flags["profile"] = False
     elif change == "wrong_text":
         flags["text"] = "Different already-settled message"
     elif change == "wrong_core":
