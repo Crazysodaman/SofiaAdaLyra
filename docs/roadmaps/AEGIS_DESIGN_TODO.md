@@ -13,6 +13,12 @@
 
 **No scope expansion:** This clarification is a project-wide product preference, not authorization to install or activate anything, or a change to current branch/release/work assignment priorities. Source repository visibility is independent of intended use.
 
+## Security Profile C: high Core autonomy (owner direction: 2026-11-11)
+
+The owner selected [Aegis Security Profile C](../development/aegis-security-profile-c-high-autonomy.md), superseding the older CA-6505 Option B graduation path while preserving that historical record. Profile C uses a durable, revisioned, owner-established autonomy policy (`safe.autonomy.policy.change`, NEVER_SELF_AUTHORIZED). It may enable signed automatic Fleet admission and, in a future implementation, autonomous Core migration.
+
+Current implementation is **partial**: the policy, owner-proof invalidation, signed installation attestation, policy-governed admission, and shared Python/Rust admission contract are coded and source-tested on disposable state. **Autonomous Core migration remains DESIGN ONLY.** No installed-host, G8, production, or live migration acceptance is claimed. Permanent Fleet removal, trust-policy changes, credentials, SAFE/STOP, protected memory, constitutional identity, audit/backup disabling, public exposure, cross-Core protected data, and SYSTEM/root remain owner-only. The first real Venus-to-Artemis migration remains separately owner-approved.
+
 ## Operating rules
 
 - **Current implementation priority:** Aegis Platform 1.0, Core-free shakedown. Authoritative acceptance: [#201](https://github.com/Crazysodaman/SofiaAdaLyra/issues/201), parent [#120](https://github.com/Crazysodaman/SofiaAdaLyra/issues/120).
@@ -189,7 +195,7 @@ Possible split: Codex owns Platform/Rust/SDK boundaries, OpenCode develops Sofí
 
 **Representative user journeys:**
 - Open Fleet Manager on a Core-free Platform; see its actual local identity and empty/known Fleet entries, with no fabricated members.
-- Discover a disposable candidate; inspect fingerprint and exact UUID; submit separate owner approval; verify the canonical admission receipt; show enrolled status only after the verifier confirms it.
+- Discover a disposable candidate; inspect fingerprint and exact UUID; submit separate owner approval; verify the canonical admission receipt; show enrolled status only after the verifier confirms it. Under an active Profile C high-autonomy policy, a signed installation attestation may authorize automatic admission while still showing the exact policy, signer, attestation digest, and bounded initial permission.
 - Rename an enrolled target through the designated authority; conflicting, offline, revoked or stale-revision requests fail closed and show useful reasons.
 - Select one host to inspect Core, module and model capacity without presuming a live Core or permission for its private content.
 - Submit a scoped, approved remote operation; distinguish `REQUESTED`, `SUCCEEDED_VERIFIED`, `DENIED`, `UNREACHABLE` and `OUTCOME_UNKNOWN`; never replay uncertain effects automatically.

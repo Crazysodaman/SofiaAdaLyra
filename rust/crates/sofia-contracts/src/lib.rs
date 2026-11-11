@@ -1,6 +1,7 @@
 //! Authority-free, strict wire contracts shared with the Python SDK.
 #![forbid(unsafe_code)]
 
+pub mod fleet;
 pub mod identity;
 pub mod library;
 pub mod management;

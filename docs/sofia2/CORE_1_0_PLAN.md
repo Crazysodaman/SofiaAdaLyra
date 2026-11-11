@@ -16,6 +16,10 @@ Within existing CORE-01,07,11,13,15,16,20,33,35–40 and batches B00–B08, cert
 
 **G8:** Require actual verified owner-facing conversation and retention through restart/Core Link on the owner-profile installed-host fixture, no public/private cross-audience leak, no hidden network/external transcript, and no privilege grant merely because the owner personally controls all hosts. **GO remains NO** absent the existing integration evidence and actual G8 acceptance; no automatic protected-state move or live activation.
 
+## Security Profile C (owner direction: 2026-11-11)
+
+[Security Profile C](../development/aegis-security-profile-c-high-autonomy.md) supersedes the older CA-6505 Option B graduation path. An owner-established durable autonomy policy may enable signed automatic Fleet admission and future autonomous Core migration, but the policy itself is owner-only and never self-authorized by the Core. Automatic admission is coded and source-tested on disposable state; **autonomous Core migration remains DESIGN ONLY** with no live state movement. The first real Venus-to-Artemis migration remains separately owner-approved, preserving canonical UUID, Constitution, memory, history, lineage, verified backup, exactly one writer, and deny-on-uncertain-fencing behavior. Profile C adds no Platform #201 row, Core requirement ID, LIB scenario, or G8 criterion.
+
 ## Core feature inventory
 
 | ID | Feature | Brief responsibility |

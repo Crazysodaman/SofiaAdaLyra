@@ -40,8 +40,12 @@ audience.
 - Level 4 approval must bind to the exact action and target and should normally be one-time/consumable.
 - Level 5 operations may be proposed but never self-authorized by Sofía.
 - Permission changes themselves are Level 5.
-- Fleet enrollment/trust changes require explicit approval.
-- Fleet removal/decommission also requires explicit approval.
+- Fleet enrollment/trust changes require explicit approval by default. The sole
+  exception is automatic admission under an active, owner-established
+  high-autonomy policy with signed installation provenance; see
+  [Security Profile C](docs/development/aegis-security-profile-c-high-autonomy.md).
+- Fleet removal/decommission always requires explicit owner approval. No
+  autonomy policy authorizes removal.
 - Adult/private authority is separate from capability risk.
 - Private/adult state must not be disclosed to unapproved audiences.
 - Secrets may be inspected only as metadata such as configured/missing/expired. Raw secret values must not be exposed to the cognitive model.
@@ -54,6 +58,7 @@ Status:
 - 🟡 partial / foundation exists
 - ➕ planned or missing
 - 🔀 implemented but permission treatment should change
+- 📝 design/policy placeholder only; not executable
 
 | Area | Capability / action | Level | Privacy | Status / rule |
 |---|---|---:|---|---|
@@ -97,16 +102,18 @@ Status:
 | Fleet | Generate repair proposal | 1 | PRIVATE | ✅ Proposal only |
 | Fleet | Reconciliation preview | 1 | PRIVATE | ✅ |
 | Fleet | Migration planning | 1 | PRIVATE | ✅ |
+| Fleet | Autonomous Core migration | 4/5 | PROTECTED_PRIVATE | 📝 Design only; policy flag reserved, not implemented or tested; first live migration separately owner-approved |
 | Fleet | Refresh telemetry automatically | 2 | PRIVATE | 🟡 |
 | Fleet | Mark node temporarily stale/unreachable | 2 | PRIVATE | ➕ Observation, not removal |
-| Fleet | Enroll/add computer to Fleet | 4 | PRIVATE | ✅ Exact one-time Sparks approval; tray Permissions can approve a selected verified candidate |
-| Fleet | Trust machine identity/key | 4 | PRIVATE | 🔀 Exact approval |
+| Fleet | Enroll/add computer to Fleet | 4 | PRIVATE | ✅ Exact one-time Sparks approval by default; tray Permissions can approve a selected verified candidate. Owner-established high-autonomy policy may allow signed automatic admission (Profile C) |
+| Fleet | Trust machine identity/key | 4 | PRIVATE | 🔀 Exact approval by default; automatic admission binds the same canonical node identity and key under an active policy, never a generic standing trust grant |
 | Fleet | Install Fleet agent | 4 | PRIVATE | ✅/🔀 Exact machine/package approval |
 | Fleet | Rekey Fleet node | 4 | PRIVATE | ✅/🟡 |
 | Fleet | Remove/decommission Fleet machine | 4 | PRIVATE | ✅ Explicit approval |
 | Fleet | Change node privileges | 4 | PRIVATE | ✅/🟡 |
-| Fleet | Change Fleet trust policy | 5 | PROTECTED_PRIVATE | ➕ |
-| Fleet | Change enrollment requirements | 5 | PROTECTED_PRIVATE | ➕ |
+| Fleet | Change Fleet trust policy | 5 | PROTECTED_PRIVATE | ➕ Owner-only |
+| Fleet | Change enrollment requirements | 5 | PROTECTED_PRIVATE | ➕ Owner-only |
+| Autonomy | Establish/revise autonomy policy (`safe.autonomy.policy.change`) | 5 | PROTECTED_PRIVATE | ✅ Exact one-use owner approval; owner proof revocation invalidates the policy |
 | Remote machines | Inspect remote process/system/network/services | 1 | PRIVATE | ✅ |
 | Remote machines | Inspect remote hardware | 1 | PRIVATE | ✅ |
 | Remote machines | Inspect remote VMs | 1 | PRIVATE | ✅ |
@@ -501,7 +508,42 @@ Current autonomous exploration capabilities include:
   protected Level 4 operations.
 
 Fleet candidate promotion remains deliberately separate from discovery:
-**adding/trusting/enrolling a computer into Fleet requires exact Sparks approval.**
+**adding/trusting/enrolling a computer into Fleet requires exact Sparks approval
+by default.**
+
+### Security Profile C: high autonomy
+
+The owner may establish a durable high-autonomy policy by exact one-use owner
+approval for `safe.autonomy.policy.change`. The policy is a protected
+authorization boundary, not a capability grant. It is revisioned, audited, and
+fails closed when its owner proof is revoked, rotated, or tampered with.
+
+With an active `high_autonomy` policy that explicitly enables automatic Fleet
+admission, an untrusted candidate may be enrolled without a per-host approval
+only when all of the following hold:
+
+- the policy carries a nonempty owner-approved installation signer key set;
+- the installation presents a valid short-lived Ed25519 attestation binding its
+  installation identity, node UUID, public-key SHA-256, release manifest digest,
+  and signer key ID;
+- the discovered node UUID/key and exact HTTPS endpoint match that attestation;
+- the initial permission level is bounded by policy and never exceeds level 3;
+- the active policy and grant are rechecked inside the same SQLite transaction
+  that publishes trust.
+
+Discovery or mTLS alone never enrolls a host. Permanent removal, trust-policy
+changes, credential changes, protected memory, constitutional identity, STOP,
+audit/backup disabling, public exposure, cross-Core protected data, and
+SYSTEM/root authority remain owner-only and are not reachable through this
+policy.
+
+The policy schema also reserves an `automatic_core_migration` flag, but
+autonomous Core migration is **design only** and is not implemented or tested.
+No live state movement is authorized by the policy. The first real
+Venus-to-Artemis migration remains separately owner-approved, and autonomous
+migration must first be validated on disposable state with canonical identity,
+memory, history, lineage, verified backup, exactly one writer, and
+deny-on-uncertain-fencing behavior.
 
 Approved network CIDR scopes, explicit Fleet-agent targets, automatic Fleet
 candidate discovery, scan interval, and maximum hosts per scope are configurable
@@ -542,7 +584,8 @@ deploy
 delete
 reboot
 disclose private/adult state
-enroll or remove Fleet members
+enroll or remove Fleet members, except signed automatic admission under an
+active owner-established high-autonomy policy; removal is always owner-only
 change security
 change permissions
 ```

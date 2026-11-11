@@ -9,9 +9,17 @@ from sofia.platform.distributed.model import NodeEnrollment, NodeEndpoint, Appro
 from contextlib import closing, ExitStack
 from sofia.platform.distributed.identity_durable import DurableNodeIdentityRegistry
 from sofia.platform.distributed.endpoint_policy_durable import DurableEndpointPolicy
+from sofia.platform.safe.autonomy_policy import AutonomyPolicyStore
 from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.platform.state.sqlite_plane import SQLiteStatePlane
 from sofia.platform.state.model import StateKey, StateRecord, StateClass
+from .automatic_admission import (
+    AutomaticAdmissionGrant,
+    InstallationAttestation,
+    InstallationAttestationVerifier,
+    authorize_automatic_admission,
+    recheck_automatic_grant,
+)
 from .state_registry import StatePlaneFleetRegistry
 from .fleet import FleetRegistry
 from .model import FleetHost,HostLifecycle
@@ -63,6 +71,8 @@ class FleetEnrollmentService:
         *,
         enrolled_notifier:Callable[[FleetHost,MachineNodeBinding,NodeEnrollment,AuthenticatedPeerEvidence],None]|None=None,
         clock:Callable[[],datetime]|None=None,
+        autonomy_policy_store:AutonomyPolicyStore|None=None,
+        attestation_verifier:InstallationAttestationVerifier|None=None,
     )->None:
         self.registry=registry
         if clock is not None and not callable(clock):
@@ -71,6 +81,18 @@ class FleetEnrollmentService:
         if enrolled_notifier is not None and not callable(enrolled_notifier):
             raise TypeError("enrolled_notifier must be callable or None")
         self.enrolled_notifier=enrolled_notifier
+        if autonomy_policy_store is not None and not isinstance(
+            autonomy_policy_store,AutonomyPolicyStore
+        ):
+            raise TypeError("autonomy_policy_store must be AutonomyPolicyStore or None")
+        if attestation_verifier is not None and not isinstance(
+            attestation_verifier,InstallationAttestationVerifier
+        ):
+            raise TypeError(
+                "attestation_verifier must be InstallationAttestationVerifier or None"
+            )
+        self.autonomy_policy_store=autonomy_policy_store
+        self.attestation_verifier=attestation_verifier
 
     def set_enrolled_notifier(
         self,
@@ -115,16 +137,68 @@ class FleetEnrollmentService:
         approval:FleetEnrollmentApproval,
         endpoint:NodeEndpoint|None=None,
     )->FleetHost:
-        if not isinstance(approval,FleetEnrollmentApproval):
+        return self._enroll(
+            candidate,binding=binding,enrollment=enrollment,peer=peer,
+            approval=approval,endpoint=endpoint,
+        )
+
+    def enroll_under_policy(
+        self,
+        candidate:FleetHost,
+        *,
+        binding:MachineNodeBinding,
+        enrollment:NodeEnrollment,
+        peer:AuthenticatedPeerEvidence,
+        attestation:InstallationAttestation,
+        endpoint:NodeEndpoint|None=None,
+        policy_store:AutonomyPolicyStore|None=None,
+        attestation_verifier:InstallationAttestationVerifier|None=None,
+    )->FleetHost:
+        """Automatic admission strictly under an active owner autonomy policy."""
+        store=policy_store or self.autonomy_policy_store
+        verifier=attestation_verifier or self.attestation_verifier
+        if not isinstance(store,AutonomyPolicyStore):
+            raise PermissionError("automatic admission requires a canonical policy store")
+        if not isinstance(verifier,InstallationAttestationVerifier):
+            raise PermissionError("automatic admission requires a provenance verifier")
+        now=self._clock()
+        policy=store.resolve(now=now)
+        grant=authorize_automatic_admission(
+            policy,candidate,node_id=enrollment.node.node_id,
+            public_key_sha256=enrollment.public_key_sha256,
+            attestation=attestation,verifier=verifier,now=now,
+        )
+        return self._enroll(
+            candidate,binding=binding,enrollment=enrollment,peer=peer,
+            approval=None,endpoint=endpoint,autonomous=(store,grant),
+        )
+
+    def _enroll(
+        self,
+        candidate:FleetHost,
+        *,
+        binding:MachineNodeBinding,
+        enrollment:NodeEnrollment,
+        peer:AuthenticatedPeerEvidence,
+        approval:FleetEnrollmentApproval|None,
+        endpoint:NodeEndpoint|None,
+        autonomous:tuple[AutonomyPolicyStore,AutomaticAdmissionGrant]|None=None,
+    )->FleetHost:
+        if approval is not None and autonomous is not None:
+            raise PermissionError("Fleet enrollment cannot combine approval and policy")
+        if approval is None and autonomous is None:
             raise PermissionError("Fleet enrollment requires exact owner approval")
-        if (
-            approval.host_id!=candidate.host_id
-            or approval.node_id!=enrollment.node.node_id
-            or approval.public_key_sha256!=enrollment.public_key_sha256
-        ):
-            raise PermissionError(
-                "Fleet enrollment approval does not match discovered host identity"
-            )
+        if approval is not None:
+            if not isinstance(approval,FleetEnrollmentApproval):
+                raise PermissionError("Fleet enrollment requires exact owner approval")
+            if (
+                approval.host_id!=candidate.host_id
+                or approval.node_id!=enrollment.node.node_id
+                or approval.public_key_sha256!=enrollment.public_key_sha256
+            ):
+                raise PermissionError(
+                    "Fleet enrollment approval does not match discovered host identity"
+                )
         if candidate.lifecycle is not HostLifecycle.CANDIDATE: raise ValueError("fleet enrollment starts from a candidate")
         if candidate.trusted: raise ValueError("candidate must enter authenticated enrollment untrusted")
         if candidate.host_id!=binding.host_id: raise PermissionError("binding is for a different machine")
@@ -176,21 +250,38 @@ class FleetEnrollmentService:
                 recorded_endpoint=endpoints._get_in_transaction(db,enrollment.node.node_id)
                 if recorded_endpoint is not None and recorded_endpoint != endpoint:
                     raise PermissionError("Fleet endpoint differs from approved discovery evidence")
-                verified=verifier.consume(approval_id=approval.approval_id,capability="fleet.enroll",parameters=parameters,now=now,_transaction_db=db)
-                accepted_enrollment=replace(enrollment,recorded_by=verified.principal_id)
+                if approval is not None:
+                    verified=verifier.consume(approval_id=approval.approval_id,capability="fleet.enroll",parameters=parameters,now=now,_transaction_db=db)
+                    principal_id=verified.principal_id
+                    enrollment_event=f"fleet-enrollment:{verified.approval_id}"
+                    audit_extra={"approval_id":verified.approval_id}
+                else:
+                    policy_store,grant=autonomous
+                    current_policy=policy_store.resolve(now=now,_transaction_db=db)
+                    recheck_automatic_grant(current_policy,candidate,grant)
+                    principal_id=f"policy:{grant.policy_id}"
+                    enrollment_event=f"fleet-enrollment-policy:{grant.policy_id}:{grant.attestation_digest}"
+                    audit_extra={
+                        "policy_id":grant.policy_id,
+                        "policy_revision":grant.policy_revision,
+                        "attestation_digest":grant.attestation_digest,
+                        "signer_key_id":grant.signer_key_id,
+                        "initial_permission_level":grant.initial_permission_level,
+                    }
+                accepted_enrollment=replace(enrollment,recorded_by=principal_id)
                 if existing is None:
                     identities._enroll_in_transaction(db,accepted_enrollment)
                 if recorded_endpoint is None:
-                    endpoints._approve_in_transaction(db,ApprovedEndpoint(enrollment.node.node_id,endpoint,verified.principal_id))
+                    endpoints._approve_in_transaction(db,ApprovedEndpoint(enrollment.node.node_id,endpoint,principal_id))
                 enrolled=replace(candidate,trusted=True,node_id=enrollment.node.node_id,lifecycle=HostLifecycle.ENROLLED)
                 plane._write_one(db,StateRecord(key=key,state_class=StateClass.SHARED_AUTHORITATIVE,
                     revision=current.revision+1,value=self.registry._encode(enrolled),updated_at=now,
                     source="ops:fleet:authenticated-enrollment"),current.revision)
                 verifier.audit.append_in_transaction(
-                    db,actor_id=verified.principal_id,event_type="fleet.enrolled",
-                    payload={**parameters,"approval_id":verified.approval_id,
+                    db,actor_id=principal_id,event_type="fleet.enrolled",
+                    payload={**parameters,**audit_extra,
                         "registry_revision":current.revision+1},
-                    occurred_at=now,event_id=f"fleet-enrollment:{verified.approval_id}",
+                    occurred_at=now,event_id=enrollment_event,
                 )
             # Publish cache and notify only after every owner has committed.
             self.registry._hosts[candidate.host_id]=enrolled

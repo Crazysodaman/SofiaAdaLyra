@@ -1,6 +1,15 @@
 # V18 CA-6505 | Owner-approved autonomy graduation Option B
 
-**Decision date:** 2026-10-12 (America/Chicago). **Owner selection:** Option B, the balanced, proof-first Level 3 graduation policy. **Status:** authoritative owner design requirement; implementation and acceptance verification remain open. This record does not issue, sign, renew, extend, revoke or install any live permission.
+> **SUPERSEDED 2026-11-11 by Security Profile C.** The current owner direction
+> is [Aegis Security Profile C: high Core autonomy](aegis-security-profile-c-high-autonomy.md),
+> which uses an owner-established durable autonomy policy rather than the
+> Option B proof-count graduation path. This document is preserved unchanged
+> below as historical evidence. Option B is not the current implementation
+> target and no Option B authority is implied by Profile C. Profile C remains
+> owner-only to establish and does not authorize live migration or production
+> activation.
+
+**Decision date:** 2026-10-12 (America/Chicago). **Owner selection:** Option B, the balanced, proof-first Level 3 graduation policy. **Status:** historical owner design record, superseded 2026-11-11 by Security Profile C. This record does not issue, sign, renew, extend, revoke or install any live permission.
 
 ## Decision
 

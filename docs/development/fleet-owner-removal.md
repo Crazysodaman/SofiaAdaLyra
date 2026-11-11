@@ -1,6 +1,9 @@
 # Owner-authorized Fleet removal
 
 Final removal is an explicitly classified NEVER_SELF_AUTHORIZED operation.
+Security Profile C adds no automatic removal path: an owner-established
+high-autonomy policy may govern automatic admission, but it never authorizes
+permanent removal, decommissioning, or trust-policy weakening.
 The canonical registry binds a fresh existing SAFE approval to host ID, node
 UUID, proposal, previous lifecycle and exact registry revision. Actor display
 text is compatibility metadata and cannot authorize the operation. In-memory

@@ -373,6 +373,14 @@ _SCREEN_NEVER_SELF = frozenset({
     "screen.act_exact",
 })
 
+# These actions are reachable only through a verified active autonomy policy.
+# They are explicitly classified so they never become unknown, but they are
+# deliberately excluded from generic automatic capability projection.
+_POLICY_GOVERNED = frozenset({
+    "fleet.admit.automatic",
+    "core.migrate.automatic",
+})
+
 _NEVER_SELF_AUTHORIZED = frozenset({
     "fleet.callsign.authority.initialize",
     "fleet.callsign.register",
@@ -389,6 +397,7 @@ _NEVER_SELF_AUTHORIZED = frozenset({
     # owner, never automatically adopted from a Hub or downloaded manifest.
     "platform.library.owner_trust.enroll",
     "platform.library.owner_trust.revoke",
+    "safe.autonomy.policy.change",
     "fleet.trust-policy.change",
     "fleet.decommission",
     "ops.restore.receipt.revoke",
@@ -405,6 +414,7 @@ def explicitly_classified_capabilities() -> frozenset[str]:
         | _NEVER_SELF_AUTHORIZED
         | _SCREEN_PROTECTED
         | _SCREEN_NEVER_SELF
+        | _POLICY_GOVERNED
     )
 
 
@@ -454,6 +464,14 @@ def capability_permission_policy(capability: str) -> CapabilityPermissionPolicy:
             PrivacyClass.PRIVATE,
             True,
             "Reversible change allowed by exact approval or scoped standing grant.",
+        )
+    if capability in _POLICY_GOVERNED:
+        return CapabilityPermissionPolicy(
+            capability,
+            PermissionLevel.SAFE_AUTONOMOUS,
+            PrivacyClass.PROTECTED_PRIVATE,
+            False,
+            "Automatic action reachable only through an active owner-established policy.",
         )
     if capability in _NEVER_SELF_AUTHORIZED:
         return CapabilityPermissionPolicy(

@@ -45,6 +45,8 @@ Identity fields must distinguish:
 
 Peer admission uses reviewed **mutual TLS, pinned keys/verified trust roots**, exact version/capability negotiation, revocable authorization, endpoint policy, anti-replay, rate limits and explicit per-direction consent. Discovery does not enroll a host; mTLS alone does not authorize private data sharing or command execution.
 
+[Security Profile C](../development/aegis-security-profile-c-high-autonomy.md) is a narrower exception for Fleet admission only: an owner-established high-autonomy policy may accept a signed installation attestation for automatic admission while still binding the exact node UUID, key, endpoint, signer, and bounded initial permission. It does not enroll a peer for federation, does not grant private-data sharing, command execution, or social trust, and adds no automatic removal path. Permanent Fleet removal remains owner-only.
+
 Reuse the existing \`src/sofia/platform/distributed/\` identity, pinning, grants, remote ledgers and bounded transport as appropriate. Those currently support Fleet remote operations/inference; they are **not** a working inter-Core federation inbox, relationship protocol or social consent authority.
 
 Provide audited enrollment/disconnect/revoke/blocked-peer/read-status interfaces. Owner may suspend peer communication globally or per peer; an emergency STOP and local security revocation override all social preferences. Secure automatic background peer outreach is opt-in and bounded, not implicit just because two Platforms can connect.
