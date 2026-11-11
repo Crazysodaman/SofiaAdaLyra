@@ -252,6 +252,13 @@ class DebianSystemdNativeService:
                     raise PlatformInstallationDenied(
                         "Platform SQLite state directory must be owner-writable"
                     )
+            if node == spec.local_state:
+                if (not stat.S_ISREG(details.st_mode)
+                        or not (details.st_mode & stat.S_IRUSR)
+                        or not (details.st_mode & stat.S_IWUSR)):
+                    raise PlatformInstallationDenied(
+                        "Platform SQLite database must be an owner-readable and writable file"
+                    )
         for node in (spec.executable, spec.python_executable):
             details = node.stat(follow_symlinks=False)
             if not stat.S_ISREG(details.st_mode) or not details.st_mode & stat.S_IXUSR:
