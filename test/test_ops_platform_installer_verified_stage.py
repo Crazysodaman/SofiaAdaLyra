@@ -24,6 +24,9 @@ from sofia.platform.ops.platform_installer_sealed_publication import (
     signed_capsule_code_publication_request,
     publish_owner_approved_sealed_capsule_code,
 )
+from sofia.platform.ops.platform_installer_capsule_b1_stage import (
+    stage_sealed_capsule_for_b1,
+)
 from sofia.platform.ops.platform_installation import PlatformInstallationStore
 from sofia.platform.safe.execution_approval import ExecutionApproval, ExecutionApprovalVerifier
 from test.owner_auth_fixture import record_verified_owner_approval
@@ -86,6 +89,19 @@ def sealed_stage(reviewed, tmp_path):
     return args, staged, capsule, manifest, tmp_path
 
 
+def _stage_original_signed_capsule_as_B1_candidate(args, home):
+    candidate = home / "canonical-b1-stage"
+    receipt = stage_sealed_capsule_for_b1(
+        **args, b1_staging_candidate=candidate,
+    )
+    assert receipt["result"] == "SIGNED_B1_CODE_STAGED_NOT_INSTALLED"
+    assert receipt["stage_receipt"]["result"] == "VERIFIED_PLATFORM_CODE_STAGED"
+    assert receipt["owner_approved"] is False
+    assert receipt["native_service_registered"] is False
+    assert (candidate / "stage-receipt.json").is_file()
+    return candidate
+
+
 def test_outer_seal_and_inner_b1_verifier_agree_without_any_install(sealed_stage):
     args, staged, capsule, manifest, host = sealed_stage
     review = review_staged_publisher_signed_capsule(**args)
@@ -140,6 +156,7 @@ def test_sealed_media_to_B1_code_publication_requires_distinct_owner_approval(
     installed = host / "published-code"
     params = dict(
         **args,
+        b1_staging_candidate=_stage_original_signed_capsule_as_B1_candidate(args, host),
         destination=installed,
         identity_home=host / "protected-identity",
         state_path=canonical_state_path,
@@ -205,7 +222,9 @@ def test_sealed_code_publication_refuses_changed_stage_before_safe_consumption(
     store = PlatformInstallationStore(host / "b1-denied-store.db")
     installed = host / "never-published"
     params = dict(
-        **args, destination=installed,
+        **args,
+        b1_staging_candidate=_stage_original_signed_capsule_as_B1_candidate(args, host),
+        destination=installed,
         identity_home=host / "identity",
         state_path=canonical_state_path, store=store,
     )
@@ -241,7 +260,9 @@ def test_sealed_capsule_publishes_B1_then_registers_only_with_second_owner_proof
     b1 = PlatformInstallationStore(home / "b1-two-authorities.db")
     release = home / "private-installed-code"
     code = dict(
-        **args, destination=release,
+        **args,
+        b1_staging_candidate=_stage_original_signed_capsule_as_B1_candidate(args, home),
+        destination=release,
         identity_home=identity_store.home, state_path=canonical_state_path,
         store=b1,
     )
