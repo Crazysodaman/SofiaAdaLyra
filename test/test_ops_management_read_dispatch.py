@@ -1,0 +1,230 @@
+"""Management dispatch is authorized by the host, never by request syntax."""
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+import json
+from pathlib import Path
+
+import pytest
+
+from sofia.platform.application.management_read_service import (
+    ManagementReadDenied, PlatformManagementReadDispatcher,
+)
+
+pytestmark = pytest.mark.pkg_ops
+NOW = datetime(2026, 11, 8, 4, tzinfo=timezone.utc)
+ROOT = Path(__file__).resolve().parents[1]
+FIXTURE = ROOT / "contracts/platform/management-read-valid-v1.json"
+
+
+def configured(provider=None):
+    state = {
+        "active": True,
+        "stop": False,
+        "platform_id": "platform:alpha",
+        "generation": 3,
+        "reads": 0,
+        "checks": 0,
+        "time": NOW,
+    }
+    def authorize(peer, operation):
+        state["checks"] += 1
+        return (state["active"] and peer is state and operation == "platform.status")
+    def read(peer):
+        assert peer is state
+        state["reads"] += 1
+        return {"health": "unknown", "source": "Platform"}
+    manager = PlatformManagementReadDispatcher(
+        authorize_peer=authorize,
+        current_identity=lambda: (state["platform_id"], state["generation"]),
+        operator_stop_active=lambda: state["stop"],
+        providers={"platform.status": provider or read},
+        clock=lambda: state["time"],
+    )
+    return state, manager
+
+
+def request(**values):
+    doc = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    doc.update(values)
+    return json.dumps(doc).encode("utf-8")
+
+
+def test_reviewed_read_requires_live_transport_auth_on_both_sides():
+    state, manager = configured()
+    result = manager.read(request(), peer=state)
+    assert result.platform_id == "platform:alpha"
+    assert result.generation == 3
+    assert state["reads"] == 1 and state["checks"] == 2
+    output = json.loads(result.to_json())
+    assert output["payload"]["health"] == "unknown"
+    assert output["schema"] == "aegis.platform.management.response.v1"
+    assert "authenticated" not in output
+
+
+def test_missing_and_forged_peer_never_call_provider():
+    state, manager = configured()
+    for peer in (None, object(), {"active": True}):
+        with pytest.raises(ManagementReadDenied, match="authorization"):
+            manager.read(request(), peer=peer)
+    assert state["reads"] == 0
+
+
+def test_revocation_midflight_drops_result():
+    state = {}
+    def revoke(peer):
+        assert peer is state
+        state["active"] = False
+        return {"modules": []}
+    state, manager = configured(revoke)
+    with pytest.raises(ManagementReadDenied, match="authorization"):
+        manager.read(request(), peer=state)
+    assert state["checks"] == 2
+
+
+def test_identity_generation_or_stop_changes_midflight_fail_closed():
+    for action in ("generation", "platform_id", "stop"):
+        state = {}
+        def alter(peer):
+            assert peer is state
+            state[action] = (
+                4 if action == "generation" else "platform:other"
+                if action == "platform_id" else True
+            )
+            return {"state": "unknown"}
+        state, manager = configured(alter)
+        with pytest.raises(ManagementReadDenied, match="generation, identity or STOP"):
+            manager.read(request(), peer=state)
+
+
+def test_initial_stop_and_stale_request_never_read():
+    state, manager = configured()
+    state["stop"] = True
+    with pytest.raises(ManagementReadDenied, match="STOP"):
+        manager.read(request(), peer=state)
+    assert state["reads"] == 0
+    state["stop"] = False
+    state["time"] += timedelta(minutes=3)
+    with pytest.raises(PermissionError):
+        manager.read(request(), peer=state)
+    assert state["reads"] == 0
+
+
+def test_requested_unknown_read_provider_denied_before_auth():
+    state, manager = configured()
+    with pytest.raises(ManagementReadDenied, match="unavailable"):
+        manager.read(request(operation="module.list"), peer=state)
+    assert state["reads"] == 0
+
+
+def test_suspicious_secret_fields_are_never_serialized():
+    state, manager = configured(lambda _peer: {
+        "status": "unknown", "owner_secret": "64hex-private-credential",
+    })
+    with pytest.raises(ManagementReadDenied, match="sensitive"):
+        manager.read(request(), peer=state)
+
+
+def test_oversized_or_invalid_provider_payload_fails_closed():
+    state, manager = configured(lambda _peer: {"data": "x" * 35000})
+    with pytest.raises(ManagementReadDenied, match="exceeds limit"):
+        manager.read(request(), peer=state)
+    state, manager = configured(lambda _peer: {"data": object()})
+    with pytest.raises(ManagementReadDenied, match="unsupported"):
+        manager.read(request(), peer=state)
+
+
+def test_authentication_is_not_supplied_by_request_fields():
+    state, manager = configured()
+    with pytest.raises(ValueError, match="unreviewed"):
+        manager.read(request(owner_approved=True), peer=state)
+
+
+def test_midflight_clock_expiry_refuses_delivery():
+    state = {}
+    def slow(peer):
+        assert peer is state
+        state["time"] = NOW + timedelta(seconds=6)
+        return {"state": "unknown"}
+    state, manager = configured(slow)
+    with pytest.raises(ManagementReadDenied, match="exceeded request deadline"):
+        manager.read(request(), peer=state)
+
+
+def test_truthy_non_boolean_authorization_cannot_grant_access():
+    state, _ = configured()
+    reads = []
+    dispatcher = PlatformManagementReadDispatcher(
+        authorize_peer=lambda *_: "yes",
+        current_identity=lambda: ("platform:alpha", 3),
+        operator_stop_active=lambda: False,
+        providers={"platform.status": lambda _peer: reads.append(1) or {}},
+        clock=lambda: NOW,
+    )
+    with pytest.raises(ManagementReadDenied, match="authorization"):
+        dispatcher.read(request(), peer=state)
+    assert not reads
+
+
+def test_unknown_operator_stop_state_is_not_equivalent_to_clear():
+    state, _ = configured()
+    reads = []
+    dispatcher = PlatformManagementReadDispatcher(
+        authorize_peer=lambda *_: True,
+        current_identity=lambda: ("platform:alpha", 3),
+        operator_stop_active=lambda: None,
+        providers={"platform.status": lambda _peer: reads.append(1) or {}},
+        clock=lambda: NOW,
+    )
+    with pytest.raises(ManagementReadDenied, match="STOP"):
+        dispatcher.read(request(), peer=state)
+    assert not reads
+
+
+def test_provider_mutation_after_read_cannot_modify_verified_response():
+    state, _ = configured()
+    payload = {"state": "unknown"}
+    state, manager = configured(lambda _peer: payload)
+    result = manager.read(request(), peer=state)
+    payload["owner_secret"] = "leaked-after-review"
+    assert "owner_secret" not in result.to_json().decode("utf-8")
+    assert result.payload["state"] == "unknown"
+
+
+def test_client_side_prototype_pollution_key_is_denied():
+    state, manager = configured(lambda _peer: {
+        "modules": [{"__proto__": {"isAdmin": True}}],
+    })
+    with pytest.raises(ManagementReadDenied, match="sensitive"):
+        manager.read(request(), peer=state)
+
+
+def test_wallclock_rollback_midflight_fails_closed():
+    state = {}
+    def move_back(peer):
+        assert peer is state
+        state["time"] = NOW - timedelta(seconds=1)
+        return {"state": "unknown"}
+    state, manager = configured(move_back)
+    with pytest.raises(ManagementReadDenied, match="deadline"):
+        manager.read(request(), peer=state)
+
+
+def test_provider_receives_transport_verified_peer_not_request_grants():
+    accepted = []
+    peer = object()
+    dispatcher = PlatformManagementReadDispatcher(
+        authorize_peer=lambda presented, _operation: presented is peer,
+        current_identity=lambda: ("platform:alpha", 3),
+        operator_stop_active=lambda: False,
+        providers={"platform.status": lambda observed: (
+            accepted.append(observed) or {"status": "unknown"}
+        )},
+        clock=lambda: NOW,
+    )
+    result = dispatcher.read(request(), peer=peer)
+    assert result.payload == {"status": "unknown"}
+    assert accepted == [peer]
+    with pytest.raises(ManagementReadDenied):
+        dispatcher.read(request(), peer=object())
+    assert accepted == [peer]
