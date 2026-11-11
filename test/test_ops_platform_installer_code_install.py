@@ -49,6 +49,39 @@ def test_code_publication_request_is_pure_preview_with_scoped_exact_hash(scope):
     assert args["store"].history() == before
 
 
+def test_capsule_bound_code_publication_approval_cannot_replace_outer_media(scope):
+    params = dict(scope)
+    plain = signed_code_publication_request(**params)
+    sealed = signed_code_publication_request(
+        **params, outer_capsule_sha256="a" * 64,
+        delivery_index_sha256="b" * 64,
+    )
+    assert sealed["fingerprint"] != plain["fingerprint"]
+    assert sealed["parameters"]["outer_capsule_sha256"] == "a" * 64
+    assert sealed["parameters"]["delivery_index_sha256"] == "b" * 64
+    modified_media = signed_code_publication_request(
+        **params, outer_capsule_sha256="c" * 64,
+        delivery_index_sha256="b" * 64,
+    )
+    modified_inventory = signed_code_publication_request(
+        **params, outer_capsule_sha256="a" * 64,
+        delivery_index_sha256="c" * 64,
+    )
+    assert modified_media["fingerprint"] != sealed["fingerprint"]
+    assert modified_inventory["fingerprint"] != sealed["fingerprint"]
+    with pytest.raises(PlatformInstallationDenied):
+        signed_code_publication_request(
+            **params, outer_capsule_sha256="a" * 64,
+        )
+    with pytest.raises(PlatformInstallationDenied):
+        signed_code_publication_request(
+            **params, outer_capsule_sha256="BAD",
+            delivery_index_sha256="b" * 64,
+        )
+    assert not params["destination"].exists()
+    assert params["store"].history() == []
+
+
 @pytest.mark.parametrize("approval_id", ("", "bogus-unapproved-id"))
 def test_code_mutation_refused_without_current_owner_proof(scope, approval_id):
     args = dict(scope)
