@@ -233,6 +233,9 @@ class FakeScm:
         self.command = None
         self.state = self.SERVICE_STOPPED
         self.events = []
+        self.service_type = self.SERVICE_WIN32_OWN_PROCESS
+        self.start_type = self.SERVICE_AUTO_START
+        self.account = "LocalService"
 
     def OpenSCManager(self, *args):
         return "manager"
@@ -258,7 +261,8 @@ class FakeScm:
         return (0, self.state)
 
     def QueryServiceConfig(self, *args):
-        return (0, 0, 0, self.command, None, 0, None, "LocalService", "Aegis")
+        return (self.service_type, self.start_type, 0, self.command,
+                None, 0, None, self.account, "Aegis")
 
     def ControlService(self, *args):
         self.state = self.SERVICE_STOPPED
@@ -307,6 +311,29 @@ def test_windows_scm_replace_requires_unchanged_platform_identity(native_spec):
     assert fake.events[-3:] == ["stopped", "updated", "started"]
     with pytest.raises(PlatformInstallationDenied, match="identity|Platform UUID"):
         driver.replace_verified(replacement, replace(spec, platform_id="forged"))
+
+@pytest.mark.parametrize("attribute, forged", [
+    ("service_type", 999),
+    ("start_type", FakeScm.SERVICE_DEMAND_START),
+    ("account", "LocalSystem"),
+])
+def test_windows_scm_foreign_service_refused_for_maintenance(
+        native_spec, attribute, forged):
+    fake = FakeScm()
+    driver = WindowsScmNativeService(service_api=fake, error_type=FakeScmError)
+    spec = windows_spec(native_spec)
+    driver.register(spec)
+    setattr(fake, attribute, forged)
+    before = list(fake.events)
+    for operation in (
+        lambda: driver.restart_verified(spec),
+        lambda: driver.replace_verified(spec, replace(spec, revision=8)),
+        lambda: driver.stop_and_unregister(spec),
+    ):
+        with pytest.raises(PlatformInstallationDenied, match="SCM service identity"):
+            operation()
+        assert fake.events == before  # No stop, change, or delete.
+
 
 @pytest.mark.skipif(os.name == "nt", reason="Requires POSIX account lookup")
 def test_systemd_refuses_unprovisioned_service_identity_before_unit_write(
