@@ -234,6 +234,38 @@ The source test must pass before promoting installer integration work further.
 Any failure leaves the installer milestone open; never bypass it with a
 synthetic success flag or an unchecked directory.
 
+## Crash, unknown-outcome and removal observation
+
+The source-level native driver now exposes **read-only SCM/systemd
+observation** without OS service mutation. Debian checks the exact signed
+unit, filesystem origin and PID; Windows opens SCM/service handles with
+`SC_MANAGER_CONNECT` and `SERVICE_QUERY_CONFIG | SERVICE_QUERY_STATUS`,
+verifies the signed executable/account/start policy and distinguishes
+running from stopped. Neither observer is an authenticated Platform RUN/READY
+or publisher-revocation proof.
+
+For a journal in `PENDING` or `OUTCOME_UNKNOWN`, the internal
+`review_native_outcome_for_reconciliation` function independently rechecks
+the canonical signed B1 installed release, observes the native OS service,
+and re-reads the same journal and release identity. It reports
+`RECONCILIATION_REQUIRED` even if SCM/systemd reports the process
+`RUNNING`. The function never consumes a SAFE approval, starts, stops or
+deletes a service, rewrites the journal, or clears the recovery fence.
+
+On Windows, successful `DeleteService` is only a **deletion request**.
+The service must actually disappear from SCM after closing the opened
+handles before the native driver emits a `REMOVED` receipt. A prolonged
+`ERROR_SERVICE_MARKED_FOR_DELETE` state produces a bounded timeout and
+an unresolved transaction, not a false clean uninstall. On Debian and
+Windows, the removal receipt must identify the **exact signed Platform UUID
+and release manifest**. Protected state/identity remain retained by default.
+
+This read-only review is **not a journal-repair command**. An authorized
+operator must separately review authentic native OS, B1 installation and SAFE
+evidence before implementing any future approved reconciliation action.
+Never delete a `native-service-transaction.json` file to bypass an
+uncertain outcome, and never treat process state as service health.
+
 ## Release evidence required by #201
 
 | Row | Evidence still required |
