@@ -194,6 +194,47 @@ def test_native_rejects_wrong_platform_or_release_receipt(
         native_service_operation_request(**scope)
 
 
+@pytest.mark.parametrize("field, forged", [
+    ("platform_id", "forged-removed-platform"),
+    ("release_manifest_sha256", "0" * 64),
+    ("service_health", "HEALTHY"),
+])
+def test_unregistration_receipt_must_match_exact_signed_identity(
+        installed_scope, field, forged):
+    scope = dict(installed_scope)
+    backend, effects = fake_backend()
+    now = datetime.now(timezone.utc)
+    register = grant_for_request(
+        scope, id="approval:b2-unregister-receipt-start-" + field, now=now,
+    )
+    apply_owner_approved_native_service(
+        **scope, backend=backend, approval_id=register.approval_id, now=now,
+    )
+    assert len(effects) == 1
+    scope["operation"] = "unregister"
+    original = backend.stop_and_unregister
+
+    def forged_receipt(spec):
+        receipt = original(spec)
+        receipt[field] = forged
+        return receipt
+
+    backend.stop_and_unregister = forged_receipt
+    removal = grant_for_request(
+        scope, id="approval:b2-unregister-receipt-stop-" + field, now=now,
+    )
+    with pytest.raises(PlatformInstallationDenied, match="receipt differs"):
+        apply_owner_approved_native_service(
+            **scope, backend=backend,
+            approval_id=removal.approval_id, now=now,
+        )
+    assert len(effects) == 2
+    journal = scope["store"].path.parent / "native-service-transaction.json"
+    assert '"OUTCOME_UNKNOWN"' in journal.read_text()
+    with pytest.raises(PlatformInstallationDenied, match="unresolved native"):
+        native_service_operation_request(**scope)
+
+
 def test_native_interrupted_registration_blocks_blind_retry(installed_scope):
     scope = dict(installed_scope)
     backend, calls = fake_backend(error="crash after possible SCM/systemd write")
