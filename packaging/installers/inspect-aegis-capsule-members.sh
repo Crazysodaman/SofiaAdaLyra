@@ -32,7 +32,7 @@ fi
 work="$(mktemp -d)" || exit 3
 trap 'rm -rf -- "$work"' EXIT
 chmod 700 -- "$work"
-if ! unzip -p "$actual" 'aegis/delivery-index.v1' > "$work/index" 2>/dev/null; then
+if ! unzip -p "$actual" 'aegis/delivery-index.v1' 2>/dev/null | head -c 131073 > "$work/index"; then
   printf '%s\n' 'Delivery index missing' >&2; exit 3
 fi
 index_size="$(stat -c %s -- "$work/index")" || exit 3
@@ -61,9 +61,12 @@ while IFS= read -r record || [[ -n "$record" ]]; do
   ((count <= 128 && expected_bytes <= 536870912)) || exit 3
   total=$((total+expected_bytes))
   ((total <= 1075838976)) || exit 3
-  observed="$(unzip -p "$actual" "$path" 2>/dev/null | sha256sum)" || exit 3
+  # Cap both decompression streams to the signed member length plus one.
+  # Without this bound, a hostile ZIP bomb would be expanded in full before
+  # the later length check could reject it. Bash pipefail refuses SIGPIPE.
+  observed="$(unzip -p "$actual" "$path" 2>/dev/null | head -c "$((expected_bytes+1))" | sha256sum)" || exit 3
   observed="${observed:0:64}"
-  actual_bytes="$(unzip -p "$actual" "$path" 2>/dev/null | wc -c)" || exit 3
+  actual_bytes="$(unzip -p "$actual" "$path" 2>/dev/null | head -c "$((expected_bytes+1))" | wc -c)" || exit 3
   if [[ "$observed" != "$digest" || "$actual_bytes" != "$expected_bytes" ]]; then
     printf '%s\n' 'Signed delivery member digest/size differs' >&2
     exit 3
