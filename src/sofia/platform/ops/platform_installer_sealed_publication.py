@@ -75,6 +75,8 @@ def signed_capsule_code_publication_request(
         destination=destination, identity_home=identity_home,
         state_path=state_path, store=store,
         verifier=verifier, expected_target=expected_target,
+        outer_capsule_sha256=review["capsule_sha256"],
+        delivery_index_sha256=review["delivery_index_sha256"],
     )
     if (publication["parameters"]["manifest_sha256"] !=
             review["inner_release"]["manifest_sha256"]):
@@ -143,6 +145,8 @@ def publish_owner_approved_sealed_capsule_code(
         state_path=state_path, store=store,
         verifier=verifier, expected_target=expected_target,
         now=moment,
+        outer_capsule_sha256=request["capsule_sha256"],
+        delivery_index_sha256=request["delivery_index_sha256"],
     )
     if (published.get("result") != "PLATFORM_RELEASE_INSTALLED"
             or published.get("os_service_registered") is not False
