@@ -69,7 +69,10 @@ def _journal_path(store: PlatformInstallationStore) -> Path:
 
 def _load_journal(store: PlatformInstallationStore) -> dict[str, object] | None:
     path = _journal_path(store)
-    if not path.exists():
+    # A dangling symlink is not an absent transaction journal. Path.exists()
+    # alone follows its target and can otherwise silently erase the recovery
+    # fence when the link points nowhere.
+    if not path.exists() and not path.is_symlink():
         return None
     assert_owner_private_path(path, directory=False)
     fd = os.open(
