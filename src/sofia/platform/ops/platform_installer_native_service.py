@@ -466,6 +466,27 @@ class WindowsScmNativeService:
             self._service_api, self._error_type = win32service, pywintypes.error
         return self._service_api
 
+    @staticmethod
+    def _verify_owned_config(api, handle, spec: NativeServiceSpecification) -> None:
+        """Refuse adopting a foreign SCM service with a matching binary string.
+
+        The exact signed command is necessary but not sufficient: a service
+        with a different account, start policy or service type is not the
+        Platform installed by our owner-approved native executor.
+        """
+        from subprocess import list2cmdline
+        config = api.QueryServiceConfig(handle)
+        if (len(config) < 8
+                or config[0] != api.SERVICE_WIN32_OWN_PROCESS
+                or config[1] != api.SERVICE_AUTO_START
+                or config[3] != list2cmdline(spec.command())
+                or config[7] not in (
+                    "NT AUTHORITY\\\\LocalService", "LocalService",
+                )):
+            raise PlatformInstallationDenied(
+                "SCM service identity, startup mode or signed executable differs"
+            )
+
     def register(self, spec: NativeServiceSpecification) -> dict[str, object]:
         _check_spec(spec, PlatformReleaseTarget.WINDOWS_X86_64)
         api = self._api()
@@ -517,8 +538,7 @@ class WindowsScmNativeService:
         handle = None
         try:
             handle = api.OpenService(scm, _SERVICE_WINDOWS, api.SERVICE_ALL_ACCESS)
-            if api.QueryServiceConfig(handle)[3] != list2cmdline(spec.command()):
-                raise PlatformInstallationDenied("SCM executable differs from signed receipt")
+            self._verify_owned_config(api, handle, spec)
             status = api.QueryServiceStatus(handle)
             if status[1] != api.SERVICE_STOPPED:
                 api.ControlService(handle, api.SERVICE_CONTROL_STOP)
@@ -574,8 +594,7 @@ class WindowsScmNativeService:
         handle = None
         try:
             handle = api.OpenService(scm, _SERVICE_WINDOWS, api.SERVICE_ALL_ACCESS)
-            if api.QueryServiceConfig(handle)[3] != list2cmdline(previous.command()):
-                raise PlatformInstallationDenied("foreign or unverified SCM executable")
+            self._verify_owned_config(api, handle, previous)
             if api.QueryServiceStatus(handle)[1] != api.SERVICE_STOPPED:
                 api.ControlService(handle, api.SERVICE_CONTROL_STOP)
                 self._wait_stopped(api, handle)
@@ -605,9 +624,7 @@ class WindowsScmNativeService:
         service = None
         try:
             service = api.OpenService(scm, _SERVICE_WINDOWS, api.SERVICE_ALL_ACCESS)
-            config = api.QueryServiceConfig(service)
-            if config[3] != list2cmdline(spec.command()):
-                raise PlatformInstallationDenied("SCM binary command differs; refuse removal")
+            self._verify_owned_config(api, service, spec)
             status = api.QueryServiceStatus(service)
             if status[1] != api.SERVICE_STOPPED:
                 api.ControlService(service, api.SERVICE_CONTROL_STOP)
