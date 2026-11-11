@@ -155,6 +155,13 @@ def publish_owner_approved_code(
     # doing any publication. A failed recheck burns the one-use approval.
     if OperatorStopStore(state).current().active:
         raise PlatformInstallationDenied("STOP changed before code publication")
+    if not ExecutionApprovalVerifier(state).consumed_owner_proof_remains_current(
+        approval_id=approval_id, capability=request["capability"],
+        parameters=request["parameters"],
+    ):
+        raise PlatformInstallationDenied(
+            "owner authentication revoked before code publication"
+        )
     observed = signed_code_publication_request(
         staged_candidate=staged_candidate, destination=destination,
         identity_home=identity_home, state_path=state, store=store,
@@ -168,6 +175,17 @@ def publish_owner_approved_code(
         staged_candidate, destination, store=store, verifier=verifier,
         minimum_revision=max(1, store.revision_floor()),
     )
+    # A signed copy may finish after an attended owner revokes a credential
+    # or activates STOP. Never report a clean success in that race. The B1
+    # durable installation receipt remains for explicit host reconciliation.
+    if (OperatorStopStore(state).current().active
+            or not ExecutionApprovalVerifier(state).consumed_owner_proof_remains_current(
+                approval_id=approval_id, capability=request["capability"],
+                parameters=request["parameters"],
+            )):
+        raise PlatformInstallationDenied(
+            "owner authority changed during code publication; reconcile B1 receipt"
+        )
     return {
         **receipt,
         "owner_proof_consumed": True,
