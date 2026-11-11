@@ -18,6 +18,38 @@ from sofia.platform.ops.platform_signed_asset_copy import copy_verified_signed_a
 from sofia.platform.state.artifact_file import read_artifact_file
 
 
+def test_platform_file_identity_keeps_posix_inode_and_windows_signed_byte_scope(
+        monkeypatch):
+    import sofia.platform.state.artifact_file as artifact
+    from types import SimpleNamespace
+
+    path_stat = SimpleNamespace(
+        st_dev=1, st_ino=42, st_size=4096,
+        st_mtime_ns=123456789, st_ctime_ns=777777,
+    )
+    handle_stat = SimpleNamespace(
+        st_dev=99, st_ino=88, st_size=4096,
+        st_mtime_ns=123456789, st_ctime_ns=555555,
+    )
+    with monkeypatch.context() as context:
+        context.setattr(artifact, "os", SimpleNamespace(name="nt"))
+        assert artifact.pinned_source_identity(path_stat) == (
+            4096, 123456789,
+        )
+        assert artifact.pinned_source_identity(path_stat) == (
+            artifact.pinned_source_identity(handle_stat)
+        )
+        assert artifact.pinned_source_identity(
+            SimpleNamespace(st_dev=99, st_ino=88, st_size=4096,
+                            st_mtime_ns=123456790, st_ctime_ns=555555)
+        ) != artifact.pinned_source_identity(path_stat)
+    with monkeypatch.context() as context:
+        context.setattr(artifact, "os", SimpleNamespace(name="posix"))
+        assert artifact.pinned_source_identity(path_stat) != (
+            artifact.pinned_source_identity(handle_stat)
+        )
+
+
 def _source(tmp_path, size):
     source = tmp_path / "signed-publisher-runtime"
     with source.open("wb") as writer:
