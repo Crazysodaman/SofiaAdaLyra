@@ -17,6 +17,10 @@ const SCHEMA: &str = "aegis.platform.service-control.v1";
 // Match reviewed #224 cold-start protection; health IPC stays at five seconds.
 const INITIAL_REPLY_TIMEOUT: Duration = Duration::from_secs(12);
 const HEALTH_REPLY_TIMEOUT: Duration = Duration::from_secs(5);
+// The Python Platform session may drain one Hub handshake (<=33s),
+// management IPC (<=3s), and an active recipient (<=30s) before releasing
+// its RUN lease. Never kill it after the old five-second stop deadline.
+const SHUTDOWN_DRAIN_TIMEOUT: Duration = Duration::from_secs(75);
 type Failure = Box<dyn std::error::Error + Send + Sync>;
 // Reject arbitrary 36-character labels before starting a privileged service.
 // Keep the lexical check dependency-free and accept UUID versions supported by
@@ -336,7 +340,7 @@ impl Worker {
     fn stop(&mut self) -> Result<(), Failure> {
         self.request("shutdown")?;
         self.input.take();
-        let deadline = Instant::now() + Duration::from_secs(5);
+        let deadline = Instant::now() + SHUTDOWN_DRAIN_TIMEOUT;
         while Instant::now() < deadline {
             if let Some(status) = self.child.try_wait()? {
                 return if status.success() {
@@ -466,6 +470,12 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn shutdown_waits_for_bounded_hub_and_recipient_drain() {
+        assert!(SHUTDOWN_DRAIN_TIMEOUT >= Duration::from_secs(66));
+        assert!(SHUTDOWN_DRAIN_TIMEOUT < Duration::from_secs(90));
+        assert_eq!(HEALTH_REPLY_TIMEOUT, Duration::from_secs(5));
+    }
     #[test]
     fn cold_boot_timeout_is_bounded_without_relaxing_health_ipc() {
         assert!(INITIAL_REPLY_TIMEOUT > HEALTH_REPLY_TIMEOUT);
