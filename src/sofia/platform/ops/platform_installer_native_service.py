@@ -322,6 +322,30 @@ class DebianSystemdNativeService:
             "[Install]\nWantedBy=multi-user.target\n"
         ).encode("ascii")
 
+    def _verify_unit_file(self, expected: bytes) -> None:
+        """Inspect only the bounded, original unit inode, never foreign bytes."""
+        assert_no_redirected_components(self.unit_path, include_leaf=True)
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+        try:
+            fd = os.open(self.unit_path, flags)
+        except OSError as error:
+            raise PlatformInstallationDenied("native systemd unit unavailable") from error
+        try:
+            details = os.fstat(fd)
+            if (not stat.S_ISREG(details.st_mode) or details.st_nlink != 1
+                    or details.st_size != len(expected)):
+                raise PlatformInstallationDenied("foreign or changed systemd unit refused")
+            with os.fdopen(fd, "rb", closefd=False) as source:
+                if source.read(len(expected) + 1) != expected:
+                    raise PlatformInstallationDenied("foreign or changed systemd unit refused")
+            after = os.fstat(fd)
+            if (details.st_dev, details.st_ino, details.st_size, details.st_mtime_ns) != (
+                after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns
+            ):
+                raise PlatformInstallationDenied("systemd unit changed during inspection")
+        finally:
+            os.close(fd)
+
     def _loaded(self) -> str:
         lines = _run_systemctl(
             "show", _SERVICE_LINUX, "--property=LoadState,FragmentPath", "--no-pager"
@@ -356,8 +380,7 @@ class DebianSystemdNativeService:
         _check_spec(spec, PlatformReleaseTarget.DEBIAN12_X86_64)
         data = self._unit(spec)
         assert_no_redirected_components(self.unit_path, include_leaf=True)
-        if not self.unit_path.is_file() or self.unit_path.read_bytes() != data:
-            raise PlatformInstallationDenied("systemd unit is missing, foreign or changed")
+        self._verify_unit_file(data)
         output = _run_systemctl(
             "show", _SERVICE_LINUX,
             "--property=LoadState,FragmentPath,ActiveState,SubState,MainPID", "--no-pager"
@@ -414,8 +437,7 @@ class DebianSystemdNativeService:
         replacement = self._unit(candidate)
         # The original unit must remain intact until the temp file is synced.
         assert_no_redirected_components(self.unit_path, include_leaf=True)
-        if self.unit_path.read_bytes() != self._unit(previous):
-            raise PlatformInstallationDenied("native unit changed before release replacement")
+        self._verify_unit_file(self._unit(previous))
         pending = self.unit_path.with_name(self.unit_path.name + ".pending")
         assert_no_redirected_components(pending, include_leaf=True)
         fd = os.open(pending, os.O_WRONLY | os.O_CREAT | os.O_EXCL
@@ -427,8 +449,7 @@ class DebianSystemdNativeService:
         # Any failure past this point requires exact-host reconciliation:
         # neither a blind restore nor a second unapproved restart is safe.
         _run_systemctl("stop", _SERVICE_LINUX)
-        if self.unit_path.read_bytes() != self._unit(previous):
-            raise PlatformInstallationDenied("native unit changed during release replacement")
+        self._verify_unit_file(self._unit(previous))
         os.replace(pending, self.unit_path)
         _run_systemctl("daemon-reload")
         _run_systemctl("start", _SERVICE_LINUX)
@@ -440,8 +461,7 @@ class DebianSystemdNativeService:
         _run_systemctl("stop", _SERVICE_LINUX)
         _run_systemctl("disable", _SERVICE_LINUX)
         assert_no_redirected_components(self.unit_path, include_leaf=True)
-        if self.unit_path.read_bytes() != self._unit(spec):
-            raise PlatformInstallationDenied("unit changed during uninstall")
+        self._verify_unit_file(self._unit(spec))
         self.unit_path.unlink()
         _run_systemctl("daemon-reload")
         return dict(schema="aegis.native-service-receipt.v1",
