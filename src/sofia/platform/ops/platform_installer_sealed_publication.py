@@ -35,7 +35,7 @@ def _publisher_verifier(
 
 def signed_capsule_code_publication_request(
     *, capsule: Path | str, capsule_signature: Path | str,
-    staged_directory: Path | str,
+    staged_directory: Path | str, b1_staging_candidate: Path | str,
     trusted_public_key: Path | str, trusted_key_sha256: str,
     trusted_signer_key_id: str, expected_source_sha: str,
     expected_target: PlatformReleaseTarget, minimum_revision: int,
@@ -71,7 +71,7 @@ def signed_capsule_code_publication_request(
         trusted_public_key, trusted_key_sha256, trusted_signer_key_id,
     )
     publication = signed_code_publication_request(
-        staged_candidate=Path(staged_directory).absolute() / "aegis",
+        staged_candidate=Path(b1_staging_candidate).absolute(),
         destination=destination, identity_home=identity_home,
         state_path=state_path, store=store,
         verifier=verifier, expected_target=expected_target,
@@ -101,7 +101,7 @@ def signed_capsule_code_publication_request(
 def publish_owner_approved_sealed_capsule_code(
     *, approval_id: str,
     capsule: Path | str, capsule_signature: Path | str,
-    staged_directory: Path | str,
+    staged_directory: Path | str, b1_staging_candidate: Path | str,
     trusted_public_key: Path | str, trusted_key_sha256: str,
     trusted_signer_key_id: str, expected_source_sha: str,
     expected_target: PlatformReleaseTarget, minimum_revision: int,
@@ -125,6 +125,7 @@ def publish_owner_approved_sealed_capsule_code(
     request = signed_capsule_code_publication_request(
         capsule=capsule, capsule_signature=capsule_signature,
         staged_directory=staged_directory,
+        b1_staging_candidate=b1_staging_candidate,
         trusted_public_key=trusted_public_key,
         trusted_key_sha256=trusted_key_sha256,
         trusted_signer_key_id=trusted_signer_key_id,
@@ -140,7 +141,7 @@ def publish_owner_approved_sealed_capsule_code(
     )
     published = publish_owner_approved_code(
         approval_id=approval_id,
-        staged_candidate=Path(staged_directory).absolute() / "aegis",
+        staged_candidate=Path(b1_staging_candidate).absolute(),
         destination=destination, identity_home=identity_home,
         state_path=state_path, store=store,
         verifier=verifier, expected_target=expected_target,
