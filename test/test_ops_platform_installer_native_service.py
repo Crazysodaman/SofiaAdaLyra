@@ -110,6 +110,41 @@ def test_systemd_register_stop_and_remove_only_exact_new_unit(native_spec, tmp_p
     assert calls.index(("enable", "aegis-platform.service")) > calls.index(("start", "aegis-platform.service"))
 
 
+@pytest.mark.skipif(os.name == "nt", reason="POSIX directory durability")
+def test_systemd_unit_directory_is_synced_at_register_and_remove(
+        native_spec, tmp_path, monkeypatch):
+    import stat
+    import sofia.platform.ops.platform_installer_native_service as mod
+
+    service = DebianSystemdNativeService(
+        unit_path=tmp_path / "aegis-platform.service",
+    )
+    monkeypatch.setattr(service, "_require_root", lambda: None)
+    monkeypatch.setattr(service, "_require_service_identity", lambda _spec: None)
+    real_fsync = os.fsync
+    directories = []
+
+    def fsync(fd):
+        if stat.S_ISDIR(os.fstat(fd).st_mode):
+            directories.append(True)
+        return real_fsync(fd)
+
+    def ctl(*args):
+        if args[0] == "show":
+            if not service.unit_path.exists():
+                return "LoadState=not-found\\nFragmentPath=\\n"
+            return (f"LoadState=loaded\\nFragmentPath={service.unit_path}\\n"
+                    "ActiveState=active\\nSubState=running\\nMainPID=2345\\n")
+        return ""
+
+    monkeypatch.setattr(mod.os, "fsync", fsync)
+    monkeypatch.setattr(mod, "_run_systemctl", ctl)
+    service.register(native_spec)
+    assert len(directories) >= 1
+    service.stop_and_unregister(native_spec)
+    assert len(directories) >= 2
+
+
 @pytest.mark.skipif(os.name == "nt", reason="POSIX native systemd path semantics")
 def test_systemd_never_enables_failed_first_start(native_spec, tmp_path, monkeypatch):
     import sofia.platform.ops.platform_installer_native_service as mod
