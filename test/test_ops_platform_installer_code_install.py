@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import sqlite3
 
 import pytest
 
@@ -120,3 +121,47 @@ def test_one_use_exact_owner_grant_publishes_only_signed_code_without_service(sc
         publish_owner_approved_code(
             approval_id=approval.approval_id, now=now + timedelta(seconds=2), **args,
         )
+
+
+
+def test_code_publication_rejects_owner_revocation_during_B1_copy(
+        scope, monkeypatch):
+    import sofia.platform.ops.platform_installer_code_install as code
+
+    args = dict(scope)
+    now = datetime.now(timezone.utc)
+    plan = signed_code_publication_request(**args)
+    approval = ExecutionApproval(
+        approval_id="approval:code-copy-revoked-after-effect",
+        capability=plan["capability"],
+        request_fingerprint=plan["fingerprint"],
+        approved_by="person:sparks",
+        approved_at=now - timedelta(seconds=1),
+        expires_at=now + timedelta(minutes=5),
+    )
+    record_verified_owner_approval(
+        ExecutionApprovalVerifier(args["state_path"]), approval,
+    )
+    copied = code.install_staged_release
+
+    def copy_then_revoke(*positional, **kwargs):
+        receipt = copied(*positional, **kwargs)
+        with sqlite3.connect(args["state_path"]) as db:
+            db.execute(
+                "UPDATE safe_owner_credential SET revoked_at=? "
+                "WHERE revoked_at IS NULL",
+                (now.isoformat(),),
+            )
+        return receipt
+
+    monkeypatch.setattr(code, "install_staged_release", copy_then_revoke)
+    with pytest.raises(PlatformInstallationDenied, match="reconcile B1 receipt"):
+        publish_owner_approved_code(
+            approval_id=approval.approval_id, now=now, **args,
+        )
+    # The OS service never starts. B1 may already have published code;
+    # a revoked owner proof forbids a *successful* wrapper outcome. The
+    # operator must read the durable B1 receipt before any retry.
+    assert args["destination"].exists()
+    assert args["store"].history()
+    assert not (args["destination"] / "core").exists()
