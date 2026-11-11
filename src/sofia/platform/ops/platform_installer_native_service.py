@@ -561,6 +561,48 @@ class WindowsScmNativeService:
                 "SCM service identity, startup mode or signed executable differs"
             )
 
+    def observe(self, spec: NativeServiceSpecification) -> dict[str, object]:
+        """Inspect exact installed SCM service with QUERY-only rights.
+
+        SCM RUNNING is a process observation, NEVER authenticated RUN/READY,
+        Core activation, current owner enrollment or publisher revocation.
+        No configuration, service state or protected identity is modified.
+        """
+        _check_spec(spec, PlatformReleaseTarget.WINDOWS_X86_64)
+        api = self._api()
+        scm = api.OpenSCManager(None, None, api.SC_MANAGER_CONNECT)
+        service = None
+        try:
+            try:
+                service = api.OpenService(
+                    scm, _SERVICE_WINDOWS,
+                    api.SERVICE_QUERY_CONFIG | api.SERVICE_QUERY_STATUS,
+                )
+            except self._error_type as error:
+                if getattr(error, "winerror", None) == 1060:
+                    raise PlatformInstallationDenied(
+                        "signed Windows SCM service not present"
+                    ) from error
+                raise
+            self._verify_owned_config(api, service, spec)
+            status = api.QueryServiceStatus(service)
+            if not isinstance(status, (tuple, list)) or len(status) < 2:
+                raise PlatformInstallationDenied("invalid native SCM status observation")
+            running = status[1] == api.SERVICE_RUNNING
+            return dict(
+                schema="aegis.native-service-receipt.v1",
+                service=_SERVICE_WINDOWS, origin="OWNED_CONFIG_VERIFIED",
+                process_state="RUNNING" if running else "NOT_RUNNING",
+                process_id=None, platform_id=spec.platform_id,
+                release_manifest_sha256=spec.manifest_sha256,
+                service_health="UNKNOWN", core_activated=False,
+                fully_healthy=False,
+            )
+        finally:
+            if service is not None:
+                api.CloseServiceHandle(service)
+            api.CloseServiceHandle(scm)
+
     def register(self, spec: NativeServiceSpecification) -> dict[str, object]:
         _check_spec(spec, PlatformReleaseTarget.WINDOWS_X86_64)
         api = self._api()
