@@ -151,7 +151,7 @@ def import_round9_medium(
             or r9.get("source_sha256") != r6.get("audio_sha256")):
         raise ValueError("Round 9 reference does not match original Round 6 Bluehour")
     # Require the actual original Round 6 bytes as provenance, not metadata alone.
-    original_wav = round6_meta.with_suffix(" .wav".strip())
+    original_wav = round6_meta.with_suffix(".wav")
     if original_wav.name != "sofia_03_rook_bluehour.wav":
         raise ValueError("unexpected original Round 6 reference name")
     validate_wav(original_wav)
