@@ -197,6 +197,29 @@ def test_systemd_rejects_foreign_unit_bytes_without_adoption(
     assert service.unit_path.exists()
 
 
+@pytest.mark.skipif(os.name == "nt", reason="POSIX native systemd inode semantics")
+def test_systemd_rejects_replaced_unit_inode_during_inspection(
+        native_spec, tmp_path, monkeypatch):
+    import sofia.platform.ops.platform_installer_native_service as mod
+    service = DebianSystemdNativeService(
+        unit_path=tmp_path / "aegis-platform.service",
+    )
+    original = service._unit(native_spec)
+    service.unit_path.write_bytes(original)
+    foreign = tmp_path / "foreign"
+    foreign.write_bytes(original)
+    real_lstat = mod.os.lstat
+
+    def replaced_entry(path, *args, **kwargs):
+        if str(path) == str(service.unit_path):
+            return real_lstat(foreign, *args, **kwargs)
+        return real_lstat(path, *args, **kwargs)
+
+    monkeypatch.setattr(mod.os, "lstat", replaced_entry)
+    with pytest.raises(PlatformInstallationDenied, match="changed during inspection"):
+        service._verify_unit_file(original)
+
+
 @pytest.mark.skipif(os.name == "nt", reason="POSIX native systemd path semantics")
 def test_systemd_refuses_foreign_existing_unit_without_changing_it(native_spec, tmp_path, monkeypatch):
     import sofia.platform.ops.platform_installer_native_service as mod
