@@ -414,7 +414,14 @@ class TextToSpeechService:
         except Full:
             pass
         thread.join(timeout=timeout)
+        if thread.is_alive():
+            # A GPU synthesis call is not safely preemptible mid-kernel.
+            # Keep worker ownership until it has observed cancellation.
+            return
         self._thread = None
+        release = getattr(self._backend, "unload", None)
+        if callable(release):
+            release()
 
     def interrupt(self) -> bool:
         """Request cancellation of current speech and discard queued speech."""
