@@ -215,6 +215,12 @@ class AuditChain:
         return event_hash
 
     def verify(self) -> tuple[bool, str | None]:
+        """Stream the canonical hash chain with bounded audit-row memory.
+
+        Consumption checks now reverify this chain at protected effect
+        boundaries. Avoid fetchall(), which grows memory in proportion to
+        the lifetime of a continuously running personal Platform.
+        """
         previous = self.GENESIS
         with closing(self._connect()) as db:
             rows = db.execute(
@@ -224,24 +230,23 @@ class AuditChain:
                 FROM safe_audit_event
                 ORDER BY sequence ASC
                 """
-            ).fetchall()
-
-        for row in rows:
-            if row["previous_hash"] != previous:
-                return False, (
-                    f"audit previous-hash mismatch at event {row['event_id']}"
-                )
-            expected = self._event_hash(
-                event_id=row["event_id"],
-                occurred_at=row["occurred_at"],
-                actor_id=row["actor_id"],
-                event_type=row["event_type"],
-                payload_json=row["payload_json"],
-                previous_hash=row["previous_hash"],
             )
-            if row["event_hash"] != expected:
-                return False, (
-                    f"audit event-hash mismatch at event {row['event_id']}"
+            for row in rows:
+                if row["previous_hash"] != previous:
+                    return False, (
+                        f"audit previous-hash mismatch at event {row['event_id']}"
+                    )
+                expected = self._event_hash(
+                    event_id=row["event_id"],
+                    occurred_at=row["occurred_at"],
+                    actor_id=row["actor_id"],
+                    event_type=row["event_type"],
+                    payload_json=row["payload_json"],
+                    previous_hash=row["previous_hash"],
                 )
-            previous = row["event_hash"]
+                if row["event_hash"] != expected:
+                    return False, (
+                        f"audit event-hash mismatch at event {row['event_id']}"
+                    )
+                previous = row["event_hash"]
         return True, None
