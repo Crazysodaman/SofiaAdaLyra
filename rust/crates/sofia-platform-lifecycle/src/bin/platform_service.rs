@@ -543,10 +543,18 @@ mod tests {
         #[cfg(not(windows))]
         {
             assert!(valid_installed_unix_endpoint("/run/aegis/mgmt-7.sock", 7, "/run/aegis"));
-            assert!(valid_management_endpoint("/tmp/aegis-mgmt-test/management.sock", id, 7));
-            assert!(!valid_management_endpoint("/run/aegis/mgmt-7.sock", id, 8));
-            assert!(!valid_management_endpoint("mgmt-7.sock", id, 7));
-            assert!(!valid_management_endpoint("/run/../tmp/mgmt-7.sock", id, 7));
+            assert!(valid_unix_endpoint_with_context(
+                "/tmp/aegis-mgmt-test/management.sock", 7, None, false,
+            ));
+            assert!(!valid_unix_endpoint_with_context(
+                "/run/aegis/mgmt-7.sock", 8, Some("/run/aegis"), true,
+            ));
+            assert!(!valid_unix_endpoint_with_context(
+                "mgmt-7.sock", 7, None, false,
+            ));
+            assert!(!valid_unix_endpoint_with_context(
+                "/run/../tmp/mgmt-7.sock", 7, Some("/run/aegis"), true,
+            ));
         }
         assert!(!valid_management_endpoint("socket\nforged", id, 7));
         assert!(!valid_management_endpoint("", id, 7));
