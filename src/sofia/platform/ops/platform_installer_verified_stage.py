@@ -46,6 +46,42 @@ def _private_file(path: Path, *, maximum: int, exact: int | None = None) -> byte
     )[1]
 
 
+def _sealed_capsule_digest(path: Path) -> str:
+    """Stream the complete sealed ZIP, including media larger than 512 MiB."""
+    assert_no_redirected_components(path, include_leaf=True)
+    before = path.stat(follow_symlinks=False)
+    if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1
+            or not 1 <= before.st_size <= _MAX_CAPSULE):
+        raise PlatformReleaseRejected("sealed capsule size or inode invalid")
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+    fd = os.open(path, flags)
+    try:
+        opened = os.fstat(fd)
+        original = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+        if (not stat.S_ISREG(opened.st_mode) or
+                (opened.st_dev, opened.st_ino, opened.st_size, opened.st_mtime_ns)
+                != original):
+            raise PlatformReleaseRejected("sealed capsule inode substituted")
+        digest = sha256()
+        received = 0
+        with os.fdopen(fd, "rb", closefd=False) as reader:
+            while chunk := reader.read(65536):
+                received += len(chunk)
+                if received > before.st_size:
+                    raise PlatformReleaseRejected("sealed capsule expanded during verification")
+                digest.update(chunk)
+        after = os.fstat(fd)
+        final = path.stat(follow_symlinks=False)
+        if (received != before.st_size or
+                original != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
+                or original != (final.st_dev, final.st_ino,
+                               final.st_size, final.st_mtime_ns)):
+            raise PlatformReleaseRejected("sealed capsule changed during inspection")
+        return digest.hexdigest()
+    finally:
+        os.close(fd)
+
+
 def _validated_index(raw: bytes) -> dict[str, tuple[str, int]]:
     if not 24 <= len(raw) <= 131072 or not raw.endswith(b"\n"):
         raise PlatformReleaseRejected("offline delivery index length invalid")
@@ -128,13 +164,7 @@ def review_staged_publisher_signed_capsule(
         if not isinstance(signer, Ed25519PublicKey):
             raise PlatformReleaseRejected("publisher signing algorithm not Ed25519")
         signature = _private_file(signature_path, maximum=64, exact=64)
-        info = capsule_path.stat(follow_symlinks=False)
-        if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1
-                or not 1 <= info.st_size <= _MAX_CAPSULE):
-            raise PlatformReleaseRejected("sealed capsule size or inode invalid")
-        capsule_digest, _ = read_artifact_file(
-            capsule_path, info.st_size, include_data=False,
-        )
+        capsule_digest = _sealed_capsule_digest(capsule_path)
         signer.verify(
             signature,
             offline_capsule_publisher_seal_message(
@@ -195,9 +225,7 @@ def review_staged_publisher_signed_capsule(
             if recorded != digest:
                 raise PlatformReleaseRejected("offline staged delivery asset SHA-256 differs")
         # Do not let the original sealed ZIP change during the second pass.
-        after_digest, _ = read_artifact_file(
-            capsule_path, info.st_size, include_data=False,
-        )
+        after_digest = _sealed_capsule_digest(capsule_path)
         if after_digest != capsule_digest:
             raise PlatformReleaseRejected("offline publisher capsule changed during review")
     except (KeyError, UnicodeError, zipfile.BadZipFile) as exc:
