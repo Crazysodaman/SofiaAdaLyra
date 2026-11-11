@@ -28,7 +28,10 @@ _LAN_V6 = (ipaddress.ip_network("fc00::/7"), ipaddress.ip_network("::1/128"))
 
 
 def _private_bind(host: str) -> tuple[int, str]:
-    if type(host) is not str or not host or len(host) > 64:
+    if (type(host) is not str or not host or len(host) > 64
+            or "%" in host):
+        # IPv6 zone/interface suffixes are not part of the exact
+        # owner-reviewed numeric Hub bind and can select another interface.
         raise ChunkTransferRejected("explicit numeric private-LAN bind required")
     try:
         address = ipaddress.ip_address(host)
