@@ -312,6 +312,21 @@ def test_d028_runnable_harness_fails_closed_on_symlinked_signed_metadata(
     assert not report["release_accepted"]
 
 
+@pytest.mark.skipif(__import__("os").name == "nt", reason="POSIX hard-link metadata provenance")
+def test_d028_intake_rejects_hardlinked_metadata_even_with_matching_sha(tmp_path):
+    import os
+    exact = "f" * 40
+    outside = tmp_path / "outside.json"
+    outside.write_text(json.dumps({"source_sha": exact}), encoding="utf-8")
+    os.link(outside, tmp_path / "release-manifest.json")
+    report = make_d028_four_host_preflight(
+        exact, topology=_d028_plan(), evidence_dir=tmp_path,
+    )
+    assert "release-manifest.json" in report["evidence_invalid"]
+    assert report["acceptance"] == "NOT_CLAIMED"
+    assert not report["release_accepted"]
+
+
 def test_d028_cli_can_plan_but_never_greenlight_supplied_host_receipts(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture,
 ) -> None:
