@@ -76,6 +76,24 @@ def test_worker_bounds_bad_connections_without_exposing_peer_failures():
     assert "secret" not in str(state)
 
 
+def test_supervised_hub_closes_immediately_on_dead_listener():
+    calls = []
+    def dead():
+        calls.append(True)
+        raise ChunkTransferRejected("Hub listener failed")
+    hub = _synthetic_worker(serve=dead)
+    hub.start_bounded_serving(max_connections=1000, max_rejections=64)
+    hub._serve_thread.join(timeout=3)
+    assert not hub._serve_thread.is_alive()
+    status = hub.serving_status()
+    assert status["state"] == "CLOSED"
+    assert status["last_failure_code"] == "LISTENER_UNAVAILABLE"
+    assert status["rejected_connections"] == 0
+    assert status["served_bytes"] == 0
+    assert hub._hub.closed is True
+    assert len(calls) == 1  # Do not spin on EBADF as if peers were absent.
+
+
 def test_worker_poll_allows_revoke_without_serving_any_bytes():
     calls = []
     hub = _synthetic_worker(
