@@ -602,7 +602,9 @@ class WindowsScmNativeService:
 
     @staticmethod
     def _wait_stopped(api, handle) -> None:
-        deadline = time.monotonic() + 30
+        # RUN teardown may drain an in-flight Hub read and recipient
+        # acquisition before the Rust process can report SERVICE_STOPPED.
+        deadline = time.monotonic() + 90
         while time.monotonic() < deadline:
             if api.QueryServiceStatus(handle)[1] == api.SERVICE_STOPPED:
                 return
@@ -672,7 +674,7 @@ class WindowsScmNativeService:
             status = api.QueryServiceStatus(service)
             if status[1] != api.SERVICE_STOPPED:
                 api.ControlService(service, api.SERVICE_CONTROL_STOP)
-                deadline = time.monotonic() + 30
+                deadline = time.monotonic() + 90
                 while time.monotonic() < deadline:
                     if api.QueryServiceStatus(service)[1] == api.SERVICE_STOPPED:
                         break
