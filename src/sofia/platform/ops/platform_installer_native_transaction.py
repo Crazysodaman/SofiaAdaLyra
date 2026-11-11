@@ -354,6 +354,13 @@ def apply_owner_approved_native_service(
                 raise PlatformInstallationDenied(
                     "native receipt differs from signed installed Platform identity or release"
                 )
+            if not ExecutionApprovalVerifier(safe).consumed_owner_proof_remains_current(
+                approval_id=approval_id, capability=expected["capability"],
+                parameters=expected["parameters"],
+            ):
+                raise PlatformInstallationDenied(
+                    "owner authentication revoked during native operation"
+                )
             if OperatorStopStore(safe).current().active:
                 raise PlatformInstallationDenied("STOP changed during native operation")
             verified_identity = _spec(
