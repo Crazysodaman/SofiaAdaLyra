@@ -182,6 +182,22 @@ def test_native_recovery_review_never_invents_a_journal_or_health(installed_scop
     assert effects == []
 
 
+@pytest.mark.skipif(os.name == "nt", reason="POSIX dangling symlink semantics")
+def test_native_journal_dangling_symlink_is_not_mistaken_for_absence(
+        installed_scope):
+    scope = dict(installed_scope)
+    journal = scope["store"].path.parent / "native-service-transaction.json"
+    assert not journal.exists()
+    journal.symlink_to(journal.parent / "missing-foreign-journal")
+    assert journal.is_symlink()
+    assert not journal.exists()  # The exact edge case: exists() follows link.
+    with pytest.raises((OSError, PermissionError, ValueError)):
+        native_service_operation_request(**scope)
+    # No owner approval, OS effect, service or replacement transaction.
+    assert journal.is_symlink()
+    assert not journal.exists()
+
+
 def test_native_request_is_nonexecuting_signed_plan(installed_scope):
     scope = dict(installed_scope)
     request = native_service_operation_request(**scope)
