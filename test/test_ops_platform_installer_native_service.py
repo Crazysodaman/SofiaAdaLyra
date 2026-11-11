@@ -257,6 +257,20 @@ def test_systemd_rejects_replaced_unit_inode_during_inspection(
         service._verify_unit_file(original)
 
 
+@pytest.mark.skipif(os.name == "nt", reason="POSIX systemd unit file modes")
+@pytest.mark.parametrize("mode", (0o664, 0o666, 0o646))
+def test_systemd_rejects_group_or_world_writable_unit_even_with_matching_bytes(
+        native_spec, tmp_path, mode):
+    service = DebianSystemdNativeService(
+        unit_path=tmp_path / "aegis-platform.service",
+    )
+    expected = service._unit(native_spec)
+    service.unit_path.write_bytes(expected)
+    service.unit_path.chmod(mode)
+    with pytest.raises(PlatformInstallationDenied, match="foreign or changed"):
+        service._verify_unit_file(expected)
+
+
 @pytest.mark.skipif(os.name == "nt", reason="POSIX native systemd path semantics")
 def test_systemd_refuses_foreign_existing_unit_without_changing_it(native_spec, tmp_path, monkeypatch):
     import sofia.platform.ops.platform_installer_native_service as mod
