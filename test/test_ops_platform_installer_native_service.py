@@ -104,6 +104,60 @@ def test_systemd_register_stop_and_remove_only_exact_new_unit(native_spec, tmp_p
     assert not service.unit_path.exists()
     assert ("stop", "aegis-platform.service") in calls
     assert ("disable", "aegis-platform.service") in calls
+    assert ("enable", "aegis-platform.service") in calls
+    assert calls.index(("enable", "aegis-platform.service")) > calls.index(("start", "aegis-platform.service"))
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX native systemd path semantics")
+def test_systemd_never_enables_failed_first_start(native_spec, tmp_path, monkeypatch):
+    import sofia.platform.ops.platform_installer_native_service as mod
+    service = DebianSystemdNativeService(unit_path=tmp_path / "aegis-platform.service")
+    monkeypatch.setattr(service, "_require_root", lambda: None)
+    monkeypatch.setattr(service, "_require_service_identity", lambda _spec: None)
+    calls = []
+
+    def ctl(*args):
+        calls.append(args)
+        if args[0] == "show":
+            if not service.unit_path.exists():
+                return "LoadState=not-found\\nFragmentPath=\\n"
+            return ("LoadState=loaded\\nFragmentPath=" + str(service.unit_path)
+                    + "\\nActiveState=failed\\nSubState=failed\\nMainPID=0\\n")
+        return ""
+
+    monkeypatch.setattr(mod, "_run_systemctl", ctl)
+    with pytest.raises(PlatformInstallationDenied, match="not running"):
+        service.register(native_spec)
+    assert ("start", "aegis-platform.service") in calls
+    assert ("enable", "aegis-platform.service") not in calls
+    assert service.unit_path.exists()  # Preserve unknown outcome for reconciliation.
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX native systemd path semantics")
+def test_systemd_restart_refuses_success_when_service_exits(native_spec, tmp_path, monkeypatch):
+    import sofia.platform.ops.platform_installer_native_service as mod
+    service = DebianSystemdNativeService(unit_path=tmp_path / "aegis-platform.service")
+    monkeypatch.setattr(service, "_require_root", lambda: None)
+    monkeypatch.setattr(service, "_require_service_identity", lambda _spec: None)
+    running = [True]
+
+    def ctl(*args):
+        if args[0] == "show":
+            if not service.unit_path.exists():
+                return "LoadState=not-found\\nFragmentPath=\\n"
+            state = "active" if running[0] else "failed"
+            sub = "running" if running[0] else "failed"
+            pid = "2345" if running[0] else "0"
+            return (f"LoadState=loaded\\nFragmentPath={service.unit_path}\\n"
+                    f"ActiveState={state}\\nSubState={sub}\\nMainPID={pid}\\n")
+        if args[0] == "restart":
+            running[0] = False
+        return ""
+
+    monkeypatch.setattr(mod, "_run_systemctl", ctl)
+    service.register(native_spec)
+    with pytest.raises(PlatformInstallationDenied, match="not running"):
+        service.restart_verified(native_spec)
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX native systemd path semantics")
