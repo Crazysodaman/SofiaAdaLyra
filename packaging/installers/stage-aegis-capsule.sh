@@ -15,7 +15,7 @@ if (($# != 12)) || [[ "$1" != '--capsule' || "$3" != '--signature' ||
 fi
 capsule="$2"; signature="$4"; publisher_key="$6"
 publisher_pin="$8"; signer="${10}"; destination="${12}"
-for tool in bash openssl sha256sum realpath stat mktemp unzip mkdir chmod rm mv wc head sed dirname basename id; do
+for tool in bash openssl sha256sum realpath stat mktemp unzip mkdir chmod rm mv wc head tail od tr sed dirname basename id; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     printf '%s\n' 'Required stock Debian verification/staging tool missing' >&2
     exit 3
@@ -86,14 +86,57 @@ fi
 [[ "$(wc -c < "$index")" -le 131072 ]] || exit 3
 IFS= read -r header < "$index" || exit 3
 [[ "$header" == 'aegis.delivery-index.v1' ]] || exit 3
-IFS=$'\t'
+# Do not inherit a changed global IFS into later filesystem operations.
+# The signed inventory is tab-delimited, sorted, newline-terminated and
+# bounded, exactly as the upstream inspector and Python verifier require.
+[[ "$(tail -c 1 -- "$index" | od -An -tu1 | tr -d '[:space:]')" == 10 ]] || exit 3
 count=0
-while read -r digest size relative; do
+total=0
+previous=''
+while IFS=
+  mkdir -p -- "$(dirname -- "$file")"
+  # Explicit redirection creates a normal file, NEVER follows a ZIP symlink.
+  # head and pipefail stop an oversized decompressor before unbounded output.
+  if ! unzip -p "$capsule" "$relative" | head -c "$((size+1))" > "$file"; then
+    printf '%s\n' 'Capsule member extraction failed or overflowed' >&2; exit 3
+  fi
+  [[ "$(stat -c %s -- "$file")" == "$size" ]] || exit 3
+  observed="$(sha256sum -- "$file")" || exit 3
+  [[ "${observed:0:64}" == "$digest" ]] || exit 3
+  chmod 600 -- "$file"
+done < <(sed '1d' "$index")
+((count >= 1)) || exit 3
+# Preserve the signed delivery index as a normal regular file, within the
+# same staging namespace as the extracted release and launchers.
+mkdir -p -- "$work/aegis"
+mv -- "$index" "$work/aegis/delivery-index.v1"
+chmod 600 -- "$work/aegis/delivery-index.v1"
+final_sha="$(sha256sum -- "$capsule")" || exit 3
+[[ "${final_sha:0:64}" == "$sealed_sha" ]] || {
+  printf '%s\n' 'Signed capsule changed during staging' >&2; exit 3;
+}
+if [[ -e "$destination" || -L "$destination" ]]; then
+  printf '%s\n' 'Destination appeared during safe staging' >&2; exit 3
+fi
+# GNU mv --no-clobber does not overwrite an existing destination. Confirm
+# the temporary directory disappeared before reporting a completed stage.
+mv -T --no-clobber -- "$work" "$destination" || exit 3
+if [[ -e "$work" || ! -d "$destination" ]]; then
+  printf '%s\n' 'Staging commit not completed' >&2; exit 3
+fi
+committed=1
+printf '{"schema":"aegis.offline.capsule-stage.v1","result":"SIGNED_MEDIA_STAGED_NOT_INSTALLED","capsule_sha256":"%s","member_count":%d,"publisher_delivery_verified":true,"inner_release_assets_verified_by_stager":false,"owner_approved":false,"native_service_registered":false,"core_activated":false,"fleet_enrolled":false}\n' "$sealed_sha" "$count"
+\t' read -r digest size relative || [[ -n "$digest$size$relative" ]]; do
   [[ "$digest" =~ ^[0-9a-f]{64}$ && "$size" =~ ^[1-9][0-9]{0,11}$ &&
       "$relative" =~ ^aegis/[A-Za-z0-9._/+@-]{1,240}$ ]] || exit 3
   [[ "$relative" != *'//'* && "$relative" != */../* &&
      "$relative" != */./* && "$relative" != */.. && "$relative" != */. ]] || exit 3
-  ((count+=1)); ((count <= 128 && size <= 536870912)) || exit 3
+  if [[ -n "$previous" && !( "$relative" > "$previous" ) ]]; then exit 3; fi
+  previous="$relative"
+  ((count+=1))
+  ((count <= 128 && size <= 536870912)) || exit 3
+  total=$((total+size))
+  ((total <= 1075838976)) || exit 3
   file="$work/$relative"
   mkdir -p -- "$(dirname -- "$file")"
   # Explicit redirection creates a normal file, NEVER follows a ZIP symlink.
