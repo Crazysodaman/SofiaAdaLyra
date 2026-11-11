@@ -370,6 +370,27 @@ class DebianSystemdNativeService:
         finally:
             os.close(fd)
 
+    def _sync_unit_directory(self) -> None:
+        """Persist unit create/rename/delete before reporting a native effect.
+
+        Linux directory fsync seals the directory entry after the signed
+        unit file itself was synced. Failure leaves the outcome to explicit
+        host reconciliation rather than claiming a durable install.
+        """
+        parent = self.unit_path.parent
+        assert_no_redirected_components(parent, include_leaf=True)
+        fd = os.open(
+            parent,
+            os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+            | getattr(os, "O_NOFOLLOW", 0),
+        )
+        try:
+            if not stat.S_ISDIR(os.fstat(fd).st_mode):
+                raise PlatformInstallationDenied("systemd unit parent not a directory")
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+
     def _loaded(self) -> str:
         lines = _run_systemctl(
             "show", _SERVICE_LINUX, "--property=LoadState,FragmentPath", "--no-pager"
@@ -392,6 +413,7 @@ class DebianSystemdNativeService:
             stream.write(data)
             stream.flush()
             os.fsync(stream.fileno())
+        self._sync_unit_directory()
         _run_systemctl("daemon-reload")
         _run_systemctl("start", _SERVICE_LINUX)
         # A successful systemctl start is not proof the child stayed alive.
@@ -475,6 +497,7 @@ class DebianSystemdNativeService:
         _run_systemctl("stop", _SERVICE_LINUX)
         self._verify_unit_file(self._unit(previous))
         os.replace(pending, self.unit_path)
+        self._sync_unit_directory()
         _run_systemctl("daemon-reload")
         _run_systemctl("start", _SERVICE_LINUX)
         return self._require_running(self.observe(candidate))
@@ -487,6 +510,7 @@ class DebianSystemdNativeService:
         assert_no_redirected_components(self.unit_path, include_leaf=True)
         self._verify_unit_file(self._unit(spec))
         self.unit_path.unlink()
+        self._sync_unit_directory()
         _run_systemctl("daemon-reload")
         return dict(schema="aegis.native-service-receipt.v1",
                     service=_SERVICE_LINUX, process_state="REMOVED",
