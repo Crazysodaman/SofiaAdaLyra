@@ -118,8 +118,15 @@ class ApprovedLibraryHub:
             raise ChunkTransferRejected("Hub STOP or owner revocation")
         try:
             peer, _address = self._listener.accept()
-        except (OSError, TimeoutError) as exc:
+        except (socket.timeout, TimeoutError) as exc:
+            # A bounded idle poll lets the owner-controlled worker recheck
+            # RUN generation and STOP without treating absence of peers
+            # as a security incident.
             raise ChunkTransferRejected("bounded Hub accept unavailable") from exc
+        except OSError as exc:
+            # EBADF / revoked descriptor / listener failure is NOT idle.
+            # The owner supervisor must account for a broken Hub socket.
+            raise ChunkTransferRejected("Hub listener failed") from exc
         with peer:
             peer.settimeout(self._timeout)
             if self._owner_enabled() is not True:
