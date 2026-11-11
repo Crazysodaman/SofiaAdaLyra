@@ -298,7 +298,10 @@ def native_service_operation_request(
         if (candidate_manifest.digest != current.manifest_sha256
                 or candidate_manifest.parent_manifest_sha256 != prev.manifest_sha256):
             raise PlatformInstallationDenied("update candidate has wrong signed predecessor")
-    elif previous_destination is not None:
+    elif operation != "rollback" and previous_destination is not None:
+        # Rollback deliberately supplies both the historically signed target
+        # and the currently active release. Reject extra paths for every
+        # other operation; don't prohibit the approved rollback itself.
         raise PlatformInstallationDenied("unexpected previous release path")
     safe = Path(canonical_safe_state).absolute()
     assert_no_redirected_components(safe, include_leaf=True)
