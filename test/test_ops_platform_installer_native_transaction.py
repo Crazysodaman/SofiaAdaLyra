@@ -314,6 +314,43 @@ def test_operator_stop_before_effect_denies_native_registration(
     assert calls == []
 
 
+def test_owner_credential_revoked_during_native_effect_requires_reconciliation(
+        installed_scope):
+    import sqlite3
+
+    scope = dict(installed_scope)
+    backend, effects = fake_backend()
+    now = datetime.now(timezone.utc)
+    approval = grant_for_request(
+        scope, id="approval:b2-mid-effect-credential-revoked", now=now,
+    )
+    original = backend.register
+
+    def register_then_revoke(spec):
+        receipt = original(spec)
+        # A separate owner action can revoke a previously verified
+        # credential while a native OS call is still in progress.
+        with sqlite3.connect(scope["canonical_safe_state"]) as connection:
+            connection.execute(
+                "UPDATE safe_owner_credential SET revoked_at=? "
+                "WHERE revoked_at IS NULL",
+                (now.isoformat(),),
+            )
+        return receipt
+
+    backend.register = register_then_revoke
+    with pytest.raises(PlatformInstallationDenied, match="owner authentication revoked"):
+        apply_owner_approved_native_service(
+            **scope, backend=backend,
+            approval_id=approval.approval_id, now=now,
+        )
+    assert len(effects) == 1
+    journal = scope["store"].path.parent / "native-service-transaction.json"
+    assert '"OUTCOME_UNKNOWN"' in journal.read_text()
+    with pytest.raises(PlatformInstallationDenied, match="unresolved native"):
+        native_service_operation_request(**scope)
+
+
 def test_operator_stop_during_service_effect_forces_unknown_outcome(
         installed_scope, monkeypatch):
     import sofia.platform.ops.platform_installer_native_transaction as transaction
