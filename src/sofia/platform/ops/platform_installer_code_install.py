@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
+import re
 
 from sofia.platform.ops.platform_installation import (
     PlatformInstallationDenied, PlatformInstallationStore, install_staged_release,
@@ -36,6 +37,8 @@ def signed_code_publication_request(
     store: PlatformInstallationStore,
     verifier: PlatformReleaseVerifier,
     expected_target: PlatformReleaseTarget,
+    outer_capsule_sha256: str | None = None,
+    delivery_index_sha256: str | None = None,
 ) -> dict[str, object]:
     """Return a fingerprintable immutable plan, never an approval."""
     if not isinstance(store, PlatformInstallationStore):
@@ -44,6 +47,16 @@ def signed_code_publication_request(
         raise TypeError("trusted canonical verifier required")
     if not isinstance(expected_target, PlatformReleaseTarget):
         raise TypeError("exact typed release target required")
+    if (outer_capsule_sha256 is None) != (delivery_index_sha256 is None):
+        raise PlatformInstallationDenied(
+            "reviewed outer capsule and delivery index must be bound together"
+        )
+    for value in (outer_capsule_sha256, delivery_index_sha256):
+        if value is not None and (
+            type(value) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", value) is None
+        ):
+            raise PlatformInstallationDenied("canonical reviewed capsule SHA-256 required")
     dest = Path(destination).absolute()
     state = Path(state_path).absolute()
     identity = Path(identity_home).absolute()
@@ -81,6 +94,11 @@ def signed_code_publication_request(
         "minimum_accepted_revision": store.revision_floor(),
         "kind": "nonactivating-signed-code-only",
     }
+    if outer_capsule_sha256 is not None:
+        # Reviewed outer media must be approved along with inner B1 bytes.
+        # These SHA values are only a scope; they are not signature proof.
+        parameters["outer_capsule_sha256"] = outer_capsule_sha256
+        parameters["delivery_index_sha256"] = delivery_index_sha256
     return {
         "schema": "aegis.platform.code-publication-request.v1",
         "capability": CODE_PUBLISH_CAPABILITY,
@@ -102,6 +120,8 @@ def publish_owner_approved_code(
     verifier: PlatformReleaseVerifier,
     expected_target: PlatformReleaseTarget,
     now: datetime | None = None,
+    outer_capsule_sha256: str | None = None,
+    delivery_index_sha256: str | None = None,
 ) -> dict[str, object]:
     """Consume one exact current owner grant, then call canonical B1 publisher.
 
@@ -121,6 +141,8 @@ def publish_owner_approved_code(
         staged_candidate=staged_candidate, destination=destination,
         identity_home=identity_home, state_path=state, store=store,
         verifier=verifier, expected_target=expected_target,
+        outer_capsule_sha256=outer_capsule_sha256,
+        delivery_index_sha256=delivery_index_sha256,
     )
     ExecutionApprovalVerifier(state).consume(
         approval_id=approval_id,
@@ -137,6 +159,8 @@ def publish_owner_approved_code(
         staged_candidate=staged_candidate, destination=destination,
         identity_home=identity_home, state_path=state, store=store,
         verifier=verifier, expected_target=expected_target,
+        outer_capsule_sha256=outer_capsule_sha256,
+        delivery_index_sha256=delivery_index_sha256,
     )
     if observed["fingerprint"] != request["fingerprint"]:
         raise PlatformInstallationDenied("release or generation changed after approval")
