@@ -485,7 +485,7 @@ class WindowsScmNativeService:
             service = api.CreateService(
                 scm, _SERVICE_WINDOWS, "Aegis Platform (signed Core-free)",
                 api.SERVICE_ALL_ACCESS, api.SERVICE_WIN32_OWN_PROCESS,
-                api.SERVICE_DEMAND_START, api.SERVICE_ERROR_NORMAL,
+                api.SERVICE_AUTO_START, api.SERVICE_ERROR_NORMAL,
                 command, None, 0, None, "NT AUTHORITY\\LocalService", None,
             )
             api.StartService(service, None)
