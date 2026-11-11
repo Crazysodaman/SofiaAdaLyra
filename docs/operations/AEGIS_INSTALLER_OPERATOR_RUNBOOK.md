@@ -129,6 +129,47 @@ Fresh publisher revocation, attended owner authentication, B1 receipt/rollback
 policy and installed system service READY remain separate gates. A read-only
 review does **not** become an installation approval when saved as JSON.
 
+### Canonical B1 code staging and separately approved publication
+
+**Do not hand `aegis/` extracted ZIP contents directly to
+`publish_owner_approved_code`.** A folder containing correctly signed assets
+is not the canonical B1 staging candidate. B1 requires its original
+`stage-receipt.json` and independently verified runtime inventory.
+
+After successful outer capsule staging and read-only double-signature review,
+the **internal** (not shell-exposed) function
+`sofia.platform.ops.platform_installer_capsule_b1_stage.stage_sealed_capsule_for_b1`
+takes the original capsule/signature, private staged media directory,
+out-of-band publisher key and SHA256 pin, signed release source/target/floor,
+and a **new, distinct, absent** `b1_staging_candidate` directory.
+It reuses `stage_platform_release` to produce the true
+`VERIFIED_PLATFORM_CODE_STAGED` receipt and verified, materialized runtime.
+Its result is only `SIGNED_B1_CODE_STAGED_NOT_INSTALLED`; it creates no
+owner grant, canonical installation, native service or Core.
+
+Next, the separate internal function
+`signed_capsule_code_publication_request` must be given BOTH the original
+sealed media directory and the **genuine B1 staged candidate**. It rechecks
+the outer and inner publisher signatures and requires B1 to verify the
+stage receipt. The existing canonical `platform.install_verified_code`
+one-use owner-approval fingerprint includes **both** the outer ZIP SHA256
+and signed delivery-index SHA256, along with the ordinary B1 manifest,
+revision, destination, owner identity and checkpoint. A different ZIP or
+inventory cannot reuse the reviewed approval.
+
+Only an independently authenticated SAFE owner proof matching the exact
+fingerprint permits `publish_owner_approved_sealed_capsule_code` to call
+the existing B1 code publisher. Successful publication means
+`PLATFORM_RELEASE_INSTALLED`, **not** running or healthy. The owner must
+separately approve the next `native_service_operation_request` under
+`platform.native_service.apply` before the reviewed systemd/SCM driver
+may register/start a service. Current RUN generation, owner enrollment,
+publisher revocation, STOP and installed-host READY must still be checked.
+
+This is an implemented **internal source boundary**, not a complete
+public installer. Do not expose these privileged functions directly to
+an unauthenticated GUI, TUI, Bash shell or remote Fleet caller.
+
 ## Available internal signed verifier and lifecycle planning (not shell-enabled)
 
 The Platform Python package now exposes `verify_offline_installer_bundle` in
