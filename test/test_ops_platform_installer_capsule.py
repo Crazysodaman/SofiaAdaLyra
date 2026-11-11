@@ -330,3 +330,35 @@ def test_offline_stager_does_not_follow_untrusted_parent_or_accept_wrong_signer(
     denied_alias = subprocess.run(args, capture_output=True, text=True, timeout=20)
     assert denied_alias.returncode != 0
     assert not (owner_private / "new-stage").exists()
+
+@pytest.mark.skipif(os.name == "nt" or shutil.which("unzip") is None,
+                    reason="requires stock Linux ZIP inspector")
+@pytest.mark.parametrize("oversize", ("member", "delivery-index"))
+def test_capsule_member_inspector_rejects_bounded_decompression_overflow(
+        tmp_path, oversize):
+    # Deliberately compressed bomb bytes; no publisher signature or native
+    # installer is claimed. Verify the inspector stops reading at the
+    # signed-length bound, rather than expanding all attacker-controlled data.
+    archive = tmp_path / "untrusted-oversized.zip"
+    tiny = b"x"
+    payload = b"x" * (15 * 1024 * 1024)
+    line = (sha256(tiny).hexdigest()
+            + "\t1\taegis/oversized.bin\n")
+    index = ("aegis.delivery-index.v1\n" + line).encode("ascii")
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as zipped:
+        zipped.writestr(
+            "aegis/delivery-index.v1",
+            index if oversize == "member" else index + b"z" * (2 * 1024 * 1024),
+        )
+        zipped.writestr(
+            "aegis/oversized.bin",
+            payload if oversize == "member" else tiny,
+        )
+    inspect = PROJECT_ROOT / "packaging/installers/inspect-aegis-capsule-members.sh"
+    result = subprocess.run(
+        ["bash", str(inspect), "--capsule", str(archive),
+         "--expected-sha256", sha256(archive.read_bytes()).hexdigest()],
+        capture_output=True, text=True, timeout=20,
+    )
+    assert result.returncode != 0
+    assert "MEMBERS_HASHED_NOT_INSTALLABLE" not in result.stdout
