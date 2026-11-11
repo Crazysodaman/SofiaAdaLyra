@@ -211,6 +211,29 @@ consequential operations.
 **Do not treat the preview commands above as these five steps.** They only
 verify the user-facing entrypoint.
 
+## Focused exact-SHA source shakedown (developer checkout only)
+
+After branch reconciliation, on a clean checkout containing Python 3.12,
+pytest, installed project dependencies and stock Debian ZIP/OpenSSL tools,
+run the dedicated **source-only** integration gate:
+
+```bash
+git rev-parse HEAD
+bash tools/aegis_offline_b1_shakedown.sh --source-sha "$(git rev-parse HEAD)"
+```
+
+This checks the **actual Bash launcher/stager/verifier**, the Python B1
+candidate-stage/one-use SAFE transaction sources, and related native service
+simulator tests from the same source SHA. It intentionally refuses a dirty
+checkout or mismatched supplied SHA. It performs no production signing or
+native service install and does **not** convert disposable test signer results
+into 38-row/16-LIB host acceptance. It cannot replace the separately approved
+four-host Windows/Debian release shakedown and publisher trust ceremony.
+
+The source test must pass before promoting installer integration work further.
+Any failure leaves the installer milestone open; never bypass it with a
+synthetic success flag or an unchecked directory.
+
 ## Release evidence required by #201
 
 | Row | Evidence still required |
