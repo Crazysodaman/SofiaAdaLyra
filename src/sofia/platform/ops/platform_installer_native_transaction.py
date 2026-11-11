@@ -348,11 +348,9 @@ def apply_owner_approved_native_service(
                 raise PlatformInstallationDenied(
                     "native Platform service receipt must remain Core-free"
                 )
-            if operation != "unregister" and (
-                result.get("platform_id") != candidate.platform_id
-                or result.get("release_manifest_sha256") != candidate.manifest_sha256
-                or result.get("service_health") != "UNKNOWN"
-            ):
+            if (result.get("platform_id") != candidate.platform_id
+                    or result.get("release_manifest_sha256") != candidate.manifest_sha256
+                    or result.get("service_health") != "UNKNOWN"):
                 raise PlatformInstallationDenied(
                     "native receipt differs from signed installed Platform identity or release"
                 )
