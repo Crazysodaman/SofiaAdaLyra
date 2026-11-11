@@ -146,6 +146,33 @@ def publish_owner_approved_sealed_capsule_code(
     verifier = _publisher_verifier(
         trusted_public_key, trusted_key_sha256, trusted_signer_key_id,
     )
+    # The standard B1 publisher rechecks its own canonical candidate and
+    # exact one-use SAFE approval. The outer publisher-sealed media is a
+    # separate approved identity; reverify it immediately before and after
+    # publication as well. A changed ZIP or delivery index cannot silently
+    # inherit a previously approved code-publication receipt.
+    def current_outer_review() -> None:
+        fresh = review_staged_publisher_signed_capsule(
+            capsule=capsule, capsule_signature=capsule_signature,
+            staged_directory=staged_directory,
+            trusted_public_key=trusted_public_key,
+            trusted_key_sha256=trusted_key_sha256,
+            trusted_signer_key_id=trusted_signer_key_id,
+            expected_source_sha=expected_source_sha,
+            expected_target=expected_target,
+            minimum_revision=minimum_revision,
+            expected_parent_manifest_sha256=expected_parent_manifest_sha256,
+            require_local_host=require_local_host,
+        )
+        if (fresh["capsule_sha256"] != request["capsule_sha256"]
+                or fresh["delivery_index_sha256"] != request["delivery_index_sha256"]
+                or fresh["inner_release"]["manifest_sha256"] !=
+                request["release_manifest_sha256"]):
+            raise PlatformInstallationDenied(
+                "publisher-sealed media changed during approved publication"
+            )
+
+    current_outer_review()
     published = publish_owner_approved_code(
         approval_id=approval_id,
         staged_candidate=Path(b1_staging_candidate).absolute(),
@@ -156,6 +183,14 @@ def publish_owner_approved_sealed_capsule_code(
         outer_capsule_sha256=request["capsule_sha256"],
         delivery_index_sha256=request["delivery_index_sha256"],
     )
+    try:
+        current_outer_review()
+    except (OSError, ValueError, PermissionError) as exc:
+        # B1 may have durably copied code already. Never claim a clean
+        # publish result or attempt automatic rollback/identity replacement.
+        raise PlatformInstallationDenied(
+            "sealed media changed during code publication; reconcile B1 receipt"
+        ) from exc
     if (published.get("result") != "PLATFORM_RELEASE_INSTALLED"
             or published.get("os_service_registered") is not False
             or published.get("core_activated") is not False):
