@@ -222,3 +222,111 @@ def test_capsule_seal_message_rejects_invalid_signing_input(sha, signer):
         offline_capsule_publisher_seal_message(
             capsule_sha256=sha, signer_key_id=signer,
         )
+
+@pytest.mark.skipif(
+    os.name == "nt" or shutil.which("openssl") is None or shutil.which("unzip") is None,
+    reason="requires stock Linux Ed25519/ZIP staging tools",
+)
+def test_signed_offline_capsule_stages_inert_private_bytes_only(reviewed, tmp_path):
+    builder, _stage, manifest, pins = reviewed
+    capsule = tmp_path / "sealed-disposable.zip"
+    receipt = build_reviewed_offline_capsule(**capsule_args(reviewed, capsule))
+    signature = tmp_path / "sealed-disposable.raw64"
+    signature.write_bytes(builder._key.sign(
+        offline_capsule_publisher_seal_message(
+            capsule_sha256=receipt["capsule_sha256"],
+            signer_key_id=pins["trusted_signer_key_id"],
+        ),
+    ))
+    # The owner explicitly selects a new PRIVATE staging directory.
+    tmp_path.chmod(0o700)
+    destination = tmp_path / "verified-staging"
+    command = [
+        "bash", str(PROJECT_ROOT / "packaging/installers/stage-aegis-capsule.sh"),
+        "--capsule", str(capsule),
+        "--signature", str(signature),
+        "--publisher-key", str(pins["trusted_public_key"]),
+        "--publisher-sha256", pins["trusted_key_sha256"],
+        "--publisher-signer", pins["trusted_signer_key_id"],
+        "--destination", str(destination),
+    ]
+    outcome = subprocess.run(command, capture_output=True, text=True, timeout=120)
+    assert outcome.returncode == 0, outcome.stderr[:500]
+    observed = json.loads(outcome.stdout)
+    assert observed["result"] == "SIGNED_MEDIA_STAGED_NOT_INSTALLED"
+    assert observed["capsule_sha256"] == receipt["capsule_sha256"]
+    assert observed["publisher_delivery_verified"] is True
+    assert observed["inner_release_assets_verified_by_stager"] is False
+    assert observed["owner_approved"] is False
+    assert observed["native_service_registered"] is False
+    assert observed["core_activated"] is False
+    assert not (tmp_path / "sofia.db").exists()
+    with zipfile.ZipFile(capsule) as archive:
+        names = archive.namelist()
+        assert len(names) == observed["member_count"] + 1
+        for filename in names:
+            staged = destination / filename
+            assert staged.is_file()
+            assert not staged.is_symlink()
+            assert staged.stat().st_mode & 0o077 == 0
+            assert sha256(staged.read_bytes()).hexdigest() == sha256(
+                archive.read(filename),
+            ).hexdigest()
+    assert destination.stat().st_mode & 0o077 == 0
+    assert (destination / "aegis/stage-aegis-capsule.sh").exists()
+    assert (destination / "aegis/release-manifest.json").read_bytes() == manifest.canonical_bytes
+
+    # A second run cannot silently adopt or overwrite existing output.
+    denied = subprocess.run(command, capture_output=True, text=True, timeout=20)
+    assert denied.returncode != 0
+    assert sha256((destination / "aegis/release-manifest.json").read_bytes()).hexdigest() == sha256(
+        manifest.canonical_bytes,
+    ).hexdigest()
+
+    # Mutating a previously publisher-sealed ZIP must be rejected before
+    # creating a fresh staging directory.
+    with capsule.open("ab") as changed:
+        changed.write(b"changed-after-seal")
+    command[-1] = str(tmp_path / "tampered-stage")
+    tampered = subprocess.run(command, capture_output=True, text=True, timeout=20)
+    assert tampered.returncode != 0
+    assert not (tmp_path / "tampered-stage").exists()
+
+
+@pytest.mark.skipif(
+    os.name == "nt" or shutil.which("openssl") is None or shutil.which("unzip") is None,
+    reason="requires stock Linux Ed25519/ZIP staging tools",
+)
+def test_offline_stager_does_not_follow_untrusted_parent_or_accept_wrong_signer(
+        reviewed, tmp_path):
+    builder, _stage, _manifest, pins = reviewed
+    capsule = tmp_path / "signed.zip"
+    receipt = build_reviewed_offline_capsule(**capsule_args(reviewed, capsule))
+    signature = tmp_path / "signed.raw64"
+    signature.write_bytes(builder._key.sign(
+        offline_capsule_publisher_seal_message(
+            capsule_sha256=receipt["capsule_sha256"],
+            signer_key_id=pins["trusted_signer_key_id"],
+        ),
+    ))
+    tmp_path.chmod(0o700)
+    alias = tmp_path / "redirected-parent"
+    owner_private = tmp_path / "owner-private"
+    owner_private.mkdir(mode=0o700)
+    alias.symlink_to(owner_private, target_is_directory=True)
+    args = [
+        "bash", str(PROJECT_ROOT / "packaging/installers/stage-aegis-capsule.sh"),
+        "--capsule", str(capsule), "--signature", str(signature),
+        "--publisher-key", str(pins["trusted_public_key"]),
+        "--publisher-sha256", pins["trusted_key_sha256"],
+        "--publisher-signer", "wrong-signer",
+        "--destination", str(owner_private / "new-stage"),
+    ]
+    denied_signer = subprocess.run(args, capture_output=True, text=True, timeout=20)
+    assert denied_signer.returncode != 0
+    assert not (owner_private / "new-stage").exists()
+    args[args.index("wrong-signer")] = pins["trusted_signer_key_id"]
+    args[-1] = str(alias / "new-stage")
+    denied_alias = subprocess.run(args, capture_output=True, text=True, timeout=20)
+    assert denied_alias.returncode != 0
+    assert not (owner_private / "new-stage").exists()
