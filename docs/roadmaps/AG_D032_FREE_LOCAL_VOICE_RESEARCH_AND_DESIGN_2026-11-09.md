@@ -380,3 +380,18 @@ Proposed **illustrative starting influence weights** (sum 100 for owner review, 
 **Small in-process weight implementation:** `VoiceProsodyWeights(emotion=1.0, daypart=1.0)` can be supplied to `VoiceProsodyMatrix`; values are bounded to [0,1], and default = 1.0 preserves existing prosody decisions. Zero emotion or daypart gain suppresses that channel's numeric effect (but urgency still enforces clarity). Weather/season remain expression-only. Other proposed categories from §14 (relationship, conversation intent, consented surroundings and their comprehensive weighting) are **not yet coded**; neither are per-Core durable weight preferences and transition smoothing. Companion tests were authored; no test-run result or acoustic performance is claimed.
 
 **Unfinished:** Bind the independent Core worker to new SDK endpoint, register a real module sink via SAFE/Fleet/one-use claim, reconcile legacy local `SofiaApplication.speak()` recalculation, persist per-Core weight preference, and run authorized end-to-end audio/binding/restart tests. This checkpoint does not alter Platform/Core 1.0 release gates, install/enroll anything on owner hosts, or mean that the voice system is complete.
+
+## 16. 2026-11-10 source checkpoint: owner-approved Bluehour Voice module
+
+**Selected provisional voice:** Rook Bluehour Round 9 Medium (`sofia_r9_bluehour_REFERENCE_AIR_medium.wav`), warm mid-low/dry Rook foundation, Raphtalia-inspired warmth, secondary Kurisu-inspired insight, optional rare explicit `delivery:bite` for sharper responses. No Cortana voice reproduction; tactical composure stays a separate Core-controlled style target. The selected WAV is owner-local and **not checked into Git**.
+
+**Implemented on `main`:**
+- `voice_asset.py`: strict owner-private local import of the precise Round 9 WAV, matching Round 9 JSON, original Round 6 WAV and transcript metadata, SHA-256, Core binding and no-overwrite policy.
+- `qwen_local.py`: lazy Qwen3-TTS 1.7B Base cloning of the approved reference, local sounddevice playback, truthful output receipts, optional pitch-preserving style bite, optional persistent model residency and default per-job GPU cache release.
+- `voice_cli.py`: explicit owner `import-round9`, `verify`, and `test`; no automatic microphone activation or remote service.
+- `factory.py` / `__init__.py`: opt-in `SOFIA_TTS_BACKEND=qwen3-local-bluehour`; SAPI remains default, persisted mute wins over legacy enablement.
+- `tts.py`: draining neural worker is no longer marked stopped before exit; model release follows completed worker shutdown.
+- `voice_expression_bridge.py`: independently trusted `profile_allowed(core_id, profile_id, revision)` callback required before dispatch. Caller-provided SDK cue remains non-authoritative.
+- CPU/fake-model tests and operational runbook in `docs/development/VOICE_MODULE_BLUEHOUR_IMPLEMENTATION_2026-11-10.md`.
+
+**Not GO / still required:** exact owner WAV import to Venus, real Qwen/soundcard tests, full suite, authenticated remote Module IPC, STOP/mute/revocation changes during synthesis and playback, durable replay/profile-binding configuration, Core preference persistence, fleet provisioning, local free STT/streaming/VAD and host acceptance. This checkpoint **does not** close AG-D032 or Platform/Artifact Library release gates.
