@@ -84,9 +84,28 @@ def inspect_debian_systemd_service(
         return NativeServiceObservation(expected_name, "systemd", "FOREIGN", "UNKNOWN")
     try:
         assert_no_redirected_components(path, include_leaf=True)
-        if not path.is_file() or path.stat(follow_symlinks=False).st_size > 64_000:
-            raise ValueError("invalid unit")
-        actual = sha256(path.read_bytes()).hexdigest()
+        # Verify one bounded inode, not a pathname read that can silently
+        # follow a substituted symlink or stream unbounded foreign content.
+        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        try:
+            import stat
+            before = os.fstat(fd)
+            if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1
+                    or not 1 <= before.st_size <= 64_000):
+                raise ValueError("invalid native unit")
+            with os.fdopen(fd, "rb", closefd=False) as stream:
+                data = stream.read(64_001)
+            after = os.fstat(fd)
+            current = os.lstat(path)
+            pinned = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+            if (len(data) != before.st_size or not stat.S_ISREG(current.st_mode)
+                    or pinned != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
+                    or pinned != (current.st_dev, current.st_ino,
+                                  current.st_size, current.st_mtime_ns)):
+                raise ValueError("native unit changed during inspection")
+            actual = sha256(data).hexdigest()
+        finally:
+            os.close(fd)
     except (OSError, ValueError, PermissionError):
         return NativeServiceObservation(expected_name, "systemd", "UNKNOWN", "UNKNOWN")
     if actual != expected_unit_sha256:
@@ -129,7 +148,12 @@ def inspect_windows_scm_service(*, expected_binary_command: str,
         status = service_api.QueryServiceStatus(handle)
         if len(config) < 9 or len(status) < 2:
             return NativeServiceObservation(_WINDOWS_NAME, "SCM", "UNKNOWN", "UNKNOWN")
-        if config[3] != expected_binary_command:
+        # A matching executable under LocalSystem or an unrelated service
+        # type is not the owner-approved Aegis Platform service.
+        if (config[3] != expected_binary_command
+                or config[0] != service_api.SERVICE_WIN32_OWN_PROCESS
+                or config[1] != service_api.SERVICE_AUTO_START
+                or config[7] not in ("LocalService", "NT AUTHORITY\\\\LocalService")):
             return NativeServiceObservation(_WINDOWS_NAME, "SCM", "FOREIGN", "UNKNOWN")
         state = {
             service_api.SERVICE_RUNNING: "RUNNING",
