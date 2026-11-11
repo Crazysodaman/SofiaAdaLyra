@@ -169,6 +169,35 @@ def test_inert_capsule_media_never_forges_canonical_B1_stage_receipt(
     assert not (staged / "unsafe-nested-stage").exists()
 
 
+@pytest.mark.parametrize("mutation", ("forged-receipt", "altered-b1-asset"))
+def test_sealed_capsule_review_refuses_changed_canonical_B1_candidate(
+        sealed_stage, canonical_state_path, mutation):
+    args, _staged_media, _capsule, _manifest, home = sealed_stage
+    candidate = _stage_original_signed_capsule_as_B1_candidate(args, home)
+    receipts = PlatformInstallationStore(home / "denied-stage-receipts.db")
+    preview_kwargs = dict(
+        **args, b1_staging_candidate=candidate,
+        destination=home / "must-not-publish", identity_home=home / "identity",
+        state_path=canonical_state_path, store=receipts,
+    )
+    if mutation == "forged-receipt":
+        receipt = candidate / "stage-receipt.json"
+        data = json.loads(receipt.read_text(encoding="utf-8"))
+        data["manifest_sha256"] = "0" * 64
+        receipt.write_text(
+            json.dumps(data, sort_keys=True, separators=(",", ":")),
+            encoding="utf-8",
+        )
+    else:
+        asset = next(path for path in (candidate / "assets").rglob("*")
+                     if path.is_file())
+        asset.write_bytes(asset.read_bytes() + b"changed-after-signing")
+    with pytest.raises((PlatformReleaseRejected, PermissionError, ValueError)):
+        signed_capsule_code_publication_request(**preview_kwargs)
+    assert not (home / "must-not-publish").exists()
+    assert receipts.history() == []
+
+
 def test_sealed_media_to_B1_code_publication_requires_distinct_owner_approval(
         sealed_stage, canonical_state_path):
     args, staged, capsule, manifest, host = sealed_stage
