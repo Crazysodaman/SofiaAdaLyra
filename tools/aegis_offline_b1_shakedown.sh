@@ -50,11 +50,14 @@ printf 'AEGIS_SOURCE_SHA=%s\n' "$observed"
 printf '%s\n' 'MODE=SOURCE_ONLY_DISPOSABLE_TESTS' \
   'PUBLISHER_TRUST=TEST_ONLY' 'INSTALLED_HOST_CERTIFIED=FALSE' \
   'PLATFORM_GO=NO_GO'
-bash -n \
+for shell in \
   packaging/installers/install-aegis.sh \
   packaging/installers/verify-aegis-capsule.sh \
   packaging/installers/inspect-aegis-capsule-members.sh \
-  packaging/installers/stage-aegis-capsule.sh
+  packaging/installers/stage-aegis-capsule.sh; do
+  bash -n "$shell"
+done
+printf '%s\n' 'BASH_SYNTAX=PASS'
 # The Python 3.12 runtime is mandatory. No package download or pip install.
 # ast.parse is strict Python syntax validation without writing __pycache__.
 python3.12 - <<'PY'
