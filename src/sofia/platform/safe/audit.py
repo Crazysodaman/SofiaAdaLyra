@@ -214,39 +214,43 @@ class AuditChain:
         )
         return event_hash
 
-    def verify(self) -> tuple[bool, str | None]:
-        """Stream the canonical hash chain with bounded audit-row memory.
+    def verify_in_connection(self, db: sqlite3.Connection) -> tuple[bool, str | None]:
+        """Stream a read-only audit verification in the caller's SQLite snapshot.
 
-        Consumption checks now reverify this chain at protected effect
-        boundaries. Avoid fetchall(), which grows memory in proportion to
-        the lifetime of a continuously running personal Platform.
+        Protected approval checks must see the SAME committed snapshot as
+        their owner-credential and consumed-approval lookup. Supplying the
+        connection does not begin/commit, grant access or mutate SAFE state.
         """
         previous = self.GENESIS
-        with closing(self._connect()) as db:
-            rows = db.execute(
-                """
-                SELECT event_id, occurred_at, actor_id, event_type,
-                       payload_json, previous_hash, event_hash
-                FROM safe_audit_event
-                ORDER BY sequence ASC
-                """
-            )
-            for row in rows:
-                if row["previous_hash"] != previous:
-                    return False, (
-                        f"audit previous-hash mismatch at event {row['event_id']}"
-                    )
-                expected = self._event_hash(
-                    event_id=row["event_id"],
-                    occurred_at=row["occurred_at"],
-                    actor_id=row["actor_id"],
-                    event_type=row["event_type"],
-                    payload_json=row["payload_json"],
-                    previous_hash=row["previous_hash"],
+        rows = db.execute(
+            """
+            SELECT event_id, occurred_at, actor_id, event_type,
+                   payload_json, previous_hash, event_hash
+            FROM safe_audit_event
+            ORDER BY sequence ASC
+            """
+        )
+        for row in rows:
+            if row["previous_hash"] != previous:
+                return False, (
+                    f"audit previous-hash mismatch at event {row['event_id']}"
                 )
-                if row["event_hash"] != expected:
-                    return False, (
-                        f"audit event-hash mismatch at event {row['event_id']}"
-                    )
-                previous = row["event_hash"]
+            expected = self._event_hash(
+                event_id=row["event_id"],
+                occurred_at=row["occurred_at"],
+                actor_id=row["actor_id"],
+                event_type=row["event_type"],
+                payload_json=row["payload_json"],
+                previous_hash=row["previous_hash"],
+            )
+            if row["event_hash"] != expected:
+                return False, (
+                    f"audit event-hash mismatch at event {row['event_id']}"
+                )
+            previous = row["event_hash"]
         return True, None
+
+    def verify(self) -> tuple[bool, str | None]:
+        """Stream historical events rather than loading the audit into RAM."""
+        with closing(self._connect()) as db:
+            return self.verify_in_connection(db)
