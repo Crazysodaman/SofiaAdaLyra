@@ -9,7 +9,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from sofia.platform.ops.platform_installation import PlatformInstallationDenied
+from sofia.platform.ops.platform_installation import (
+    PlatformInstallationDenied, verify_staged_release_candidate,
+)
 from sofia.platform.ops.platform_installer_sealed_publication import _publisher_verifier
 from sofia.platform.ops.platform_installer_verified_stage import (
     _private_file, review_staged_publisher_signed_capsule,
@@ -69,9 +71,18 @@ def stage_sealed_capsule_for_b1(
         minimum_revision=minimum_revision,
         expected_parent_manifest_sha256=expected_parent_manifest_sha256,
     )
+    # Validate the finalized stage receipt via the SAME independent B1
+    # verifier that code publication uses. Do not merely trust a returned
+    # dict or assume the last on-disk write survived and remained unchanged.
+    checked = verify_staged_release_candidate(
+        candidate, verifier=verifier, minimum_revision=minimum_revision,
+    )
     if (receipt.get("result") != "VERIFIED_PLATFORM_CODE_STAGED"
-            or receipt.get("manifest_sha256") !=
-            reviewed["inner_release"]["manifest_sha256"]):
+            or receipt.get("manifest_sha256") != checked.manifest_sha256
+            or checked.manifest_sha256 !=
+            reviewed["inner_release"]["manifest_sha256"]
+            or checked.source_sha != expected_source_sha
+            or checked.manifest.target is not expected_target):
         raise PlatformInstallationDenied("canonical B1 stage differs from sealed publisher media")
     return {
         "schema": "aegis.installer.sealed-media-b1-stage.v1",
