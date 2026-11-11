@@ -38,6 +38,7 @@ class FakeStop:
 class FakeApproval:
     recorded = []
     allowed = True
+    proof_current = True
 
     def __init__(self, _path):
         pass
@@ -51,6 +52,13 @@ class FakeApproval:
         assert parameters["content_digest"] == parameters["content_digest"].lower()
         self.recorded.append(dict(parameters))
 
+    def consumed_owner_proof_remains_current(
+            self, *, approval_id, capability, parameters):
+        assert approval_id == "owner-current-proof"
+        assert capability == "platform.library.cache_admit_enrolled_peer"
+        assert parameters["source"] == "ENROLLED_PEER"
+        return self.proof_current
+
 
 @pytest.fixture
 def prepared(monkeypatch, tmp_path):
@@ -59,6 +67,7 @@ def prepared(monkeypatch, tmp_path):
     monkeypatch.setattr(handoff, "ExecutionApprovalVerifier", FakeApproval)
     FakeStop.state.active = False
     FakeApproval.allowed = True
+    FakeApproval.proof_current = True
     FakeApproval.recorded = []
     raw = b"public-release-bytes-" * 500
     pin = _transfer(raw)
@@ -270,3 +279,23 @@ def test_bad_publisher_verification_retains_scope_for_correct_retry(prepared):
     assert (args["receiver"].completed / pin.content_sha256).read_bytes() == raw
     assert FakeApproval.recorded == []
     assert not (args["cache"].root / artifact.sha256).exists()
+
+
+def test_owner_credential_revoked_during_signed_cas_import_retains_scope(
+        prepared, monkeypatch):
+    args, raw, artifact = prepared
+    scope = args["receiver"].incoming / (args["transfer"].content_sha256 + ".scope")
+    original_import = args["cache"].import_artifact
+
+    def import_and_revoke(*params, **kwargs):
+        result = original_import(*params, **kwargs)
+        FakeApproval.proof_current = False
+        return result
+
+    monkeypatch.setattr(args["cache"], "import_artifact", import_and_revoke)
+    with pytest.raises(ChunkTransferRejected, match="owner authentication revoked"):
+        admit_signed_transferred_asset(**args)
+    assert len(FakeApproval.recorded) == 1
+    assert scope.exists()  # In-doubt receipt needs separately approved recovery.
+    assert args["cache"].resolve(artifact).read_bytes() == raw
+    FakeApproval.proof_current = True  # Fresh independent approval needed.
