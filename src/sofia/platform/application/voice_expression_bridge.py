@@ -41,12 +41,13 @@ class PlatformVoiceExpressionBroker:
         current_module: Callable[[str], ComponentEndpoint | None],
         authorize: Callable[[ComponentRequestEnvelope, VoiceExpressionCue], bool],
         output_allowed: Callable[[str, str], bool],
+        profile_allowed: Callable[[str, str, int], bool],
         settled_text: Callable[[str, str], str | None],
         claim_once: Callable[[str], bool],
         sink: VoiceOutputSink,
     ) -> None:
         callbacks = (current_core, current_module, authorize, output_allowed,
-                     settled_text, claim_once)
+                     profile_allowed, settled_text, claim_once)
         if any(not callable(item) for item in callbacks):
             raise TypeError("all Platform voice authority callbacks are required")
         if not callable(getattr(sink, "submit", None)):
@@ -55,6 +56,7 @@ class PlatformVoiceExpressionBroker:
         self._current_module = current_module
         self._authorize = authorize
         self._output_allowed = output_allowed
+        self._profile_allowed = profile_allowed
         self._settled_text = settled_text
         self._claim_once = claim_once
         self._sink = sink
@@ -116,6 +118,9 @@ class PlatformVoiceExpressionBroker:
             raise PermissionError("Platform SAFE rejected voice handoff")
         if not self._output_allowed(cue.core_identity_id, cue.audience_id):
             raise PermissionError("voice output disabled, stopped, muted or disallowed")
+        if not self._profile_allowed(cue.core_identity_id, cue.voice_profile_id,
+                                     cue.voice_profile_revision):
+            raise PermissionError("voice profile/revision not approved for this Core")
 
         # Fetch from authoritative conversation storage, not Core-submitted text.
         text = self._settled_text(cue.message_id, cue.audience_id)
