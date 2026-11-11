@@ -137,9 +137,9 @@ def test_systemd_unit_directory_is_synced_at_register_and_remove(
     def ctl(*args):
         if args[0] == "show":
             if not service.unit_path.exists():
-                return "LoadState=not-found\\nFragmentPath=\\n"
-            return (f"LoadState=loaded\\nFragmentPath={service.unit_path}\\n"
-                    "ActiveState=active\\nSubState=running\\nMainPID=2345\\n")
+                return "LoadState=not-found\nFragmentPath=\n"
+            return (f"LoadState=loaded\nFragmentPath={service.unit_path}\n"
+                    "ActiveState=active\nSubState=running\nMainPID=2345\n")
         return ""
 
     monkeypatch.setattr(mod.os, "fsync", fsync)
@@ -162,9 +162,9 @@ def test_systemd_never_enables_failed_first_start(native_spec, tmp_path, monkeyp
         calls.append(args)
         if args[0] == "show":
             if not service.unit_path.exists():
-                return "LoadState=not-found\\nFragmentPath=\\n"
-            return ("LoadState=loaded\\nFragmentPath=" + str(service.unit_path)
-                    + "\\nActiveState=failed\\nSubState=failed\\nMainPID=0\\n")
+                return "LoadState=not-found\nFragmentPath=\n"
+            return ("LoadState=loaded\nFragmentPath=" + str(service.unit_path)
+                    + "\nActiveState=failed\nSubState=failed\nMainPID=0\n")
         return ""
 
     monkeypatch.setattr(mod, "_run_systemctl", ctl)
@@ -186,12 +186,12 @@ def test_systemd_restart_refuses_success_when_service_exits(native_spec, tmp_pat
     def ctl(*args):
         if args[0] == "show":
             if not service.unit_path.exists():
-                return "LoadState=not-found\\nFragmentPath=\\n"
+                return "LoadState=not-found\nFragmentPath=\n"
             state = "active" if running[0] else "failed"
             sub = "running" if running[0] else "failed"
             pid = "2345" if running[0] else "0"
-            return (f"LoadState=loaded\\nFragmentPath={service.unit_path}\\n"
-                    f"ActiveState={state}\\nSubState={sub}\\nMainPID={pid}\\n")
+            return (f"LoadState=loaded\nFragmentPath={service.unit_path}\n"
+                    f"ActiveState={state}\nSubState={sub}\nMainPID={pid}\n")
         if args[0] == "restart":
             running[0] = False
         return ""
@@ -214,9 +214,9 @@ def test_systemd_rejects_foreign_unit_bytes_without_adoption(
     def ctl(*args):
         if args[0] == "show":
             if not service.unit_path.exists():
-                return "LoadState=not-found\\nFragmentPath=\\n"
-            return (f"LoadState=loaded\\nFragmentPath={service.unit_path}\\n"
-                    "ActiveState=active\\nSubState=running\\nMainPID=2345\\n")
+                return "LoadState=not-found\nFragmentPath=\n"
+            return (f"LoadState=loaded\nFragmentPath={service.unit_path}\n"
+                    "ActiveState=active\nSubState=running\nMainPID=2345\n")
         return ""
 
     monkeypatch.setattr(mod, "_run_systemctl", ctl)
