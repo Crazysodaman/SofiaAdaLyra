@@ -145,6 +145,8 @@ def test_sealed_media_to_B1_code_publication_requires_distinct_owner_approval(
     assert preview["code_publication"]["authorized"] is False
     assert preview["code_publication"]["executed"] is False
     assert preview["release_manifest_sha256"] == manifest.digest
+    assert preview["code_publication"]["parameters"]["outer_capsule_sha256"] == preview["capsule_sha256"]
+    assert preview["code_publication"]["parameters"]["delivery_index_sha256"] == preview["delivery_index_sha256"]
     assert not installed.exists()
     assert store.history() == []
 
