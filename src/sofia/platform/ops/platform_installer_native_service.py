@@ -481,7 +481,7 @@ class WindowsScmNativeService:
                 or config[1] != api.SERVICE_AUTO_START
                 or config[3] != list2cmdline(spec.command())
                 or config[7] not in (
-                    "NT AUTHORITY\\\\LocalService", "LocalService",
+                    "NT AUTHORITY\\LocalService", "LocalService",
                 )):
             raise PlatformInstallationDenied(
                 "SCM service identity, startup mode or signed executable differs"
