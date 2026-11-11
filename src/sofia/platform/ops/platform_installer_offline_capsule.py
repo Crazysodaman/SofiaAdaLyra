@@ -37,6 +37,7 @@ _STATIC = (
     ("packaging/installers/debian12-offline-prerequisites.sh", "aegis/debian12-offline-prerequisites.sh"),
     ("packaging/installers/verify-aegis-capsule.sh", "aegis/verify-aegis-capsule.sh"),
     ("packaging/installers/inspect-aegis-capsule-members.sh", "aegis/inspect-aegis-capsule-members.sh"),
+    ("packaging/installers/stage-aegis-capsule.sh", "aegis/stage-aegis-capsule.sh"),
     ("packaging/installers/observe-debian12-service.sh", "aegis/observe-debian12-service.sh"),
     ("contracts/ui/aegis-theme-v1.json", "aegis/contracts/ui/aegis-theme-v1.json"),
 )
