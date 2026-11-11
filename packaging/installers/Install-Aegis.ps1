@@ -201,6 +201,15 @@ function Test-AegisOfflineSeedHash {
         if ($matches) { exit 0 }
         exit 3
     } catch {
+        # Explicit developer fixture diagnostics only. Ordinary operator
+        # mode never reveals file paths or internal trust-check details.
+        if ((Test-Path Env:AEGIS_INSTALLER_TEST_DIAGNOSTICS) -and
+            $env:AEGIS_INSTALLER_TEST_DIAGNOSTICS -eq '1') {
+            [Console]::Error.WriteLine(
+                'TEST-ONLY-SEED-DIAGNOSTIC: ' + $_.Exception.GetType().FullName +
+                ': ' + $_.Exception.Message
+            )
+        }
         [Console]::Error.WriteLine('Offline seed unavailable, redirected or invalid.')
         exit 3
     }
