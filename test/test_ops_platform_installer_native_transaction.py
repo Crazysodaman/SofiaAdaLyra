@@ -17,6 +17,7 @@ from sofia.platform.ops.platform_installation import (
 from sofia.platform.ops.platform_installer_native_service import DebianSystemdNativeService
 from sofia.platform.ops.platform_installer_native_transaction import (
     apply_owner_approved_native_service, native_service_operation_request,
+    review_native_outcome_for_reconciliation,
 )
 from sofia.platform.safe.execution_approval import ExecutionApproval, ExecutionApprovalVerifier
 from sofia.platform.state.installation_identity import InstallationIdentityStore
@@ -78,6 +79,102 @@ def fake_backend(*, error=None):
     backend.restart_verified = lambda spec: emit(spec)
     backend.replace_verified = lambda prev, spec: emit(spec)
     return backend, recorded
+
+
+@pytest.mark.parametrize("running", ("RUNNING", "NOT_RUNNING", "FOREIGN"))
+def test_native_recovery_review_does_not_clear_unknown_outcome(
+        installed_scope, running):
+    scope = dict(installed_scope)
+    backend, effects = fake_backend()
+    now = datetime.now(timezone.utc)
+    approval = grant_for_request(
+        scope, id="approval:b2-review-uncertain-" + running, now=now,
+    )
+    origin = backend.register
+
+    def forged_native_receipt(spec):
+        actual = origin(spec)
+        actual["release_manifest_sha256"] = "0" * 64
+        return actual
+
+    backend.register = forged_native_receipt
+    with pytest.raises(PlatformInstallationDenied):
+        apply_owner_approved_native_service(
+            **scope, backend=backend,
+            approval_id=approval.approval_id, now=now,
+        )
+    assert len(effects) == 1
+    journal = scope["store"].path.parent / "native-service-transaction.json"
+    raw_before = journal.read_bytes()
+    import json
+
+    def observe(spec):
+        return dict(
+            schema="aegis.native-service-receipt.v1",
+            platform_id="foreign-platform" if running == "FOREIGN"
+                else spec.platform_id,
+            release_manifest_sha256=spec.manifest_sha256,
+            process_state="RUNNING" if running == "FOREIGN" else running,
+            service_health="UNKNOWN", core_activated=False,
+        )
+
+    backend.observe = observe
+    report = review_native_outcome_for_reconciliation(
+        store=scope["store"], verifier=scope["verifier"],
+        expected_target=scope["expected_target"],
+        destination=scope["destination"],
+        identity_home=scope["identity_home"],
+        local_state=scope["local_state"], backend=backend,
+    )
+    assert report["result"] == "RECONCILIATION_REQUIRED"
+    assert report["journal_phase"] == "OUTCOME_UNKNOWN"
+    assert report["journal_generation"] == 1
+    assert report["journal_reconciled"] is False
+    assert report["journal_mutated"] is False
+    assert report["native_service_mutated"] is False
+    assert report["authenticated_platform_ready_verified"] is False
+    assert report["owner_approval_verified"] is False
+    assert report["service_health"] == "UNKNOWN"
+    if running == "FOREIGN":
+        assert report["process_state"] == "UNKNOWN"
+        assert report["native_observation"] == "MISMATCHED_NATIVE_OBSERVATION"
+    else:
+        assert report["process_state"] == running
+        assert report["observed_service_matches_signed_release"] is True
+    assert journal.read_bytes() == raw_before
+    with pytest.raises(PlatformInstallationDenied, match="unresolved native"):
+        native_service_operation_request(**scope)
+
+
+def test_native_recovery_review_never_invents_a_journal_or_health(installed_scope):
+    scope = dict(installed_scope)
+    backend, effects = fake_backend()
+
+    def observed(spec):
+        return dict(
+            schema="aegis.native-service-receipt.v1",
+            platform_id=spec.platform_id,
+            release_manifest_sha256=spec.manifest_sha256,
+            process_state="NOT_RUNNING",
+            service_health="UNKNOWN", core_activated=False,
+        )
+
+    backend.observe = observed
+    report = review_native_outcome_for_reconciliation(
+        store=scope["store"], verifier=scope["verifier"],
+        expected_target=scope["expected_target"],
+        destination=scope["destination"],
+        identity_home=scope["identity_home"],
+        local_state=scope["local_state"], backend=backend,
+    )
+    assert report["result"] == "READ_ONLY_OS_OBSERVATION"
+    assert report["journal_phase"] == "ABSENT"
+    assert report["journal_generation"] == 0
+    assert report["process_state"] == "NOT_RUNNING"
+    assert report["service_health"] == "UNKNOWN"
+    assert report["owner_approval_verified"] is False
+    assert not (scope["store"].path.parent / "native-service-transaction.json").exists()
+    assert effects == []
 
 
 def test_native_request_is_nonexecuting_signed_plan(installed_scope):
