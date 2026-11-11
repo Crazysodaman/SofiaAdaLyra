@@ -13,6 +13,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from hashlib import sha256
 import json
+import os
+import stat
 from pathlib import Path
 
 from sofia.platform.ops.platform_installation import (
@@ -70,9 +72,31 @@ def _load_journal(store: PlatformInstallationStore) -> dict[str, object] | None:
     if not path.exists():
         return None
     assert_owner_private_path(path, directory=False)
-    if path.stat(follow_symlinks=False).st_size > 16000:
-        raise PlatformInstallationDenied("native journal oversized")
-    raw = loads_strict_model_json(path.read_text(encoding="utf-8"))
+    fd = os.open(
+        path,
+        os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+        | getattr(os, "O_CLOEXEC", 0),
+    )
+    try:
+        before = os.fstat(fd)
+        if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1
+                or not 1 <= before.st_size <= 16000):
+            raise PlatformInstallationDenied("native journal unsafe or oversized")
+        with os.fdopen(fd, "rb", closefd=False) as reader:
+            bytes_read = reader.read(16001)
+        after = os.fstat(fd)
+        current = os.lstat(path)
+        identity = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+        if (len(bytes_read) != before.st_size
+                or not stat.S_ISREG(current.st_mode)
+                or identity != (after.st_dev, after.st_ino,
+                                after.st_size, after.st_mtime_ns)
+                or identity != (current.st_dev, current.st_ino,
+                                current.st_size, current.st_mtime_ns)):
+            raise PlatformInstallationDenied("native transaction journal changed during read")
+        raw = loads_strict_model_json(bytes_read.decode("utf-8"))
+    finally:
+        os.close(fd)
     if (type(raw) is not dict or
             set(raw) != {"schema", "phase", "generation", "current", "last_operation", "last_receipt"}
             or raw["schema"] != _JOURNAL_SCHEMA
