@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Aegis Platform installer shell, Phase UX-1: read-only preflight.
-# This entrypoint never elevates or changes services. Installation requires
-# the signed-release verification and owner-authorized executor in #201.
+# Aegis Platform installer shell, Phase UX-1: read-only preflight plus
+# explicitly requested owner-private staging of independently sealed media.
+# This entrypoint never elevates or changes services. Staging is NOT install.
+# Installation still requires fresh owner SAFE and native executor authority.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd -P)"
@@ -33,7 +34,7 @@ CAPSULE_SIGNATURE=''
 CAPSULE_DESTINATION=''
 
 usage() {
-  printf '%s\n' 'Aegis installer (PREVIEW ONLY)' \
+  printf '%s\n' 'Aegis installer (PREVIEW ONLY; signed offline staging available)' \
     'Usage: install-aegis.sh [--check] [--no-color|--plain|--line-mode] [--json]' \
     '       install-aegis.sh --operation OP [--json] [--dry-run]' \
     '       install-aegis.sh --verify-seed FILE --trusted-seed-sha256 HEX [--json]' \
