@@ -222,6 +222,7 @@ class FakeScm:
     SERVICE_QUERY_STATUS = 4
     SERVICE_WIN32_OWN_PROCESS = 8
     SERVICE_DEMAND_START = 16
+    SERVICE_AUTO_START = 2
     SERVICE_ERROR_NORMAL = 32
     SERVICE_NO_CHANGE = 0xffffffff
     SERVICE_RUNNING = 4
@@ -244,6 +245,7 @@ class FakeScm:
     def CreateService(self, *args):
         assert self.command is None
         assert args[-2] == "NT AUTHORITY\\LocalService"
+        assert args[5] == self.SERVICE_AUTO_START  # Survives the next Windows reboot.
         self.command = args[7]
         self.events.append("created")
         return "service"
