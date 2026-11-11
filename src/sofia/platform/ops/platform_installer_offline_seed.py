@@ -78,6 +78,11 @@ def _inspect_dependency_wheel(path: Path, expected_sha: str, expected_size: int)
             normalized = re.sub("[-_.]+", "-", names[0]).lower()
             if normalized in _FORBIDDEN_DEPENDENCIES:
                 raise PlatformReleaseRejected("personal Core/model package in neutral seed")
+    except PlatformReleaseRejected:
+        # PlatformReleaseRejected inherits PermissionError/OSError. Preserve
+        # explicit policy denials (especially forbidden Core/model packages)
+        # instead of accidentally relabeling them as malformed ZIP errors.
+        raise
     except (zipfile.BadZipFile, zipfile.LargeZipFile, UnicodeError, OSError, ValueError) as exc:
         raise PlatformReleaseRejected("malformed offline dependency wheel") from exc
     # A file replaced between the signed SHA read and ZIP metadata review
