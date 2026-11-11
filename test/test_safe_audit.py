@@ -101,3 +101,56 @@ def test_execution_approval_records_and_consumes_after_existing_audit_event(
             now=NOW + timedelta(seconds=3),
         )
     assert audit.verify() == (True, None)
+
+
+
+def test_audit_chain_verifier_streams_long_history_without_fetchall(
+        tmp_path, monkeypatch):
+    state = tmp_path / "sofia.db"
+    audit = AuditChain(state)
+    with sqlite3.connect(state) as db:
+        db.row_factory = sqlite3.Row
+        db.execute("BEGIN IMMEDIATE")
+        for index in range(180):
+            audit.append_in_transaction(
+                db, actor_id="system:stream-test",
+                event_type="audit.stream",
+                payload={"sequence": index},
+                occurred_at=NOW + timedelta(seconds=index),
+                event_id=f"stream-audit-{index:03d}",
+            )
+
+    original_connect = audit._connect
+
+    class StreamingConnection:
+        def __init__(self, connection):
+            self.connection = connection
+
+        def execute(self, *args, **kwargs):
+            cursor = self.connection.execute(*args, **kwargs)
+
+            class NoFetchAll:
+                def __iter__(self):
+                    return iter(cursor)
+
+                def fetchall(self):
+                    raise AssertionError("audit integrity must stream historical rows")
+
+            return NoFetchAll()
+
+        def close(self):
+            self.connection.close()
+
+    monkeypatch.setattr(
+        audit, "_connect", lambda: StreamingConnection(original_connect()),
+    )
+    assert audit.verify() == (True, None)
+    # Streaming cannot trade away hash integrity just to reduce RAM.
+    with sqlite3.connect(state) as db:
+        db.execute(
+            "UPDATE safe_audit_event SET payload_json=? WHERE event_id=?",
+            ('{"forged":true}', "stream-audit-091"),
+        )
+    verified, reason = audit.verify()
+    assert verified is False
+    assert "stream-audit-091" in reason
