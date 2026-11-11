@@ -11,8 +11,9 @@ from pathlib import Path
 from threading import Event
 import wave
 
-import numpy as np
 import pytest
+
+pytestmark = [pytest.mark.pkg_voice]
 
 from sofia.modules.voice.voice_asset import (
     VOICE_PROFILE_ID, file_sha256, import_round9_medium, load_voice_profile,
@@ -35,7 +36,7 @@ def sample(tmp_path):
             dest.setnchannels(1)
             dest.setsampwidth(2)
             dest.setframerate(24000)
-            dest.writeframes(np.zeros(24000, dtype="<i2").tobytes())
+            dest.writeframes(bytes(24000 * 2))
     original = {"round": 6, "variant": "03_rook_bluehour", "text": "Hello, I'm Sofia.",
                 "audio_sha256": file_sha256(old_wav)}
     orig_meta = old_wav.with_suffix(".json")
@@ -100,10 +101,12 @@ class FakeModel:
     def generate_voice_clone(self, *, text, language, voice_clone_prompt):
         self.requests.append((text, language))
         assert language == "English"
+        import numpy as np
         return [np.full(2400, 0.1, dtype=np.float32)], 24000
 
 
 def test_qwen_adapter_fake_model_real_profile_and_playback(sample):
+    pytest.importorskip("numpy")
     wav, original, destination = sample
     import_round9_medium(wav, original, destination, core_identity_id="identity:sofia")
     model = FakeModel()
@@ -139,6 +142,9 @@ def test_cancellation_before_gpu_model_loading(sample):
 
 
 def test_bite_mild_tempo_no_pitch_shift_and_unvoiced_defaults():
+    np = pytest.importorskip("numpy")
+    pytest.importorskip("torch")
+    pytest.importorskip("torchaudio")
     sr = 24000
     x = 0.2 * np.sin(2 * np.pi * 220 * np.arange(sr) / sr)
     unchanged, controls = _shape_audio(x, sr, VoiceProsodyProfile())
