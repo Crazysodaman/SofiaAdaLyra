@@ -42,10 +42,8 @@ fn management_time(value: &str) -> Result<DateTime<FixedOffset>, ContractError> 
     // 0..6 fractional digits. chrono alone accepts more timestamp variants.
     static FORMAT: OnceLock<Regex> = OnceLock::new();
     let format = FORMAT.get_or_init(|| {
-        Regex::new(
-            r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$",
-        )
-        .expect("management RFC3339 format")
+        Regex::new(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$")
+            .expect("management RFC3339 format")
     });
     if !format.is_match(value) {
         return Err(ContractError::new(
@@ -53,9 +51,8 @@ fn management_time(value: &str) -> Result<DateTime<FixedOffset>, ContractError> 
             "timestamp must use canonical RFC3339 with <= 6 digits",
         ));
     }
-    DateTime::parse_from_rfc3339(value).map_err(|_| {
-        ContractError::new("invalid_management_timestamp", "invalid timestamp")
-    })
+    DateTime::parse_from_rfc3339(value)
+        .map_err(|_| ContractError::new("invalid_management_timestamp", "invalid timestamp"))
 }
 
 impl UntrustedManagementRead {
@@ -108,10 +105,9 @@ impl UntrustedManagementRead {
             .created_at
             .split_once('.')
             .is_some_and(|(_, suffix)| suffix.bytes().take_while(u8::is_ascii_digit).count() > 6)
-            || request
-                .deadline
-                .split_once('.')
-                .is_some_and(|(_, suffix)| suffix.bytes().take_while(u8::is_ascii_digit).count() > 6)
+            || request.deadline.split_once('.').is_some_and(|(_, suffix)| {
+                suffix.bytes().take_while(u8::is_ascii_digit).count() > 6
+            })
         {
             return Err(ContractError::new(
                 "invalid_management_read",
@@ -274,9 +270,17 @@ impl UntrustedManagementResponse {
             ContractError::new("invalid_management_response", "response must be an object")
         })?;
         const REQUIRED: [&str; 11] = [
-            "schema", "protocol", "request_id", "platform_id",
-            "platform_generation", "operation", "source", "observed_at",
-            "outcome", "data", "denial",
+            "schema",
+            "protocol",
+            "request_id",
+            "platform_id",
+            "platform_generation",
+            "operation",
+            "source",
+            "observed_at",
+            "outcome",
+            "data",
+            "denial",
         ];
         if keys.len() != REQUIRED.len() || REQUIRED.iter().any(|key| !keys.contains_key(*key)) {
             return Err(ContractError::new(
@@ -306,9 +310,7 @@ impl UntrustedManagementResponse {
         if reply
             .observed_at
             .split_once('.')
-            .is_some_and(|(_, suffix)| {
-                suffix.bytes().take_while(u8::is_ascii_digit).count() > 6
-            })
+            .is_some_and(|(_, suffix)| suffix.bytes().take_while(u8::is_ascii_digit).count() > 6)
         {
             return Err(ContractError::new(
                 "invalid_management_response",
@@ -523,14 +525,18 @@ mod tests {
         // Absent Option<T> is NOT equivalent to explicit null in v1.
         let mut omitted: Value = serde_json::from_str(response_json).expect("response");
         omitted.as_object_mut().expect("object").remove("denial");
-        assert!(UntrustedManagementResponse::parse(
-            omitted.to_string().as_bytes(), &request, now
-        ).is_err());
+        assert!(
+            UntrustedManagementResponse::parse(omitted.to_string().as_bytes(), &request, now)
+                .is_err()
+        );
         let mut omitted_data: Value = serde_json::from_str(response_json).expect("response");
         omitted_data.as_object_mut().expect("object").remove("data");
         assert!(UntrustedManagementResponse::parse(
-            omitted_data.to_string().as_bytes(), &request, now
-        ).is_err());
+            omitted_data.to_string().as_bytes(),
+            &request,
+            now
+        )
+        .is_err());
         let mut forged: Value = serde_json::from_str(response_json).expect("response");
         forged["platform_generation"] = json!(4);
         assert!(
@@ -586,8 +592,7 @@ mod tests {
         )
         .expect("trusted fixture time");
         let status = UntrustedManagementRead::parse(
-            include_str!("../../../../contracts/platform/management-read-valid-v1.json")
-                .as_bytes(),
+            include_str!("../../../../contracts/platform/management-read-valid-v1.json").as_bytes(),
             moment,
         )
         .expect("shared status request");
@@ -613,16 +618,12 @@ mod tests {
 
     #[test]
     fn management_portable_numbers_and_missing_optional_keys_are_refused() {
-        let request_json = include_str!(
-            "../../../../contracts/platform/management-read-settings-valid-v1.json"
-        );
-        let response_json = include_str!(
-            "../../../../contracts/platform/management-read-response-valid-v1.json"
-        );
-        let start = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:00Z")
-            .expect("start");
-        let now = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:01Z")
-            .expect("now");
+        let request_json =
+            include_str!("../../../../contracts/platform/management-read-settings-valid-v1.json");
+        let response_json =
+            include_str!("../../../../contracts/platform/management-read-response-valid-v1.json");
+        let start = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:00Z").expect("start");
+        let now = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:01Z").expect("now");
         let request = UntrustedManagementRead::parse(request_json.as_bytes(), start)
             .expect("settings fixture");
         let mut reply: Value = serde_json::from_str(response_json).expect("fixture");
@@ -635,10 +636,8 @@ mod tests {
         ] {
             reply["data"] = json!({"revision": numeric});
             assert!(
-                UntrustedManagementResponse::parse(
-                    reply.to_string().as_bytes(), &request, now
-                )
-                .is_err(),
+                UntrustedManagementResponse::parse(reply.to_string().as_bytes(), &request, now)
+                    .is_err(),
                 "out of portable range must fail closed"
             );
         }
@@ -649,22 +648,19 @@ mod tests {
         )
         .expect("status");
         ok.as_object_mut().expect("object").remove("denial");
-        assert!(UntrustedManagementResponse::parse(
-            ok.to_string().as_bytes(), &req, now
-        ).is_err());
+        assert!(UntrustedManagementResponse::parse(ok.to_string().as_bytes(), &req, now).is_err());
         let mut missing: Value = serde_json::from_str(response_json).expect("fixture");
         missing.as_object_mut().expect("object").remove("data");
-        assert!(UntrustedManagementResponse::parse(
-            missing.to_string().as_bytes(), &req, now
-        ).is_err());
+        assert!(
+            UntrustedManagementResponse::parse(missing.to_string().as_bytes(), &req, now).is_err()
+        );
 
-        let mut too_large: Value = serde_json::from_str(
-            include_str!("../../../../contracts/platform/management-read-valid-v1.json")
-        ).expect("request");
+        let mut too_large: Value = serde_json::from_str(include_str!(
+            "../../../../contracts/platform/management-read-valid-v1.json"
+        ))
+        .expect("request");
         too_large["expected_generation"] = json!(9_007_199_254_740_992_u64);
-        assert!(UntrustedManagementRead::parse(
-            too_large.to_string().as_bytes(), start
-        ).is_err());
+        assert!(UntrustedManagementRead::parse(too_large.to_string().as_bytes(), start).is_err());
     }
 
     #[test]
@@ -675,42 +671,41 @@ mod tests {
             include_str!("../../../../contracts/platform/management-read-response-denied-v1.json");
         let settings_json =
             include_str!("../../../../contracts/platform/management-read-settings-valid-v1.json");
-        let c1_json =
-            include_str!("../../../../contracts/platform/management-read-response-invalid-c1-v1.json");
-        let start = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:00Z")
-            .expect("known start");
-        let now = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:01Z")
-            .expect("known receiver");
+        let c1_json = include_str!(
+            "../../../../contracts/platform/management-read-response-invalid-c1-v1.json"
+        );
+        let start =
+            chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:00Z").expect("known start");
+        let now =
+            chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:01Z").expect("known receiver");
         let request = UntrustedManagementRead::parse(request_json.as_bytes(), start)
             .expect("valid status request");
-        let denied = UntrustedManagementResponse::parse(
-            denied_json.as_bytes(), &request, now,
-        ).expect("correlated typed denial");
+        let denied = UntrustedManagementResponse::parse(denied_json.as_bytes(), &request, now)
+            .expect("correlated typed denial");
         assert_eq!(denied.outcome, "DENIED");
         assert_eq!(denied.denial.expect("denial").code, "STOPPED");
         let settings = UntrustedManagementRead::parse(settings_json.as_bytes(), start)
             .expect("valid read syntax");
-        assert!(UntrustedManagementResponse::parse(
-            c1_json.as_bytes(), &settings, now,
-        ).is_err());
+        assert!(UntrustedManagementResponse::parse(c1_json.as_bytes(), &settings, now,).is_err());
         let mut allowed: Value = serde_json::from_str(c1_json).expect("strict fixture");
         allowed["data"] = json!({"message":"\u{2028}"});
-        assert!(UntrustedManagementResponse::parse(
-            allowed.to_string().as_bytes(), &settings, now,
-        ).is_ok());
+        assert!(
+            UntrustedManagementResponse::parse(allowed.to_string().as_bytes(), &settings, now,)
+                .is_ok()
+        );
         allowed["data"] = json!({"nönascii":"safe"});
         let surrogate = r#"{"value":"\ud800"}"#;
         assert!(serde_json::from_str::<Value>(surrogate).is_err());
-        assert!(UntrustedManagementResponse::parse(
-            allowed.to_string().as_bytes(), &settings, now,
-        ).is_err());
+        assert!(
+            UntrustedManagementResponse::parse(allowed.to_string().as_bytes(), &settings, now,)
+                .is_err()
+        );
     }
 
     #[test]
     fn reject_request_nanoseconds_before_authorization() {
         let raw = include_str!("../../../../contracts/platform/management-read-valid-v1.json");
-        let now = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:00Z")
-            .expect("known time");
+        let now = chrono::DateTime::parse_from_rfc3339("2026-11-08T04:00:00Z").expect("known time");
         let mut request: Value = serde_json::from_str(raw).expect("fixture");
         request["created_at"] = json!("2026-11-08T03:59:59.123456789Z");
         assert!(UntrustedManagementRead::parse(request.to_string().as_bytes(), now).is_err());
@@ -720,5 +715,4 @@ mod tests {
         request["deadline"] = json!("2026-11-08T04:00:05.123456Z");
         assert!(UntrustedManagementRead::parse(request.to_string().as_bytes(), now).is_ok());
     }
-
 }

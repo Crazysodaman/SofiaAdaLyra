@@ -37,7 +37,6 @@ fn valid_platform_uuid(value: &str) -> bool {
         })
 }
 
-
 #[derive(Clone)]
 struct Configuration {
     python: PathBuf,
@@ -117,7 +116,10 @@ fn canonical_platform_serial(uuid: &str) -> String {
     let hex = uuid.replace('-', "").to_ascii_uppercase();
     format!(
         "AEG-P-{}-{}-{}-{}",
-        &hex[0..8], &hex[8..16], &hex[16..24], &hex[24..32],
+        &hex[0..8],
+        &hex[8..16],
+        &hex[16..24],
+        &hex[24..32],
     )
 }
 
@@ -142,7 +144,10 @@ fn valid_installed_unix_endpoint(endpoint: &str, generation: u64, runtime: &str)
 
 #[cfg(not(windows))]
 fn valid_unix_endpoint_with_context(
-    endpoint: &str, generation: u64, runtime: Option<&str>, systemd: bool,
+    endpoint: &str,
+    generation: u64,
+    runtime: Option<&str>,
+    systemd: bool,
 ) -> bool {
     if let Some(runtime) = runtime {
         return valid_installed_unix_endpoint(endpoint, generation, runtime);
@@ -155,7 +160,9 @@ fn valid_unix_endpoint_with_context(
     // never an installed service's runtime generation endpoint.
     let path = std::path::Path::new(endpoint);
     path.is_absolute()
-        && !path.components().any(|part| matches!(part, std::path::Component::ParentDir))
+        && !path
+            .components()
+            .any(|part| matches!(part, std::path::Component::ParentDir))
         && path.file_name() == Some(std::ffi::OsStr::new("management.sock"))
 }
 
@@ -173,7 +180,8 @@ fn valid_management_endpoint(endpoint: &str, platform_id: &str, generation: u64)
     {
         let expected = format!(
             r"\\.\pipe\AegisPlatform-{}-{}",
-            platform_id.replace('-', ""), generation,
+            platform_id.replace('-', ""),
+            generation,
         );
         endpoint == expected
     }
@@ -190,7 +198,9 @@ fn valid_management_endpoint(endpoint: &str, platform_id: &str, generation: u64)
             None => None,
         };
         valid_unix_endpoint_with_context(
-            endpoint, generation, runtime,
+            endpoint,
+            generation,
+            runtime,
             std::env::var_os("INVOCATION_ID").is_some(),
         )
     }
@@ -301,7 +311,11 @@ impl Worker {
         if !reply_matches_identity(
             &value,
             &self.config,
-            if self.serial.is_empty() { None } else { Some(&self.serial) },
+            if self.serial.is_empty() {
+                None
+            } else {
+                Some(&self.serial)
+            },
         ) {
             return Err("service identity response differs".into());
         }
@@ -503,7 +517,9 @@ mod tests {
         assert!(!valid_platform_uuid("1234567812344abc8abc1234567890ab"));
         assert!(!valid_platform_uuid("12345678_1234_4abc_8abc_1234567890ab"));
         assert!(!valid_platform_uuid("12345678-1234-4ABC-8abc-1234567890ab"));
-        assert!(!valid_platform_uuid("12345678-1234-4abc-8abc-1234567890ab "));
+        assert!(!valid_platform_uuid(
+            "12345678-1234-4abc-8abc-1234567890ab "
+        ));
     }
     #[test]
     fn platform_serial_matches_identity_contract() {
@@ -528,12 +544,25 @@ mod tests {
             "serial":"AEG-P-12345678-12344ABC-8ABC1234-567890AB", "generation":1,
             "core_started":false, "operator_stop":false,
             "sequence":null, "pid":1, "supervisor_pid":2,
-        })).expect("valid reply");
+        }))
+        .expect("valid reply");
         assert!(reply_matches_identity(&reply, &config, None));
-        assert!(reply_matches_identity(&reply, &config, Some("AEG-P-12345678-12344ABC-8ABC1234-567890AB")));
-        assert!(!reply_matches_identity(&reply, &config, Some("AEG-P-00000000-00000000-00000000-00000000")));
+        assert!(reply_matches_identity(
+            &reply,
+            &config,
+            Some("AEG-P-12345678-12344ABC-8ABC1234-567890AB")
+        ));
+        assert!(!reply_matches_identity(
+            &reply,
+            &config,
+            Some("AEG-P-00000000-00000000-00000000-00000000")
+        ));
         reply.serial = "AEG-P-00000000-00000000-00000000-00000000".to_owned();
-        assert!(!reply_matches_identity(&reply, &config, Some("AEG-P-12345678-12344ABC-8ABC1234-567890AB")));
+        assert!(!reply_matches_identity(
+            &reply,
+            &config,
+            Some("AEG-P-12345678-12344ABC-8ABC1234-567890AB")
+        ));
         reply.serial = "AEG-P-12345678-12344ABC-8ABC1234-567890AB\\nforged".to_owned();
         assert!(!reply_matches_identity(&reply, &config, None));
         reply.serial = "AEG-P-12345678-12344ABC-8ABC1234-567890AB".to_owned();
@@ -548,22 +577,42 @@ mod tests {
             let good = format!(r"\\.\pipe\AegisPlatform-{}-7", id.replace('-', ""));
             assert!(valid_management_endpoint(&good, id, 7));
             assert!(!valid_management_endpoint(&good, id, 8));
-            assert!(!valid_management_endpoint(r"\\.\pipe\SomeOtherService", id, 7));
+            assert!(!valid_management_endpoint(
+                r"\\.\pipe\SomeOtherService",
+                id,
+                7
+            ));
         }
         #[cfg(not(windows))]
         {
-            assert!(valid_installed_unix_endpoint("/run/aegis/mgmt-7.sock", 7, "/run/aegis"));
+            assert!(valid_installed_unix_endpoint(
+                "/run/aegis/mgmt-7.sock",
+                7,
+                "/run/aegis"
+            ));
             assert!(valid_unix_endpoint_with_context(
-                "/tmp/aegis-mgmt-test/management.sock", 7, None, false,
+                "/tmp/aegis-mgmt-test/management.sock",
+                7,
+                None,
+                false,
             ));
             assert!(!valid_unix_endpoint_with_context(
-                "/run/aegis/mgmt-7.sock", 8, Some("/run/aegis"), true,
+                "/run/aegis/mgmt-7.sock",
+                8,
+                Some("/run/aegis"),
+                true,
             ));
             assert!(!valid_unix_endpoint_with_context(
-                "mgmt-7.sock", 7, None, false,
+                "mgmt-7.sock",
+                7,
+                None,
+                false,
             ));
             assert!(!valid_unix_endpoint_with_context(
-                "/run/../tmp/mgmt-7.sock", 7, Some("/run/aegis"), true,
+                "/run/../tmp/mgmt-7.sock",
+                7,
+                Some("/run/aegis"),
+                true,
             ));
         }
         assert!(!valid_management_endpoint("socket\nforged", id, 7));
@@ -575,22 +624,35 @@ mod tests {
     fn unix_management_endpoint_requires_installed_runtime_or_explicit_dev() {
         let endpoint = "/run/aegis-platform/mgmt-9.sock";
         assert!(valid_unix_endpoint_with_context(
-            endpoint, 9, Some("/run/aegis-platform"), true,
+            endpoint,
+            9,
+            Some("/run/aegis-platform"),
+            true,
         ));
+        assert!(!valid_unix_endpoint_with_context(endpoint, 9, None, true,));
         assert!(!valid_unix_endpoint_with_context(
-            endpoint, 9, None, true,
-        ));
-        assert!(!valid_unix_endpoint_with_context(
-            "/tmp/private/management.sock", 9, None, true,
+            "/tmp/private/management.sock",
+            9,
+            None,
+            true,
         ));
         assert!(valid_unix_endpoint_with_context(
-            "/tmp/private/management.sock", 9, None, false,
+            "/tmp/private/management.sock",
+            9,
+            None,
+            false,
         ));
         assert!(!valid_unix_endpoint_with_context(
-            "/tmp/private/management.sock", 9, Some("/run/aegis-platform"), true,
+            "/tmp/private/management.sock",
+            9,
+            Some("/run/aegis-platform"),
+            true,
         ));
         assert!(!valid_unix_endpoint_with_context(
-            "/tmp/../private/management.sock", 9, None, false,
+            "/tmp/../private/management.sock",
+            9,
+            None,
+            false,
         ));
     }
 
@@ -598,22 +660,34 @@ mod tests {
     #[test]
     fn installed_systemd_listener_never_adopts_unreviewed_runtime() {
         assert!(valid_installed_unix_endpoint(
-            "/run/aegis-platform/mgmt-7.sock", 7, "/run/aegis-platform"
+            "/run/aegis-platform/mgmt-7.sock",
+            7,
+            "/run/aegis-platform"
         ));
         assert!(valid_installed_unix_endpoint(
-            "/run/aegis/mgmt-7.sock", 7, "/run/aegis"
+            "/run/aegis/mgmt-7.sock",
+            7,
+            "/run/aegis"
         ));
         assert!(!valid_installed_unix_endpoint(
-            "/tmp/mgmt-7.sock", 7, "/tmp"
+            "/tmp/mgmt-7.sock",
+            7,
+            "/tmp"
         ));
         assert!(!valid_installed_unix_endpoint(
-            "/run/aegis-platform/mgmt-6.sock", 7, "/run/aegis-platform"
+            "/run/aegis-platform/mgmt-6.sock",
+            7,
+            "/run/aegis-platform"
         ));
         assert!(!valid_installed_unix_endpoint(
-            "/run/aegis-platform/management.sock", 7, "/run/aegis-platform"
+            "/run/aegis-platform/management.sock",
+            7,
+            "/run/aegis-platform"
         ));
         assert!(!valid_installed_unix_endpoint(
-            "/run/aegis-platform/mgmt-7.sock", 7, "/run/../run/aegis-platform"
+            "/run/aegis-platform/mgmt-7.sock",
+            7,
+            "/run/../run/aegis-platform"
         ));
     }
     #[test]

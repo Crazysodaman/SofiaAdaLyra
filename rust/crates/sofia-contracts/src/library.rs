@@ -15,70 +15,129 @@ pub const LIBRARY_PROTOCOL: &str = "1.0";
 pub const MAX_LIBRARY_CONTROL_BYTES: usize = 32 * 1024;
 const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 const REQUEST_KEYS: [&str; 12] = [
-    "schema", "protocol", "request_id", "correlation_id", "operation",
-    "target_platform_id", "expected_generation", "expected_revision",
-    "idempotency_key", "created_at", "deadline", "parameters",
+    "schema",
+    "protocol",
+    "request_id",
+    "correlation_id",
+    "operation",
+    "target_platform_id",
+    "expected_generation",
+    "expected_revision",
+    "idempotency_key",
+    "created_at",
+    "deadline",
+    "parameters",
 ];
 const RESPONSE_KEYS: [&str; 12] = [
-    "schema", "protocol", "request_id", "correlation_id", "operation",
-    "platform_id", "platform_generation", "state_revision", "observed_at",
-    "outcome", "data", "denial",
+    "schema",
+    "protocol",
+    "request_id",
+    "correlation_id",
+    "operation",
+    "platform_id",
+    "platform_generation",
+    "state_revision",
+    "observed_at",
+    "outcome",
+    "data",
+    "denial",
 ];
 const CATALOG_KEYS: [&str; 7] = [
-    "catalog_revision", "catalog_generation", "catalog_fresh_until",
-    "target_platform_id", "source", "page", "items",
+    "catalog_revision",
+    "catalog_generation",
+    "catalog_fresh_until",
+    "target_platform_id",
+    "source",
+    "page",
+    "items",
 ];
 const CATALOG_ITEM_KEYS: [&str; 17] = [
-    "artifact_id", "kind", "version", "revision", "manifest_digest",
-    "content_digest", "size_bytes", "publisher", "signer_key_id",
-    "signature_scheme", "signature_receipt_ref", "target_os_arch",
-    "sdk_range", "abi_range", "license_distribution",
-    "data_class", "distribution_allowed",
+    "artifact_id",
+    "kind",
+    "version",
+    "revision",
+    "manifest_digest",
+    "content_digest",
+    "size_bytes",
+    "publisher",
+    "signer_key_id",
+    "signature_scheme",
+    "signature_receipt_ref",
+    "target_os_arch",
+    "sdk_range",
+    "abi_range",
+    "license_distribution",
+    "data_class",
+    "distribution_allowed",
 ];
 pub const OWNER_SOURCES_STATUS_SCHEMA: &str = "aegis.library.owner-sources.v1";
 const SOURCES_STATUS_KEYS: [&str; 8] = [
-    "schema", "owner_mode", "source_platform_id", "publisher_state",
-    "catalog_state", "hub_state", "served_chunks", "served_bytes",
+    "schema",
+    "owner_mode",
+    "source_platform_id",
+    "publisher_state",
+    "catalog_state",
+    "hub_state",
+    "served_chunks",
+    "served_bytes",
 ];
 
 const TRANSFER_KEYS: [&str; 13] = [
-    "job_id", "artifact_content_digest", "target_platform_id",
-    "source_platform_id", "source_kind", "received_bytes",
-    "verified_bytes", "total_bytes", "state", "failure",
-    "last_observed_at", "restart_cursor", "receipt_ref",
+    "job_id",
+    "artifact_content_digest",
+    "target_platform_id",
+    "source_platform_id",
+    "source_kind",
+    "received_bytes",
+    "verified_bytes",
+    "total_bytes",
+    "state",
+    "failure",
+    "last_observed_at",
+    "restart_cursor",
+    "receipt_ref",
 ];
 const KINDS: [&str; 8] = [
-    "platform_release", "sdk", "core_runtime", "core_definition",
-    "module", "model", "asset", "rollback",
+    "platform_release",
+    "sdk",
+    "core_runtime",
+    "core_definition",
+    "module",
+    "model",
+    "asset",
+    "rollback",
 ];
 const SOURCES: [&str; 5] = [
-    "LOCAL_VERIFIED_CACHE", "OFFLINE_MEDIA", "OWNER_SELECTED_HUB",
-    "AUTHORIZED_PEER", "OFFICIAL_REMOTE",
+    "LOCAL_VERIFIED_CACHE",
+    "OFFLINE_MEDIA",
+    "OWNER_SELECTED_HUB",
+    "AUTHORIZED_PEER",
+    "OFFICIAL_REMOTE",
 ];
 const DENIALS: [&str; 6] = [
-    "NOT_PERMITTED", "REVOKED", "STOPPED", "STALE_GENERATION",
-    "EXPIRED", "UNAVAILABLE",
+    "NOT_PERMITTED",
+    "REVOKED",
+    "STOPPED",
+    "STALE_GENERATION",
+    "EXPIRED",
+    "UNAVAILABLE",
 ];
 
 fn invalid(reason: &'static str) -> ContractError {
     ContractError::new("invalid_library_contract", reason)
 }
 
-fn fields<'a>(
-    v: &'a Value,
-    required: &[&str],
-) -> Result<&'a Map<String, Value>, ContractError> {
-    let obj = v.as_object().ok_or_else(|| invalid("Library object required"))?;
+fn fields<'a>(v: &'a Value, required: &[&str]) -> Result<&'a Map<String, Value>, ContractError> {
+    let obj = v
+        .as_object()
+        .ok_or_else(|| invalid("Library object required"))?;
     if obj.len() != required.len() || required.iter().any(|key| !obj.contains_key(*key)) {
         return Err(invalid("missing or unreviewed Library fields"));
     }
     Ok(obj)
 }
 
-fn str_field<'a>(
-    obj: &'a Map<String, Value>,
-    key: &str,
-) -> Result<&'a str, ContractError> {
+fn str_field<'a>(obj: &'a Map<String, Value>, key: &str) -> Result<&'a str, ContractError> {
     obj.get(key)
         .and_then(Value::as_str)
         .ok_or_else(|| invalid("Library string field invalid"))
@@ -100,8 +159,7 @@ fn id(value: &str) -> Result<(), ContractError> {
         || bytes.len() > 160
         || !bytes[0].is_ascii_alphanumeric()
         || bytes.iter().any(|b| {
-            !b.is_ascii_alphanumeric()
-                && !matches!(b, b'.' | b'_' | b':' | b'@' | b'/' | b'-')
+            !b.is_ascii_alphanumeric() && !matches!(b, b'.' | b'_' | b':' | b'@' | b'/' | b'-')
         })
         || value.contains("://")
         || value.contains("..")
@@ -125,10 +183,8 @@ fn digest(value: &str) -> Result<(), ContractError> {
 fn utc(value: &str) -> Result<DateTime<FixedOffset>, ContractError> {
     static RFC3339: OnceLock<Regex> = OnceLock::new();
     let pattern = RFC3339.get_or_init(|| {
-        Regex::new(
-            r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$",
-        )
-        .expect("valid library RFC3339 format")
+        Regex::new(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$")
+            .expect("valid library RFC3339 format")
     });
     if !pattern.is_match(value) {
         return Err(invalid("Library timestamp must be bounded RFC3339"));
@@ -151,8 +207,7 @@ fn safe(value: &Value, depth: usize) -> Result<(), ContractError> {
                     || key.len() > 160
                     || !key.is_ascii()
                     || key.chars().any(char::is_control)
-                    || ["__proto__", "constructor", "prototype"]
-                        .contains(&lower.as_str())
+                    || ["__proto__", "constructor", "prototype"].contains(&lower.as_str())
                     || [
                         "secret",
                         "password",
@@ -257,10 +312,14 @@ impl UntrustedLibraryRequest {
         let revision = exact_int(&obj["expected_revision"], 0)?;
         let operation = str_field(obj, "operation")?;
         if !read_operation(operation) {
-            return Err(invalid("effectful Library operation cannot use read preview"));
+            return Err(invalid(
+                "effectful Library operation cannot use read preview",
+            ));
         }
         if !obj["idempotency_key"].is_null() {
-            return Err(invalid("read Library operation cannot claim effect idempotency"));
+            return Err(invalid(
+                "read Library operation cannot claim effect idempotency",
+            ));
         }
         let created_at = str_field(obj, "created_at")?;
         let deadline = str_field(obj, "deadline")?;
@@ -281,7 +340,9 @@ impl UntrustedLibraryRequest {
                 return Err(invalid("catalog limit exceeds bound"));
             }
             if !options["cursor"].is_null() {
-                id(options["cursor"].as_str().ok_or_else(|| invalid("invalid cursor"))?)?;
+                id(options["cursor"]
+                    .as_str()
+                    .ok_or_else(|| invalid("invalid cursor"))?)?;
             }
             let kinds = options["kinds"]
                 .as_array()
@@ -291,7 +352,9 @@ impl UntrustedLibraryRequest {
             }
             let mut unique = BTreeSet::new();
             for kind in kinds {
-                let value = kind.as_str().ok_or_else(|| invalid("invalid artifact kind"))?;
+                let value = kind
+                    .as_str()
+                    .ok_or_else(|| invalid("invalid artifact kind"))?;
                 if !KINDS.contains(&value) || !unique.insert(value) {
                     return Err(invalid("unsupported catalog filter"));
                 }
@@ -315,10 +378,7 @@ impl UntrustedLibraryRequest {
     }
 }
 
-fn owner_sources(
-    data: &Value,
-    expected: &UntrustedLibraryRequest,
-) -> Result<(), ContractError> {
+fn owner_sources(data: &Value, expected: &UntrustedLibraryRequest) -> Result<(), ContractError> {
     let obj = fields(data, &SOURCES_STATUS_KEYS)?;
     if str_field(obj, "schema")? != OWNER_SOURCES_STATUS_SCHEMA
         || str_field(obj, "owner_mode")? != "SINGLE_OWNER_PRIVATE"
@@ -328,7 +388,9 @@ fn owner_sources(
     }
     let source = &obj["source_platform_id"];
     if !source.is_null() {
-        id(source.as_str().ok_or_else(|| invalid("bad publisher source"))?)?;
+        id(source
+            .as_str()
+            .ok_or_else(|| invalid("bad publisher source"))?)?;
     }
     let publisher = str_field(obj, "publisher_state")?;
     let catalog_state = str_field(obj, "catalog_state")?;
@@ -352,7 +414,6 @@ fn owner_sources(
     exact_int(&obj["served_bytes"], 0)?;
     Ok(())
 }
-
 
 fn catalog(
     data: &Value,
@@ -382,13 +443,13 @@ fn catalog(
     }
     let page = fields(&obj["page"], &["limit", "next_cursor", "cursor_state"])?;
     let limit = exact_int(&page["limit"], 1)?;
-    if limit > 128
-        || !["CURRENT", "STALE", "LOST"].contains(&str_field(page, "cursor_state")?)
-    {
+    if limit > 128 || !["CURRENT", "STALE", "LOST"].contains(&str_field(page, "cursor_state")?) {
         return Err(invalid("invalid Library catalog page"));
     }
     if !page["next_cursor"].is_null() {
-        id(page["next_cursor"].as_str().ok_or_else(|| invalid("invalid catalog cursor"))?)?;
+        id(page["next_cursor"]
+            .as_str()
+            .ok_or_else(|| invalid("invalid catalog cursor"))?)?;
     }
     let items = obj["items"]
         .as_array()
@@ -402,8 +463,14 @@ fn catalog(
             return Err(invalid("unsupported artifact type"));
         }
         for name in [
-            "artifact_id", "version", "publisher", "signer_key_id",
-            "signature_receipt_ref", "target_os_arch", "sdk_range", "abi_range",
+            "artifact_id",
+            "version",
+            "publisher",
+            "signer_key_id",
+            "signature_receipt_ref",
+            "target_os_arch",
+            "sdk_range",
+            "abi_range",
         ] {
             id(str_field(entry, name)?)?;
         }
@@ -415,10 +482,11 @@ fn catalog(
         if !["ed25519", "ecdsa-p256"].contains(&str_field(entry, "signature_scheme")?)
             || !["permitted", "restricted", "non_redistributable", "unknown"]
                 .contains(&str_field(entry, "license_distribution")?)
-            || !["public", "protected", "private"]
-                .contains(&str_field(entry, "data_class")?)
+            || !["public", "protected", "private"].contains(&str_field(entry, "data_class")?)
         {
-            return Err(invalid("invalid artifact provenance or distribution metadata"));
+            return Err(invalid(
+                "invalid artifact provenance or distribution metadata",
+            ));
         }
         let allowed = entry["distribution_allowed"]
             .as_bool()
@@ -440,7 +508,10 @@ fn transfer(
 ) -> Result<(), ContractError> {
     let obj = fields(data, &TRANSFER_KEYS)?;
     for name in [
-        "job_id", "target_platform_id", "source_platform_id", "receipt_ref",
+        "job_id",
+        "target_platform_id",
+        "source_platform_id",
+        "receipt_ref",
     ] {
         id(str_field(obj, name)?)?;
     }
@@ -459,20 +530,31 @@ fn transfer(
     }
     let state = str_field(obj, "state")?;
     if ![
-        "QUEUED", "DOWNLOADING", "PAUSED", "VERIFYING", "COMPLETE",
-        "FAILED", "CANCELLED", "OUTCOME_UNKNOWN",
+        "QUEUED",
+        "DOWNLOADING",
+        "PAUSED",
+        "VERIFYING",
+        "COMPLETE",
+        "FAILED",
+        "CANCELLED",
+        "OUTCOME_UNKNOWN",
     ]
     .contains(&state)
     {
         return Err(invalid("unsupported transfer state"));
     }
     if state == "COMPLETE" && verified != total {
-        return Err(invalid("transfer completion is not independent verification"));
+        return Err(invalid(
+            "transfer completion is not independent verification",
+        ));
     }
     if !obj["failure"].is_null()
         && ![
-            "CONFLICT", "QUOTA_EXCEEDED", "REJECTED",
-            "UNAVAILABLE", "INTERRUPTED",
+            "CONFLICT",
+            "QUOTA_EXCEEDED",
+            "REJECTED",
+            "UNAVAILABLE",
+            "INTERRUPTED",
         ]
         .contains(&str_field(obj, "failure")?)
     {
@@ -482,7 +564,9 @@ fn transfer(
         return Err(invalid("transfer observation from future"));
     }
     if !obj["restart_cursor"].is_null() {
-        id(obj["restart_cursor"].as_str().ok_or_else(|| invalid("invalid resume cursor"))?)?;
+        id(obj["restart_cursor"]
+            .as_str()
+            .ok_or_else(|| invalid("invalid resume cursor"))?)?;
     }
     Ok(())
 }
@@ -524,7 +608,9 @@ impl UntrustedLibraryResponse {
             || exact_int(&obj["platform_generation"], 1)? != expected.expected_generation
             || exact_int(&obj["state_revision"], 0)? != expected.expected_revision
         {
-            return Err(invalid("Library correlation, revision or generation mismatch"));
+            return Err(invalid(
+                "Library correlation, revision or generation mismatch",
+            ));
         }
         let observed_at = str_field(obj, "observed_at")?;
         let observed = utc(observed_at)?;
@@ -629,7 +715,9 @@ mod tests {
             clock(),
         )
         .expect("transfer request");
-        let body = include_str!("../../../../contracts/platform/library-response-transfer-preview-v1.json");
+        let body = include_str!(
+            "../../../../contracts/platform/library-response-transfer-preview-v1.json"
+        );
         let reply = UntrustedLibraryResponse::parse(body.as_bytes(), &request, clock())
             .expect("valid verification pending");
         let data = reply.data.expect("transfer observation");
@@ -639,7 +727,9 @@ mod tests {
         let mut complete: Value = serde_json::from_str(body).expect("fixture");
         complete["data"]["state"] = json!("COMPLETE");
         assert!(UntrustedLibraryResponse::parse(
-            complete.to_string().as_bytes(), &request, clock()
+            complete.to_string().as_bytes(),
+            &request,
+            clock()
         )
         .is_err());
     }
@@ -647,16 +737,21 @@ mod tests {
     #[test]
     fn shared_python_owner_sources_are_correlated_without_grant_claims() {
         let request = UntrustedLibraryRequest::parse(
-            include_str!(
-                "../../../../contracts/platform/library-request-personal-sources-v1.json"
-            ).as_bytes(), clock(),
-        ).expect("typed personal-only source request");
+            include_str!("../../../../contracts/platform/library-request-personal-sources-v1.json")
+                .as_bytes(),
+            clock(),
+        )
+        .expect("typed personal-only source request");
         assert_eq!(request.operation, "library.sources.snapshot.v1");
         let reply = UntrustedLibraryResponse::parse(
             include_str!(
                 "../../../../contracts/platform/library-response-personal-sources-v1.json"
-            ).as_bytes(), &request, clock(),
-        ).expect("strict source projection");
+            )
+            .as_bytes(),
+            &request,
+            clock(),
+        )
+        .expect("strict source projection");
         assert_eq!(reply.state_revision, 0);
         let data = reply.data.expect("owner-only data");
         assert_eq!(data["owner_mode"], "SINGLE_OWNER_PRIVATE");
@@ -669,41 +764,44 @@ mod tests {
 
     #[test]
     fn personal_sources_refuse_fake_ready_and_leaked_authority() {
-        let req_bytes = include_str!(
-            "../../../../contracts/platform/library-request-personal-sources-v1.json"
-        );
-        let request = UntrustedLibraryRequest::parse(
-            req_bytes.as_bytes(), clock(),
-        ).expect("expected source read");
+        let req_bytes =
+            include_str!("../../../../contracts/platform/library-request-personal-sources-v1.json");
+        let request = UntrustedLibraryRequest::parse(req_bytes.as_bytes(), clock())
+            .expect("expected source read");
         let fixture = include_str!(
             "../../../../contracts/platform/library-response-personal-sources-v1.json"
         );
         let original: Value = serde_json::from_str(fixture).expect("source fixture");
         let mut invalid = original.clone();
         invalid["data"]["publisher_state"] = json!("UNENROLLED");
-        assert!(UntrustedLibraryResponse::parse(
-            invalid.to_string().as_bytes(), &request, clock(),
-        ).is_err());
+        assert!(
+            UntrustedLibraryResponse::parse(invalid.to_string().as_bytes(), &request, clock(),)
+                .is_err()
+        );
         invalid = original.clone();
         invalid["data"]["owner_proof"] = json!("forged");
-        assert!(UntrustedLibraryResponse::parse(
-            invalid.to_string().as_bytes(), &request, clock(),
-        ).is_err());
+        assert!(
+            UntrustedLibraryResponse::parse(invalid.to_string().as_bytes(), &request, clock(),)
+                .is_err()
+        );
         invalid = original.clone();
         invalid["data"]["hub_state"] = json!("READY");
-        assert!(UntrustedLibraryResponse::parse(
-            invalid.to_string().as_bytes(), &request, clock(),
-        ).is_err());
+        assert!(
+            UntrustedLibraryResponse::parse(invalid.to_string().as_bytes(), &request, clock(),)
+                .is_err()
+        );
         invalid = original.clone();
         invalid["data"]["served_bytes"] = json!(-1);
-        assert!(UntrustedLibraryResponse::parse(
-            invalid.to_string().as_bytes(), &request, clock(),
-        ).is_err());
+        assert!(
+            UntrustedLibraryResponse::parse(invalid.to_string().as_bytes(), &request, clock(),)
+                .is_err()
+        );
         invalid = original.clone();
         invalid["state_revision"] = json!(1);
-        assert!(UntrustedLibraryResponse::parse(
-            invalid.to_string().as_bytes(), &request, clock(),
-        ).is_err());
+        assert!(
+            UntrustedLibraryResponse::parse(invalid.to_string().as_bytes(), &request, clock(),)
+                .is_err()
+        );
     }
 
     #[test]
@@ -725,21 +823,24 @@ mod tests {
             .expect("valid request");
         let mut reply: Value = serde_json::from_str(response_fixture).expect("fixture");
         reply["data"]["items"][0]["installed"] = json!(true);
-        assert!(UntrustedLibraryResponse::parse(
-            reply.to_string().as_bytes(), &request, clock()
-        )
-        .is_err());
-        reply["data"]["items"][0].as_object_mut().expect("item").remove("installed");
+        assert!(
+            UntrustedLibraryResponse::parse(reply.to_string().as_bytes(), &request, clock())
+                .is_err()
+        );
+        reply["data"]["items"][0]
+            .as_object_mut()
+            .expect("item")
+            .remove("installed");
         reply["data"]["items"][0]["license_distribution"] = json!("non_redistributable");
-        assert!(UntrustedLibraryResponse::parse(
-            reply.to_string().as_bytes(), &request, clock()
-        )
-        .is_err());
+        assert!(
+            UntrustedLibraryResponse::parse(reply.to_string().as_bytes(), &request, clock())
+                .is_err()
+        );
         let mut absent: Value = serde_json::from_str(response_fixture).expect("fixture");
         absent.as_object_mut().expect("reply").remove("denial");
-        assert!(UntrustedLibraryResponse::parse(
-            absent.to_string().as_bytes(), &request, clock()
-        )
-        .is_err());
+        assert!(
+            UntrustedLibraryResponse::parse(absent.to_string().as_bytes(), &request, clock())
+                .is_err()
+        );
     }
 }

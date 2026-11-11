@@ -375,8 +375,8 @@ fn stage_receipts_match(artifact: &ArtifactStages, observation: &LibraryObservat
 mod tests {
     use super::{
         ArtifactStages, CatalogProvenance, DisplayReceipt, LibraryDisplayError,
-        LibraryDisplaySession, LibraryObservation, LibraryObservationSource,
-        OfflineLibraryReader, TransferProgress, LIBRARY_DISPLAY_MAX_AGE,
+        LibraryDisplaySession, LibraryObservation, LibraryObservationSource, OfflineLibraryReader,
+        TransferProgress, LIBRARY_DISPLAY_MAX_AGE,
     };
     use crate::control_center::{LinkState, SafeState};
     use crate::control_center_session::ReadFailure;
@@ -390,12 +390,7 @@ mod tests {
         }
     }
 
-    fn receipt(
-        stage: &str,
-        artifact: &str,
-        generation: u64,
-        revision: u64,
-    ) -> DisplayReceipt {
+    fn receipt(stage: &str, artifact: &str, generation: u64, revision: u64) -> DisplayReceipt {
         DisplayReceipt {
             reference: format!("receipt:{stage}:1"),
             issuer_identity: "issuer:b1".into(),
@@ -423,12 +418,7 @@ mod tests {
             }),
             artifact: Some(ArtifactStages {
                 content_sha256: "b".repeat(64),
-                downloaded: Some(receipt(
-                    "downloaded",
-                    &"b".repeat(64),
-                    generation,
-                    revision,
-                )),
+                downloaded: Some(receipt("downloaded", &"b".repeat(64), generation, revision)),
                 verified: None,
                 staged: None,
                 installed: None,
@@ -448,7 +438,8 @@ mod tests {
     #[test]
     fn no_service_no_current_catalog_or_lifecycle_claims() {
         let mut ui = LibraryDisplaySession::default();
-        ui.refresh(&mut OfflineLibraryReader, Instant::now()).unwrap();
+        ui.refresh(&mut OfflineLibraryReader, Instant::now())
+            .unwrap();
         assert_eq!(ui.status_label(), "OFFLINE");
         assert_eq!(ui.stage_label("installed"), "NOT_CURRENTLY_VERIFIED");
         assert!(ui.current().is_none());
@@ -459,11 +450,17 @@ mod tests {
         let mut ui = LibraryDisplaySession::default();
         ui.refresh(&mut Stub(Ok(snapshot(3, 7, 1))), Instant::now())
             .unwrap();
-        assert_eq!(ui.stage_label("downloaded"), "RECEIPT_REFERENCE_NOT_AUTHORITY");
+        assert_eq!(
+            ui.stage_label("downloaded"),
+            "RECEIPT_REFERENCE_NOT_AUTHORITY"
+        );
         assert_eq!(ui.stage_label("verified"), "NOT_OBSERVED");
         assert_eq!(ui.stage_label("installed"), "NOT_OBSERVED");
         assert_eq!(ui.stage_label("active"), "NOT_OBSERVED");
-        assert_eq!(ui.progress_label(), "BYTES_OBSERVED_NOT_INSTALL_OR_SIGNATURE_PROOF");
+        assert_eq!(
+            ui.progress_label(),
+            "BYTES_OBSERVED_NOT_INSTALL_OR_SIGNATURE_PROOF"
+        );
     }
 
     #[test]
@@ -477,7 +474,10 @@ mod tests {
         artifact.installed = Some(receipt("installed", &"b".repeat(64), 3, 7));
         artifact.active = Some(receipt("active", &"b".repeat(64), 3, 7));
         ui.refresh(&mut Stub(Ok(valid)), t).unwrap();
-        assert_eq!(ui.stage_label("verified"), "RECEIPT_REFERENCE_NOT_AUTHORITY");
+        assert_eq!(
+            ui.stage_label("verified"),
+            "RECEIPT_REFERENCE_NOT_AUTHORITY"
+        );
         assert_eq!(ui.stage_label("active"), "RECEIPT_REFERENCE_NOT_AUTHORITY");
         let mut forged = snapshot(3, 8, 2);
         let artifact = forged.artifact.as_mut().unwrap();

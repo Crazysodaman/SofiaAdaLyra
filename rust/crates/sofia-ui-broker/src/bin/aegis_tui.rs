@@ -4,9 +4,7 @@
 
 use serde_json::Value;
 use sofia_ui_broker::control_center::{ControlCenterView, LinkState, SafeState};
-use sofia_ui_broker::control_center_session::{
-    DisplayReadSource, DisplaySession, OfflineReader,
-};
+use sofia_ui_broker::control_center_session::{DisplayReadSource, DisplaySession, OfflineReader};
 use std::env;
 use std::io::{self, IsTerminal, Write};
 use std::process::ExitCode;
@@ -269,15 +267,13 @@ fn run_with_source(source: &mut impl DisplayReadSource) -> io::Result<ExitCode> 
         return Ok(ExitCode::SUCCESS);
     }
     if args.len() > 1
-        || args
-            .first()
-            .is_some_and(|arg| {
-                arg != "--plain"
-                    && arg != "--status"
-                    && arg != "--status-json"
-                    && arg != "--library-status"
-                    && arg != "--library-json"
-            })
+        || args.first().is_some_and(|arg| {
+            arg != "--plain"
+                && arg != "--status"
+                && arg != "--status-json"
+                && arg != "--library-status"
+                && arg != "--library-json"
+        })
     {
         eprintln!("Unknown option. Use --help.");
         return Ok(ExitCode::from(2));

@@ -12,15 +12,15 @@ pub mod linux {
         from_verified_denial, DisplayReadSource, DisplaySnapshot, ReadFailure,
     };
     use chrono::{Duration as ChronoDuration, SecondsFormat, Utc};
+    use nix::sys::socket::{getsockopt, sockopt::PeerCredentials};
+    use sofia_contracts::library::{
+        UntrustedLibraryRequest, UntrustedLibraryResponse, LIBRARY_PROTOCOL,
+        LIBRARY_REQUEST_SCHEMA, MAX_LIBRARY_CONTROL_BYTES,
+    };
     use sofia_contracts::management::{
         UntrustedManagementRead, UntrustedManagementResponse, MANAGEMENT_READ_PROTOCOL,
         MANAGEMENT_READ_SCHEMA, MAX_MANAGEMENT_RESPONSE_BYTES,
     };
-    use sofia_contracts::library::{
-        UntrustedLibraryRequest, UntrustedLibraryResponse,
-        LIBRARY_PROTOCOL, LIBRARY_REQUEST_SCHEMA, MAX_LIBRARY_CONTROL_BYTES,
-    };
-    use nix::sys::socket::{getsockopt, sockopt::PeerCredentials};
     use std::fmt::Write as _;
     use std::fs;
     use std::io::{Read, Write};
@@ -72,11 +72,10 @@ pub mod linux {
                 || bytes.is_empty()
                 || bytes.len() > 160
                 || !bytes[0].is_ascii_alphanumeric()
-                || !bytes
-                    .iter()
-                    .copied()
-                    .all(|byte| byte.is_ascii_alphanumeric()
-                        || matches!(byte, b'.' | b'_' | b'-' | b':' | b'@' | b'/'))
+                || !bytes.iter().copied().all(|byte| {
+                    byte.is_ascii_alphanumeric()
+                        || matches!(byte, b'.' | b'_' | b'-' | b':' | b'@' | b'/')
+                })
                 || generation == 0
                 || generation > MAX_GENERATION
                 || service_pid.is_some_and(|pid| pid <= 0)
@@ -127,12 +126,11 @@ pub mod linux {
             getrandom::getrandom(&mut random).map_err(|_| ReadFailure::Unverified)?;
             let mut request_id = String::from("req:");
             for value in random {
-                write!(&mut request_id, "{value:02x}")
-                    .map_err(|_| ReadFailure::Unverified)?;
+                write!(&mut request_id, "{value:02x}").map_err(|_| ReadFailure::Unverified)?;
             }
             let created_at = now.to_rfc3339_opts(SecondsFormat::Micros, true);
-            let deadline = (now + ChronoDuration::seconds(5))
-                .to_rfc3339_opts(SecondsFormat::Micros, true);
+            let deadline =
+                (now + ChronoDuration::seconds(5)).to_rfc3339_opts(SecondsFormat::Micros, true);
             let raw = serde_json::to_vec(&serde_json::json!({
                 "schema": MANAGEMENT_READ_SCHEMA,
                 "protocol": MANAGEMENT_READ_PROTOCOL,
@@ -147,10 +145,10 @@ pub mod linux {
             if raw.len() > MAX_REQUEST {
                 return Err(ReadFailure::Unverified);
             }
-            let expected = UntrustedManagementRead::parse(&raw, now)
-                .map_err(|_| ReadFailure::Unverified)?;
-            let mut connection = UnixStream::connect(&self.pins.socket_path)
-                .map_err(|_| ReadFailure::Offline)?;
+            let expected =
+                UntrustedManagementRead::parse(&raw, now).map_err(|_| ReadFailure::Unverified)?;
+            let mut connection =
+                UnixStream::connect(&self.pins.socket_path).map_err(|_| ReadFailure::Offline)?;
             connection
                 .set_write_timeout(Some(IO_TIMEOUT))
                 .map_err(|_| ReadFailure::Unverified)?;
@@ -166,19 +164,16 @@ pub mod linux {
             if verify_endpoint(&self.pins)? != inode {
                 return Err(ReadFailure::Unverified);
             }
-            let response = UntrustedManagementResponse::parse(
-                &body,
-                &expected,
-                Utc::now().fixed_offset(),
-            )
-            .map_err(|error| match error.code {
-                "stale_management_response" => ReadFailure::Stale,
-                // A wrong request ID, operation, target or generation has
-                // no verified explanation. Only a correlated typed
-                // STALE_GENERATION denial gets an explicit generation label.
-                "uncorrelated_management_response" => ReadFailure::Unverified,
-                _ => ReadFailure::Unverified,
-            })?;
+            let response =
+                UntrustedManagementResponse::parse(&body, &expected, Utc::now().fixed_offset())
+                    .map_err(|error| match error.code {
+                        "stale_management_response" => ReadFailure::Stale,
+                        // A wrong request ID, operation, target or generation has
+                        // no verified explanation. Only a correlated typed
+                        // STALE_GENERATION denial gets an explicit generation label.
+                        "uncorrelated_management_response" => ReadFailure::Unverified,
+                        _ => ReadFailure::Unverified,
+                    })?;
             // A's canonical parser only returns OK or a CORRELATED typed
             // DENIED observation. Both originate at the verified native peer.
             // Fence this socket across subsequent requests even if STOP or
@@ -186,11 +181,11 @@ pub mod linux {
             // replaced endpoint could be silently adopted after a denial.
             self.verified_endpoint = Some(inode);
             if response.outcome == "DENIED" {
-                return Err(
-                    response.denial.as_ref()
-                        .and_then(|denial| from_verified_denial(&denial.code))
-                        .unwrap_or(ReadFailure::Unverified),
-                );
+                return Err(response
+                    .denial
+                    .as_ref()
+                    .and_then(|denial| from_verified_denial(&denial.code))
+                    .unwrap_or(ReadFailure::Unverified));
             }
             if response.outcome != "OK" {
                 return Err(ReadFailure::Unverified);
@@ -295,8 +290,7 @@ pub mod linux {
             getrandom::getrandom(&mut random).map_err(|_| ReadFailure::Unverified)?;
             let mut random_id = String::new();
             for value in random {
-                write!(&mut random_id, "{value:02x}")
-                    .map_err(|_| ReadFailure::Unverified)?;
+                write!(&mut random_id, "{value:02x}").map_err(|_| ReadFailure::Unverified)?;
             }
             let raw = serde_json::to_vec(&serde_json::json!({
                 "schema": LIBRARY_REQUEST_SCHEMA,
@@ -321,10 +315,10 @@ pub mod linux {
             if raw.len() > MAX_LIBRARY_CONTROL_BYTES {
                 return Err(ReadFailure::Unverified);
             }
-            let expected = UntrustedLibraryRequest::parse(&raw, now)
-                .map_err(|_| ReadFailure::Unverified)?;
-            let mut connection = UnixStream::connect(&self.pins.socket_path)
-                .map_err(|_| ReadFailure::Offline)?;
+            let expected =
+                UntrustedLibraryRequest::parse(&raw, now).map_err(|_| ReadFailure::Unverified)?;
+            let mut connection =
+                UnixStream::connect(&self.pins.socket_path).map_err(|_| ReadFailure::Offline)?;
             connection
                 .set_write_timeout(Some(IO_TIMEOUT))
                 .map_err(|_| ReadFailure::Unverified)?;
@@ -337,34 +331,35 @@ pub mod linux {
                 .and_then(|()| connection.write_all(b"\n"))
                 .map_err(|_| ReadFailure::Offline)?;
             let body = read_one(&mut connection)?;
-            if body.len() > MAX_LIBRARY_CONTROL_BYTES
-                || verify_endpoint(&self.pins)? != inode
-            {
+            if body.len() > MAX_LIBRARY_CONTROL_BYTES || verify_endpoint(&self.pins)? != inode {
                 return Err(ReadFailure::Unverified);
             }
-            let response = UntrustedLibraryResponse::parse(
-                &body, &expected, Utc::now().fixed_offset(),
-            ).map_err(|_| ReadFailure::Unverified)?;
+            let response =
+                UntrustedLibraryResponse::parse(&body, &expected, Utc::now().fixed_offset())
+                    .map_err(|_| ReadFailure::Unverified)?;
             // Fence this exact socket epoch EVEN on a correlated denial:
             // a substituted pipe cannot be adopted after STOP/revocation.
             self.verified_endpoint = Some(inode);
             if response.outcome == "DENIED" {
-                return Err(
-                    response.denial_code.as_ref()
-                        .and_then(|code| from_verified_denial(code))
-                        .unwrap_or(ReadFailure::Unverified),
-                );
+                return Err(response
+                    .denial_code
+                    .as_ref()
+                    .and_then(|code| from_verified_denial(code))
+                    .unwrap_or(ReadFailure::Unverified));
             }
             if response.outcome != "OK" {
                 return Err(ReadFailure::Unverified);
             }
             let catalog = response.data.ok_or(ReadFailure::Unverified)?;
             let catalog_generation = catalog["catalog_generation"]
-                .as_u64().ok_or(ReadFailure::Unverified)?;
+                .as_u64()
+                .ok_or(ReadFailure::Unverified)?;
             let catalog_revision = catalog["catalog_revision"]
-                .as_u64().ok_or(ReadFailure::Unverified)?;
+                .as_u64()
+                .ok_or(ReadFailure::Unverified)?;
             let source_id = catalog["source"]["source_id"]
-                .as_str().ok_or(ReadFailure::Unverified)?;
+                .as_str()
+                .ok_or(ReadFailure::Unverified)?;
             if catalog_generation != self.expected_catalog_generation
                 || catalog_revision != self.expected_catalog_revision
                 || source_id != self.expected_source_id
@@ -410,7 +405,10 @@ pub mod linux {
     impl NativeLinuxOwnerSourcesReader {
         #[must_use]
         pub fn from_verified_installation(pins: InstalledNativeServicePins) -> Self {
-            Self { pins, verified_endpoint: None }
+            Self {
+                pins,
+                verified_endpoint: None,
+            }
         }
 
         /// Query the same pinned native Unix socket, not a Hub endpoint.
@@ -428,8 +426,7 @@ pub mod linux {
             getrandom::getrandom(&mut random).map_err(|_| ReadFailure::Unverified)?;
             let mut random_id = String::new();
             for value in random {
-                write!(&mut random_id, "{value:02x}")
-                    .map_err(|_| ReadFailure::Unverified)?;
+                write!(&mut random_id, "{value:02x}").map_err(|_| ReadFailure::Unverified)?;
             }
             let raw = serde_json::to_vec(&serde_json::json!({
                 "schema": LIBRARY_REQUEST_SCHEMA,
@@ -450,35 +447,35 @@ pub mod linux {
             if raw.len() > MAX_LIBRARY_CONTROL_BYTES {
                 return Err(ReadFailure::Unverified);
             }
-            let expected = UntrustedLibraryRequest::parse(&raw, now)
-                .map_err(|_| ReadFailure::Unverified)?;
-            let mut connection = UnixStream::connect(&self.pins.socket_path)
-                .map_err(|_| ReadFailure::Offline)?;
-            connection.set_write_timeout(Some(IO_TIMEOUT))
+            let expected =
+                UntrustedLibraryRequest::parse(&raw, now).map_err(|_| ReadFailure::Unverified)?;
+            let mut connection =
+                UnixStream::connect(&self.pins.socket_path).map_err(|_| ReadFailure::Offline)?;
+            connection
+                .set_write_timeout(Some(IO_TIMEOUT))
                 .map_err(|_| ReadFailure::Unverified)?;
             verify_os_peer(&connection, &self.pins)?;
             if verify_endpoint(&self.pins)? != inode {
                 return Err(ReadFailure::Unverified);
             }
-            connection.write_all(&raw)
+            connection
+                .write_all(&raw)
                 .and_then(|()| connection.write_all(b"\n"))
                 .map_err(|_| ReadFailure::Offline)?;
             let reply = read_one(&mut connection)?;
-            if reply.len() > MAX_LIBRARY_CONTROL_BYTES
-                || verify_endpoint(&self.pins)? != inode
-            {
+            if reply.len() > MAX_LIBRARY_CONTROL_BYTES || verify_endpoint(&self.pins)? != inode {
                 return Err(ReadFailure::Unverified);
             }
-            let response = UntrustedLibraryResponse::parse(
-                &reply, &expected, Utc::now().fixed_offset(),
-            ).map_err(|_| ReadFailure::Unverified)?;
+            let response =
+                UntrustedLibraryResponse::parse(&reply, &expected, Utc::now().fixed_offset())
+                    .map_err(|_| ReadFailure::Unverified)?;
             self.verified_endpoint = Some(inode);
             if response.outcome == "DENIED" {
-                return Err(
-                    response.denial_code.as_ref()
-                        .and_then(|code| from_verified_denial(code))
-                        .unwrap_or(ReadFailure::Unverified),
-                );
+                return Err(response
+                    .denial_code
+                    .as_ref()
+                    .and_then(|code| from_verified_denial(code))
+                    .unwrap_or(ReadFailure::Unverified));
             }
             if response.outcome != "OK" {
                 return Err(ReadFailure::Unverified);
@@ -487,8 +484,12 @@ pub mod linux {
             let source_id = if source["source_platform_id"].is_null() {
                 None
             } else {
-                Some(source["source_platform_id"]
-                    .as_str().ok_or(ReadFailure::Unverified)?.to_owned())
+                Some(
+                    source["source_platform_id"]
+                        .as_str()
+                        .ok_or(ReadFailure::Unverified)?
+                        .to_owned(),
+                )
             };
             Ok(NativeOwnerSourcesSnapshot {
                 platform_id: response.platform_id,
@@ -496,23 +497,30 @@ pub mod linux {
                 observed_at: response.observed_at,
                 source_platform_id: source_id,
                 publisher_state: source["publisher_state"]
-                    .as_str().ok_or(ReadFailure::Unverified)?.to_owned(),
+                    .as_str()
+                    .ok_or(ReadFailure::Unverified)?
+                    .to_owned(),
                 catalog_state: source["catalog_state"]
-                    .as_str().ok_or(ReadFailure::Unverified)?.to_owned(),
+                    .as_str()
+                    .ok_or(ReadFailure::Unverified)?
+                    .to_owned(),
                 hub_state: source["hub_state"]
-                    .as_str().ok_or(ReadFailure::Unverified)?.to_owned(),
+                    .as_str()
+                    .ok_or(ReadFailure::Unverified)?
+                    .to_owned(),
                 served_chunks: source["served_chunks"]
-                    .as_u64().ok_or(ReadFailure::Unverified)?,
+                    .as_u64()
+                    .ok_or(ReadFailure::Unverified)?,
                 served_bytes: source["served_bytes"]
-                    .as_u64().ok_or(ReadFailure::Unverified)?,
+                    .as_u64()
+                    .ok_or(ReadFailure::Unverified)?,
             })
         }
     }
 
     fn no_symlinks(path: &Path) -> Result<(), ReadFailure> {
         for component in path.ancestors() {
-            let info = fs::symlink_metadata(component)
-                .map_err(|_| ReadFailure::Offline)?;
+            let info = fs::symlink_metadata(component).map_err(|_| ReadFailure::Offline)?;
             if info.file_type().is_symlink() {
                 return Err(ReadFailure::Unverified);
             }
@@ -520,14 +528,11 @@ pub mod linux {
         Ok(())
     }
 
-    fn verify_endpoint(
-        pins: &InstalledNativeServicePins,
-    ) -> Result<(u64, u64), ReadFailure> {
+    fn verify_endpoint(pins: &InstalledNativeServicePins) -> Result<(u64, u64), ReadFailure> {
         no_symlinks(&pins.socket_path)?;
         let parent = pins.socket_path.parent().ok_or(ReadFailure::Unverified)?;
         let dir = fs::symlink_metadata(parent).map_err(|_| ReadFailure::Offline)?;
-        let leaf = fs::symlink_metadata(&pins.socket_path)
-            .map_err(|_| ReadFailure::Offline)?;
+        let leaf = fs::symlink_metadata(&pins.socket_path).map_err(|_| ReadFailure::Offline)?;
         let mode = dir.permissions().mode() & 0o777;
         let (expected_group, expected_dir_mode, expected_sock_mode) =
             if let Some(group) = pins.socket_group_gid {
@@ -553,8 +558,8 @@ pub mod linux {
         connection: &UnixStream,
         pins: &InstalledNativeServicePins,
     ) -> Result<(), ReadFailure> {
-        let actual = getsockopt(connection, PeerCredentials)
-            .map_err(|_| ReadFailure::Unverified)?;
+        let actual =
+            getsockopt(connection, PeerCredentials).map_err(|_| ReadFailure::Unverified)?;
         if actual.pid() <= 0
             || actual.uid() != pins.service_uid
             || actual.gid() != pins.service_gid
@@ -569,14 +574,17 @@ pub mod linux {
         let deadline = Instant::now() + IO_TIMEOUT;
         let mut bytes = Vec::new();
         loop {
-            let remaining = deadline.checked_duration_since(Instant::now())
+            let remaining = deadline
+                .checked_duration_since(Instant::now())
                 .filter(|time| !time.is_zero())
                 .ok_or(ReadFailure::Offline)?;
             connection
                 .set_read_timeout(Some(remaining))
                 .map_err(|_| ReadFailure::Unverified)?;
             let mut chunk = [0_u8; 4096];
-            let got = connection.read(&mut chunk).map_err(|_| ReadFailure::Offline)?;
+            let got = connection
+                .read(&mut chunk)
+                .map_err(|_| ReadFailure::Offline)?;
             if got == 0 {
                 return Err(ReadFailure::Offline);
             }
@@ -605,12 +613,15 @@ pub mod linux {
 
         fn fake_service(
             outcome: &'static str,
-        ) -> (tempfile::TempDir, InstalledNativeServicePins, thread::JoinHandle<()>) {
+        ) -> (
+            tempfile::TempDir,
+            InstalledNativeServicePins,
+            thread::JoinHandle<()>,
+        ) {
             let home = tempfile::tempdir().unwrap();
             let socket_path = home.path().join("mgmt-3.sock");
             let listener = UnixListener::bind(&socket_path).unwrap();
-            fs::set_permissions(&socket_path, fs::Permissions::from_mode(0o600))
-                .unwrap();
+            fs::set_permissions(&socket_path, fs::Permissions::from_mode(0o600)).unwrap();
             let info = fs::metadata(home.path()).unwrap();
             let pins = InstalledNativeServicePins::from_externally_verified_installation(
                 socket_path,
@@ -620,16 +631,18 @@ pub mod linux {
                 info.gid(),
                 None,
                 Some(i32::try_from(std::process::id()).unwrap()),
-            ).unwrap();
+            )
+            .unwrap();
             let handle = thread::spawn(move || {
                 let (mut connection, _) = listener.accept().unwrap();
                 if outcome == "EOF" {
                     return;
                 }
                 let mut wire = Vec::new();
-                BufReader::new(&connection).read_until(b'\n', &mut wire).unwrap();
-                let request: serde_json::Value =
-                    serde_json::from_slice(&wire).unwrap();
+                BufReader::new(&connection)
+                    .read_until(b'\n', &mut wire)
+                    .unwrap();
+                let request: serde_json::Value = serde_json::from_slice(&wire).unwrap();
                 let mut result = serde_json::json!({
                     "schema": "aegis.platform.management.read-response.v1",
                     "protocol": "1.0",
@@ -651,8 +664,12 @@ pub mod linux {
                 });
                 if matches!(
                     outcome,
-                    "STOPPED" | "REVOKED" | "NOT_PERMITTED" | "UNAVAILABLE"
-                        | "EXPIRED" | "STALE_GENERATION"
+                    "STOPPED"
+                        | "REVOKED"
+                        | "NOT_PERMITTED"
+                        | "UNAVAILABLE"
+                        | "EXPIRED"
+                        | "STALE_GENERATION"
                 ) {
                     result["outcome"] = serde_json::json!("DENIED");
                     result["data"] = serde_json::Value::Null;
@@ -668,12 +685,14 @@ pub mod linux {
                     result["data"]["operator_stop"] = serde_json::json!(true);
                 }
                 if outcome == "DUPLICATE" {
-                    connection.write_all(b"{\"schema\":1,\"schema\":2}\n").unwrap();
+                    connection
+                        .write_all(b"{\"schema\":1,\"schema\":2}\n")
+                        .unwrap();
                     return;
                 }
-                connection.write_all(
-                    serde_json::to_string(&result).unwrap().as_bytes(),
-                ).unwrap();
+                connection
+                    .write_all(serde_json::to_string(&result).unwrap().as_bytes())
+                    .unwrap();
                 connection.write_all(b"\n").unwrap();
             });
             (home, pins, handle)
@@ -681,28 +700,36 @@ pub mod linux {
 
         fn fake_library_service(
             outcome: &'static str,
-        ) -> (tempfile::TempDir, InstalledNativeServicePins, thread::JoinHandle<()>) {
+        ) -> (
+            tempfile::TempDir,
+            InstalledNativeServicePins,
+            thread::JoinHandle<()>,
+        ) {
             let home = tempfile::tempdir().unwrap();
             let socket_path = home.path().join("mgmt-17.sock");
             let listener = UnixListener::bind(&socket_path).unwrap();
-            fs::set_permissions(
-                &socket_path, fs::Permissions::from_mode(0o600),
-            ).unwrap();
+            fs::set_permissions(&socket_path, fs::Permissions::from_mode(0o600)).unwrap();
             let stat = fs::metadata(home.path()).unwrap();
             let pins = InstalledNativeServicePins::from_externally_verified_installation(
-                socket_path, "platform:recipient".into(), 17,
-                stat.uid(), stat.gid(), None,
+                socket_path,
+                "platform:recipient".into(),
+                17,
+                stat.uid(),
+                stat.gid(),
+                None,
                 Some(i32::try_from(std::process::id()).unwrap()),
-            ).unwrap();
+            )
+            .unwrap();
             let handle = thread::spawn(move || {
                 let (mut socket, _) = listener.accept().unwrap();
                 let mut message = Vec::new();
-                BufReader::new(&socket).read_until(b'\n', &mut message).unwrap();
+                BufReader::new(&socket)
+                    .read_until(b'\n', &mut message)
+                    .unwrap();
                 if outcome == "EOF" {
                     return;
                 }
-                let request: serde_json::Value =
-                    serde_json::from_slice(&message).unwrap();
+                let request: serde_json::Value = serde_json::from_slice(&message).unwrap();
                 let moment = Utc::now();
                 let observed = moment.to_rfc3339_opts(SecondsFormat::Micros, true);
                 let freshness = (moment + ChronoDuration::seconds(40))
@@ -759,7 +786,8 @@ pub mod linux {
                     }
                     _ => {}
                 }
-                socket.write_all(serde_json::to_string(&response).unwrap().as_bytes())
+                socket
+                    .write_all(serde_json::to_string(&response).unwrap().as_bytes())
                     .unwrap();
                 socket.write_all(b"\n").unwrap();
             });
@@ -770,8 +798,12 @@ pub mod linux {
         fn native_catalog_reader_uses_pinned_socket_and_exact_signed_service_scope() {
             let (_root, pins, handle) = fake_library_service("OK");
             let mut reader = NativeLinuxLibraryCatalogReader::from_verified_installation(
-                pins, "primary-library".into(), 9, 7,
-            ).unwrap();
+                pins,
+                "primary-library".into(),
+                9,
+                7,
+            )
+            .unwrap();
             let observed = reader.catalog().unwrap();
             assert_eq!(observed.platform_id, "platform:recipient");
             assert_eq!(observed.platform_generation, 17);
@@ -786,13 +818,23 @@ pub mod linux {
         #[test]
         fn native_catalog_reader_fails_closed_on_denial_and_signed_scope_mismatch() {
             for outcome in [
-                "STOPPED", "REVOKED", "UNAVAILABLE", "WRONG_SOURCE",
-                "WRONG_CATALOG_EPOCH", "WRONG_REVISION", "WRONG_PLATFORM", "EOF",
+                "STOPPED",
+                "REVOKED",
+                "UNAVAILABLE",
+                "WRONG_SOURCE",
+                "WRONG_CATALOG_EPOCH",
+                "WRONG_REVISION",
+                "WRONG_PLATFORM",
+                "EOF",
             ] {
                 let (_root, pins, handle) = fake_library_service(outcome);
                 let mut reader = NativeLinuxLibraryCatalogReader::from_verified_installation(
-                    pins, "primary-library".into(), 9, 7,
-                ).unwrap();
+                    pins,
+                    "primary-library".into(),
+                    9,
+                    7,
+                )
+                .unwrap();
                 let result = reader.catalog();
                 assert!(result.is_err(), "unexpected verified Library: {outcome}");
                 handle.join().unwrap();
@@ -805,42 +847,70 @@ pub mod linux {
             let path = root.path().join("mgmt-17.sock");
             let stat = fs::metadata(root.path()).unwrap();
             let pins = InstalledNativeServicePins::from_externally_verified_installation(
-                path, "platform:recipient".into(), 17,
-                stat.uid(), stat.gid(), None, None,
-            ).unwrap();
+                path,
+                "platform:recipient".into(),
+                17,
+                stat.uid(),
+                stat.gid(),
+                None,
+                None,
+            )
+            .unwrap();
             assert!(NativeLinuxLibraryCatalogReader::from_verified_installation(
-                pins.clone(), "bad source".into(), 9, 7,
-            ).is_err());
+                pins.clone(),
+                "bad source".into(),
+                9,
+                7,
+            )
+            .is_err());
             assert!(NativeLinuxLibraryCatalogReader::from_verified_installation(
-                pins.clone(), "primary-library".into(), 0, 7,
-            ).is_err());
+                pins.clone(),
+                "primary-library".into(),
+                0,
+                7,
+            )
+            .is_err());
             assert!(NativeLinuxLibraryCatalogReader::from_verified_installation(
-                pins, "primary-library".into(), 9, 0,
-            ).is_err());
+                pins,
+                "primary-library".into(),
+                9,
+                0,
+            )
+            .is_err());
         }
 
         fn fake_owner_sources_service(
             result: &'static str,
-        ) -> (tempfile::TempDir, InstalledNativeServicePins, thread::JoinHandle<()>) {
+        ) -> (
+            tempfile::TempDir,
+            InstalledNativeServicePins,
+            thread::JoinHandle<()>,
+        ) {
             let home = tempfile::tempdir().unwrap();
             let path = home.path().join("mgmt-17.sock");
             let listener = UnixListener::bind(&path).unwrap();
             fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).unwrap();
             let stat = fs::metadata(home.path()).unwrap();
             let pins = InstalledNativeServicePins::from_externally_verified_installation(
-                path, "platform:recipient".into(), 17,
-                stat.uid(), stat.gid(), None,
+                path,
+                "platform:recipient".into(),
+                17,
+                stat.uid(),
+                stat.gid(),
+                None,
                 Some(i32::try_from(std::process::id()).unwrap()),
-            ).unwrap();
+            )
+            .unwrap();
             let handle = thread::spawn(move || {
                 let (mut socket, _) = listener.accept().unwrap();
                 let mut request_bytes = Vec::new();
-                BufReader::new(&socket).read_until(b'\n', &mut request_bytes).unwrap();
+                BufReader::new(&socket)
+                    .read_until(b'\n', &mut request_bytes)
+                    .unwrap();
                 if result == "EOF" {
                     return;
                 }
-                let request: serde_json::Value =
-                    serde_json::from_slice(&request_bytes).unwrap();
+                let request: serde_json::Value = serde_json::from_slice(&request_bytes).unwrap();
                 assert_eq!(request["operation"], "library.sources.snapshot.v1");
                 let mut message = serde_json::json!({
                     "schema": "aegis.platform.library.response.v1",
@@ -868,12 +938,9 @@ pub mod linux {
                 });
                 match result {
                     "CURRENT" => {
-                        message["data"]["publisher_state"] =
-                            serde_json::json!("CURRENT");
-                        message["data"]["source_platform_id"] =
-                            serde_json::json!("platform:hub");
-                        message["data"]["catalog_state"] =
-                            serde_json::json!("CURRENT");
+                        message["data"]["publisher_state"] = serde_json::json!("CURRENT");
+                        message["data"]["source_platform_id"] = serde_json::json!("platform:hub");
+                        message["data"]["catalog_state"] = serde_json::json!("CURRENT");
                         message["data"]["hub_state"] = serde_json::json!("SERVING");
                         message["data"]["served_chunks"] = serde_json::json!(2);
                         message["data"]["served_bytes"] = serde_json::json!(2097152);
@@ -884,15 +951,13 @@ pub mod linux {
                         message["denial"] = serde_json::json!({"code":result});
                     }
                     "UNSIGNED_READY" => {
-                        message["data"]["catalog_state"] =
-                            serde_json::json!("CURRENT");
+                        message["data"]["catalog_state"] = serde_json::json!("CURRENT");
                     }
                     "BOGUS_READY" => {
                         message["data"]["hub_state"] = serde_json::json!("READY");
                     }
                     "EXTRA_OWNER_SECRET" => {
-                        message["data"]["owner_secret"] =
-                            serde_json::json!("not-allowed");
+                        message["data"]["owner_secret"] = serde_json::json!("not-allowed");
                     }
                     "BAD_COUNTER" => {
                         message["data"]["served_bytes"] = serde_json::json!(-1);
@@ -927,7 +992,9 @@ pub mod linux {
         fn native_owner_status_reports_current_internal_hub_without_install_claim() {
             let (_home, pins, worker) = fake_owner_sources_service("CURRENT");
             let mut client = NativeLinuxOwnerSourcesReader::from_verified_installation(pins);
-            let snapshot = client.sources().expect("verified native service observation");
+            let snapshot = client
+                .sources()
+                .expect("verified native service observation");
             assert_eq!(snapshot.source_platform_id.as_deref(), Some("platform:hub"));
             assert_eq!(snapshot.catalog_state, "CURRENT");
             assert_eq!(snapshot.hub_state, "SERVING");
@@ -939,13 +1006,18 @@ pub mod linux {
         #[test]
         fn native_owner_status_denials_and_forgeries_never_claim_hub_readiness() {
             for case in [
-                "STOPPED", "REVOKED", "UNAVAILABLE", "EOF",
-                "UNSIGNED_READY", "BOGUS_READY", "EXTRA_OWNER_SECRET",
-                "BAD_COUNTER", "WRONG_PLATFORM",
+                "STOPPED",
+                "REVOKED",
+                "UNAVAILABLE",
+                "EOF",
+                "UNSIGNED_READY",
+                "BOGUS_READY",
+                "EXTRA_OWNER_SECRET",
+                "BAD_COUNTER",
+                "WRONG_PLATFORM",
             ] {
                 let (_home, pins, worker) = fake_owner_sources_service(case);
-                let mut client =
-                    NativeLinuxOwnerSourcesReader::from_verified_installation(pins);
+                let mut client = NativeLinuxOwnerSourcesReader::from_verified_installation(pins);
                 assert!(client.sources().is_err(), "{case} must fail closed");
                 worker.join().unwrap();
             }
@@ -998,8 +1070,7 @@ pub mod linux {
             let old_inode = fs::metadata(&original).unwrap().ino();
             fs::rename(&original, home.path().join("old-socket")).unwrap();
             let _new_listener = UnixListener::bind(&original).unwrap();
-            fs::set_permissions(&original, fs::Permissions::from_mode(0o600))
-                .unwrap();
+            fs::set_permissions(&original, fs::Permissions::from_mode(0o600)).unwrap();
             assert_ne!(old_inode, fs::metadata(&original).unwrap().ino());
             assert_eq!(client.next().err(), Some(ReadFailure::Unverified));
             assert_eq!(client.local_sequence, 1);
@@ -1013,11 +1084,13 @@ pub mod linux {
             assert_eq!(client.next().err(), Some(ReadFailure::Stopped));
             thread.join().unwrap();
             let old_inode = fs::metadata(&original).unwrap().ino();
-            assert_eq!(client.verified_endpoint.map(|(_, inode)| inode), Some(old_inode));
+            assert_eq!(
+                client.verified_endpoint.map(|(_, inode)| inode),
+                Some(old_inode)
+            );
             fs::rename(&original, home.path().join("old-stop-socket")).unwrap();
             let _new_listener = UnixListener::bind(&original).unwrap();
-            fs::set_permissions(&original, fs::Permissions::from_mode(0o600))
-                .unwrap();
+            fs::set_permissions(&original, fs::Permissions::from_mode(0o600)).unwrap();
             assert_ne!(old_inode, fs::metadata(&original).unwrap().ino());
             assert_eq!(client.next().err(), Some(ReadFailure::Unverified));
             assert_eq!(client.local_sequence, 0);
@@ -1026,14 +1099,8 @@ pub mod linux {
         #[test]
         fn private_and_enrolled_group_modes_do_not_downgrade() {
             let (home, mut pins, thread) = fake_service("EOF");
-            fs::set_permissions(
-                home.path(),
-                fs::Permissions::from_mode(0o750),
-            ).unwrap();
-            fs::set_permissions(
-                &pins.socket_path,
-                fs::Permissions::from_mode(0o660),
-            ).unwrap();
+            fs::set_permissions(home.path(), fs::Permissions::from_mode(0o750)).unwrap();
+            fs::set_permissions(&pins.socket_path, fs::Permissions::from_mode(0o660)).unwrap();
             // Different service primary and socket group must be pinned
             // separately by B. The synthetic same-user test uses current GID,
             // so this is mode coverage, NOT a distinct-operator acceptance.
@@ -1076,10 +1143,7 @@ pub mod linux {
             thread.join().unwrap();
 
             let (_home, pins, thread) = fake_service("EOF");
-            fs::set_permissions(
-                &pins.socket_path,
-                fs::Permissions::from_mode(0o666),
-            ).unwrap();
+            fs::set_permissions(&pins.socket_path, fs::Permissions::from_mode(0o666)).unwrap();
             let mut client = NativeLinuxManagementReader::new(pins);
             assert_eq!(client.next().err(), Some(ReadFailure::Unverified));
             let _ = UnixStream::connect(&client.pins.socket_path);

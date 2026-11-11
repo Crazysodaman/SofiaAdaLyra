@@ -306,7 +306,10 @@ mod tests {
         session.fail(ReadFailure::Stopped);
         assert_eq!(session.view().service_label(), "STOP_ACTIVE");
         assert_eq!(session.view().safe_label(), "STOP_ACTIVE");
-        assert_eq!(session.view().installation_label(), "NOT_CURRENTLY_VERIFIED");
+        assert_eq!(
+            session.view().installation_label(),
+            "NOT_CURRENTLY_VERIFIED"
+        );
         assert_eq!(session.view().permission_label(), "UNKNOWN");
         assert_eq!(
             session.view().action_hint(ProposedAction::InstallModule),
