@@ -122,6 +122,111 @@ def _spec(*, store, verifier, expected_target, destination, identity_home, local
     )
 
 
+def review_native_outcome_for_reconciliation(
+    *,
+    store: PlatformInstallationStore,
+    verifier: PlatformReleaseVerifier,
+    expected_target: PlatformReleaseTarget,
+    destination: Path | str,
+    identity_home: Path | str,
+    local_state: Path | str,
+    backend,
+) -> dict[str, object]:
+    """Read-only, signed B1 + OS observation of a fenced native outcome.
+
+    This is NEVER an approval, a journal-clearing action or an authenticated
+    RUN/READY proof. A pending/unknown OS result remains fenced, even when
+    the native driver sees a matching process. Only an independent attended
+    recovery workflow may later resolve it.
+    """
+    if not isinstance(store, PlatformInstallationStore):
+        raise TypeError("canonical B1 installation store required")
+    if not isinstance(verifier, PlatformReleaseVerifier):
+        raise TypeError("configured independently trusted release verifier required")
+    if not isinstance(expected_target, PlatformReleaseTarget):
+        raise TypeError("typed native release target required")
+    driver_type = (
+        WindowsScmNativeService if expected_target is PlatformReleaseTarget.WINDOWS_X86_64
+        else DebianSystemdNativeService
+    )
+    if type(backend) is not driver_type:
+        raise PlatformInstallationDenied("read-only native observer must match reviewed OS")
+    if (type(backend) is DebianSystemdNativeService
+            and backend.unit_path != Path("/etc/systemd/system/aegis-platform.service")):
+        raise PlatformInstallationDenied("unapproved systemd unit observation target")
+    before = _load_journal(store)
+    signed = _spec(
+        store=store, verifier=verifier, expected_target=expected_target,
+        destination=destination, identity_home=identity_home,
+        local_state=local_state,
+    )
+    signed_ref = _public_spec(signed)
+    process_state = "UNKNOWN"
+    observation = "UNAVAILABLE"
+    same_signed_identity = False
+    try:
+        result = backend.observe(signed)
+        if (type(result) is dict
+                and result.get("schema") == "aegis.native-service-receipt.v1"
+                and result.get("platform_id") == signed.platform_id
+                and result.get("release_manifest_sha256") == signed.manifest_sha256
+                and result.get("core_activated") is False
+                and result.get("service_health") == "UNKNOWN"
+                and result.get("process_state") in ("RUNNING", "NOT_RUNNING")):
+            process_state = result["process_state"]
+            same_signed_identity = True
+            observation = "SIGNED_OS_CONFIG_OBSERVED"
+        else:
+            observation = "MISMATCHED_NATIVE_OBSERVATION"
+    except (OSError, ValueError, RuntimeError, PermissionError):
+        # A missing, foreign, stopped or unreadable unit is NOT proof that
+        # the previous OS effect did or did not happen. Leave the fence.
+        observation = "UNAVAILABLE"
+    after = _load_journal(store)
+    if before != after:
+        raise PlatformInstallationDenied(
+            "native journal changed during read-only recovery observation"
+        )
+    # Signed release bytes and protected installation identity must remain
+    # stable across the observer as well. A racing release replacement is
+    # never promoted into recovery evidence.
+    checked = _spec(
+        store=store, verifier=verifier, expected_target=expected_target,
+        destination=destination, identity_home=identity_home,
+        local_state=local_state,
+    )
+    if _public_spec(checked) != signed_ref:
+        raise PlatformInstallationDenied(
+            "signed B1 release changed during native recovery observation"
+        )
+    phase = "ABSENT" if before is None else before["phase"]
+    unresolved = phase in ("PENDING", "OUTCOME_UNKNOWN")
+    recorded = None if before is None else before["current"]
+    return {
+        "schema": "aegis.native-service-recovery-review.v1",
+        "result": "RECONCILIATION_REQUIRED" if unresolved
+            else "READ_ONLY_OS_OBSERVATION",
+        "journal_phase": phase,
+        "journal_generation": 0 if before is None else before["generation"],
+        "last_operation": None if before is None else before["last_operation"],
+        "signed_platform_id": signed.platform_id,
+        "signed_release_manifest_sha256": signed.manifest_sha256,
+        "recorded_service_matches_signed_release": recorded == signed_ref,
+        "native_observation": observation,
+        "observed_service_matches_signed_release": same_signed_identity,
+        "process_state": process_state,
+        "service_health": "UNKNOWN",
+        "owner_approval_verified": False,
+        "publisher_revocation_current_verified": False,
+        "authenticated_platform_ready_verified": False,
+        "journal_reconciled": False,
+        "journal_mutated": False,
+        "native_service_mutated": False,
+        "core_activated": False,
+        "fleet_enrolled": False,
+    }
+
+
 def native_service_operation_request(
     *,
     operation: str,
