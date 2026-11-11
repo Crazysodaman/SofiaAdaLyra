@@ -27,6 +27,10 @@ RELEASE_ROOT=''
 PUBLISHER_KEY=''
 PUBLISHER_FINGERPRINT=''
 PUBLISHER_SIGNER=''
+CAPSULE_STAGE_REQUESTED=0
+CAPSULE_ARCHIVE=''
+CAPSULE_SIGNATURE=''
+CAPSULE_DESTINATION=''
 
 usage() {
   printf '%s\n' 'Aegis installer (PREVIEW ONLY)' \
@@ -34,6 +38,7 @@ usage() {
     '       install-aegis.sh --operation OP [--json] [--dry-run]' \
     '       install-aegis.sh --verify-seed FILE --trusted-seed-sha256 HEX [--json]' \
     '       install-aegis.sh --verify-publisher DIR --publisher-key PEM --publisher-sha256 HEX --publisher-signer ID [--json]' \
+    '       install-aegis.sh --stage-capsule ZIP --capsule-signature RAW64 --publisher-key PEM --publisher-sha256 HEX --publisher-signer ID --staging-destination NEW_PRIVATE_DIR' \
     'OP: status, doctor, install, update, repair, rollback, uninstall, purge' \
     'Mutation is BLOCKED until the signed OS executor and SAFE/STOP are connected.'
 }
@@ -44,6 +49,15 @@ while (($#)); do
     --verify-publisher)
       if ((PUBLISHER_REQUESTED)) || (($# < 2)); then printf '%s\n' 'Invalid publisher request' >&2; exit 2; fi
       PUBLISHER_REQUESTED=1; MODE=publisher; RELEASE_ROOT="$2"; shift 2 ;;
+    --stage-capsule)
+      if ((CAPSULE_STAGE_REQUESTED)) || (($# < 2)); then printf '%s\n' 'Invalid capsule stage request' >&2; exit 2; fi
+      CAPSULE_STAGE_REQUESTED=1; MODE=capsule_stage; CAPSULE_ARCHIVE="$2"; shift 2 ;;
+    --capsule-signature)
+      if [[ -n "$CAPSULE_SIGNATURE" ]] || (($# < 2)); then printf '%s\n' 'Invalid capsule signature' >&2; exit 2; fi
+      CAPSULE_SIGNATURE="$2"; shift 2 ;;
+    --staging-destination)
+      if [[ -n "$CAPSULE_DESTINATION" ]] || (($# < 2)); then printf '%s\n' 'Invalid capsule staging target' >&2; exit 2; fi
+      CAPSULE_DESTINATION="$2"; shift 2 ;;
     --publisher-key)
       if [[ -n "$PUBLISHER_KEY" ]] || (($# < 2)); then printf '%s\n' 'Invalid publisher key' >&2; exit 2; fi
       PUBLISHER_KEY="$2"; shift 2 ;;
@@ -87,11 +101,28 @@ fi
 if ((PUBLISHER_REQUESTED && (CHECK_REQUESTED || OPERATION_REQUESTED || SEED_REQUESTED || DRY_RUN))); then
   printf '%s\n' 'Publisher signature check cannot authorize a protected operation' >&2; exit 2
 fi
-if (( !PUBLISHER_REQUESTED )) && [[ -n "$PUBLISHER_KEY" || -n "$PUBLISHER_FINGERPRINT" || -n "$PUBLISHER_SIGNER" ]]; then
+if (( !PUBLISHER_REQUESTED && !CAPSULE_STAGE_REQUESTED )) && [[ -n "$PUBLISHER_KEY" || -n "$PUBLISHER_FINGERPRINT" || -n "$PUBLISHER_SIGNER" ]]; then
   printf '%s\n' 'Publisher trust flags require --verify-publisher' >&2; exit 2
 fi
 if ((PUBLISHER_REQUESTED)) && [[ -n "$SEED_SHA256" ]]; then
   printf '%s\n' 'Publisher mode cannot be mixed with seed mode' >&2; exit 2
+fi
+
+# Explicit verified-media staging is NOT a service installation. Keep it
+# incompatible with all other installer modes, operation names, and previews.
+if ((CAPSULE_STAGE_REQUESTED)); then
+  if ((PUBLISHER_REQUESTED || SEED_REQUESTED || CHECK_REQUESTED ||
+        OPERATION_REQUESTED || DRY_RUN)) ||
+     [[ -n "$SEED_SHA256" || -n "$RELEASE_ROOT" ||
+        -z "$CAPSULE_SIGNATURE" || -z "$CAPSULE_DESTINATION" ||
+        -z "$PUBLISHER_KEY" || -z "$PUBLISHER_FINGERPRINT" ||
+        -z "$PUBLISHER_SIGNER" ]]; then
+    printf '%s\n' 'Capsule staging requires exact independent publisher parameters' >&2
+    exit 2
+  fi
+elif [[ -n "$CAPSULE_SIGNATURE" || -n "$CAPSULE_DESTINATION" ]]; then
+  printf '%s\n' 'Capsule signature and destination require --stage-capsule' >&2
+  exit 2
 fi
 
 # Presentation manifest is never evaluated or sourced as executable code.
@@ -321,6 +352,15 @@ verify_publisher_manifest() {
   return 0
 }
 if [[ "$MODE" == help ]]; then usage; exit 0; fi
+if [[ "$MODE" == capsule_stage ]]; then
+  # Inert, owner-private disk staging only. No escalation, SAFE bypass,
+  # service registration, release installation, Core or Fleet enrollment.
+  bash "$SCRIPT_DIR/stage-aegis-capsule.sh" \
+    --capsule "$CAPSULE_ARCHIVE" --signature "$CAPSULE_SIGNATURE" \
+    --publisher-key "$PUBLISHER_KEY" --publisher-sha256 "$PUBLISHER_FINGERPRINT" \
+    --publisher-signer "$PUBLISHER_SIGNER" --destination "$CAPSULE_DESTINATION"
+  exit $?
+fi
 if [[ "$MODE" == publisher ]]; then verify_publisher_manifest; exit $?; fi
 if [[ "$MODE" == seed ]]; then verify_seed_bytes; exit $?; fi
 if [[ "$MODE" == check ]]; then readonly_preview; exit 0; fi
