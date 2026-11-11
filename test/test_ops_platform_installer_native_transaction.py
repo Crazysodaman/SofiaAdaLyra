@@ -393,6 +393,47 @@ def test_owner_credential_revoked_during_native_effect_requires_reconciliation(
         native_service_operation_request(**scope)
 
 
+def test_native_rejects_success_when_safe_audit_chain_is_tampered_mid_effect(
+        installed_scope):
+    import sqlite3
+
+    scope = dict(installed_scope)
+    backend, effects = fake_backend()
+    now = datetime.now(timezone.utc)
+    approval = grant_for_request(
+        scope, id="approval:b2-mid-effect-audit-forged", now=now,
+    )
+    original = backend.register
+
+    def register_then_tamper_audit(spec):
+        receipt = original(spec)
+        with sqlite3.connect(scope["canonical_safe_state"]) as db:
+            # Simulate a separate compromised writer changing a protected
+            # audit event without its canonical hash chain.
+            event = db.execute(
+                "SELECT event_id FROM safe_audit_event ORDER BY sequence LIMIT 1"
+            ).fetchone()
+            assert event is not None
+            db.execute(
+                "UPDATE safe_audit_event SET payload_json=? WHERE event_id=?",
+                ('{"tampered":true}', event[0]),
+            )
+        return receipt
+
+    backend.register = register_then_tamper_audit
+    with pytest.raises(PlatformInstallationDenied, match="owner authentication revoked"):
+        apply_owner_approved_native_service(
+            **scope, backend=backend,
+            approval_id=approval.approval_id, now=now,
+        )
+    assert len(effects) == 1
+    journal = scope["store"].path.parent / "native-service-transaction.json"
+    assert '"OUTCOME_UNKNOWN"' in journal.read_text()
+    # Corrupted SAFE audit cannot be used as proof for any later native action.
+    with pytest.raises(PlatformInstallationDenied, match="unresolved native"):
+        native_service_operation_request(**scope)
+
+
 def test_native_receipt_commit_rechecks_owner_proof_after_verifying_release(
         installed_scope, monkeypatch):
     scope = dict(installed_scope)
