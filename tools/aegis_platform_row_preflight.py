@@ -12,6 +12,8 @@ import re
 from collections import defaultdict
 from datetime import datetime, timezone
 import json
+import os
+import stat
 from pathlib import Path
 import subprocess
 import sys
@@ -141,16 +143,33 @@ def _safe_evidence_path(root: Path, relative: str) -> Path:
 
 
 def _read_bounded_json(root: Path, relative: str) -> dict | None:
-    """Read strictly bounded, data-only metadata; never treat it as a grant."""
+    """Read one bounded inode; refuse redirection and source substitution."""
     path = _safe_evidence_path(root, relative)
-    if not path.is_file():
+    try:
+        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+    except FileNotFoundError:
         return None
-    if path.stat().st_size > 65536:
-        raise ValueError("oversized evidence metadata")
-    loaded = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(loaded, dict):
-        raise ValueError("evidence object required")
-    return loaded
+    try:
+        before = os.fstat(fd)
+        if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1
+                or not 1 <= before.st_size <= 65536):
+            raise ValueError("invalid or oversized evidence metadata")
+        with os.fdopen(fd, "rb", closefd=False) as stream:
+            raw = stream.read(65537)
+        after = os.fstat(fd)
+        current = os.lstat(path)
+        pinned = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+        if (len(raw) != before.st_size or not stat.S_ISREG(current.st_mode)
+                or pinned != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
+                or pinned != (current.st_dev, current.st_ino,
+                              current.st_size, current.st_mtime_ns)):
+            raise ValueError("evidence metadata changed during inspection")
+        loaded = json.loads(raw.decode("utf-8"))
+        if not isinstance(loaded, dict):
+            raise ValueError("evidence object required")
+        return loaded
+    finally:
+        os.close(fd)
 
 
 def make_d028_four_host_preflight(
