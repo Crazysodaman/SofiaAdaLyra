@@ -481,6 +481,73 @@ def test_windows_scm_register_reject_duplicate_and_uninstall(native_spec):
     assert fake.events[-2:] == ["stopped", "removed"]
 
 
+def test_windows_scm_removal_waits_for_actual_service_absence(native_spec):
+    class DelayedScm(FakeScm):
+        def __init__(self):
+            super().__init__()
+            self.marked = False
+            self.post_delete_probes = 0
+
+        def DeleteService(self, *args):
+            self.marked = True
+            self.events.append("marked-for-delete")
+
+        def OpenService(self, *args):
+            if self.marked:
+                self.post_delete_probes += 1
+                if self.post_delete_probes < 3:
+                    raise FakeScmError(1072)  # Still marked for deletion.
+                self.command = None
+                raise FakeScmError(1060)  # Service name actually absent.
+            return super().OpenService(*args)
+
+    fake = DelayedScm()
+    driver = WindowsScmNativeService(service_api=fake, error_type=FakeScmError)
+    spec = windows_spec(native_spec)
+    driver.register(spec)
+    removed = driver.stop_and_unregister(spec)
+    assert fake.post_delete_probes == 3
+    assert removed["process_state"] == "REMOVED"
+    assert removed["platform_id"] == spec.platform_id
+    assert removed["release_manifest_sha256"] == spec.manifest_sha256
+    assert removed["service_health"] == "UNKNOWN"
+    assert removed["identity_policy"] == "RETAIN"
+
+
+def test_windows_scm_unconfirmed_deletion_remains_unknown(native_spec, monkeypatch):
+    import sofia.platform.ops.platform_installer_native_service as mod
+
+    class NeverGoneScm(FakeScm):
+        def __init__(self):
+            super().__init__()
+            self.marked = False
+
+        def DeleteService(self, *args):
+            self.marked = True
+            self.events.append("marked-for-delete")
+
+        def OpenService(self, *args):
+            if self.marked:
+                raise FakeScmError(1072)
+            return super().OpenService(*args)
+
+    fake = NeverGoneScm()
+    driver = WindowsScmNativeService(service_api=fake, error_type=FakeScmError)
+    spec = windows_spec(native_spec)
+    driver.register(spec)
+    clock = {"value": 0.0}
+    monkeypatch.setattr(mod.time, "monotonic", lambda: clock["value"])
+    monkeypatch.setattr(
+        mod.time, "sleep",
+        lambda seconds: clock.__setitem__("value", clock["value"] + 1.0),
+    )
+    with pytest.raises(RuntimeError, match="reconciliation"):
+        driver.stop_and_unregister(spec)
+    assert fake.marked is True
+    assert clock["value"] >= 30
+    assert fake.events.count("marked-for-delete") == 1
+
+
 def test_windows_scm_replace_requires_unchanged_platform_identity(native_spec):
     fake = FakeScm()
     driver = WindowsScmNativeService(service_api=fake, error_type=FakeScmError)
