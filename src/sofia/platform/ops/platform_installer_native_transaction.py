@@ -344,6 +344,18 @@ def apply_owner_approved_native_service(
                 raise AssertionError("unsupported operation reached effect boundary")
             if not isinstance(result, dict) or result.get("schema") != "aegis.native-service-receipt.v1":
                 raise RuntimeError("native OS adapter returned no canonical receipt")
+            if result.get("core_activated") is not False:
+                raise PlatformInstallationDenied(
+                    "native Platform service receipt must remain Core-free"
+                )
+            if operation != "unregister" and (
+                result.get("platform_id") != candidate.platform_id
+                or result.get("release_manifest_sha256") != candidate.manifest_sha256
+                or result.get("service_health") != "UNKNOWN"
+            ):
+                raise PlatformInstallationDenied(
+                    "native receipt differs from signed installed Platform identity or release"
+                )
             if OperatorStopStore(safe).current().active:
                 raise PlatformInstallationDenied("STOP changed during native operation")
             verified_identity = _spec(
