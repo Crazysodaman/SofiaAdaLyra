@@ -393,6 +393,37 @@ def test_owner_credential_revoked_during_native_effect_requires_reconciliation(
         native_service_operation_request(**scope)
 
 
+def test_native_receipt_commit_rechecks_owner_proof_after_verifying_release(
+        installed_scope, monkeypatch):
+    scope = dict(installed_scope)
+    backend, effects = fake_backend()
+    now = datetime.now(timezone.utc)
+    approval = grant_for_request(
+        scope, id="approval:b2-commit-owner-proof-changed", now=now,
+    )
+    original = ExecutionApprovalVerifier.consumed_owner_proof_remains_current
+    checks = []
+
+    def revoked_before_commit(self, **kwargs):
+        checks.append(True)
+        return original(self, **kwargs) if len(checks) == 1 else False
+
+    monkeypatch.setattr(
+        ExecutionApprovalVerifier,
+        "consumed_owner_proof_remains_current",
+        revoked_before_commit,
+    )
+    with pytest.raises(PlatformInstallationDenied, match="receipt commit"):
+        apply_owner_approved_native_service(
+            **scope, backend=backend,
+            approval_id=approval.approval_id, now=now,
+        )
+    assert len(checks) == 2
+    assert len(effects) == 1
+    journal = scope["store"].path.parent / "native-service-transaction.json"
+    assert '"OUTCOME_UNKNOWN"' in journal.read_text()
+
+
 def test_operator_stop_during_service_effect_forces_unknown_outcome(
         installed_scope, monkeypatch):
     import sofia.platform.ops.platform_installer_native_transaction as transaction
