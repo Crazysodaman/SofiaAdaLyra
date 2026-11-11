@@ -104,6 +104,31 @@ For interrupted staging, inspect the owner-private parent for
 as a verified release. Check the caller's exit code and repeat only after
 reconciling the exact capsule and publisher pins.
 
+### Independent inner B1 review after private staging
+
+The new internal Python verifier
+`sofia.platform.ops.platform_installer_verified_stage.review_staged_publisher_signed_capsule`
+can validate the original sealed ZIP and detached Ed25519 outer signature
+**again**, compare every staged file to the exact signed delivery inventory,
+require private 0700 directories and 0600 regular files, and then invoke the
+canonical `verify_offline_installer_bundle` on the inner B1 manifest and all
+release assets. Both signatures must verify against the SAME independently
+pinned publisher key. No new signer or release database is invented.
+
+Provide the original capsule, signature, private staged directory, externally
+trusted public-key path/fingerprint and signer ID, exact expected source SHA,
+OS target and revision floor. All are reviewed inputs: an untrusted Hub,
+download directory or self-signed manifest cannot supply the authority.
+
+Its only successful result is
+`OUTER_AND_INNER_SIGNED_BYTES_VERIFIED_ONLY`. It intentionally reports
+`publisher_revocation_current_verified=false`,
+`owner_approved=false`, `install_executed=false`,
+`native_service_registered=false` and `service_health=UNKNOWN`.
+Fresh publisher revocation, attended owner authentication, B1 receipt/rollback
+policy and installed system service READY remain separate gates. A read-only
+review does **not** become an installation approval when saved as JSON.
+
 ## Available internal signed verifier and lifecycle planning (not shell-enabled)
 
 The Platform Python package now exposes `verify_offline_installer_bundle` in
