@@ -386,6 +386,17 @@ def apply_owner_approved_native_service(
                          "full_health_certified": False,
                          "protected_identity_retained": True,
                      }}
+            # Exact approval can be revoked while the release verifier and
+            # native receipt are being reconciled. Check again at the
+            # successful journal boundary, never after claiming success.
+            if (OperatorStopStore(safe).current().active
+                    or not ExecutionApprovalVerifier(safe).consumed_owner_proof_remains_current(
+                        approval_id=approval_id, capability=expected["capability"],
+                        parameters=expected["parameters"],
+                    )):
+                raise PlatformInstallationDenied(
+                    "owner STOP or authentication changed before native receipt commit"
+                )
             _record_journal(store, state)
             return state["last_receipt"]
         except BaseException:
