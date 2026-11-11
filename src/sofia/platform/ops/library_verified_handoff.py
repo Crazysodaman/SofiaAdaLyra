@@ -142,6 +142,16 @@ def admit_signed_transferred_asset(
     current(transfer)
     imported = cache.import_artifact(artifact, complete)
     current(transfer)
+    if not ExecutionApprovalVerifier(safe).consumed_owner_proof_remains_current(
+        approval_id=approval_id, capability=LIBRARY_PEER_CACHE_ADMIT,
+        parameters=scope,
+    ):
+        # The object may have reached the immutable CAS, but a revoked
+        # owner credential is never a successful cache-admission receipt.
+        # Keep signed quarantine scope for one-use reapproval/reconciliation.
+        raise ChunkTransferRejected(
+            "owner authentication revoked during B1 cache admission"
+        )
     if imported != cache.resolve(artifact):
         raise ChunkTransferRejected("B1 CAS publication did not resolve exact signed content")
     # The pinned provenance remains on disk if publisher verification, owner
