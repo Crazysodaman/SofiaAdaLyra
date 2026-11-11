@@ -23,6 +23,7 @@ from test.test_core_link_conversation import tls_material
 @pytest.mark.parametrize("bind", [
     "0.0.0.0", "::", "8.8.8.8", "1.1.1.1", "169.254.1.2",
     "example.com", "", "255.255.255.255",
+    "fd00::4%eth0", "fd00::4%1", "fd00::4%lo",
 ])
 def test_reject_public_unspecified_or_ambiguous_hub_bind(bind):
     with pytest.raises(ChunkTransferRejected):
