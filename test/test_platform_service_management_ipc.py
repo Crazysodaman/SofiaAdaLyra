@@ -53,6 +53,33 @@ def test_service_binds_os_socket_and_unenrolled_peer_receives_only_eof(tmp_path)
 
 
 @pytest.mark.skipif(not LINUX, reason="actual AF_UNIX host only")
+def test_service_health_refuses_replaced_management_socket_even_when_worker_alive(
+        tmp_path, monkeypatch):
+    identity, current, state = provision(tmp_path)
+    with PlatformServiceSession(
+        identity.home, state, current.identity.canonical_uuid,
+        current.public_key_sha256,
+    ) as session:
+        healthy = session.status()
+        assert healthy["management_listening"] is True
+        listener = session._management_listener
+        assert listener is not None
+        assert session._management_thread.is_alive()
+        # A removed/replaced OS endpoint must not be reported as healthy
+        # merely because the serving thread is still running.
+        monkeypatch.setattr(
+            listener, "_require_owned_endpoint",
+            lambda: (_ for _ in ()).throw(
+                PermissionError("management endpoint replaced or unsafe"),
+            ),
+        )
+        with pytest.raises(PermissionError, match="endpoint replaced"):
+            session.status()
+        assert session._management_thread.is_alive()
+    assert session.lease is None
+
+
+@pytest.mark.skipif(not LINUX, reason="actual AF_UNIX host only")
 def test_service_restart_rotates_endpoint_and_fences_generation(tmp_path):
     identity, current, state = provision(tmp_path)
     with PlatformServiceSession(
