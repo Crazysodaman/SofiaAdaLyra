@@ -408,6 +408,12 @@ class HostedLibraryHub:
                             # to recheck owner STOP and RUN generation.
                             if str(exc) == "bounded Hub accept unavailable":
                                 continue
+                            if str(exc) == "Hub listener failed":
+                                # An invalid listening descriptor is a
+                                # supervised Hub failure, not a malicious
+                                # peer and not a normal idle timeout.
+                                self._serve_error = "LISTENER_UNAVAILABLE"
+                                break
                             self._serve_rejections += 1
                             if self._serve_rejections >= max_rejections:
                                 self._serve_error = "REJECTION_BUDGET_EXHAUSTED"
