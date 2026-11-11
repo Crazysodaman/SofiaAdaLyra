@@ -111,6 +111,9 @@ def test_native_recovery_review_does_not_clear_unknown_outcome(
     def observe(spec):
         return dict(
             schema="aegis.native-service-receipt.v1",
+            origin="OWNED_CONFIG_VERIFIED",
+            fully_healthy=False,
+            process_id=7182 if running in ("RUNNING", "FOREIGN") else None,
             platform_id="foreign-platform" if running == "FOREIGN"
                 else spec.platform_id,
             release_manifest_sha256=spec.manifest_sha256,
@@ -153,6 +156,8 @@ def test_native_recovery_review_never_invents_a_journal_or_health(installed_scop
     def observed(spec):
         return dict(
             schema="aegis.native-service-receipt.v1",
+            origin="OWNED_CONFIG_VERIFIED", fully_healthy=False,
+            process_id=None,
             platform_id=spec.platform_id,
             release_manifest_sha256=spec.manifest_sha256,
             process_state="NOT_RUNNING",
