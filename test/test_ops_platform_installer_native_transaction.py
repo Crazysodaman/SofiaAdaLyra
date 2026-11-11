@@ -160,6 +160,40 @@ def test_native_transaction_refuses_hardlinked_recovery_journal(
     assert len(effects) == 1
 
 
+@pytest.mark.parametrize("field, forged", [
+    ("platform_id", "forged-other-platform"),
+    ("release_manifest_sha256", "0" * 64),
+    ("core_activated", True),
+    ("service_health", "HEALTHY"),
+])
+def test_native_rejects_wrong_platform_or_release_receipt(
+        installed_scope, field, forged):
+    scope = dict(installed_scope)
+    backend, effects = fake_backend()
+    original = backend.register
+
+    def mismatched(spec):
+        receipt = original(spec)
+        receipt[field] = forged
+        return receipt
+
+    backend.register = mismatched
+    now = datetime.now(timezone.utc)
+    approved = grant_for_request(
+        scope, id="approval:b2-receipt-" + field, now=now,
+    )
+    with pytest.raises(PlatformInstallationDenied):
+        apply_owner_approved_native_service(
+            **scope, backend=backend,
+            approval_id=approved.approval_id, now=now,
+        )
+    assert len(effects) == 1
+    journal = scope["store"].path.parent / "native-service-transaction.json"
+    assert '"OUTCOME_UNKNOWN"' in journal.read_text()
+    with pytest.raises(PlatformInstallationDenied, match="unresolved native"):
+        native_service_operation_request(**scope)
+
+
 def test_native_interrupted_registration_blocks_blind_retry(installed_scope):
     scope = dict(installed_scope)
     backend, calls = fake_backend(error="crash after possible SCM/systemd write")
