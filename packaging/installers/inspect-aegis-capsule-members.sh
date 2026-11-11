@@ -11,7 +11,7 @@ if (($# != 4)) || [[ "$1" != '--capsule' || "$3" != '--expected-sha256' ||
   printf '%s\n' 'Usage: inspect-aegis-capsule-members.sh --capsule ZIP --expected-sha256 SEALED_SHA256' >&2
   exit 2
 fi
-for cmd in unzip sha256sum realpath stat mktemp chmod rm wc sort cmp tail; do
+for cmd in unzip sha256sum realpath stat mktemp chmod rm wc sort cmp tail head; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     printf '%s\n' 'Offline ZIP verification prerequisites missing' >&2
     exit 3
