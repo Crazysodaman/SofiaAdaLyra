@@ -72,6 +72,8 @@ def test_systemd_strict_sandbox_allows_only_verified_platform_state_wal_path(nat
         "ReadWritePaths=/var\n", "ReadWritePaths=/home\n",
     ))
     assert "RuntimeDirectoryMode=0700\n" in unit
+    assert "TimeoutStartSec=30\n" in unit
+    assert "TimeoutStopSec=90\n" in unit
     assert "User=aegis\nGroup=aegis\n" in unit
 
 
