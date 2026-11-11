@@ -53,7 +53,7 @@ def test_capsule_packages_exact_signed_assets_and_stock_launchers_without_core(
     assert report["release_manifest_signature_verified"] is True
     assert report["release_assets_verified"] is True
     assert report["verified_release_asset_count"] == len(manifest.assets)
-    assert report["offline_delivery_member_count"] == len(manifest.assets) + 2 + 7 + 1
+    assert report["offline_delivery_member_count"] == len(manifest.assets) + 2 + 8 + 1
     assert len(report["offline_delivery_index_sha256"]) == 64
     assert {item["sha256"] for item in report["signed_release_assets"]} == {
         asset.reference.sha256 for asset in manifest.assets
@@ -61,7 +61,7 @@ def test_capsule_packages_exact_signed_assets_and_stock_launchers_without_core(
     assert {item["path"] for item in report["signed_release_assets"]} == {
         asset.reference.path for asset in manifest.assets
     }
-    assert len(report["unsigned_delivery_assets"]) == 8
+    assert len(report["unsigned_delivery_assets"]) == 9
     assert all(item["publisher_signature_verified"] is False
                for item in report["unsigned_delivery_assets"])
     assert report["publisher_revocation_fresh"] is False
@@ -81,6 +81,7 @@ def test_capsule_packages_exact_signed_assets_and_stock_launchers_without_core(
         assert "aegis/debian12-offline-prerequisites.sh" in names
         assert "aegis/verify-aegis-capsule.sh" in names
         assert "aegis/inspect-aegis-capsule-members.sh" in names
+        assert "aegis/stage-aegis-capsule.sh" in names
         assert "aegis/observe-debian12-service.sh" in names
         assert "aegis/delivery-index.v1" in names
         assert "aegis/contracts/ui/aegis-theme-v1.json" in names
