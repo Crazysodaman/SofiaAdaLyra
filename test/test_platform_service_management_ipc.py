@@ -67,15 +67,20 @@ def test_service_health_refuses_replaced_management_socket_even_when_worker_aliv
         assert session._management_thread.is_alive()
         # A removed/replaced OS endpoint must not be reported as healthy
         # merely because the serving thread is still running.
-        monkeypatch.setattr(
-            listener, "_require_owned_endpoint",
-            lambda: (_ for _ in ()).throw(
-                PermissionError("management endpoint replaced or unsafe"),
-            ),
-        )
-        with pytest.raises(PermissionError, match="endpoint replaced"):
-            session.status()
-        assert session._management_thread.is_alive()
+        # Freeze only the thread observation for this synchronous status
+        # assertion. The real serving thread may independently exit as soon
+        # as it detects the simulated replacement, which must not make this
+        # test scheduling-dependent.
+        with monkeypatch.context() as patch:
+            patch.setattr(session._management_thread, "is_alive", lambda: True)
+            patch.setattr(
+                listener, "_require_owned_endpoint",
+                lambda: (_ for _ in ()).throw(
+                    PermissionError("management endpoint replaced or unsafe"),
+                ),
+            )
+            with pytest.raises(PermissionError, match="endpoint replaced"):
+                session.status()
     assert session.lease is None
 
 
