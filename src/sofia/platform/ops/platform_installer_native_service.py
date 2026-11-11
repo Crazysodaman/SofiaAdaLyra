@@ -340,8 +340,14 @@ class DebianSystemdNativeService:
         try:
             details = os.fstat(fd)
             if (not stat.S_ISREG(details.st_mode) or details.st_nlink != 1
-                    or details.st_size != len(expected)):
+                    or details.st_size != len(expected)
+                    or details.st_mode & (stat.S_IWGRP | stat.S_IWOTH)):
                 raise PlatformInstallationDenied("foreign or changed systemd unit refused")
+            # Only root may own the canonical installed unit; isolated
+            # disposable tests may use a private owner-created test path.
+            if (self.unit_path == Path("/etc/systemd/system/aegis-platform.service")
+                    and (details.st_uid != 0 or details.st_gid != 0)):
+                raise PlatformInstallationDenied("systemd unit must be root owned")
             with os.fdopen(fd, "rb", closefd=False) as source:
                 if source.read(len(expected) + 1) != expected:
                     raise PlatformInstallationDenied("foreign or changed systemd unit refused")
