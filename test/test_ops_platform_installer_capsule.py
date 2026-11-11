@@ -383,7 +383,7 @@ def test_offline_stage_rejects_malformed_freshly_sealed_inventory(
     index_name = "aegis/delivery-index.v1"
     index = next(content for entry, content in entries if entry.filename == index_name)
     if defect == "missing-final-newline":
-        index = index.rstrip(b"\\n")
+        index = index.rstrip(b"\n")
     elif defect == "duplicate-delivery-record":
         index += index.splitlines(keepends=True)[1]
     else:
