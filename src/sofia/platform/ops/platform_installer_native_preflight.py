@@ -153,7 +153,7 @@ def inspect_windows_scm_service(*, expected_binary_command: str,
         if (config[3] != expected_binary_command
                 or config[0] != service_api.SERVICE_WIN32_OWN_PROCESS
                 or config[1] != service_api.SERVICE_AUTO_START
-                or config[7] not in ("LocalService", "NT AUTHORITY\\\\LocalService")):
+                or config[7] not in ("LocalService", "NT AUTHORITY\\LocalService")):
             return NativeServiceObservation(_WINDOWS_NAME, "SCM", "FOREIGN", "UNKNOWN")
         state = {
             service_api.SERVICE_RUNNING: "RUNNING",
