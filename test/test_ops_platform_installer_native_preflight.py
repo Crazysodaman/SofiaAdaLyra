@@ -91,11 +91,17 @@ class _FakeScm:
     SERVICE_QUERY_STATUS = 4
     SERVICE_RUNNING = 4
     SERVICE_STOPPED = 1
+    SERVICE_WIN32_OWN_PROCESS = 0x10
+    SERVICE_AUTO_START = 2
+    SERVICE_DEMAND_START = 3
 
     def __init__(self, command, existing=True):
         self.command = command
         self.existing = existing
         self.closed = []
+        self.service_type = self.SERVICE_WIN32_OWN_PROCESS
+        self.start_type = self.SERVICE_AUTO_START
+        self.account = "LocalService"
 
     def OpenSCManager(self, *args):
         return "manager"
@@ -106,7 +112,8 @@ class _FakeScm:
         return "service"
 
     def QueryServiceConfig(self, *args):
-        return [0, 0, 0, self.command, None, 0, None, "LocalService", "Aegis"]
+        return [self.service_type, self.start_type, 0, self.command,
+                None, 0, None, self.account, "Aegis"]
 
     def QueryServiceStatus(self, *args):
         return [0, self.SERVICE_RUNNING]
@@ -130,3 +137,35 @@ def test_windows_scm_refuses_unowned_service_even_if_running(existing, expected,
     assert observed.health == "UNKNOWN"
     assert observed.executable_verified is False
     assert api.closed == (["service", "manager"] if existing else ["manager"])
+
+@pytest.mark.parametrize("attribute, forged", [
+    ("service_type", 999),
+    ("start_type", _FakeScm.SERVICE_DEMAND_START),
+    ("account", "LocalSystem"),
+])
+def test_windows_preflight_rejects_foreign_service_configuration(attribute, forged):
+    api = _FakeScm("signed-command")
+    setattr(api, attribute, forged)
+    observed = inspect_windows_scm_service(
+        expected_binary_command="signed-command", win32service_module=api,
+        pywintypes_module=SimpleNamespace(error=_WinError),
+    )
+    assert observed.origin == "FOREIGN"
+    assert observed.health == "UNKNOWN"
+    assert observed.to_payload()["authorized"] is False
+    assert api.closed == ["service", "manager"]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX mode and hardlink semantics")
+def test_debian_preflight_rejects_hardlinked_native_unit(tmp_path):
+    unit = tmp_path / "aegis-platform.service"
+    unit.write_bytes(b"[Service]\\nExecStart=/safe\\n")
+    peer = tmp_path / "unit-copy"
+    os.link(unit, peer)
+    observed = inspect_debian_systemd_service(
+        expected_unit_sha256=sha256(unit.read_bytes()).hexdigest(),
+        unit_path=unit, runner=_systemd_response(fragment=str(unit)),
+    )
+    assert observed.origin == "UNKNOWN"
+    assert not observed.executable_verified
+
