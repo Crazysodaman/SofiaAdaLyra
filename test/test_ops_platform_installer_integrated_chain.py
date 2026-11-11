@@ -131,3 +131,59 @@ def test_signed_code_then_native_service_needs_two_distinct_owner_proofs(
             now=now + timedelta(seconds=1),
         )
     assert len(effects) == 1
+
+
+    # Repair is a different native capability fingerprint from registration.
+    # Each phase must be requested and authorized independently.
+    native["operation"] = "repair"
+    driver.restart_verified = simulated_native_register
+    repair_request = native_service_operation_request(**native)
+    repair_approval = approve(
+        repair_request, "approval:integrated-native-repair-v6",
+    )
+    repaired = apply_owner_approved_native_service(
+        **native, backend=driver, approval_id=repair_approval, now=now,
+    )
+    assert repaired["process_state"] == "RUNNING"
+    assert repaired["service_health"] == "UNKNOWN"
+    assert len(effects) == 2
+
+    native["operation"] = "unregister"
+    def simulated_native_remove(spec):
+        effects.append((spec.platform_id, spec.manifest_sha256))
+        return {
+            "schema": "aegis.native-service-receipt.v1",
+            "service": spec.service_name, "process_state": "REMOVED",
+            "platform_id": spec.platform_id,
+            "release_manifest_sha256": spec.manifest_sha256,
+            "service_health": "UNKNOWN", "core_activated": False,
+        }
+    driver.stop_and_unregister = simulated_native_remove
+    remove_request = native_service_operation_request(**native)
+    remove_approval = approve(
+        remove_request, "approval:integrated-native-unregister-v6",
+    )
+    removed = apply_owner_approved_native_service(
+        **native, backend=driver, approval_id=remove_approval, now=now,
+    )
+    assert removed["process_state"] == "REMOVED"
+    assert removed["protected_identity_retained"] is True
+    assert len(effects) == 3
+    assert InstallationIdentityStore(identity_store.home).load() == before
+
+    # Reinstalling the exact same signed release must never mint a new
+    # Platform identity or silently activate a Core.
+    native["operation"] = "register"
+    reinstall_request = native_service_operation_request(**native)
+    reinstall_approval = approve(
+        reinstall_request, "approval:integrated-native-reinstall-v6",
+    )
+    again = apply_owner_approved_native_service(
+        **native, backend=driver, approval_id=reinstall_approval, now=now,
+    )
+    assert again["process_state"] == "RUNNING"
+    assert again["core_activated"] is False
+    assert again["full_health_certified"] is False
+    assert len(effects) == 4
+    assert InstallationIdentityStore(identity_store.home).load() == before
+    assert b1.checkpoint().active_release_id is None
