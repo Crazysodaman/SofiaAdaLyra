@@ -29,7 +29,7 @@ from sofia.platform.safe.execution_approval import ExecutionApproval, ExecutionA
 from test.owner_auth_fixture import record_verified_owner_approval
 from datetime import datetime, timedelta, timezone
 
-from sofia.platform.ops.platform_release import PlatformReleaseRejected
+from sofia.platform.ops.platform_release import PlatformReleaseRejected, PlatformReleaseVerifier
 from test.test_ops_platform_installer_bundle import reviewed
 from test.test_ops_platform_installer_capsule import capsule_args
 from sofia.platform.ops.platform_installer_native_transaction import (
@@ -274,10 +274,7 @@ def test_sealed_capsule_publishes_B1_then_registers_only_with_second_owner_proof
 
     native = dict(
         operation="register",
-        store=b1, verifier=__import__(
-            "sofia.platform.ops.platform_release",
-            fromlist=["PlatformReleaseVerifier"],
-        ).PlatformReleaseVerifier({
+        store=b1, verifier=PlatformReleaseVerifier({
             args["trusted_signer_key_id"]:
                 Path(args["trusted_public_key"]).read_bytes(),
         }),
