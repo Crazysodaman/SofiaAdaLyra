@@ -140,6 +140,26 @@ def test_native_register_remove_reinstall_retains_exact_uuid(installed_scope):
     assert '"generation":3' in journal.read_text()
 
 
+def test_native_transaction_refuses_hardlinked_recovery_journal(
+        installed_scope):
+    scope = dict(installed_scope)
+    backend, effects = fake_backend()
+    now = datetime.now(timezone.utc)
+    approved = grant_for_request(
+        scope, id="approval:b2-journal-inode", now=now,
+    )
+    apply_owner_approved_native_service(
+        **scope, backend=backend, approval_id=approved.approval_id, now=now,
+    )
+    assert len(effects) == 1
+    journal = scope["store"].path.parent / "native-service-transaction.json"
+    os.link(journal, journal.with_name("foreign-linked-journal.json"))
+    scope["operation"] = "repair"
+    with pytest.raises((PlatformInstallationDenied, PermissionError)):
+        native_service_operation_request(**scope)
+    assert len(effects) == 1
+
+
 def test_native_interrupted_registration_blocks_blind_retry(installed_scope):
     scope = dict(installed_scope)
     backend, calls = fake_backend(error="crash after possible SCM/systemd write")
