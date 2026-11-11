@@ -144,3 +144,20 @@ def test_bounded_hub_loop_rejects_invalid_budget():
     for count in (0, -1, True, 10001):
         with pytest.raises(ChunkTransferRejected, match="budget"):
             hub.serve_bounded(max_connections=count)
+
+
+@pytest.mark.parametrize("failure, expected", [
+    (socket.timeout("idle poll"), "bounded Hub accept unavailable"),
+    (OSError(9, "bad file descriptor"), "Hub listener failed"),
+])
+def test_hub_distinguishes_idle_poll_from_dead_listener(failure, expected):
+    # No live listener or network: a dead descriptor must not be hidden as
+    # normal idling while the owner-supervised worker reports health.
+    hub = object.__new__(ApprovedLibraryHub)
+    class BrokenListener:
+        def accept(self):
+            raise failure
+    hub._listener = BrokenListener()
+    hub._owner_enabled = lambda: True
+    with pytest.raises(ChunkTransferRejected, match=expected):
+        hub.serve_once()
