@@ -154,3 +154,35 @@ def test_audit_chain_verifier_streams_long_history_without_fetchall(
     verified, reason = audit.verify()
     assert verified is False
     assert "stream-audit-091" in reason
+
+
+
+@pytest.mark.parametrize("row_factory", (None, sqlite3.Row),
+                         ids=("tuple", "sqlite-row"))
+def test_shared_safe_audit_snapshot_accepts_both_sqlite_row_factories(
+        tmp_path, row_factory):
+    state = tmp_path / "sofia.db"
+    audit = AuditChain(state)
+    for n in range(5):
+        audit.append(
+            actor_id="system:snapshot", event_type="snapshot.test",
+            payload={"index": n}, occurred_at=NOW + timedelta(seconds=n),
+            event_id=f"snapshot-{n}",
+        )
+    with sqlite3.connect(state) as db:
+        db.row_factory = row_factory
+        db.execute("BEGIN")
+        before = db.in_transaction
+        assert audit.verify_in_connection(db) == (True, None)
+        assert db.in_transaction == before  # Caller owns BEGIN/COMMIT.
+        assert db.row_factory is row_factory
+    with sqlite3.connect(state) as db:
+        db.row_factory = row_factory
+        db.execute(
+            "UPDATE safe_audit_event SET payload_json=? WHERE event_id=?",
+            ('{"tampered":true}', "snapshot-3"),
+        )
+        db.execute("BEGIN") if not db.in_transaction else None
+        valid, reason = audit.verify_in_connection(db)
+        assert valid is False
+        assert "snapshot-3" in reason
