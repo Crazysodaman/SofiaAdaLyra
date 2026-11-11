@@ -128,6 +128,14 @@ fn reply_matches_identity(reply: &Reply, config: &Configuration, serial: Option<
         && serial.map_or(true, |pinned| reply.serial == pinned)
 }
 
+#[cfg(not(windows))]
+fn valid_installed_unix_endpoint(endpoint: &str, generation: u64, runtime: &str) -> bool {
+    // The installed systemd profile supplies one of these exact runtime
+    // roots; no arbitrary environment path may become an IPC authority.
+    matches!(runtime, "/run/aegis" | "/run/aegis-platform")
+        && endpoint == format!("{runtime}/mgmt-{generation}.sock")
+}
+
 // Never declare the native management interface ready just because the
 // child returned a non-empty string. Require this RUN generation's endpoint.
 fn valid_management_endpoint(endpoint: &str, platform_id: &str, generation: u64) -> bool {
@@ -149,12 +157,22 @@ fn valid_management_endpoint(endpoint: &str, platform_id: &str, generation: u64)
     #[cfg(not(windows))]
     {
         let _ = platform_id;
+        // A systemd-installed service may only report the exact verified
+        // RuntimeDirectory endpoint. An arbitrary /tmp or /home socket must
+        // never be treated as installed management readiness.
+        if let Some(runtime) = std::env::var_os("RUNTIME_DIRECTORY") {
+            let Some(runtime) = runtime.to_str() else {
+                return false;
+            };
+            return valid_installed_unix_endpoint(endpoint, generation, runtime);
+        }
+        // The explicit foreground/developer mode has no systemd runtime.
+        // Its private temporary listener is not a production enrollment.
         let path = std::path::Path::new(endpoint);
         path.is_absolute()
             && !path.components().any(|part| matches!(part, std::path::Component::ParentDir))
             && path.file_name().is_some_and(|name| {
-                name == std::ffi::OsStr::new(&format!("mgmt-{generation}.sock"))
-                    || name == std::ffi::OsStr::new("management.sock")
+                name == std::ffi::OsStr::new("management.sock")
             })
     }
 }
@@ -509,7 +527,7 @@ mod tests {
         }
         #[cfg(not(windows))]
         {
-            assert!(valid_management_endpoint("/run/aegis/mgmt-7.sock", id, 7));
+            assert!(valid_installed_unix_endpoint("/run/aegis/mgmt-7.sock", 7, "/run/aegis"));
             assert!(valid_management_endpoint("/tmp/aegis-mgmt-test/management.sock", id, 7));
             assert!(!valid_management_endpoint("/run/aegis/mgmt-7.sock", id, 8));
             assert!(!valid_management_endpoint("mgmt-7.sock", id, 7));
@@ -518,6 +536,28 @@ mod tests {
         assert!(!valid_management_endpoint("socket\nforged", id, 7));
         assert!(!valid_management_endpoint("", id, 7));
         assert!(!valid_management_endpoint("ignored", id, 0));
+    }
+    #[cfg(not(windows))]
+    #[test]
+    fn installed_systemd_listener_never_adopts_unreviewed_runtime() {
+        assert!(valid_installed_unix_endpoint(
+            "/run/aegis-platform/mgmt-7.sock", 7, "/run/aegis-platform"
+        ));
+        assert!(valid_installed_unix_endpoint(
+            "/run/aegis/mgmt-7.sock", 7, "/run/aegis"
+        ));
+        assert!(!valid_installed_unix_endpoint(
+            "/tmp/mgmt-7.sock", 7, "/tmp"
+        ));
+        assert!(!valid_installed_unix_endpoint(
+            "/run/aegis-platform/mgmt-6.sock", 7, "/run/aegis-platform"
+        ));
+        assert!(!valid_installed_unix_endpoint(
+            "/run/aegis-platform/management.sock", 7, "/run/aegis-platform"
+        ));
+        assert!(!valid_installed_unix_endpoint(
+            "/run/aegis-platform/mgmt-7.sock", 7, "/run/../run/aegis-platform"
+        ));
     }
     #[test]
     fn no_arbitrary_program_or_incomplete_configuration() {
