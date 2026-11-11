@@ -100,6 +100,7 @@ def test_stock_windows_media_preflight_has_no_install_side_effect(seed, tmp_path
          str(POWERSHELL), "-VerifySeed", str(media),
          "-TrustedSeedSha256", digest, "-Json"],
         capture_output=True, text=True, timeout=25,
+        env={**os.environ, "AEGIS_INSTALLER_TEST_DIAGNOSTICS": "1"},
     )
     assert result.returncode == 0, result.stderr
     data = json.loads(result.stdout)
