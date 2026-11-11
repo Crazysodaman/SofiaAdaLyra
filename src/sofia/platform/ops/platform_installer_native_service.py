@@ -520,8 +520,10 @@ class DebianSystemdNativeService:
         _run_systemctl("daemon-reload")
         return dict(schema="aegis.native-service-receipt.v1",
                     service=_SERVICE_LINUX, process_state="REMOVED",
+                    platform_id=spec.platform_id,
+                    release_manifest_sha256=spec.manifest_sha256,
                     identity_policy="RETAIN", core_activated=False,
-                    service_health="UNKNOWN")
+                    service_health="UNKNOWN", fully_healthy=False)
 
 
 class WindowsScmNativeService:
@@ -756,8 +758,10 @@ class WindowsScmNativeService:
             api.DeleteService(service)
             return dict(schema="aegis.native-service-receipt.v1",
                         service=_SERVICE_WINDOWS, process_state="REMOVED",
+                        platform_id=spec.platform_id,
+                        release_manifest_sha256=spec.manifest_sha256,
                         identity_policy="RETAIN", core_activated=False,
-                        service_health="UNKNOWN")
+                        service_health="UNKNOWN", fully_healthy=False)
         finally:
             if service is not None:
                 api.CloseServiceHandle(service)
