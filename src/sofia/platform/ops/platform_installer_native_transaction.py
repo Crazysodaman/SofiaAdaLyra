@@ -170,9 +170,15 @@ def review_native_outcome_for_reconciliation(
                 and result.get("schema") == "aegis.native-service-receipt.v1"
                 and result.get("platform_id") == signed.platform_id
                 and result.get("release_manifest_sha256") == signed.manifest_sha256
+                and result.get("origin") == "OWNED_CONFIG_VERIFIED"
                 and result.get("core_activated") is False
+                and result.get("fully_healthy") is False
                 and result.get("service_health") == "UNKNOWN"
-                and result.get("process_state") in ("RUNNING", "NOT_RUNNING")):
+                and result.get("process_state") in ("RUNNING", "NOT_RUNNING")
+                and (expected_target is PlatformReleaseTarget.WINDOWS_X86_64
+                     or result.get("process_state") != "RUNNING"
+                     or (type(result.get("process_id")) is int
+                         and result["process_id"] > 0))):
             process_state = result["process_state"]
             same_signed_identity = True
             observation = "SIGNED_OS_CONFIG_OBSERVED"
