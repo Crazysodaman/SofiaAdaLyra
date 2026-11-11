@@ -136,6 +136,25 @@ fn valid_installed_unix_endpoint(endpoint: &str, generation: u64, runtime: &str)
         && endpoint == format!("{runtime}/mgmt-{generation}.sock")
 }
 
+#[cfg(not(windows))]
+fn valid_unix_endpoint_with_context(
+    endpoint: &str, generation: u64, runtime: Option<&str>, systemd: bool,
+) -> bool {
+    if let Some(runtime) = runtime {
+        return valid_installed_unix_endpoint(endpoint, generation, runtime);
+    }
+    // Missing RuntimeDirectory in a systemd invocation is a hard failure.
+    if systemd {
+        return false;
+    }
+    // Explicit developer foreground sessions have a private temp socket,
+    // never an installed service's runtime generation endpoint.
+    let path = std::path::Path::new(endpoint);
+    path.is_absolute()
+        && !path.components().any(|part| matches!(part, std::path::Component::ParentDir))
+        && path.file_name() == Some(std::ffi::OsStr::new("management.sock"))
+}
+
 // Never declare the native management interface ready just because the
 // child returned a non-empty string. Require this RUN generation's endpoint.
 fn valid_management_endpoint(endpoint: &str, platform_id: &str, generation: u64) -> bool {
@@ -157,28 +176,19 @@ fn valid_management_endpoint(endpoint: &str, platform_id: &str, generation: u64)
     #[cfg(not(windows))]
     {
         let _ = platform_id;
-        // A systemd-installed service may only report the exact verified
-        // RuntimeDirectory endpoint. An arbitrary /tmp or /home socket must
-        // never be treated as installed management readiness.
-        if let Some(runtime) = std::env::var_os("RUNTIME_DIRECTORY") {
-            let Some(runtime) = runtime.to_str() else {
-                return false;
-            };
-            return valid_installed_unix_endpoint(endpoint, generation, runtime);
-        }
-        // If systemd launched this service, a missing RuntimeDirectory is
-        // a broken installed unit, not permission to fall back to /tmp.
-        if std::env::var_os("INVOCATION_ID").is_some() {
-            return false;
-        }
-        // The explicit foreground/developer mode has no systemd runtime.
-        // Its private temporary listener is not a production enrollment.
-        let path = std::path::Path::new(endpoint);
-        path.is_absolute()
-            && !path.components().any(|part| matches!(part, std::path::Component::ParentDir))
-            && path.file_name().is_some_and(|name| {
-                name == std::ffi::OsStr::new("management.sock")
-            })
+        // Never let a systemd invocation adopt a developer fallback.
+        let runtime = std::env::var_os("RUNTIME_DIRECTORY");
+        let runtime = match runtime.as_ref() {
+            Some(value) => match value.to_str() {
+                Some(value) => Some(value),
+                None => return false,
+            },
+            None => None,
+        };
+        valid_unix_endpoint_with_context(
+            endpoint, generation, runtime,
+            std::env::var_os("INVOCATION_ID").is_some(),
+        )
     }
 }
 
@@ -542,6 +552,30 @@ mod tests {
         assert!(!valid_management_endpoint("", id, 7));
         assert!(!valid_management_endpoint("ignored", id, 0));
     }
+    #[cfg(not(windows))]
+    #[test]
+    fn unix_management_endpoint_requires_installed_runtime_or_explicit_dev() {
+        let endpoint = "/run/aegis-platform/mgmt-9.sock";
+        assert!(valid_unix_endpoint_with_context(
+            endpoint, 9, Some("/run/aegis-platform"), true,
+        ));
+        assert!(!valid_unix_endpoint_with_context(
+            endpoint, 9, None, true,
+        ));
+        assert!(!valid_unix_endpoint_with_context(
+            "/tmp/private/management.sock", 9, None, true,
+        ));
+        assert!(valid_unix_endpoint_with_context(
+            "/tmp/private/management.sock", 9, None, false,
+        ));
+        assert!(!valid_unix_endpoint_with_context(
+            "/tmp/private/management.sock", 9, Some("/run/aegis-platform"), true,
+        ));
+        assert!(!valid_unix_endpoint_with_context(
+            "/tmp/../private/management.sock", 9, None, false,
+        ));
+    }
+
     #[cfg(not(windows))]
     #[test]
     fn installed_systemd_listener_never_adopts_unreviewed_runtime() {
