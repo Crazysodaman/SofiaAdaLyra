@@ -35,7 +35,13 @@ fn status(state: ServiceState, code: u32) -> ServiceStatus {
         },
         exit_code: ServiceExitCode::Win32(code),
         checkpoint: 0,
-        wait_hint: Duration::from_secs(10),
+        // Stopping may include bounded Hub and recipient drains. SCM must
+        // not use the normal startup hint to judge this shutdown.
+        wait_hint: if state == ServiceState::StopPending {
+            Duration::from_secs(90)
+        } else {
+            Duration::from_secs(10)
+        },
         process_id: None,
     }
 }
