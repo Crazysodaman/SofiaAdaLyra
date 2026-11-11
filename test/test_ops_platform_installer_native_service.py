@@ -328,6 +328,8 @@ class FakeScmError(Exception):
 
 
 class FakeScm:
+    SC_MANAGER_CONNECT = 64
+    SERVICE_QUERY_CONFIG = 128
     SC_MANAGER_ALL_ACCESS = 1
     SERVICE_ALL_ACCESS = 2
     SERVICE_QUERY_STATUS = 4
@@ -393,6 +395,64 @@ class FakeScm:
 
 def windows_spec(native_spec):
     return replace(native_spec, target=PlatformReleaseTarget.WINDOWS_X86_64)
+
+
+def test_windows_scm_observe_uses_query_only_rights_and_never_claims_ready(
+        native_spec):
+    class AccessScm(FakeScm):
+        def OpenSCManager(self, *args):
+            self.manager_access = args[-1]
+            return super().OpenSCManager(*args)
+
+        def OpenService(self, *args):
+            self.service_access = args[-1]
+            return super().OpenService(*args)
+
+    fake = AccessScm()
+    driver = WindowsScmNativeService(service_api=fake, error_type=FakeScmError)
+    spec = windows_spec(native_spec)
+    with pytest.raises(PlatformInstallationDenied, match="not present"):
+        driver.observe(spec)
+    assert fake.events == []
+    driver.register(spec)
+    recorded = list(fake.events)
+    observed = driver.observe(spec)
+    assert fake.manager_access == fake.SC_MANAGER_CONNECT
+    assert fake.service_access == (
+        fake.SERVICE_QUERY_CONFIG | fake.SERVICE_QUERY_STATUS
+    )
+    assert observed["origin"] == "OWNED_CONFIG_VERIFIED"
+    assert observed["process_state"] == "RUNNING"
+    assert observed["platform_id"] == spec.platform_id
+    assert observed["release_manifest_sha256"] == spec.manifest_sha256
+    assert observed["service_health"] == "UNKNOWN"
+    assert observed["fully_healthy"] is False
+    assert observed["core_activated"] is False
+    assert fake.events == recorded  # Observation never starts/stops anything.
+    fake.state = fake.SERVICE_STOPPED
+    stopped = driver.observe(spec)
+    assert stopped["process_state"] == "NOT_RUNNING"
+    assert stopped["service_health"] == "UNKNOWN"
+    assert fake.events == recorded
+
+
+@pytest.mark.parametrize("change", ("account", "command", "start_type"))
+def test_windows_scm_observe_rejects_foreign_service_without_side_effects(
+        native_spec, change):
+    fake = FakeScm()
+    driver = WindowsScmNativeService(service_api=fake, error_type=FakeScmError)
+    spec = windows_spec(native_spec)
+    driver.register(spec)
+    before = list(fake.events)
+    if change == "account":
+        fake.account = "LocalSystem"
+    elif change == "command":
+        fake.command = "C:\\Windows\\System32\\cmd.exe /c echo false"
+    else:
+        fake.start_type = fake.SERVICE_DEMAND_START
+    with pytest.raises(PlatformInstallationDenied, match="SCM service identity"):
+        driver.observe(spec)
+    assert fake.events == before
 
 
 def test_windows_scm_register_reject_duplicate_and_uninstall(native_spec):
