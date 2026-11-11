@@ -89,6 +89,26 @@ def test_bash_unknown_or_underspecified_requests_rejected(extra):
     assert result.returncode == 2
 
 
+@pytest.mark.skipif(os.name == "nt" or not shutil.which("bash"),
+                    reason="Linux Bash runner only")
+@pytest.mark.parametrize("incomplete", [
+    ["--stage-capsule", "/tmp/unknown.zip"],
+    ["--capsule-signature", "/tmp/signature.raw"],
+    ["--staging-destination", "/tmp/aegis-stage"],
+    ["--operation", "install", "--stage-capsule", "/tmp/unknown.zip"],
+    ["--check", "--stage-capsule", "/tmp/unknown.zip"],
+    ["--stage-capsule", "/tmp/unknown.zip", "--dry-run"],
+])
+def test_bash_capsule_staging_requires_complete_separate_trust_inputs(incomplete):
+    # Even a purported signed capsule cannot become a native service action.
+    result = subprocess.run(
+        ["bash", str(BASH), *incomplete],
+        capture_output=True, text=True, timeout=15,
+    )
+    assert result.returncode == 2
+    assert "SIGNED_MEDIA_STAGED_NOT_INSTALLED" not in result.stdout
+
+
 @pytest.mark.skipif(os.name != "nt", reason="Windows PowerShell 5.1 runner only")
 @pytest.mark.parametrize("operation", READ_ONLY)
 def test_powershell_status_and_doctor_are_unverified(operation):
