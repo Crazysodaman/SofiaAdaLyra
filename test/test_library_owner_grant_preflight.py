@@ -94,7 +94,7 @@ def test_owner_stop_and_lost_lease_make_preview_unavailable(tmp_path):
         current.public_key_sha256,
     ):
         owner.stop.set(
-            active=True, updated_by="test-only-owner",
+            active=True, updated_by="Sparks",
             reason="owner test STOP", at=datetime.now(timezone.utc),
         )
         with pytest.raises(OwnerLibraryPreflightDenied, match="STOP"):
@@ -166,12 +166,15 @@ def test_readonly_preflight_does_not_initialize_or_write_lease_schema(
 
 
 def test_pinned_readonly_lease_observer_matches_real_service_run(tmp_path):
-    from sofia.platform.run.lease import LocalRunLeaseStore
+    from sofia.platform.run.lease import LocalRunLeaseStore, RunLeaseError
     identity, current, state, owner = _owner(tmp_path)
     at = datetime.now(timezone.utc)
-    assert LocalRunLeaseStore.peek_existing(
-        state, lease_key="platform-service", now=at,
-    ) is None
+    # No RUN schema/lease exists before the installed service starts; the
+    # read-only observer refuses instead of initializing state.
+    with pytest.raises(RunLeaseError, match="schema unavailable"):
+        LocalRunLeaseStore.peek_existing(
+            state, lease_key="platform-service", now=at,
+        )
     with PlatformServiceSession(
         identity.home, state, current.identity.canonical_uuid,
         current.public_key_sha256,
@@ -207,6 +210,7 @@ def test_readonly_lease_observer_refuses_future_clock_and_invalid_inputs(tmp_pat
             now=datetime.now(timezone.utc) + timedelta(hours=1),
         ) is None
 
+@pytest.mark.skipif(os.name == "nt", reason="BYOS Windows owner session is attended-only")
 def test_owner_cli_previews_separate_short_lived_sources_read_scope(
     tmp_path, capsys,
 ):

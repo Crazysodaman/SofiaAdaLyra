@@ -399,6 +399,9 @@ class HostedLibraryHub:
                         if monotonic() >= deadline:
                             self._serve_error = "IDLE_BUDGET_EXPIRED"
                             break
+                        # Recheck owner STOP, grant and RUN generation on
+                        # every poll even if the listener returned no peer.
+                        self._require_current()
                         try:
                             size = self.serve_once()
                         except ChunkTransferRejected as exc:

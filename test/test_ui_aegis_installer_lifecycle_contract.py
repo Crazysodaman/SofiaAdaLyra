@@ -113,7 +113,8 @@ def test_bash_capsule_staging_requires_complete_separate_trust_inputs(incomplete
 @pytest.mark.parametrize("operation", READ_ONLY)
 def test_powershell_status_and_doctor_are_unverified(operation):
     result = subprocess.run(
-        ["powershell.exe", "-NoProfile", "-NonInteractive", "-File",
+        ["powershell.exe", "-ExecutionPolicy", "Bypass",
+         "-NoProfile", "-NonInteractive", "-File",
          str(POWERSHELL), "-Operation", operation, "-Json"],
         capture_output=True, text=True, timeout=30,
     )
@@ -129,7 +130,8 @@ def test_powershell_status_and_doctor_are_unverified(operation):
 @pytest.mark.parametrize("operation", MUTATIONS)
 def test_powershell_mutation_fails_closed_without_authority(operation):
     result = subprocess.run(
-        ["powershell.exe", "-NoProfile", "-NonInteractive", "-File",
+        ["powershell.exe", "-ExecutionPolicy", "Bypass",
+         "-NoProfile", "-NonInteractive", "-File",
          str(POWERSHELL), "-Operation", operation, "-DryRun", "-Json"],
         capture_output=True, text=True, timeout=30,
     )
@@ -225,7 +227,8 @@ def test_bash_interactive_pty_theme_modes(columns, color_mode):
 @pytest.mark.skipif(os.name != "nt", reason="Windows PowerShell 5.1 runner only")
 def test_powershell_rejects_ambiguous_check_plus_operation():
     result = subprocess.run(
-        ["powershell.exe", "-NoProfile", "-NonInteractive", "-File",
+        ["powershell.exe", "-ExecutionPolicy", "Bypass",
+         "-NoProfile", "-NonInteractive", "-File",
          str(POWERSHELL), "-Check", "-Operation", "install", "-Json"],
         capture_output=True, text=True, timeout=30,
     )

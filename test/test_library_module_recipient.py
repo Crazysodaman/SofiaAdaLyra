@@ -151,7 +151,7 @@ def test_changed_bytes_and_forged_signature_rejected_even_if_catalog_admitted(tm
 
 def test_unknown_missing_authority_or_nonboolean_trust_refused(tmp_path):
     pin, value, root, public = fixture(tmp_path)
-    with pytest.raises(ModuleRecipientRejected, match="canonical catalog"):
+    with pytest.raises(ModuleRecipientRejected, match="canonical .*catalog"):
         review(pin, value, root, public, catalog_admit=lambda _: None)
     with pytest.raises(ModuleRecipientRejected, match="publisher revoked"):
         review(pin, value, root, public, publisher_current=lambda _: "yes")

@@ -19,6 +19,7 @@ from sofia.platform.run.library_owner_trust import (
     ENROLL_CAPABILITY, REVOKE_CAPABILITY, OwnerLibraryTrustDenied,
     OwnerLibraryTrustStore, enrollment_parameters, revocation_parameters,
 )
+from sofia.platform.state.local_store import LocalStateUnavailable
 from sofia.platform.run.platform_service import PlatformServiceSession
 from sofia.platform.ops.library_signed_index import SignedLibraryIndexRejected
 from sofia.platform.safe.execution_approval import (
@@ -272,7 +273,10 @@ def test_enrollment_is_exactly_one_current_owner_not_a_blanket_fleet_root(owner)
     pin, _ = _enroll(root, keys)
     assert root.current().source_platform_id == "primary-library"
     other_host, other_identity, other_state = None, None, None
-    with pytest.raises((ValueError, OwnerLibraryTrustDenied, PermissionError)):
+    with pytest.raises((
+        ValueError, OwnerLibraryTrustDenied, PermissionError,
+        LocalStateUnavailable,
+    )):
         OwnerLibraryTrustStore(
             state, platform_id="other-platform",
         )

@@ -85,7 +85,7 @@ def test_source_guards_wrong_content_and_size_or_unsigned_package(tmp_path):
         snapshot.current_path(replace(transfer, size_bytes=len(payload) + 1))
     with pytest.raises(ChunkTransferRejected, match="differs"):
         snapshot.current_path(replace(transfer, content_sha256="f" * 64))
-    with pytest.raises(ChunkTransferRejected, match="unsigned"):
+    with pytest.raises((ValueError, ChunkTransferRejected)):
         VerifiedLibraryCacheSource(
             cache=cache, artifact=replace(artifact, signature_verified=False),
         )

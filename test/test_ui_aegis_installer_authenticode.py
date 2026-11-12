@@ -29,7 +29,8 @@ def fake_executable(tmp_path):
 
 def invoke(*args):
     return subprocess.run(
-        ["powershell.exe", "-NoProfile", "-NonInteractive", "-File", str(SCRIPT),
+        ["powershell.exe", "-ExecutionPolicy", "Bypass",
+         "-NoProfile", "-NonInteractive", "-File", str(SCRIPT),
          *args], capture_output=True, text=True, timeout=30,
     )
 

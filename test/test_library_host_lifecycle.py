@@ -96,5 +96,5 @@ def test_closed_hub_is_never_reused_for_another_run_generation():
     hub.close()
     hub.close()
     assert listener.count == 1
-    with pytest.raises(ChunkTransferRejected, match="revoked"):
+    with pytest.raises(ChunkTransferRejected, match="closed|revoked"):
         hub.serve_once()

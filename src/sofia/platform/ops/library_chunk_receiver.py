@@ -16,13 +16,30 @@ import re
 import stat
 from typing import Callable
 
-from sofia.platform.state.private_file import assert_no_redirected_components
+from sofia.platform.state.private_file import (
+    assert_no_redirected_components, assert_owner_private_path,
+)
 from sofia.platform.run.process_lock import StateProcessLock
 
 _DIGEST = re.compile(r"[0-9a-f]{64}\Z")
 _PEER_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@-]{0,159}\Z")
 _MAX_CHUNK = 1024 * 1024
 _MAX_TOTAL = 2**53 - 1
+
+
+def _require_private_path(path: Path, *, directory: bool, message: str) -> None:
+    """Enforce POSIX owner-only modes or the equivalent Windows DACL."""
+    if os.name == "nt":
+        try:
+            assert_owner_private_path(path, directory=directory)
+        except PermissionError as exc:
+            raise ChunkTransferRejected(message) from exc
+        return
+    meta = path.lstat()
+    if ((directory and not stat.S_ISDIR(meta.st_mode))
+            or (not directory and not stat.S_ISREG(meta.st_mode))
+            or stat.S_IMODE(meta.st_mode) & 0o077):
+        raise ChunkTransferRejected(message)
 
 
 class ChunkTransferRejected(PermissionError):
@@ -91,9 +108,10 @@ class ChunkedArtifactReceiver:
         assert_no_redirected_components(path, include_leaf=True)
         if create:
             path.mkdir(mode=0o700, parents=False, exist_ok=True)
-        before = path.lstat()
-        if not stat.S_ISDIR(before.st_mode) or stat.S_IMODE(before.st_mode) & 0o077:
-            raise ChunkTransferRejected("artifact directory must be private and not redirected")
+        _require_private_path(
+            path, directory=True,
+            message="artifact directory must be private and not redirected",
+        )
 
     def _check_roots(self) -> None:
         for parent in (self.root, *self.root.parents):
@@ -163,9 +181,12 @@ class ChunkedArtifactReceiver:
                 finally:
                     os.close(directory)
             before = path.lstat()
+        _require_private_path(
+            path, directory=False,
+            message="unsafe or changed durable transfer scope",
+        )
         if (not stat.S_ISREG(before.st_mode)
                 or before.st_nlink != 1
-                or stat.S_IMODE(before.st_mode) & 0o077
                 or before.st_size != len(expected)):
             raise ChunkTransferRejected("unsafe or changed durable transfer scope")
         fd = os.open(
@@ -246,8 +267,11 @@ class ChunkedArtifactReceiver:
             meta = path.lstat()
         except FileNotFoundError:
             return 0
-        if (not stat.S_ISREG(meta.st_mode) or meta.st_nlink != 1
-                or stat.S_IMODE(meta.st_mode) & 0o077):
+        _require_private_path(
+            path, directory=False,
+            message="incoming file is redirected, linked, or nonprivate",
+        )
+        if (not stat.S_ISREG(meta.st_mode) or meta.st_nlink != 1):
             raise ChunkTransferRejected("incoming file is redirected, linked, or nonprivate")
         return meta.st_size
 
@@ -297,9 +321,12 @@ class ChunkedArtifactReceiver:
             try:
                 opened = os.fstat(fd)
                 if (not stat.S_ISREG(opened.st_mode) or opened.st_nlink != 1
-                        or stat.S_IMODE(opened.st_mode) & 0o077
                         or opened.st_size != current):
                     raise ChunkTransferRejected("incoming file identity changed")
+                _require_private_path(
+                    path, directory=False,
+                    message="incoming file identity changed",
+                )
                 self._approve(transfer, authorize)
                 with os.fdopen(fd, "wb", closefd=False) as writer:
                     writer.write(chunk)
@@ -491,6 +518,16 @@ class ChunkedArtifactReceiver:
             removed_partial = False
             try:
                 self._check_roots()
+                try:
+                    os.link(part, destination)
+                except FileExistsError as exc:
+                    raise ChunkTransferRejected(
+                        "immutable object already exists"
+                    ) from exc
+                except OSError as exc:
+                    raise ChunkTransferRejected(
+                        "immutable object publication failed"
+                    ) from exc
                 published = destination.lstat()
                 previous = part.lstat()
                 if (not stat.S_ISREG(published.st_mode)

@@ -69,7 +69,8 @@ def test_both_entrypoints_use_one_shared_palette_not_a_second_registry():
 @pytest.mark.skipif(os.name != "nt", reason="requires Windows PowerShell")
 def test_powershell_installer_preflight_is_readonly():
     result = subprocess.run(
-        ["powershell.exe", "-NoProfile", "-NonInteractive", "-File",
+        ["powershell.exe", "-ExecutionPolicy", "Bypass",
+         "-NoProfile", "-NonInteractive", "-File",
          str(WINDOWS), "-Check"],
         capture_output=True, text=True, timeout=30,
     )

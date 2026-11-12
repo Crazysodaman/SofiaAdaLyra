@@ -41,6 +41,12 @@ from sofia.platform.ops.library_owner_grant_preflight import (
 from sofia.platform.state.private_file import assert_no_redirected_components
 
 
+def _identity(meta: os.stat_result) -> tuple[int, ...]:
+    """Stable file identity; Windows ctime is not stable immediately after write."""
+    base = (meta.st_dev, meta.st_ino, meta.st_size, meta.st_mtime_ns)
+    return base if os.name == "nt" else (*base, meta.st_ctime_ns)
+
+
 def _read_bounded_file(path: Path | str, *, max_bytes: int, exact: int | None = None) -> bytes:
     file = Path(path).absolute()
     assert_no_redirected_components(file, include_leaf=True)
@@ -55,13 +61,9 @@ def _read_bounded_file(path: Path | str, *, max_bytes: int, exact: int | None = 
     )
     try:
         opened = os.fstat(fd)
-        before_id = (
-            before.st_dev, before.st_ino, before.st_size,
-            before.st_mtime_ns, before.st_ctime_ns,
-        )
+        before_id = _identity(before)
         if (not stat.S_ISREG(opened.st_mode) or opened.st_nlink != 1
-                or (opened.st_dev, opened.st_ino, opened.st_size,
-                    opened.st_mtime_ns, opened.st_ctime_ns) != before_id):
+                or _identity(opened) != before_id):
             raise OwnerLibraryTrustDenied("selected publisher file changed during open")
         with os.fdopen(fd, "rb", closefd=False) as handle:
             data = handle.read(max_bytes + 1)
@@ -69,10 +71,8 @@ def _read_bounded_file(path: Path | str, *, max_bytes: int, exact: int | None = 
         assert_no_redirected_components(file, include_leaf=True)
         last = file.stat(follow_symlinks=False)
         if (len(data) != before.st_size
-                or (after.st_dev, after.st_ino, after.st_size,
-                    after.st_mtime_ns, after.st_ctime_ns) != before_id
-                or (last.st_dev, last.st_ino, last.st_size,
-                    last.st_mtime_ns, last.st_ctime_ns) != before_id):
+                or _identity(after) != before_id
+                or _identity(last) != before_id):
             raise OwnerLibraryTrustDenied("owner-selected publisher file changed during read")
         return data
     finally:

@@ -97,8 +97,12 @@ def test_signed_b1_sdk_never_adopts_different_transfer_scope(
 ):
     manifest, signer, path, pin, store, args, authority = installed_sdk
     verifier = InstalledB1SignedSdkVerifier(**args)
-    if change == {"generation": 0}:
-        # The typed transfer itself refuses invalid generations.
+    if change in (
+        {"generation": 0},
+        {"license_distribution": "restricted"},
+        {"data_class": "private"},
+    ):
+        # The typed transfer itself refuses invalid/protected scope.
         with pytest.raises((ValueError, TypeError, ChunkTransferRejected)):
             replace(pin, **change)
         return

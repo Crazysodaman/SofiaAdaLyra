@@ -96,7 +96,8 @@ def test_stock_linux_media_preflight_fails_closed(seed, tmp_path, mutation):
 def test_stock_windows_media_preflight_has_no_install_side_effect(seed, tmp_path):
     media, digest = seed
     result = subprocess.run(
-        ["powershell.exe", "-NoProfile", "-NonInteractive", "-File",
+        ["powershell.exe", "-ExecutionPolicy", "Bypass",
+         "-NoProfile", "-NonInteractive", "-File",
          str(POWERSHELL), "-VerifySeed", str(media),
          "-TrustedSeedSha256", digest, "-Json"],
         capture_output=True, text=True, timeout=25,
@@ -135,7 +136,8 @@ def test_stock_windows_media_preflight_denies_without_trusted_input(seed, tmp_pa
     else:
         args += ["-Check"]
     result = subprocess.run(
-        ["powershell.exe", "-NoProfile", "-NonInteractive", "-File",
+        ["powershell.exe", "-ExecutionPolicy", "Bypass",
+         "-NoProfile", "-NonInteractive", "-File",
          str(POWERSHELL), *args],
         capture_output=True, text=True, timeout=25,
     )
