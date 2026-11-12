@@ -3,7 +3,7 @@
 //! This transport adds NO owner enrollment, signer authority or service.
 //! It requires B-verified, immutable installed-service pins supplied by an
 //! external reviewer; OS credentials alone never establish publisher trust.
-//! Until such an installer-backed source is wired, CLI uses OfflineReader.
+//! Until such an installer-backed source is wired, CLI uses `OfflineReader`.
 
 #[cfg(target_os = "linux")]
 pub mod linux {

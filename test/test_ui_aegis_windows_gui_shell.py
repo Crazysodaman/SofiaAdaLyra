@@ -55,7 +55,8 @@ def test_gui_shell_does_not_install_or_grant_permissions():
 def test_windows_gui_check_mode_is_headless_and_no_service_actions():
     done = subprocess.run(
         [
-            "powershell.exe", "-NoProfile", "-NonInteractive",
+            "powershell.exe", "-ExecutionPolicy", "Bypass",
+            "-NoProfile", "-NonInteractive",
             "-File", str(SHELL), "-Check",
         ],
         capture_output=True, text=True, timeout=30,
@@ -79,7 +80,8 @@ def test_windows_gui_check_mode_is_headless_and_no_service_actions():
 def test_windows_native_controls_constructed_with_management_disabled():
     result = subprocess.run(
         [
-            "powershell.exe", "-STA", "-NoProfile", "-NonInteractive",
+            "powershell.exe", "-ExecutionPolicy", "Bypass",
+            "-STA", "-NoProfile", "-NonInteractive",
             "-File", str(SHELL), "-UiProbe",
         ],
         capture_output=True, text=True, timeout=50,

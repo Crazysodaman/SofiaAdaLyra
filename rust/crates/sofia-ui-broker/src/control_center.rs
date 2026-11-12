@@ -130,9 +130,8 @@ impl ControlCenterView {
         match self.link {
             LinkState::Observed if self.has_observed_generation() => "SERVICE_OBSERVED",
             LinkState::Stale => "STALE_OBSERVATION",
-            LinkState::AccessDenied => "DENIED",
+            LinkState::AccessDenied | LinkState::Stopped => "DENIED",
             LinkState::Revoked => "REVOKED",
-            LinkState::Stopped => "DENIED",
             _ => "UNVERIFIED",
         }
     }

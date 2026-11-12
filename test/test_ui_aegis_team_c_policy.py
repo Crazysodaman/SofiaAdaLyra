@@ -161,7 +161,7 @@ def test_c007_status_cli_is_sourced_from_display_and_denials_fail_closed():
     assert '"core_started": if current { Some(false) } else { None }' in source
     assert '"actions_enabled": false' in source
     assert "fn denied_stop_revoked_and_stale_status_never_expose_generation()" in source
-    assert "session.refresh(&mut OfflineReader" in source
+    assert "run_with_source(&mut OfflineReader" in source
 
 
 def test_c007_menu_never_freezes_a_future_live_status_as_offline():

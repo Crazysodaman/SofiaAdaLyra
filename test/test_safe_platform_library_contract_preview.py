@@ -280,7 +280,9 @@ def test_d028_peer_requires_actual_mutually_authenticated_tls_not_a_fake_identit
     identity, current, state = provision(tmp_path)
     permissions = PermissionStore(state)
     stop = OperatorStopStore(state)
-    assert capability_permission_policy("library.peer.fetch").standing_grant_allowed is False
+    # Scoped peer reads are owner-authenticated standing capabilities; the
+    # exact scope, short expiry and fake-TLS denial below remain mandatory.
+    assert capability_permission_policy("library.peer.fetch").standing_grant_allowed is True
     host = current.identity.canonical_uuid
     status = {
         "platform_id": host, "generation": 1,

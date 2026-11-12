@@ -757,7 +757,7 @@ mod tests {
         assert_eq!(data["owner_mode"], "SINGLE_OWNER_PRIVATE");
         assert_eq!(data["publisher_state"], "CURRENT");
         assert_eq!(data["hub_state"], "SERVING");
-        assert_eq!(data["served_bytes"], 3145728);
+        assert_eq!(data["served_bytes"], 3_145_728);
         assert!(data.get("installed").is_none());
         assert!(data.get("private_key").is_none());
     }

@@ -165,6 +165,11 @@ fn render_page(page: Page, colors: bool, state: &ControlCenterView) -> String {
         Page::LibraryHistory => "HISTORY: NOT_OBSERVED / SIGNER: UNKNOWN / RECEIPTS: NOT_OBSERVED",
         _ => "",
     };
+    let permission = format!(
+        "PERMISSION: {} / SAFE-STOP: {}",
+        state.permission_label(),
+        state.safe_label()
+    );
     format!(
         "{}\nSERVICE: {} / SOURCE: {}\nSETTINGS: {}\nINSTALLATION: {}\n{}\n{}\n{}\n{}",
         paint(page.heading(), "primary", colors),
@@ -173,11 +178,7 @@ fn render_page(page: Page, colors: bool, state: &ControlCenterView) -> String {
         state.settings_label(),
         state.installation_label(),
         "VALUES: UNAVAILABLE (not disconnected, removed, healthy or zero)",
-        format!(
-            "PERMISSION: {} / SAFE-STOP: {}",
-            state.permission_label(),
-            state.safe_label()
-        ),
+        permission,
         "No writes, approvals, downloads, installation, state files or service changes.",
         library
     )
@@ -440,7 +441,7 @@ mod tests {
             let text = render_page(page, false, &ControlCenterView::offline());
             assert!(text.contains(expected));
             assert!(text.contains("SOURCE: UNVERIFIED"));
-            assert!(!text.contains("\x1b"));
+            assert!(!text.contains('\x1b'));
             assert!(!text.contains("100%"));
         }
     }

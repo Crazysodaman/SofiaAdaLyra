@@ -131,7 +131,7 @@ fn reply_matches_identity(reply: &Reply, config: &Configuration, serial: Option<
         && reply.generation != 0
         && valid_platform_uuid(&config.platform_id)
         && reply.serial == canonical_platform_serial(&config.platform_id)
-        && serial.map_or(true, |pinned| reply.serial == pinned)
+        && serial.is_none_or(|pinned| reply.serial == pinned)
 }
 
 #[cfg(not(windows))]
@@ -283,7 +283,7 @@ impl Worker {
         let ready = worker.receive(INITIAL_REPLY_TIMEOUT)?;
         worker.generation = ready.generation;
         worker.operator_stop = ready.operator_stop;
-        worker.serial = ready.serial.clone();
+        worker.serial.clone_from(&ready.serial);
         worker.management_endpoint = ready.management_endpoint.clone().unwrap_or_default();
         if !ready.management_listening
             || !valid_management_endpoint(

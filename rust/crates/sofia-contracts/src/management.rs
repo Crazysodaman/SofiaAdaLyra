@@ -13,6 +13,20 @@ use std::sync::OnceLock;
 pub const MANAGEMENT_READ_SCHEMA: &str = "aegis.platform.management.read.v1";
 pub const MANAGEMENT_READ_PROTOCOL: &str = "1.0";
 
+const REQUIRED_RESPONSE_KEYS: [&str; 11] = [
+    "schema",
+    "protocol",
+    "request_id",
+    "platform_id",
+    "platform_generation",
+    "operation",
+    "source",
+    "observed_at",
+    "outcome",
+    "data",
+    "denial",
+];
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct UntrustedManagementRead {
@@ -269,20 +283,11 @@ impl UntrustedManagementResponse {
         let keys = value.as_object().ok_or_else(|| {
             ContractError::new("invalid_management_response", "response must be an object")
         })?;
-        const REQUIRED: [&str; 11] = [
-            "schema",
-            "protocol",
-            "request_id",
-            "platform_id",
-            "platform_generation",
-            "operation",
-            "source",
-            "observed_at",
-            "outcome",
-            "data",
-            "denial",
-        ];
-        if keys.len() != REQUIRED.len() || REQUIRED.iter().any(|key| !keys.contains_key(*key)) {
+        if keys.len() != REQUIRED_RESPONSE_KEYS.len()
+            || REQUIRED_RESPONSE_KEYS
+                .iter()
+                .any(|key| !keys.contains_key(*key))
+        {
             return Err(ContractError::new(
                 "invalid_management_response",
                 "response envelope must include every versioned field",
@@ -331,22 +336,27 @@ impl UntrustedManagementResponse {
                 "management observation outside fresh request window",
             ));
         }
-        match reply.outcome.as_str() {
+        reply.validate_outcome(expected)?;
+        Ok(reply)
+    }
+
+    fn validate_outcome(&self, expected: &UntrustedManagementRead) -> Result<(), ContractError> {
+        match self.outcome.as_str() {
             "OK" => {
-                if reply.denial.is_some() {
+                if self.denial.is_some() {
                     return Err(ContractError::new(
                         "invalid_management_response",
                         "successful observation may not contain a denial",
                     ));
                 }
-                let Some(serde_json::Value::Object(data)) = reply.data.as_ref() else {
+                let Some(serde_json::Value::Object(data)) = self.data.as_ref() else {
                     return Err(ContractError::new(
                         "invalid_management_response",
                         "successful observation requires an object",
                     ));
                 };
                 safe_management_projection(&serde_json::Value::Object(data.clone()), 0)?;
-                if reply.operation == "platform.status"
+                if self.operation == "platform.status"
                     && (data.len() != 4
                         || data.get("platform_id").and_then(serde_json::Value::as_str)
                             != Some(expected.target_platform_id.as_str())
@@ -368,13 +378,13 @@ impl UntrustedManagementResponse {
                 }
             }
             "DENIED" => {
-                let Some(denial) = reply.denial.as_ref() else {
+                let Some(denial) = self.denial.as_ref() else {
                     return Err(ContractError::new(
                         "invalid_management_response",
                         "typed denial code required",
                     ));
                 };
-                if reply.data.is_some()
+                if self.data.is_some()
                     || !matches!(
                         denial.code.as_str(),
                         "NOT_PERMITTED"
@@ -398,7 +408,7 @@ impl UntrustedManagementResponse {
                 ));
             }
         }
-        Ok(reply)
+        Ok(())
     }
 }
 
