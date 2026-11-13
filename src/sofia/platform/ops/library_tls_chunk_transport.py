@@ -14,6 +14,7 @@ import re
 import socket
 import ssl
 import struct
+from time import monotonic
 from typing import Callable
 
 from sofia.platform.ops.library_chunk_receiver import (
@@ -53,40 +54,78 @@ def _unique(pairs):
     return result
 
 
-def _read_exact(channel: ssl.SSLSocket, size: int) -> bytes:
+class _ExchangeDeadline:
+    """One monotonic budget for control and payload, never renewed by progress."""
+
+    def __init__(self, channel: ssl.SSLSocket):
+        timeout = channel.gettimeout()
+        if timeout is None or not 0 < timeout <= 30:
+            raise ChunkTransferRejected("bounded TLS socket deadline required")
+        self.channel = channel
+        self.expires = monotonic() + timeout
+
+    def check(self) -> float:
+        remaining = self.expires - monotonic()
+        if remaining <= 0:
+            raise ChunkTransferRejected("TLS exchange deadline exceeded")
+        return remaining
+
+    def io(self, operation, *arguments):
+        # Restore the service-owned socket policy even when I/O or expiry fails.
+        original = self.channel.gettimeout()
+        try:
+            self.channel.settimeout(min(original, self.check()))
+            try:
+                result = operation(*arguments)
+            except TimeoutError as exc:
+                raise ChunkTransferRejected("TLS exchange deadline exceeded") from exc
+            self.check()
+            return result
+        finally:
+            self.channel.settimeout(original)
+
+
+def _read_exact(channel: ssl.SSLSocket, size: int, *, deadline=None) -> bytes:
     if type(size) is not int or not 0 <= size <= MAX_CHUNK:
         raise ChunkTransferRejected("invalid bounded transport size")
+    deadline = deadline or _ExchangeDeadline(channel)
     pieces = []
     remaining = size
     try:
         while remaining:
-            piece = channel.recv(min(remaining, 65536))
+            piece = deadline.io(channel.recv, min(remaining, 65536))
             if not piece:
                 raise ChunkTransferRejected("short or interrupted TLS transfer")
             pieces.append(piece)
             remaining -= len(piece)
+    except ChunkTransferRejected:
+        raise
     except (OSError, TimeoutError) as exc:
         raise ChunkTransferRejected("TLS transfer unavailable") from exc
     return b"".join(pieces)
 
 
-def _frame(channel: ssl.SSLSocket, payload: dict) -> None:
+def _frame(channel: ssl.SSLSocket, payload: dict, *, deadline=None) -> None:
     data = json.dumps(payload, separators=(",", ":"), sort_keys=True, allow_nan=False).encode("utf-8")
     if not 1 <= len(data) <= MAX_CONTROL:
         raise ChunkTransferRejected("transfer control frame exceeds bound")
+    deadline = deadline or _ExchangeDeadline(channel)
     try:
-        channel.sendall(struct.pack("!I", len(data)) + data)
+        deadline.io(channel.sendall, struct.pack("!I", len(data)) + data)
+    except ChunkTransferRejected:
+        raise
     except (OSError, TimeoutError) as exc:
         raise ChunkTransferRejected("TLS control send unavailable") from exc
 
 
-def _receive_frame(channel: ssl.SSLSocket, fields: frozenset) -> dict:
-    size = struct.unpack("!I", _read_exact(channel, 4))[0]
+def _receive_frame(channel: ssl.SSLSocket, fields: frozenset, *, deadline=None) -> dict:
+    deadline = deadline or _ExchangeDeadline(channel)
+    size = struct.unpack("!I", _read_exact(channel, 4, deadline=deadline))[0]
     if not 1 <= size <= MAX_CONTROL:
         raise ChunkTransferRejected("unbounded transfer control frame")
     try:
         frame = json.loads(
-            _read_exact(channel, size).decode("utf-8"),
+            _read_exact(channel, size, deadline=deadline).decode("utf-8"),
             object_pairs_hook=_unique,
             parse_constant=lambda _: (_ for _ in ()).throw(
                 ChunkTransferRejected("nonfinite transfer control number")
@@ -130,7 +169,8 @@ def serve_one_chunk(
 ) -> int:
     """Serve one exact planned chunk from verified CAS. Does not create a Hub."""
     fingerprint = _tls_peer_fingerprint(channel)
-    request = _receive_frame(channel, _REQUEST_KEYS)
+    deadline = _ExchangeDeadline(channel)
+    request = _receive_frame(channel, _REQUEST_KEYS, deadline=deadline)
     raw = request["transfer"]
     if type(raw) is not dict or set(raw) != _TRANSFER_KEYS:
         raise ChunkTransferRejected("transfer plan requires all signed context")
@@ -156,9 +196,12 @@ def serve_one_chunk(
     )
     current(trusted)
     _frame(channel, {"schema": SCHEMA, "digest": trusted.content_sha256,
-                     "offset": offset, "length": length, "chunk_sha256": digest})
+                     "offset": offset, "length": length, "chunk_sha256": digest},
+           deadline=deadline)
     try:
-        channel.sendall(data)
+        deadline.io(channel.sendall, data)
+    except ChunkTransferRejected:
+        raise
     except (OSError, TimeoutError) as exc:
         raise ChunkTransferRejected("TLS chunk send unavailable") from exc
     return length
@@ -188,6 +231,7 @@ def receive_one_chunk(
     if not isinstance(receiver, ChunkedArtifactReceiver):
         raise ChunkTransferRejected("canonical single-writer CAS receiver required")
     fingerprint = _tls_peer_fingerprint(channel)
+    deadline = _ExchangeDeadline(channel)
     def current(t):
         return _approved(authorize_peer, channel, fingerprint, t, offset, length)
     if not callable(publisher_current) or publisher_current(transfer) is not True:
@@ -196,8 +240,8 @@ def receive_one_chunk(
     if receiver.received_bytes(transfer, authorize=current) != offset:
         raise ChunkTransferRejected("receiver resume offset is not current")
     _frame(channel, {"schema": SCHEMA, "transfer": asdict(transfer),
-                     "offset": offset, "length": length})
-    response = _receive_frame(channel, _RESPONSE_KEYS)
+                     "offset": offset, "length": length}, deadline=deadline)
+    response = _receive_frame(channel, _RESPONSE_KEYS, deadline=deadline)
     if (response["digest"] != transfer.content_sha256
             or type(response["offset"]) is not int or response["offset"] != offset
             or type(response["length"]) is not int or response["length"] != length
@@ -207,7 +251,7 @@ def receive_one_chunk(
     if (expected_signed_chunk_sha256 is not None
             and response["chunk_sha256"] != expected_signed_chunk_sha256):
         raise ChunkTransferRejected("peer chunk differs from signed parent")
-    data = _read_exact(channel, length)
+    data = _read_exact(channel, length, deadline=deadline)
     observed = sha256(data).hexdigest()
     if observed != response["chunk_sha256"]:
         raise ChunkTransferRejected("peer chunk digest mismatch")
@@ -217,6 +261,7 @@ def receive_one_chunk(
     current(transfer)
     if publisher_current(transfer) is not True:
         raise ChunkTransferRejected("publisher metadata revoked during read")
+    deadline.check()
     return receiver.append_chunk(
         transfer, offset=offset, chunk=data,
         chunk_sha256=response["chunk_sha256"], authorize=current,

@@ -138,6 +138,7 @@ def test_plaintext_cannot_be_used_as_authorized_peer():
 
 def test_oversized_control_frame_rejected_before_payload_read():
     a, b = socket.socketpair()
+    b.settimeout(5)
     try:
         a.sendall(struct.pack("!I", MAX_CONTROL + 1))
         with pytest.raises(ChunkTransferRejected, match="unbounded"):
@@ -149,6 +150,7 @@ def test_oversized_control_frame_rejected_before_payload_read():
 
 def test_duplicate_control_properties_rejected():
     a, b = socket.socketpair()
+    b.settimeout(5)
     payload = b'{"schema":"aegis.library.tls.chunk.v1","schema":"aegis.library.tls.chunk.v1"}'
     try:
         a.sendall(struct.pack("!I", len(payload)) + payload)
@@ -157,3 +159,87 @@ def test_duplicate_control_properties_rejected():
     finally:
         a.close()
         b.close()
+
+
+def test_control_frame_trickle_cannot_extend_total_tls_deadline(tmp_path):
+    """Progress before each idle timeout must not renew the exchange budget."""
+    import json
+    from threading import Event
+
+    server, client = _pair(tmp_path)
+    client.settimeout(0.16)
+    stop = Event()
+    payload = json.dumps({"schema": "aegis.library.tls.chunk.v1"}).encode()
+    header = struct.pack("!I", len(payload))
+
+    def trickle():
+        try:
+            for byte in header:
+                server.sendall(bytes([byte]))
+                if stop.wait(0.07):
+                    return
+            server.sendall(payload)
+        except OSError:
+            # Expiry may close the connection while the peer is still writing.
+            pass
+
+    worker = Thread(target=trickle)
+    worker.start()
+    try:
+        with pytest.raises(ChunkTransferRejected, match="deadline"):
+            _receive_frame(client, frozenset({"schema"}))
+        assert client.gettimeout() == 0.16
+    finally:
+        stop.set()
+        worker.join(timeout=2)
+        server.close()
+        client.close()
+    assert not worker.is_alive()
+
+
+def test_payload_trickle_expires_without_advancing_durable_resume(tmp_path):
+    """One exchange budget also covers payload; timed-out bytes are not accepted."""
+    from threading import Event
+    from sofia.platform.ops.library_tls_chunk_transport import SCHEMA, _frame
+
+    prefix, data = b"previously-verified-", b"abcde"
+    transfer = _transfer(prefix + data)
+    receiver = ChunkedArtifactReceiver(tmp_path / "recipient", max_bytes=1024)
+    receiver.append_chunk(
+        transfer, offset=0, chunk=prefix, chunk_sha256=sha256(prefix).hexdigest(),
+        authorize=lambda _: True,
+    )
+    server, client = _pair(tmp_path)
+    client.settimeout(0.16)
+    stop = Event()
+
+    def trickle():
+        try:
+            _frame(server, {"schema": SCHEMA, "digest": transfer.content_sha256,
+                            "offset": len(prefix), "length": len(data),
+                            "chunk_sha256": sha256(data).hexdigest()})
+            for byte in data:
+                server.sendall(bytes([byte]))
+                if stop.wait(0.07):
+                    return
+        except OSError:
+            pass
+
+    worker = Thread(target=trickle)
+    worker.start()
+    try:
+        with pytest.raises(ChunkTransferRejected, match="deadline"):
+            receive_one_chunk(
+                client, transfer=transfer, offset=len(prefix), length=len(data),
+                receiver=receiver, authorize_peer=lambda *args: True,
+                publisher_current=lambda _: True,
+                expected_signed_chunk_sha256=sha256(data).hexdigest(),
+            )
+        assert client.gettimeout() == 0.16
+        assert receiver.received_bytes(transfer, authorize=lambda _: True) == len(prefix)
+    finally:
+        stop.set()
+        worker.join(timeout=2)
+        server.close()
+        client.close()
+    assert not worker.is_alive()

@@ -194,3 +194,24 @@ def test_native_library_malformed_or_duplicate_control_never_bypasses_decoder(re
     )
     with pytest.raises(ValueError, match="duplicate"):
         mux.dispatch(duplicate, authenticated_peer=PEER, now=now)
+
+
+@pytest.mark.parametrize("phase", ["observation", "serialization"])
+def test_publisher_revoked_during_observation_cannot_release_catalog(review, monkeypatch, phase):
+    dispatch, state, authorized, module, trust, now = review
+
+    if phase == "observation":
+        def observed_after_revocation():
+            trust["current"] = False
+            return now
+        monkeypatch.setattr(dispatch, "_clock", observed_after_revocation)
+    else:
+        original_reply = dispatch._reply
+        def serialized_after_revocation(*args, **kwargs):
+            reply = original_reply(*args, **kwargs)
+            trust["current"] = False
+            return reply
+        monkeypatch.setattr(dispatch, "_reply", serialized_after_revocation)
+
+    with pytest.raises(PermissionError, match="publisher revoked"):
+        dispatch.dispatch(_request(now), authenticated_peer=PEER, now=now)

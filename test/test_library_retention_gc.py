@@ -262,7 +262,16 @@ def test_gc_rejects_hardlinked_cached_object(gc_environment, tmp_path):
     controller, cache, store, artifact, pins, host_status, graph = gc_environment
     # A linked inode could remain accessible outside the B1 cache after GC.
     outside = tmp_path / "outside-hardlink"
-    os.link(cache.root / artifact.sha256, outside)
+    cached = cache.root / artifact.sha256
+    os.link(cached, outside)
+    inode = cached.stat().st_ino
     with pytest.raises(LibraryRetentionDenied, match="linked"):
         controller.preview(content_sha256=artifact.sha256)
-    assert cache.resolve(artifact).is_file()
+    # GC preserves both links, while canonical cache resolution must itself
+    # reject the unsafe object introduced by this disposable attack fixture.
+    assert cached.is_file() and outside.is_file()
+    assert cached.stat().st_ino == outside.stat().st_ino == inode
+    assert cached.stat().st_nlink == 2
+    assert sha256(cached.read_bytes()).hexdigest() == artifact.sha256
+    with pytest.raises(PermissionError, match="unsafe"):
+        cache.resolve(artifact)

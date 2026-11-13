@@ -144,8 +144,14 @@ def test_single_owner_enrolls_publisher_and_native_service_reads_sqlite_index(tm
             revocation_parameters(state_path=state, pin=pin),
         )
         trust.revoke(approval_id=revoke_id)
-        assert _query(endpoint, _catalog_request(
+        # Publisher revocation removes the catalog, not the independently
+        # enrolled OS operator. That operator gets a typed denial with no data.
+        denied = json.loads(_query(endpoint, _catalog_request(
             platform_id, status["generation"],
-        )) == b""
+        )))
+        assert denied["outcome"] == "DENIED"
+        assert denied["denial"] == {"code": "UNAVAILABLE"}
+        assert denied["data"] is None
+        assert trust.current() is not None and not trust.current().active
         assert trust() is None
     assert trust.audit.verify() == (True, None)

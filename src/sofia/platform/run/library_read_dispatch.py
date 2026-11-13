@@ -205,13 +205,16 @@ class LibraryReadDispatcher:
                 or observed.astimezone(timezone.utc) >= verified.expires_at
                 or not verified.matches(verified.catalog)):
             raise PermissionError("signed Library catalog expired before response")
+        reply = self._reply(request, observed=observed, data=verified.catalog)
+        # Serialization and SDK validation also take place before the final
+        # current authority fence; an earlier signed review is not a lease.
         recheck()
         final_revision = self._status().get("library_revision")
         if final_revision is not None and final_revision != verified.catalog_revision:
             raise PermissionError("Library catalog revision changed before response")
-        return self._reply(
-            request, observed=observed, data=verified.catalog,
-        )
+        if source.publisher_key_current(source.expected_publisher_key_sha256) is not True:
+            raise PermissionError("publisher revoked before Library catalog response")
+        return reply
 
 
 class LocalReadMultiplexer:
