@@ -81,7 +81,7 @@ class SignedReleaseBuilder:
         self._prefix = None
 
     def stage(self, *, release_id='disposable-vm-release', revision=1,
-              python_version='3.12.16'):
+              python_version='3.12.16', parent_manifest_sha256=None):
         safe_name = re.sub('[^a-z0-9-]+', '-', release_id.lower()).strip('-')[:32]
         build = self.root / f'assets-{safe_name}-r{revision}'
         build.mkdir(exist_ok=True)
@@ -124,7 +124,7 @@ class SignedReleaseBuilder:
         manifest = PlatformReleaseManifest(
             release_id, '0.1.0', int(revision), 'a' * 40,
             PlatformReleaseTarget.DEBIAN12_X86_64, SDK_PROTOCOL_VERSION,
-            python_version, tuple(assets))
+            python_version, tuple(assets), parent_manifest_sha256)
         signature = b64encode(self._key.sign(manifest.digest.encode('ascii'))).decode('ascii')
         destination = self.root / f'staged-{safe_name}-r{revision}'
         receipt = stage_platform_release(
@@ -132,7 +132,8 @@ class SignedReleaseBuilder:
             signature_b64=signature, signer_key_id=self.signer_key_id,
             assets_root=build, destination=destination,
             expected_source_sha='a' * 40, expected_target=manifest.target,
-            minimum_revision=1)
+            minimum_revision=1,
+            expected_parent_manifest_sha256=parent_manifest_sha256)
         return destination, manifest, receipt
 
 

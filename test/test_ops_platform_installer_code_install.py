@@ -14,6 +14,7 @@ from sofia.platform.ops.platform_installer_code_install import (
 from sofia.platform.safe.execution_approval import (
     ExecutionApproval, ExecutionApprovalVerifier,
 )
+from sofia.platform.state.installation_identity import InstallationIdentityStore
 from sofia.sdk.platform_release import PlatformReleaseTarget
 from test.owner_auth_fixture import record_verified_owner_approval
 from test.test_ops_platform_installation import SignedReleaseBuilder
@@ -165,3 +166,89 @@ def test_code_publication_rejects_owner_revocation_during_B1_copy(
     assert args["destination"].exists()
     assert args["store"].history()
     assert not (args["destination"] / "core").exists()
+
+
+def _approve_code_request(state_path, request, approval_id, now):
+    approval = ExecutionApproval(
+        approval_id=approval_id,
+        capability=request["capability"],
+        request_fingerprint=request["fingerprint"],
+        approved_by="person:sparks",
+        approved_at=now - timedelta(seconds=1),
+        expires_at=now + timedelta(minutes=5),
+    )
+    record_verified_owner_approval(ExecutionApprovalVerifier(state_path), approval)
+    return approval
+
+
+def test_signed_direct_successor_requires_exact_previous_bytes_and_new_owner_approval(
+        scope, platform_wheels):
+    args = dict(scope)
+    builder = SignedReleaseBuilder(args["destination"].parent / "successor-build", platform_wheels)
+    first_stage, _, _ = builder.stage(release_id="disposable-vm-base", revision=4)
+    args["staged_candidate"] = first_stage
+    args["verifier"] = builder.verifier
+    now = datetime.now(timezone.utc)
+    InstallationIdentityStore(args["identity_home"]).initialize()
+    first_request = signed_code_publication_request(**args)
+    first_approval = _approve_code_request(
+        args["state_path"], first_request, "approval:initial-code", now,
+    )
+    first = publish_owner_approved_code(
+        approval_id=first_approval.approval_id, now=now, **args,
+    )
+
+    next_stage, next_manifest, _ = builder.stage(
+        release_id="disposable-vm-successor", revision=5,
+        parent_manifest_sha256=first["manifest_sha256"],
+    )
+    successor = {
+        **args,
+        "staged_candidate": next_stage,
+        "destination": args["destination"].parent / "release-v5",
+        "verifier": builder.verifier,
+        "previous_destination": args["destination"],
+    }
+    request = signed_code_publication_request(**successor)
+    assert request["parameters"]["kind"] == "nonactivating-signed-code-update"
+    assert request["parameters"]["previous_release_id"] == first["release_id"]
+    assert request["parameters"]["previous_manifest_sha256"] == first["manifest_sha256"]
+    assert request["parameters"]["identity_fingerprint"] is not None
+    approval = _approve_code_request(
+        args["state_path"], request, "approval:successor-code", now + timedelta(seconds=2),
+    )
+    receipt = publish_owner_approved_code(
+        approval_id=approval.approval_id, now=now + timedelta(seconds=2), **successor,
+    )
+    assert receipt["release_id"] == next_manifest.release_id
+    assert receipt["revision"] == 5
+    assert receipt["os_service_registered"] is False
+    assert args["destination"].is_dir()
+    assert successor["destination"].is_dir()
+
+
+def test_update_preview_rejects_non_successor_parent(scope, platform_wheels):
+    args = dict(scope)
+    builder = SignedReleaseBuilder(args["destination"].parent / "wrong-parent", platform_wheels)
+    first_stage, _, _ = builder.stage(release_id="disposable-base", revision=4)
+    args["staged_candidate"] = first_stage
+    args["verifier"] = builder.verifier
+    now = datetime.now(timezone.utc)
+    InstallationIdentityStore(args["identity_home"]).initialize()
+    request = signed_code_publication_request(**args)
+    approval = _approve_code_request(args["state_path"], request, "approval:base-code", now)
+    publish_owner_approved_code(approval_id=approval.approval_id, now=now, **args)
+
+    next_stage, _, _ = builder.stage(
+        release_id="disposable-wrong-parent", revision=5,
+        parent_manifest_sha256="0" * 64,
+    )
+    rejected = {
+        **args,
+        "staged_candidate": next_stage,
+        "destination": args["destination"].parent / "rejected-v5",
+        "verifier": builder.verifier,
+        "previous_destination": args["destination"],
+    }
+    with pytest.raises(PlatformInstallationDenied, match="direct successor"):
+        signed_code_publication_request(**rejected)

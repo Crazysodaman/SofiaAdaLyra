@@ -12,9 +12,10 @@ import re
 
 from sofia.platform.ops.platform_installation import (
     PlatformInstallationDenied, PlatformInstallationStore, install_staged_release,
-    verify_staged_release_candidate,
+    verify_staged_release_candidate, verify_installed,
 )
 from sofia.platform.ops.platform_release import PlatformReleaseVerifier
+from sofia.platform.run.process_lock import StateProcessLock
 from sofia.platform.safe.execution_approval import (
     ExecutionApprovalVerifier, execution_fingerprint,
 )
@@ -39,6 +40,7 @@ def signed_code_publication_request(
     expected_target: PlatformReleaseTarget,
     outer_capsule_sha256: str | None = None,
     delivery_index_sha256: str | None = None,
+    previous_destination: Path | str | None = None,
 ) -> dict[str, object]:
     """Return a fingerprintable immutable plan, never an approval."""
     if not isinstance(store, PlatformInstallationStore):
@@ -67,7 +69,14 @@ def signed_code_publication_request(
     if store.pending_attempts():
         raise PlatformInstallationDenied("unreconciled publication attempt")
     checkpoint = store.checkpoint()
-    if checkpoint is not None and checkpoint.active_release_id is not None:
+    previous = None
+    if previous_destination is not None:
+        row = store.receipt_for_destination(Path(previous_destination).absolute())
+        if row is None or (checkpoint is not None and checkpoint.active_release_id is not None
+                           and row["release_id"] != checkpoint.active_release_id):
+            raise PlatformInstallationDenied("update source differs from canonical B1 history")
+        previous = verify_installed(previous_destination, store=store, verifier=verifier)
+    elif checkpoint is not None and checkpoint.active_release_id is not None:
         raise PlatformInstallationDenied("active release replacement requires separate governed update")
     if identity.exists():
         fingerprint = InstallationIdentityStore(identity).load().public_key_sha256
@@ -79,6 +88,12 @@ def signed_code_publication_request(
     )
     if candidate.manifest.target != expected_target:
         raise PlatformInstallationDenied("signed release target differs from request")
+    if previous is not None:
+        if (candidate.revision <= previous["revision"]
+                or candidate.manifest.parent_manifest_sha256 != previous["manifest_sha256"]):
+            raise PlatformInstallationDenied("update requires advancing signed direct successor")
+        if fingerprint is None:
+            raise PlatformInstallationDenied("update requires existing immutable Platform identity")
     parameters = {
         "release_id": candidate.release_id,
         "revision": candidate.revision,
@@ -94,6 +109,11 @@ def signed_code_publication_request(
         "minimum_accepted_revision": store.revision_floor(),
         "kind": "nonactivating-signed-code-only",
     }
+    if previous is not None:
+        parameters["kind"] = "nonactivating-signed-code-update"
+        parameters["previous_destination"] = str(Path(previous_destination).absolute())
+        parameters["previous_release_id"] = previous["release_id"]
+        parameters["previous_manifest_sha256"] = previous["manifest_sha256"]
     if outer_capsule_sha256 is not None:
         # Reviewed outer media must be approved along with inner B1 bytes.
         # These SHA values are only a scope; they are not signature proof.
@@ -122,6 +142,7 @@ def publish_owner_approved_code(
     now: datetime | None = None,
     outer_capsule_sha256: str | None = None,
     delivery_index_sha256: str | None = None,
+    previous_destination: Path | str | None = None,
 ) -> dict[str, object]:
     """Consume one exact current owner grant, then call canonical B1 publisher.
 
@@ -131,66 +152,75 @@ def publish_owner_approved_code(
     """
     if not isinstance(approval_id, str) or not approval_id.strip():
         raise PlatformInstallationDenied("fresh scoped owner approval is mandatory")
-    current = now or datetime.now(timezone.utc)
-    if current.tzinfo is None or current.utcoffset() is None:
-        raise ValueError("time must be timezone aware")
-    state = Path(state_path).absolute()
-    if OperatorStopStore(state).current().active:
-        raise PlatformInstallationDenied("operator STOP is active")
-    request = signed_code_publication_request(
-        staged_candidate=staged_candidate, destination=destination,
-        identity_home=identity_home, state_path=state, store=store,
-        verifier=verifier, expected_target=expected_target,
-        outer_capsule_sha256=outer_capsule_sha256,
-        delivery_index_sha256=delivery_index_sha256,
-    )
-    ExecutionApprovalVerifier(state).consume(
-        approval_id=approval_id,
-        capability=request["capability"],
-        parameters=request["parameters"],
-        now=current,
-    )
-    # Approval consumption does not freeze filesystem bytes, STOP, revocation
-    # or B1 generation; verify again after the SAFE transaction and before
-    # doing any publication. A failed recheck burns the one-use approval.
-    if OperatorStopStore(state).current().active:
-        raise PlatformInstallationDenied("STOP changed before code publication")
-    if not ExecutionApprovalVerifier(state).consumed_owner_proof_remains_current(
-        approval_id=approval_id, capability=request["capability"],
-        parameters=request["parameters"],
+    if not isinstance(store, PlatformInstallationStore):
+        raise TypeError("existing B1 installation store required")
+    with StateProcessLock(
+        store.path,
+        resource="aegis-native-install",
+        lock_directory=Path(store.path).absolute().parent,
     ):
-        raise PlatformInstallationDenied(
-            "owner authentication revoked before code publication"
+        current = now or datetime.now(timezone.utc)
+        if current.tzinfo is None or current.utcoffset() is None:
+            raise ValueError("time must be timezone aware")
+        state = Path(state_path).absolute()
+        if OperatorStopStore(state).current().active:
+            raise PlatformInstallationDenied("operator STOP is active")
+        request = signed_code_publication_request(
+            staged_candidate=staged_candidate, destination=destination,
+            identity_home=identity_home, state_path=state, store=store,
+            verifier=verifier, expected_target=expected_target,
+            outer_capsule_sha256=outer_capsule_sha256,
+            delivery_index_sha256=delivery_index_sha256,
+            previous_destination=previous_destination,
         )
-    observed = signed_code_publication_request(
-        staged_candidate=staged_candidate, destination=destination,
-        identity_home=identity_home, state_path=state, store=store,
-        verifier=verifier, expected_target=expected_target,
-        outer_capsule_sha256=outer_capsule_sha256,
-        delivery_index_sha256=delivery_index_sha256,
-    )
-    if observed["fingerprint"] != request["fingerprint"]:
-        raise PlatformInstallationDenied("release or generation changed after approval")
-    receipt = install_staged_release(
-        staged_candidate, destination, store=store, verifier=verifier,
-        minimum_revision=max(1, store.revision_floor()),
-    )
-    # A signed copy may finish after an attended owner revokes a credential
-    # or activates STOP. Never report a clean success in that race. The B1
-    # durable installation receipt remains for explicit host reconciliation.
-    if (OperatorStopStore(state).current().active
-            or not ExecutionApprovalVerifier(state).consumed_owner_proof_remains_current(
-                approval_id=approval_id, capability=request["capability"],
-                parameters=request["parameters"],
-            )):
-        raise PlatformInstallationDenied(
-            "owner authority changed during code publication; reconcile B1 receipt"
+        ExecutionApprovalVerifier(state).consume(
+            approval_id=approval_id,
+            capability=request["capability"],
+            parameters=request["parameters"],
+            now=current,
         )
-    return {
-        **receipt,
-        "owner_proof_consumed": True,
-        "os_service_registered": False,
-        "service_health_verified": False,
-        "core_activated": False,
-        "fleet_enrolled": False,
-    }
+        # Approval consumption does not freeze filesystem bytes, STOP, revocation
+        # or B1 generation; verify again after the SAFE transaction and before
+        # doing any publication. A failed recheck burns the one-use approval.
+        if OperatorStopStore(state).current().active:
+            raise PlatformInstallationDenied("STOP changed before code publication")
+        if not ExecutionApprovalVerifier(state).consumed_owner_proof_remains_current(
+            approval_id=approval_id, capability=request["capability"],
+            parameters=request["parameters"],
+        ):
+            raise PlatformInstallationDenied(
+                "owner authentication revoked before code publication"
+            )
+        observed = signed_code_publication_request(
+            staged_candidate=staged_candidate, destination=destination,
+            identity_home=identity_home, state_path=state, store=store,
+            verifier=verifier, expected_target=expected_target,
+            outer_capsule_sha256=outer_capsule_sha256,
+            delivery_index_sha256=delivery_index_sha256,
+            previous_destination=previous_destination,
+        )
+        if observed["fingerprint"] != request["fingerprint"]:
+            raise PlatformInstallationDenied("release or generation changed after approval")
+        receipt = install_staged_release(
+            staged_candidate, destination, store=store, verifier=verifier,
+            minimum_revision=max(1, store.revision_floor()),
+        )
+        # A signed copy may finish after an attended owner revokes a credential
+        # or activates STOP. Never report a clean success in that race. The B1
+        # durable installation receipt remains for explicit host reconciliation.
+        if (OperatorStopStore(state).current().active
+                or not ExecutionApprovalVerifier(state).consumed_owner_proof_remains_current(
+                    approval_id=approval_id, capability=request["capability"],
+                    parameters=request["parameters"],
+                )):
+            raise PlatformInstallationDenied(
+                "owner authority changed during code publication; reconcile B1 receipt"
+            )
+        return {
+            **receipt,
+            "owner_proof_consumed": True,
+            "os_service_registered": False,
+            "service_health_verified": False,
+            "core_activated": False,
+            "fleet_enrolled": False,
+        }
