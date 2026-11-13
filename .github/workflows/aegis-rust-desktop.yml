@@ -1,0 +1,73 @@
+name: Aegis Rust Desktop Applications
+
+on:
+  pull_request:
+    paths:
+      - "rust/crates/sofia-ui-broker/src/platform_gui.rs"
+      - "rust/crates/sofia-ui-broker/src/personal_desktop.rs"
+      - "rust/crates/sofia-ui-broker/src/bin/aegis_control_center.rs"
+      - "rust/crates/sofia-ui-broker/src/bin/sofia_desktop.rs"
+      - "rust/crates/sofia-ui-broker/src/control_center_session.rs"
+      - "rust/crates/sofia-ui-broker/Cargo.toml"
+      - "rust/crates/sofia-contracts/**"
+      - "Cargo.lock"
+      - "test/test_ui_rust_desktop_workflow.py"
+      - ".github/workflows/aegis-rust-desktop.yml"
+  push:
+    branches: [main]
+    paths:
+      - "rust/crates/sofia-ui-broker/src/platform_gui.rs"
+      - "rust/crates/sofia-ui-broker/src/personal_desktop.rs"
+      - "rust/crates/sofia-ui-broker/src/bin/aegis_control_center.rs"
+      - "rust/crates/sofia-ui-broker/src/bin/sofia_desktop.rs"
+      - "rust/crates/sofia-ui-broker/src/control_center_session.rs"
+      - "rust/crates/sofia-ui-broker/Cargo.toml"
+      - "rust/crates/sofia-contracts/**"
+      - "Cargo.lock"
+      - "test/test_ui_rust_desktop_workflow.py"
+      - ".github/workflows/aegis-rust-desktop.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  desktop:
+    name: Rust desktop / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact checked-out source SHA
+        shell: bash
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$EXPECTED_SOURCE_SHA"
+          printf 'EXACT_SOURCE_SHA=%s\n' "$actual"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.88.0
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Check desktop formatting
+        run: cargo fmt --all --check
+      - name: Strict desktop Clippy
+        run: >-
+          cargo clippy --locked -p sofia-ui-broker --features desktop
+          --bin aegis-control-center --bin sofia-desktop -- -D warnings
+      - name: Test both desktop applications without a display server
+        run: >-
+          cargo test --locked -p sofia-ui-broker --features desktop
+          --bin aegis-control-center --bin sofia-desktop
+      - name: Build native desktop applications
+        run: >-
+          cargo build --locked -p sofia-ui-broker --features desktop
+          --bin aegis-control-center --bin sofia-desktop
