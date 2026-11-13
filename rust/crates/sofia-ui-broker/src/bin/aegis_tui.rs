@@ -188,6 +188,16 @@ fn paint(text: &str, role: &str, colors: ColorMode) -> String {
     }
 }
 
+fn runtime_color_mode(args: &[String]) -> ColorMode {
+    choose_color_mode(
+        io::stdout().is_terminal(),
+        args.iter().any(|arg| arg == "--plain"),
+        env::var_os("NO_COLOR").is_some(),
+        env::var("TERM").ok().as_deref(),
+        env::var("COLORTERM").ok().as_deref(),
+    )
+}
+
 fn render_menu(colors: ColorMode, view: &ControlCenterView) -> String {
     let mut lines = vec![
         paint(
@@ -416,13 +426,7 @@ fn run_with_source(source: &mut impl DisplayReadSource) -> io::Result<ExitCode> 
         println!("{status}");
         return Ok(ExitCode::from(3));
     }
-    let colors = choose_color_mode(
-        io::stdout().is_terminal(),
-        args.iter().any(|arg| arg == "--plain"),
-        env::var_os("NO_COLOR").is_some(),
-        env::var("TERM").ok().as_deref(),
-        env::var("COLORTERM").ok().as_deref(),
-    );
+    let colors = runtime_color_mode(&args);
     if !io::stdin().is_terminal() {
         print!("{}", render_menu(ColorMode::Plain, session.view()));
         println!("\nInteractive input requires a terminal; no operation performed.");
