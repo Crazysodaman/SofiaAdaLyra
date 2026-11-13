@@ -5,6 +5,10 @@
 //! external reviewer; OS credentials alone never establish publisher trust.
 //! Until such an installer-backed source is wired, CLI uses `OfflineReader`.
 
+#[cfg(windows)]
+#[path = "native_management_windows.rs"]
+pub mod windows;
+
 #[cfg(target_os = "linux")]
 pub mod linux {
     use crate::control_center::{InstallationState, PermissionState, SafeState};
@@ -56,6 +60,7 @@ pub mod linux {
         ///
         /// # Errors
         /// Invalid source path, identity or generation fails closed.
+        #[allow(clippy::similar_names)] // UID, GID and PID are distinct OS identity pins.
         pub fn from_externally_verified_installation(
             socket_path: PathBuf,
             platform_id: String,
@@ -79,6 +84,7 @@ pub mod linux {
                 || generation == 0
                 || generation > MAX_GENERATION
                 || service_pid.is_some_and(|pid| pid <= 0)
+                || (socket_group_gid.is_some() && service_pid.is_none())
             {
                 return Err(ReadFailure::Unverified);
             }
@@ -147,8 +153,7 @@ pub mod linux {
             }
             let expected =
                 UntrustedManagementRead::parse(&raw, now).map_err(|_| ReadFailure::Unverified)?;
-            let mut connection =
-                UnixStream::connect(&self.pins.socket_path).map_err(|_| ReadFailure::Offline)?;
+            let mut connection = connect_without_waiting(&self.pins.socket_path)?;
             connection
                 .set_write_timeout(Some(IO_TIMEOUT))
                 .map_err(|_| ReadFailure::Unverified)?;
@@ -171,7 +176,6 @@ pub mod linux {
                         // A wrong request ID, operation, target or generation has
                         // no verified explanation. Only a correlated typed
                         // STALE_GENERATION denial gets an explicit generation label.
-                        "uncorrelated_management_response" => ReadFailure::Unverified,
                         _ => ReadFailure::Unverified,
                     })?;
             // A's canonical parser only returns OK or a CORRELATED typed
@@ -248,6 +252,9 @@ pub mod linux {
     impl NativeLinuxLibraryCatalogReader {
         /// Construct a source-only reader. Syntax validation is not proof
         /// the caller has B1 signer trust or current owner SAFE enrollment.
+        ///
+        /// # Errors
+        /// Rejects malformed source identities and invalid catalog revisions.
         pub fn from_verified_installation(
             pins: InstalledNativeServicePins,
             expected_source_id: String,
@@ -279,6 +286,9 @@ pub mod linux {
         }
 
         /// One new request with random correlation IDs and bounded native IO.
+        ///
+        /// # Errors
+        /// Unverified peers, denied authority, stale replies and transport failures fail closed.
         /// No fallback URL, automatic enrollment, package effect or retry.
         pub fn catalog(&mut self) -> Result<NativeLibraryCatalogSnapshot, ReadFailure> {
             let inode = verify_endpoint(&self.pins)?;
@@ -317,8 +327,7 @@ pub mod linux {
             }
             let expected =
                 UntrustedLibraryRequest::parse(&raw, now).map_err(|_| ReadFailure::Unverified)?;
-            let mut connection =
-                UnixStream::connect(&self.pins.socket_path).map_err(|_| ReadFailure::Offline)?;
+            let mut connection = connect_without_waiting(&self.pins.socket_path)?;
             connection
                 .set_write_timeout(Some(IO_TIMEOUT))
                 .map_err(|_| ReadFailure::Unverified)?;
@@ -449,8 +458,7 @@ pub mod linux {
             }
             let expected =
                 UntrustedLibraryRequest::parse(&raw, now).map_err(|_| ReadFailure::Unverified)?;
-            let mut connection =
-                UnixStream::connect(&self.pins.socket_path).map_err(|_| ReadFailure::Offline)?;
+            let mut connection = connect_without_waiting(&self.pins.socket_path)?;
             connection
                 .set_write_timeout(Some(IO_TIMEOUT))
                 .map_err(|_| ReadFailure::Unverified)?;
@@ -528,6 +536,28 @@ pub mod linux {
         Ok(())
     }
 
+    // Local connect can block when the server's accept queue is saturated.
+    // A nonblocking connect makes that an honest offline observation instead
+    // of freezing the management UI. Never retry or adopt another endpoint.
+    fn connect_without_waiting(path: &Path) -> Result<UnixStream, ReadFailure> {
+        use nix::sys::socket::{connect, socket, AddressFamily, SockFlag, SockType, UnixAddr};
+        use std::os::fd::AsRawFd;
+        let socket = socket(
+            AddressFamily::Unix,
+            SockType::Stream,
+            SockFlag::SOCK_CLOEXEC | SockFlag::SOCK_NONBLOCK,
+            None,
+        )
+        .map_err(|_| ReadFailure::Offline)?;
+        let address = UnixAddr::new(path).map_err(|_| ReadFailure::Unverified)?;
+        connect(socket.as_raw_fd(), &address).map_err(|_| ReadFailure::Offline)?;
+        let stream = UnixStream::from(socket);
+        stream
+            .set_nonblocking(false)
+            .map_err(|_| ReadFailure::Unverified)?;
+        Ok(stream)
+    }
+
     fn verify_endpoint(pins: &InstalledNativeServicePins) -> Result<(u64, u64), ReadFailure> {
         no_symlinks(&pins.socket_path)?;
         let parent = pins.socket_path.parent().ok_or(ReadFailure::Unverified)?;
@@ -593,9 +623,7 @@ pub mod linux {
                 return Err(ReadFailure::Unverified);
             }
             if bytes.contains(&b'\n') {
-                if bytes.last() != Some(&b'\n')
-                    || bytes.iter().filter(|byte| **byte == b'\n').count() != 1
-                {
+                if bytes.last() != Some(&b'\n') || bytes[..bytes.len() - 1].contains(&b'\n') {
                     return Err(ReadFailure::Unverified);
                 }
                 bytes.pop();
@@ -610,6 +638,38 @@ pub mod linux {
         use std::io::{BufRead, BufReader, Write};
         use std::os::unix::net::UnixListener;
         use std::thread;
+
+        #[test]
+        fn external_operator_group_requires_exact_live_service_pid() {
+            let result = InstalledNativeServicePins::from_externally_verified_installation(
+                PathBuf::from("/run/aegis-platform/mgmt-3.sock"),
+                "platform:alpha".into(),
+                3,
+                1001,
+                1001,
+                Some(1002),
+                None,
+            );
+            assert!(result.is_err(), "group membership is not server identity");
+        }
+
+        #[test]
+        fn saturated_accept_queue_is_bounded_and_does_not_claim_health() {
+            use nix::sys::socket::{listen, Backlog};
+            let home = tempfile::tempdir().unwrap();
+            let path = home.path().join("full.sock");
+            let listener = UnixListener::bind(&path).unwrap();
+            listen(&listener, Backlog::new(1).unwrap()).unwrap();
+            let first = connect_without_waiting(&path).unwrap();
+            let second = connect_without_waiting(&path).unwrap();
+            let started = Instant::now();
+            assert!(matches!(
+                connect_without_waiting(&path),
+                Err(ReadFailure::Offline)
+            ));
+            assert!(started.elapsed() < Duration::from_millis(250));
+            drop((first, second));
+        }
 
         fn fake_service(
             outcome: &'static str,
@@ -943,7 +1003,7 @@ pub mod linux {
                         message["data"]["catalog_state"] = serde_json::json!("CURRENT");
                         message["data"]["hub_state"] = serde_json::json!("SERVING");
                         message["data"]["served_chunks"] = serde_json::json!(2);
-                        message["data"]["served_bytes"] = serde_json::json!(2097152);
+                        message["data"]["served_bytes"] = serde_json::json!(2_097_152);
                     }
                     "STOPPED" | "REVOKED" | "UNAVAILABLE" => {
                         message["outcome"] = serde_json::json!("DENIED");
@@ -999,7 +1059,7 @@ pub mod linux {
             assert_eq!(snapshot.catalog_state, "CURRENT");
             assert_eq!(snapshot.hub_state, "SERVING");
             assert_eq!(snapshot.served_chunks, 2);
-            assert_eq!(snapshot.served_bytes, 2097152);
+            assert_eq!(snapshot.served_bytes, 2_097_152);
             worker.join().unwrap();
         }
 
