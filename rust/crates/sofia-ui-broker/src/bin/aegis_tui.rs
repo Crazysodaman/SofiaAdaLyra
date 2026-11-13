@@ -3,7 +3,9 @@
 //! NEVER infer host health from a local launch, cached file or process ID.
 
 use serde_json::Value;
-use sofia_ui_broker::control_center::{ControlCenterView, LinkState, SafeState};
+use sofia_ui_broker::control_center::{
+    ActionHint, ControlCenterView, LinkState, ProposedAction, SafeState,
+};
 use sofia_ui_broker::control_center_session::{DisplayReadSource, DisplaySession, OfflineReader};
 use std::env;
 use std::io::{self, IsTerminal, Write};
@@ -242,6 +244,40 @@ fn render_menu(colors: ColorMode, view: &ControlCenterView) -> String {
     lines.join("\n")
 }
 
+fn proposed_action(page: Page) -> ProposedAction {
+    match page {
+        Page::Cores => ProposedAction::RestartCore,
+        Page::Modules => ProposedAction::InstallModule,
+        Page::Settings => ProposedAction::SaveSettings,
+        Page::Security => ProposedAction::RequestApproval,
+        Page::Updates => ProposedAction::UpdatePlatform,
+        Page::Platform
+        | Page::Diagnostics
+        | Page::Fleet
+        | Page::LibraryCatalog
+        | Page::LibrarySources
+        | Page::LibraryDownloads
+        | Page::LibraryInstalled
+        | Page::LibraryStorage
+        | Page::LibraryHub
+        | Page::LibraryHistory => ProposedAction::Inspect,
+    }
+}
+
+fn action_request_line(page: Page, state: &ControlCenterView) -> String {
+    match state.action_hint(proposed_action(page)) {
+        ActionHint::Blocked(reason) => format!("ACTION REQUEST: BLOCKED / REASON: {reason}"),
+        ActionHint::ReadOnly => "ACTION REQUEST: READ_ONLY / NO RECEIPT REQUIRED".to_owned(),
+        ActionHint::RecheckWithService => format!(
+            "ACTION REQUEST: PREVIEW_REQUIRED / EXPLICIT_TARGET_REQUIRED / EXPECTED_GENERATION: {} / EXECUTION_RECEIPT_REQUIRED",
+            state.platform_generation.map_or_else(
+                || "UNKNOWN".to_owned(),
+                |generation| generation.to_string(),
+            )
+        ),
+    }
+}
+
 fn render_page(page: Page, colors: ColorMode, state: &ControlCenterView) -> String {
     // No catalog, inventory, progress, signer or receipt is invented by a
     // locally launched UI; only Team A's authenticated service can supply it.
@@ -277,7 +313,7 @@ fn render_page(page: Page, colors: ColorMode, state: &ControlCenterView) -> Stri
         "VALUES: UNAVAILABLE (not disconnected, removed, healthy or zero)".into()
     };
     format!(
-        "{}\nSERVICE: {} / SOURCE: {}\nSETTINGS: {}\nINSTALLATION: {}\n{}\n{}\n{}\n{}",
+        "{}\nSERVICE: {} / SOURCE: {}\nSETTINGS: {}\nINSTALLATION: {}\n{}\n{}\n{}\n{}\n{}",
         paint(page.heading(), "primary", colors),
         state.service_label(),
         state.source_label(),
@@ -285,6 +321,7 @@ fn render_page(page: Page, colors: ColorMode, state: &ControlCenterView) -> Stri
         state.installation_label(),
         values,
         permission,
+        action_request_line(page, state),
         "No writes, approvals, downloads, installation, state files or service changes.",
         library
     )
@@ -481,11 +518,11 @@ fn main() -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::{
-        choose_color_mode, navigate, paint, render_menu, render_page, rgb, select_page,
-        status_exit, status_json, status_line, ColorMode, Navigation, Page, PAGES,
+        action_request_line, choose_color_mode, navigate, paint, render_menu, render_page, rgb,
+        select_page, status_exit, status_json, status_line, ColorMode, Navigation, Page, PAGES,
     };
     use sofia_ui_broker::control_center::{
-        ControlCenterView, LinkState, PermissionState, SafeState,
+        ControlCenterView, InstallationState, LinkState, PermissionState, SafeState,
     };
 
     #[test]
@@ -514,6 +551,74 @@ mod tests {
         assert_eq!(selected, 0);
         assert_eq!(navigate("approve", &mut selected), Navigation::Invalid);
         assert_eq!(navigate("q", &mut selected), Navigation::Exit);
+    }
+
+    #[test]
+    fn protected_pages_require_preview_target_generation_and_receipt() {
+        let mut view = ControlCenterView::offline();
+        view.link = LinkState::Observed;
+        view.safe = SafeState::Clear;
+        view.permission = PermissionState::MayRequest;
+        view.platform_generation = Some(12);
+        view.installation = InstallationState::Absent;
+        view.settings_revision = Some(4);
+        view.effective_settings_revision = Some(4);
+        for page in [
+            Page::Cores,
+            Page::Modules,
+            Page::Settings,
+            Page::Security,
+            Page::Updates,
+        ] {
+            let line = action_request_line(page, &view);
+            assert!(line.contains("PREVIEW_REQUIRED"));
+            assert!(line.contains("EXPLICIT_TARGET_REQUIRED"));
+            assert!(line.contains("EXPECTED_GENERATION: 12"));
+            assert!(line.contains("EXECUTION_RECEIPT_REQUIRED"));
+        }
+        assert_eq!(
+            action_request_line(Page::Platform, &view),
+            "ACTION REQUEST: READ_ONLY / NO RECEIPT REQUIRED"
+        );
+    }
+
+    #[test]
+    fn stale_revoked_stop_and_denied_views_cannot_offer_action_requests() {
+        for (link, safe, permission, reason) in [
+            (
+                LinkState::Stale,
+                SafeState::Clear,
+                PermissionState::MayRequest,
+                "OBSERVATION_STALE",
+            ),
+            (
+                LinkState::Revoked,
+                SafeState::Clear,
+                PermissionState::MayRequest,
+                "OWNER_REVOKED",
+            ),
+            (
+                LinkState::Observed,
+                SafeState::StopActive,
+                PermissionState::MayRequest,
+                "SAFE_STOP_ACTIVE",
+            ),
+            (
+                LinkState::Observed,
+                SafeState::Clear,
+                PermissionState::Denied,
+                "PERMISSION_DENIED",
+            ),
+        ] {
+            let mut view = ControlCenterView::offline();
+            view.link = link;
+            view.safe = safe;
+            view.permission = permission;
+            view.platform_generation = Some(12);
+            let line = action_request_line(Page::Updates, &view);
+            assert_eq!(line, format!("ACTION REQUEST: BLOCKED / REASON: {reason}"));
+            assert!(!line.contains("EXPECTED_GENERATION"));
+        }
     }
 
     #[test]
