@@ -159,16 +159,21 @@ def test_bootstrap_contract_does_not_embed_an_alternative_authority():
 @pytest.mark.skipif(os.name == "nt" or not shutil.which("tput"),
                     reason="Linux PTY with terminfo required")
 @pytest.mark.parametrize("columns,color_mode", [(40, "narrow"), (80, "plain"), (80, "truecolor"), (80, "256"), (80, "16")])
-def test_bash_interactive_pty_theme_modes(columns, color_mode):
+@pytest.mark.parametrize("minimum_descriptor", [0, 1024])
+def test_bash_interactive_pty_theme_modes(columns, color_mode, minimum_descriptor):
     """Exercise a real TTY, not a text-source assertion."""
     import fcntl
     import pty
-    import select
+    import selectors
     import struct
     import termios
     import time
 
     master, slave = pty.openpty()
+    if minimum_descriptor:
+        replacement = fcntl.fcntl(master, fcntl.F_DUPFD, minimum_descriptor)
+        os.close(master)
+        master = replacement
     proc = None
     try:
         fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, columns, 0, 0))
@@ -190,17 +195,19 @@ def test_bash_interactive_pty_theme_modes(columns, color_mode):
         os.write(master, b"0\n")
         chunks = []
         deadline = time.monotonic() + 10
-        while time.monotonic() < deadline:
-            ready, _, _ = select.select([master], [], [], 0.1)
-            if ready:
-                try:
-                    fragment = os.read(master, 4096)
-                except OSError:
+        with selectors.DefaultSelector() as selector:
+            selector.register(master, selectors.EVENT_READ)
+            while time.monotonic() < deadline:
+                ready = selector.select(0.1)
+                if ready:
+                    try:
+                        fragment = os.read(master, 4096)
+                    except OSError:
+                        break
+                    if fragment:
+                        chunks.append(fragment)
+                if proc.poll() is not None:
                     break
-                if fragment:
-                    chunks.append(fragment)
-            if proc.poll() is not None:
-                break
         assert proc.wait(timeout=2) == 0
         output = b"".join(chunks)
         assert b"AEGIS PLATFORM INSTALLER" in output

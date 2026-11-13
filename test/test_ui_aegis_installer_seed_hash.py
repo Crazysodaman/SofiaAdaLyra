@@ -113,6 +113,28 @@ def test_stock_windows_media_preflight_has_no_install_side_effect(seed, tmp_path
     assert not (tmp_path / "sofia.db").exists()
 
 
+@pytest.mark.skipif(os.name != "nt", reason="Native Windows PowerShell 5.1 only")
+def test_stock_windows_hash_does_not_require_get_filehash_cmdlet(seed):
+    """A profile/module-path mismatch must not remove stock byte verification."""
+    media, digest = seed
+    quote = lambda value: "'" + str(value).replace("'", "''") + "'"
+    command = (
+        "function Get-FileHash { throw 'TEST: unavailable optional cmdlet' }; "
+        f"& {quote(POWERSHELL)} -VerifySeed {quote(media)} "
+        f"-TrustedSeedSha256 {quote(digest)} -Json"
+    )
+    result = subprocess.run(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", command],
+        capture_output=True, text=True, timeout=25,
+    )
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["sha256"] == digest
+    assert payload["result"] == "HASH_MATCH_ONLY"
+    assert payload["signature_verified"] is False
+    assert payload["executed"] is False
+
+
 @pytest.mark.skipif(os.name != "nt", reason="Native Windows PS5.1 only")
 @pytest.mark.parametrize("mutation", (
     "wrong-digest", "invalid-pin", "no-pin", "missing", "protected-install",

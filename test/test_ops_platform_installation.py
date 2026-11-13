@@ -647,7 +647,13 @@ def test_canonical_stage_then_install_streams_assets_without_any_eager_reader(
     import sofia.platform.ops.platform_installation as install_module
 
     def fail_eager_read(path, size, *, include_data=False):
-        if include_data:
+        # Bounded control receipts/manifests are JSON; signed assets must
+        # always remain on the streaming copier path, including oddly named assets.
+        metadata = {'stage-receipt.json', 'release-manifest.json',
+                    'release-signature.json', 'installation-receipt.json',
+                    'activation-receipt.json'}
+        if include_data and (Path(path).name not in metadata
+                             or 'assets' in Path(path).parts or size > 131072):
             raise AssertionError(
                 'staging or installation must not allocate whole signed assets'
             )

@@ -162,6 +162,33 @@ function Assert-AegisPinnedLocalFile {
     return $file
 }
 
+function Get-AegisPinnedFileSha256 {
+    param([IO.FileInfo]$File, [long]$MaxBytes, [string]$AllowedExtension)
+    # Stock .NET streaming works in Windows PowerShell 5.1 even when the
+    # Utility module (and Get-FileHash cmdlet) cannot be autoloaded. Keep
+    # writes/deletes excluded while reading, and recheck the bounded path.
+    $stream = $null
+    $algorithm = $null
+    try {
+        $stream = [IO.File]::Open($File.FullName, [IO.FileMode]::Open,
+            [IO.FileAccess]::Read, [IO.FileShare]::Read)
+        if ($stream.Length -ne $File.Length -or $stream.Length -lt 1 -or
+            $stream.Length -gt $MaxBytes) { throw 'Offline file changed before hashing' }
+        $algorithm = [Security.Cryptography.SHA256]::Create()
+        $hash = $algorithm.ComputeHash($stream)
+        $checked = Assert-AegisPinnedLocalFile -Path $File.FullName -MaxBytes $MaxBytes -AllowedExtension $AllowedExtension
+        if ($checked.Length -ne $stream.Length -or
+            $checked.LastWriteTimeUtc -ne $File.LastWriteTimeUtc -or
+            $checked.CreationTimeUtc -ne $File.CreationTimeUtc) {
+            throw 'Offline file changed during hashing'
+        }
+        return [BitConverter]::ToString($hash).Replace('-', '').ToLowerInvariant()
+    } finally {
+        if ($null -ne $algorithm) { $algorithm.Dispose() }
+        if ($null -ne $stream) { $stream.Dispose() }
+    }
+}
+
 function Test-AegisOfflineSeedHash {
     param([string]$Path, [string]$ExternalSha256)
     if ($ExternalSha256 -cnotmatch '^[0-9a-f]{64}$') {
@@ -170,7 +197,7 @@ function Test-AegisOfflineSeedHash {
     }
     try {
         $file = Assert-AegisPinnedLocalFile -Path $Path -MaxBytes 1073741824 -AllowedExtension ''
-        $digest = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant()
+        $digest = Get-AegisPinnedFileSha256 -File $file -MaxBytes 1073741824 -AllowedExtension ''
         $matches = $digest -ceq $ExternalSha256
         if ($Json) {
             $result = [ordered]@{
@@ -227,7 +254,7 @@ function Test-AegisPublisherSignedBootstrap {
     }
     try {
         $file = Assert-AegisPinnedLocalFile -Path $Path -MaxBytes 67108864 -AllowedExtension '.exe'
-        $observed = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant()
+        $observed = Get-AegisPinnedFileSha256 -File $file -MaxBytes 67108864 -AllowedExtension '.exe'
         if ($observed -cne $IndependentSha256) { throw 'Pinned EXE digest differs' }
         $signature = Get-AuthenticodeSignature -LiteralPath $file.FullName -ErrorAction Stop
         if ($signature.Status -ne 'Valid' -or $null -eq $signature.SignerCertificate) {
