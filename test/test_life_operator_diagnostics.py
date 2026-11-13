@@ -263,6 +263,16 @@ def test_completed_life_diagnostic_revokes_current_proof_after_byte_change(tmp_p
         job = wait_for_job(life, life.store.jobs(project.project_id)[0])
         assert job.status is WorkStatus.COMPLETED
         artifact_id = str(job.result["artifact_id"])
+        receipt = life.evidence_index.lookup(str(job.result["evidence_ref"]))
+        assert receipt is not None and receipt.successful is True
+        # The asynchronous executor records host time when it durably commits
+        # the receipt. A loaded Windows runner can finish more than four
+        # seconds after the fixture's initial timestamp; evaluation must not
+        # present a clock earlier than the evidence it asks LIFE to verify.
+        evaluated_at = max(
+            now + timedelta(seconds=4),
+            receipt.observed_at + timedelta(microseconds=1),
+        )
         life.evaluate_artifact(
             project.project_id, artifact_id=artifact_id,
             technical_outcome=TechnicalOutcome.VALID,
@@ -270,15 +280,15 @@ def test_completed_life_diagnostic_revokes_current_proof_after_byte_change(tmp_p
             objective_results={"text_contains:Foxfire": True},
             reason="Original criterion is supported by the real artifact.",
             evidence_refs=(str(job.result["evidence_ref"]),),
-            preserve_for_research=False, now=now + timedelta(seconds=4),
+            preserve_for_research=False, now=evaluated_at,
         )
         life.complete(
             project.project_id,
             reason="Original typed criterion verified.",
-            now=now + timedelta(seconds=5),
+            now=evaluated_at + timedelta(seconds=1),
         )
         verified = life.operator_diagnostics(
-            now=now + timedelta(seconds=6),
+            now=evaluated_at + timedelta(seconds=2),
         )["projects"][0]
         assert verified["has_verified_completion"] is True
         path, _media = life.creative_explorer.verified_preview(
@@ -286,7 +296,7 @@ def test_completed_life_diagnostic_revokes_current_proof_after_byte_change(tmp_p
         )
         path.write_text("Content changed and the original digest was invalidated.")
         afterward = life.operator_diagnostics(
-            now=now + timedelta(seconds=7),
+            now=evaluated_at + timedelta(seconds=3),
         )["projects"][0]
         assert afterward["project_status"] == "completed"
         assert afterward["has_verified_completion"] is False
