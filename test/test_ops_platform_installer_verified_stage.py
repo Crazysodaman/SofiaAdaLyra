@@ -140,7 +140,7 @@ def test_double_signed_stage_rejects_tamper_or_untrusted_scope(
     elif corruption == "invalid-signature":
         args["capsule_signature"].write_bytes(b"x" * 64)
     elif corruption == "wrong-source":
-        params["expected_source_sha"] = "a" * 40
+        params["expected_source_sha"] = "0" * 40
     elif corruption == "wrong-key":
         params["trusted_key_sha256"] = "0" * 64
     with pytest.raises((PlatformReleaseRejected, PermissionError, ValueError)):
