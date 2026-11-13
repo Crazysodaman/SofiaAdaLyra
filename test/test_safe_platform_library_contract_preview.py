@@ -272,18 +272,27 @@ def test_library_rejects_duplicate_json_and_surrogate_tricks():
 
 
 def test_d028_peer_requires_actual_mutually_authenticated_tls_not_a_fake_identity(tmp_path):
+    from uuid import uuid4
+
+    from sofia.platform.config.roles import PlatformRole, PlatformRoleConfiguration
     from sofia.platform.run.library_peer_gate import admit_owner_enrolled_library_chunk
     from sofia.platform.safe.permissions import PermissionStore, capability_permission_policy
     from sofia.platform.safe.operator_stop import OperatorStopStore
-    from test.test_platform_service_session import provision
+    from sofia.platform.state.local_store import PlatformLocalStore
 
-    identity, current, state = provision(tmp_path)
+    tmp_path.chmod(0o700)
+    state = tmp_path / "canonical-safe-state.db"
+    host = str(uuid4())
+    PlatformLocalStore(
+        state,
+        roles=PlatformRoleConfiguration((PlatformRole.MODULE_HOST,)),
+        host_identity=host,
+    )
     permissions = PermissionStore(state)
     stop = OperatorStopStore(state)
     # Scoped peer reads are owner-authenticated standing capabilities; the
     # exact scope, short expiry and fake-TLS denial below remain mandatory.
     assert capability_permission_policy("library.peer.fetch").standing_grant_allowed is True
-    host = current.identity.canonical_uuid
     status = {
         "platform_id": host, "generation": 1,
         "operator_stop": False, "core_started": False,
