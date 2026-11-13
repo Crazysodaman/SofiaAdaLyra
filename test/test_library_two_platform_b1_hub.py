@@ -20,21 +20,17 @@ from threading import Thread
 import pytest
 
 from sofia.platform.ops.library_chunk_receiver import ChunkedArtifactReceiver
-from sofia.platform.ops.library_recipient_pipeline import acquire_selected_signed_platform_asset
-from sofia.platform.ops.library_tls_resumable_fetch import fetch_resumable_chunks
 from sofia.platform.ops.platform_install import (
     OfflineArtifactCache, PlatformArtifact, PlatformKind,
 )
 from sofia.platform.ops.platform_library_admission import LIBRARY_PEER_CACHE_ADMIT
-from sofia.platform.run.library_peer_gate import (
-    CurrentRecipientPeerAuthorizer, selected_peer_grant_scope,
-)
+from sofia.platform.run.library_peer_gate import selected_peer_grant_scope
+from sofia.platform.run.library_read_dispatch import InstalledSignedCatalogSource
 from sofia.platform.run.library_source_gate import (
     HUB_CAPABILITY, selected_hub_grant_scope,
 )
 from sofia.platform.run.platform_service import PlatformServiceSession
 from sofia.platform.safe.permissions import PermissionStore
-from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.platform.safe.execution_approval import (
     ExecutionApproval, ExecutionApprovalVerifier, execution_fingerprint,
 )
@@ -157,13 +153,6 @@ def test_two_canonical_platforms_transfer_signed_selection_into_recipient_b1(tmp
                     expires_at=expires,
                 ), expires_at=expires,
             )
-            recipient_peer = CurrentRecipientPeerAuthorizer(
-                permissions=r_permissions,
-                stop=OperatorStopStore(r_state),
-                current_status=recipient.status,
-                signed_transfer=transfer,
-            )
-
             def package_verifier(t, path):
                 assert t == transfer
                 assert source_cache.digest(path) == article.sha256
@@ -201,26 +190,9 @@ def test_two_canonical_platforms_transfer_signed_selection_into_recipient_b1(tmp
                     server_hostname="localhost",
                 )
 
-            try:
-                received = fetch_resumable_chunks(
-                    transfer=transfer, receiver=receiver,
-                    open_enrolled_tls=open_tls,
-                    expected_peer_certificate_sha256=source_cert,
-                    authorize_peer=recipient_peer,
-                    publisher_current=lambda _: True,
-                    chunk_bytes=len(data), max_chunks=1,
-                )
-            finally:
-                worker.join(timeout=8)
-            assert not worker.is_alive()
-            assert errors == []
-            assert received == len(data)
-            assert receiver.received_bytes(
-                transfer, authorize=lambda _: True,
-            ) == len(data)
-
-            # Peer bytes remain QUARANTINED until a distinct recipient owner
-            # SAFE one-use approval and package verification.
+            # One service-owned call must traverse the independently verified
+            # signed catalog, enrolled mTLS peer, quarantine, whole-object B1
+            # package verification and distinct one-use recipient CAS proof.
             params = {
                 "source": "ENROLLED_PEER",
                 "source_platform_id": transfer.source_platform_id,
@@ -249,19 +221,39 @@ def test_two_canonical_platforms_transfer_signed_selection_into_recipient_b1(tmp
             record_verified_owner_approval(
                 ExecutionApprovalVerifier(r_state), proof,
             )
-            from sofia.platform.ops.library_verified_handoff import admit_signed_transferred_asset
-            result = admit_signed_transferred_asset(
-                transfer=transfer, receiver=receiver, cache=recipient_cache,
-                canonical_safe_state=r_state, approval_id=proof.approval_id,
-                verify_independent_publisher=lambda t, p: article,
-                publisher_current=lambda _: True,
-                current_host_admit=lambda t: (
-                    t == transfer and recipient.status()["generation"] == t.generation
-                    and not recipient.status()["operator_stop"]
-                ),
-                now=now,
+            signed_source = InstalledSignedCatalogSource(
+                raw_signed_index=signed_bytes,
+                trusted_publisher_public_key=offer["trusted_publisher_public_key"],
+                expected_publisher_key_sha256=offer["expected_publisher_key_sha256"],
+                expected_source_platform_id=source_id,
+                expected_catalog_generation=3,
+                minimum_catalog_revision=transfer.catalog_revision,
+                publisher_key_current=lambda _: True,
             )
+            try:
+                result = recipient.acquire_owner_approved_library_asset(
+                    approval_id=proof.approval_id,
+                    transfer=transfer,
+                    expected_artifact_id="sdk.release.1",
+                    receiver=receiver,
+                    cache=recipient_cache,
+                    open_enrolled_tls=open_tls,
+                    enrolled_source_certificate_sha256=source_cert,
+                    verify_independent_package=package_verifier,
+                    package_signer_current=lambda _: True,
+                    signed_catalog_source=lambda: signed_source,
+                    chunk_bytes=len(data),
+                    max_chunks=1,
+                )
+            finally:
+                worker.join(timeout=8)
+            assert not worker.is_alive()
+            assert errors == []
             assert result["cache_state"] == "CACHED_VERIFIED"
+            assert result["received_bytes"] == len(data)
+            assert result["verified_bytes"] == len(data)
+            assert result["network_attempted"] is True
+            assert result["owner_proof_consumed"] is True
             assert result["install_executed"] is False
             assert result["active"] is None
             assert recipient_cache.resolve(article).read_bytes() == data

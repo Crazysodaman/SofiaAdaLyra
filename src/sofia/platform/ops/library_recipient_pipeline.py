@@ -148,6 +148,11 @@ def acquire_selected_signed_platform_asset(
         "total_bytes": transfer.size_bytes,
         "source_platform_id": transfer.source_platform_id,
         "catalog_revision": transfer.catalog_revision,
+        # The complete-quarantine retry above is the only successful path
+        # which performs no network I/O. Keep the committed receipt explicit
+        # so callers cannot infer transport use from byte counters.
+        "network_attempted": True,
+        "reused_complete_quarantine": False,
     }
 
 
