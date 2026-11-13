@@ -73,6 +73,56 @@ fn select_page(choice: &str) -> Option<Page> {
     }
 }
 
+const PAGES: [Page; 15] = [
+    Page::Platform,
+    Page::Cores,
+    Page::Modules,
+    Page::Settings,
+    Page::Security,
+    Page::Updates,
+    Page::Diagnostics,
+    Page::Fleet,
+    Page::LibraryCatalog,
+    Page::LibrarySources,
+    Page::LibraryDownloads,
+    Page::LibraryInstalled,
+    Page::LibraryStorage,
+    Page::LibraryHub,
+    Page::LibraryHistory,
+];
+
+#[derive(Debug, PartialEq, Eq)]
+enum Navigation {
+    Show(Page),
+    Refresh,
+    Exit,
+    Invalid,
+}
+
+fn navigate(command: &str, selected: &mut usize) -> Navigation {
+    match command.trim() {
+        "0" | "q" | "quit" => Navigation::Exit,
+        "r" | "refresh" => Navigation::Refresh,
+        "j" | "next" => {
+            *selected = (*selected + 1) % PAGES.len();
+            Navigation::Show(PAGES[*selected])
+        }
+        "k" | "previous" => {
+            *selected = (*selected + PAGES.len() - 1) % PAGES.len();
+            Navigation::Show(PAGES[*selected])
+        }
+        "" => Navigation::Show(PAGES[*selected]),
+        choice => match select_page(choice) {
+            Some(page) => {
+                // select_page and PAGES describe the same bounded menu.
+                *selected = PAGES.iter().position(|entry| *entry == page).unwrap_or(0);
+                Navigation::Show(page)
+            }
+            None => Navigation::Invalid,
+        },
+    }
+}
+
 fn rgb(role: &str) -> Option<(u8, u8, u8)> {
     let document: Value = serde_json::from_str(THEME).ok()?;
     if document.get("schema")?.as_str()? != "aegis.ui.theme.v1" {
@@ -170,6 +220,22 @@ fn render_page(page: Page, colors: bool, state: &ControlCenterView) -> String {
         state.permission_label(),
         state.safe_label()
     );
+    let values = if current_status(state) {
+        format!(
+            "PLATFORM GENERATION: {} / SAVED SETTINGS REVISION: {} / APPLIED SETTINGS REVISION: {}",
+            state
+                .platform_generation
+                .map_or_else(|| "UNKNOWN".into(), |value| value.to_string()),
+            state
+                .settings_revision
+                .map_or_else(|| "UNKNOWN".into(), |value| value.to_string()),
+            state
+                .effective_settings_revision
+                .map_or_else(|| "UNKNOWN".into(), |value| value.to_string()),
+        )
+    } else {
+        "VALUES: UNAVAILABLE (not disconnected, removed, healthy or zero)".into()
+    };
     format!(
         "{}\nSERVICE: {} / SOURCE: {}\nSETTINGS: {}\nINSTALLATION: {}\n{}\n{}\n{}\n{}",
         paint(page.heading(), "primary", colors),
@@ -177,7 +243,7 @@ fn render_page(page: Page, colors: bool, state: &ControlCenterView) -> String {
         state.source_label(),
         state.settings_label(),
         state.installation_label(),
-        "VALUES: UNAVAILABLE (not disconnected, removed, healthy or zero)",
+        values,
         permission,
         "No writes, approvals, downloads, installation, state files or service changes.",
         library
@@ -265,6 +331,7 @@ fn run_with_source(source: &mut impl DisplayReadSource) -> io::Result<ExitCode> 
         );
         println!("{HELP}");
         println!("This read-only shell does not perform management operations.");
+        println!("Keyboard: 1-15 select, j/k next/previous, Enter open, r refresh, q exit.");
         return Ok(ExitCode::SUCCESS);
     }
     if args.len() > 1
@@ -325,25 +392,28 @@ fn run_with_source(source: &mut impl DisplayReadSource) -> io::Result<ExitCode> 
         println!("\nInteractive input requires a terminal; no operation performed.");
         return Ok(ExitCode::SUCCESS);
     }
+    let mut selected = 0;
     loop {
         let _ = session.refresh(source, std::time::Instant::now());
         session.expire_at(std::time::Instant::now());
         println!("{}", render_menu(colors, session.view()));
-        print!("Select [0-15]: ");
+        print!("Select [0-15], j/k next/previous, Enter selected, r refresh, q exit: ");
         io::stdout().flush()?;
         let mut selection = String::new();
         if io::stdin().read_line(&mut selection)? == 0 {
             return Ok(ExitCode::SUCCESS);
         }
-        if selection.trim() == "0" {
-            return Ok(ExitCode::SUCCESS);
-        }
         let _ = session.refresh(source, std::time::Instant::now());
         session.expire_at(std::time::Instant::now());
-        if let Some(page) = select_page(&selection) {
-            println!("{}\n", render_page(page, colors, session.view()));
-        } else {
-            println!("Not a valid menu number; no operation performed.\n");
+        match navigate(&selection, &mut selected) {
+            Navigation::Exit => return Ok(ExitCode::SUCCESS),
+            Navigation::Show(page) => {
+                println!("{}\n", render_page(page, colors, session.view()));
+            }
+            Navigation::Refresh => println!("{}\n", status_line(session.view())),
+            Navigation::Invalid => {
+                println!("Not a valid menu command; no operation performed.\n");
+            }
         }
     }
 }
@@ -367,12 +437,40 @@ fn main() -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::{
-        paint, render_menu, render_page, rgb, select_page, status_exit, status_json, status_line,
-        Page,
+        navigate, paint, render_menu, render_page, rgb, select_page, status_exit, status_json,
+        status_line, Navigation, Page, PAGES,
     };
     use sofia_ui_broker::control_center::{
         ControlCenterView, LinkState, PermissionState, SafeState,
     };
+
+    #[test]
+    fn keyboard_navigation_reaches_every_section_and_refresh_never_mutates() {
+        let mut selected = 0;
+        assert_eq!(
+            navigate("", &mut selected),
+            Navigation::Show(Page::Platform)
+        );
+        for page in PAGES.iter().skip(1) {
+            assert_eq!(navigate("j", &mut selected), Navigation::Show(*page));
+        }
+        assert_eq!(
+            navigate("next", &mut selected),
+            Navigation::Show(Page::Platform)
+        );
+        assert_eq!(
+            navigate("k", &mut selected),
+            Navigation::Show(Page::LibraryHistory)
+        );
+        assert_eq!(
+            navigate("1", &mut selected),
+            Navigation::Show(Page::Platform)
+        );
+        assert_eq!(navigate("r", &mut selected), Navigation::Refresh);
+        assert_eq!(selected, 0);
+        assert_eq!(navigate("approve", &mut selected), Navigation::Invalid);
+        assert_eq!(navigate("q", &mut selected), Navigation::Exit);
+    }
 
     #[test]
     fn theme_imports_exact_shared_manifest() {
@@ -459,6 +557,25 @@ mod tests {
         assert_eq!(data["actions_enabled"], false);
         assert_eq!(data["installation"], "NOT_CURRENTLY_VERIFIED");
         assert_eq!(status_exit(&view), std::process::ExitCode::from(3));
+    }
+
+    #[test]
+    fn verified_page_shows_revisions_but_stale_page_hides_cached_values() {
+        let mut view = ControlCenterView::offline();
+        view.link = LinkState::Observed;
+        view.platform_generation = Some(9);
+        view.safe = SafeState::Clear;
+        view.settings_revision = Some(7);
+        view.effective_settings_revision = Some(6);
+        let observed = render_page(Page::Settings, false, &view);
+        assert!(observed.contains("PLATFORM GENERATION: 9"));
+        assert!(observed.contains("SAVED SETTINGS REVISION: 7"));
+        assert!(observed.contains("APPLIED SETTINGS REVISION: 6"));
+        view.link = LinkState::Stale;
+        let stale = render_page(Page::Settings, false, &view);
+        assert!(stale.contains("VALUES: UNAVAILABLE"));
+        assert!(!stale.contains("PLATFORM GENERATION: 9"));
+        assert!(!stale.contains("SETTINGS REVISION: 7"));
     }
 
     #[test]

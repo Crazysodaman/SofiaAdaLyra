@@ -237,9 +237,10 @@ impl DisplaySession {
 fn valid_id(value: &str) -> bool {
     !value.is_empty()
         && value.len() <= 160
-        && value
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b':'))
+        && value.as_bytes()[0].is_ascii_alphanumeric()
+        && value.bytes().all(|byte| {
+            byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b':' | b'@' | b'/')
+        })
 }
 
 fn valid_revisions(saved: Option<u64>, applied: Option<u64>) -> bool {
@@ -280,6 +281,34 @@ mod tests {
             saved_revision: Some(5),
             applied_revision: Some(4),
             removal_receipt_verified: false,
+        }
+    }
+
+    #[test]
+    fn canonical_management_identity_syntax_survives_display_projection() {
+        let mut snapshot = observed(1, 1);
+        snapshot.platform_id = "platform:node@fleet/local".into();
+        let mut session = DisplaySession::default();
+        session
+            .refresh(&mut Fixed(Ok(snapshot)), Instant::now())
+            .unwrap();
+        assert_eq!(session.platform_id(), Some("platform:node@fleet/local"));
+        assert_eq!(session.view().link, LinkState::Observed);
+        for (length, expected) in [(160, Ok(())), (161, Err(DisplayError::InvalidIdentity))] {
+            let mut snapshot = observed(1, 1);
+            snapshot.platform_id = "a".repeat(length);
+            assert_eq!(
+                DisplaySession::default().refresh(&mut Fixed(Ok(snapshot)), Instant::now()),
+                expected
+            );
+        }
+        for identity in ["/node", "@node", ":node", " node", "node\n", "nοde"] {
+            let mut snapshot = observed(1, 1);
+            snapshot.platform_id = identity.into();
+            assert_eq!(
+                DisplaySession::default().refresh(&mut Fixed(Ok(snapshot)), Instant::now()),
+                Err(DisplayError::InvalidIdentity)
+            );
         }
     }
 
