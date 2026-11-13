@@ -23,3 +23,16 @@ def test_desktop_workflow_runs_without_core_or_display_claims():
     assert "SOFIA_STATE_ROOT" not in source
     assert "ollama" not in source.lower()
     assert "xvfb" not in source.lower()
+
+
+def test_full_release_gates_build_the_native_tui_before_binary_smoke_tests():
+    root = WORKFLOW.parents[2]
+    for relative in (
+        ".github/actions/platform-only-checks/action.yml",
+        ".github/workflows/manual-verify.yml",
+        ".github/workflows/release-candidate.yml",
+        ".github/workflows/debian-release-candidate.yml",
+        ".github/workflows/package-tests.yml",
+    ):
+        source = (root / relative).read_text(encoding="utf-8")
+        assert "cargo build --locked -p sofia-ui-broker --bin aegis_tui" in source

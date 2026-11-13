@@ -64,6 +64,13 @@ jobs:
         with:
           python-version: "3.12"
 
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.88.0
+
+      - name: Build native TUI exercised by installed-wheel verification
+        run: cargo build --locked -p sofia-ui-broker --bin aegis_tui
+
       - name: Materialize clean tracked source
         shell: pwsh
         run: |

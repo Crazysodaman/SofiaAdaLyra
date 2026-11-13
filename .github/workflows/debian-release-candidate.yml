@@ -57,6 +57,13 @@ jobs:
         with:
           python-version: "3.13"
 
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.88.0
+
+      - name: Build native TUI exercised by installed-wheel verification
+        run: cargo build --locked -p sofia-ui-broker --bin aegis_tui
+
       - name: Install exact hashed Debian dependencies
         shell: bash
         run: |
