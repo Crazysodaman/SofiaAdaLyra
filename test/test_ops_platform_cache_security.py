@@ -64,7 +64,8 @@ def test_publication_failure_keeps_existing_data_and_removes_own_partial(tmp_pat
     value=artifact(b'fixture')
     cache=OfflineArtifactCache(tmp_path/'cache')
     destination=cache.root/value.sha256
-    def fail(source, target):
+    def fail(source, target, *, follow_symlinks=True):
+        assert follow_symlinks is False
         target.write_bytes(b'concurrent data must survive')
         raise FileExistsError('injected competing publication')
     monkeypatch.setattr(installation.os, 'link', fail)

@@ -257,6 +257,8 @@ def test_actual_software_approval_rotation_revokes_live_platform_permission(tmp_
         ),
     )
     proof = software.authenticate("11" * 32, action_fingerprint=fp)
+    # Approval follows authentication; scrypt verification takes real time.
+    moment = datetime.now(timezone.utc)
     approval = ExecutionApproval(
         approval_id=str(uuid4()), capability="safe.permission.standing.grant",
         request_fingerprint=fp, approved_by="Sparks", approved_at=moment,
@@ -358,8 +360,11 @@ def test_systemd_external_group_requires_dedicated_identity_and_strict_mode(monk
             "/run/aegis", parent(0o750),
             service_uid=uid, service_gid=gid,
         )
-    for bad_parent in (parent(0o750, owner=uid+1), parent(0o750, group=gid+1)):
-        with pytest.raises(PermissionError, match="not governed"):
+    for bad_parent, rejection in (
+        (parent(0o750, owner=uid+1), "not governed"),
+        (parent(0o750, group=gid+1), "installed management group differs"),
+    ):
+        with pytest.raises(PermissionError, match=rejection):
             systemd_management_operator_group(
                 "/run/aegis-platform", bad_parent,
                 service_uid=uid, service_gid=gid,

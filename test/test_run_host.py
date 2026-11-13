@@ -97,26 +97,49 @@ def test_scm_running_without_generation_bound_heartbeat_is_not_ready(tmp_path):
     assert observation.generation_epoch == 7
 
 
-def test_only_fresh_matching_application_heartbeat_is_ready(tmp_path, monkeypatch):
+@pytest.mark.parametrize("collection_age_seconds", (0, 600))
+def test_only_fresh_matching_application_heartbeat_is_ready(
+    tmp_path, monkeypatch, collection_age_seconds,
+):
+    moment = datetime.now(timezone.utc)
+    # A long suite may run this test minutes after module collection.
+    monkeypatch.setitem(globals(), "NOW", moment - timedelta(seconds=collection_age_seconds))
     path = state(tmp_path)
     maintenance = Maintenance()
     backend = LocalServiceRuntimeBackend(
         service_name="SofiaAdaLyra", state_path=path, maintenance=maintenance,
     )
     live_lease = LocalRunLeaseStore(path).acquire(
-        owner_id="watchdog:readiness-test", now=NOW, ttl_seconds=300,
+        owner_id="watchdog:readiness-test", now=moment, ttl_seconds=300,
     ).lease
     assert live_lease is not None
-    backend.heartbeats.bind_generation(live_lease.epoch, now=NOW)
-    heartbeat(path, epoch=live_lease.epoch + 1)
+    backend.heartbeats.bind_generation(live_lease.epoch, now=moment)
+    heartbeat(path, epoch=live_lease.epoch + 1, recorded_at=moment)
     assert backend.observe().ready is False
 
-    heartbeat(path, epoch=live_lease.epoch, recorded_at=NOW - timedelta(minutes=2))
+    heartbeat(path, epoch=live_lease.epoch, recorded_at=moment - timedelta(minutes=2))
     assert backend.observe().ready is False
 
     heartbeat(path, epoch=live_lease.epoch, recorded_at=datetime.now(timezone.utc))
     assert backend.observe().ready is True
 
+
+
+def test_fresh_heartbeat_cannot_restore_expired_run_lease(tmp_path):
+    path = state(tmp_path)
+    moment = datetime.now(timezone.utc)
+    backend = LocalServiceRuntimeBackend(
+        service_name="SofiaAdaLyra", state_path=path, maintenance=Maintenance(),
+    )
+    old = moment - timedelta(minutes=10)
+    lease = LocalRunLeaseStore(path).acquire(
+        owner_id="watchdog:expired-readiness-test", now=old, ttl_seconds=300,
+    ).lease
+    assert lease is not None
+    backend.heartbeats.bind_generation(lease.epoch, now=old)
+    heartbeat(path, epoch=lease.epoch, recorded_at=moment)
+
+    assert backend.observe().ready is False
 
 def test_database_or_background_failure_withholds_service_readiness(tmp_path):
     path = state(tmp_path)

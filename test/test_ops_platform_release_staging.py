@@ -144,12 +144,13 @@ def test_signed_outer_release_cannot_hide_incompatible_runtime(tmp_path,platform
 def test_corrupt_staged_copy_is_rejected_before_receipt(tmp_path,platform_wheels,monkeypatch):
     import sofia.platform.ops.platform_release_staging as staging
     args=arguments(tmp_path,platform_wheels)
-    original=staging._write_new
-    def corrupt(path,data):
-        original(path,data)
-        if path.suffix=='.whl':
-            path.write_bytes(b'corrupt copied wheel')
-    monkeypatch.setattr(staging,'_write_new',corrupt)
+    original=staging.copy_verified_signed_asset
+    def corrupt(source,destination,**verification):
+        copied=original(source,destination,**verification)
+        if copied.suffix=='.whl':
+            copied.write_bytes(b'corrupt copied wheel')
+        return copied
+    monkeypatch.setattr(staging,'copy_verified_signed_asset',corrupt)
     with pytest.raises((OSError,ValueError)):
         stage_platform_release(**args)
     assert not (args['destination']/'stage-receipt.json').exists()
