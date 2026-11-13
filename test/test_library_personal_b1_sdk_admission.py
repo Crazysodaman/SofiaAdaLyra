@@ -66,6 +66,7 @@ def signed_personal_sdk(tmp_path, installed_sdk):
     )
     host = tmp_path / "new-recipient"
     host.mkdir()
+    host.chmod(0o700)
     identity, current, state = provision(host)
     # Unlike the sender, the recipient has NO installed B1 release receipt.
     recipient_store = PlatformInstallationStore(

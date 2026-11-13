@@ -70,6 +70,8 @@ def test_two_canonical_platforms_transfer_signed_selection_into_recipient_b1(tmp
     source_home, recipient_home = tmp_path / "source", tmp_path / "recipient"
     source_home.mkdir()
     recipient_home.mkdir()
+    source_home.chmod(0o700)
+    recipient_home.chmod(0o700)
     s_identity, s_current, s_state = provision(source_home)
     r_identity, r_current, r_state = provision(recipient_home)
     # Intentionally fence recipient epoch separately from source epoch.

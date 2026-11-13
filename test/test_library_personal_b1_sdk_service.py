@@ -26,6 +26,7 @@ def service_review(tmp_path, installed_sdk, monkeypatch):
     manifest, signer, signed_wheel, transfer, b1_store, args, authority = installed_sdk
     home = tmp_path / "installed-host"
     home.mkdir()
+    home.chmod(0o700)
     identity, current, state = provision(home)
     with PlatformServiceSession(
         identity.home, state, current.identity.canonical_uuid,
