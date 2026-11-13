@@ -166,7 +166,8 @@ def test_c007_status_cli_is_sourced_from_display_and_denials_fail_closed():
 
 def test_c007_menu_never_freezes_a_future_live_status_as_offline():
     source = TUI.read_text(encoding="utf-8")
-    assert "fn render_menu(colors: bool, view: &ControlCenterView)" in source
+    assert "fn render_menu(colors: ColorMode, view: &ControlCenterView)" in source
+    assert "fn runtime_color_mode(args: &[String]) -> ColorMode" in source
     assert "view.service_label()" in source
     assert "view.source_label()" in source
     assert "session.expire_at(std::time::Instant::now())" in source
