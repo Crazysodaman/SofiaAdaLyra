@@ -138,27 +138,57 @@ fn rgb(role: &str) -> Option<(u8, u8, u8)> {
     Some((red, green, blue))
 }
 
-fn paint(text: &str, role: &str, colors: bool) -> String {
-    if !colors {
-        return text.to_owned();
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ColorMode {
+    Plain,
+    Ansi16,
+    TrueColor,
+}
+
+fn choose_color_mode(
+    terminal: bool,
+    plain: bool,
+    no_color: bool,
+    term: Option<&str>,
+    colorterm: Option<&str>,
+) -> ColorMode {
+    if !terminal
+        || plain
+        || no_color
+        || term.is_none_or(|value| value.is_empty() || value == "dumb")
+    {
+        return ColorMode::Plain;
     }
-    match rgb(role) {
-        Some((red, green, blue)) => {
-            format!("\x1b[38;2;{red};{green};{blue}m{text}\x1b[0m")
+    if colorterm.is_some_and(|value| {
+        value.eq_ignore_ascii_case("truecolor") || value.eq_ignore_ascii_case("24bit")
+    }) {
+        ColorMode::TrueColor
+    } else {
+        ColorMode::Ansi16
+    }
+}
+
+fn paint(text: &str, role: &str, colors: ColorMode) -> String {
+    match colors {
+        ColorMode::Plain => text.to_owned(),
+        ColorMode::Ansi16 => {
+            let code = match role {
+                "primary" => 35,
+                "accent" => 36,
+                "tertiary" => 32,
+                "warning" => 33,
+                _ => return text.to_owned(),
+            };
+            format!("\x1b[{code}m{text}\x1b[0m")
         }
-        None => text.to_owned(),
+        ColorMode::TrueColor => match rgb(role) {
+            Some((red, green, blue)) => format!("\x1b[38;2;{red};{green};{blue}m{text}\x1b[0m"),
+            None => text.to_owned(),
+        },
     }
 }
 
-fn color_supported() -> bool {
-    io::stdout().is_terminal()
-        && env::var_os("NO_COLOR").is_none()
-        && env::var("TERM").map_or(true, |term| term != "dumb")
-        && env::var("COLORTERM")
-            .is_ok_and(|term| term.contains("truecolor") || term.contains("24bit"))
-}
-
-fn render_menu(colors: bool, view: &ControlCenterView) -> String {
+fn render_menu(colors: ColorMode, view: &ControlCenterView) -> String {
     let mut lines = vec![
         paint(
             "AEGIS PLATFORM | TERMINAL CONTROL CENTER",
@@ -202,7 +232,7 @@ fn render_menu(colors: bool, view: &ControlCenterView) -> String {
     lines.join("\n")
 }
 
-fn render_page(page: Page, colors: bool, state: &ControlCenterView) -> String {
+fn render_page(page: Page, colors: ColorMode, state: &ControlCenterView) -> String {
     // No catalog, inventory, progress, signer or receipt is invented by a
     // locally launched UI; only Team A's authenticated service can supply it.
     let library = match page {
@@ -386,9 +416,15 @@ fn run_with_source(source: &mut impl DisplayReadSource) -> io::Result<ExitCode> 
         println!("{status}");
         return Ok(ExitCode::from(3));
     }
-    let colors = !args.iter().any(|arg| arg == "--plain") && color_supported();
+    let colors = choose_color_mode(
+        io::stdout().is_terminal(),
+        args.iter().any(|arg| arg == "--plain"),
+        env::var_os("NO_COLOR").is_some(),
+        env::var("TERM").ok().as_deref(),
+        env::var("COLORTERM").ok().as_deref(),
+    );
     if !io::stdin().is_terminal() {
-        print!("{}", render_menu(false, session.view()));
+        print!("{}", render_menu(ColorMode::Plain, session.view()));
         println!("\nInteractive input requires a terminal; no operation performed.");
         return Ok(ExitCode::SUCCESS);
     }
@@ -403,10 +439,14 @@ fn run_with_source(source: &mut impl DisplayReadSource) -> io::Result<ExitCode> 
         if io::stdin().read_line(&mut selection)? == 0 {
             return Ok(ExitCode::SUCCESS);
         }
+        let command = navigate(&selection, &mut selected);
+        if command == Navigation::Exit {
+            return Ok(ExitCode::SUCCESS);
+        }
         let _ = session.refresh(source, std::time::Instant::now());
         session.expire_at(std::time::Instant::now());
-        match navigate(&selection, &mut selected) {
-            Navigation::Exit => return Ok(ExitCode::SUCCESS),
+        match command {
+            Navigation::Exit => unreachable!("exit handled before service refresh"),
             Navigation::Show(page) => {
                 println!("{}\n", render_page(page, colors, session.view()));
             }
@@ -437,8 +477,8 @@ fn main() -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::{
-        navigate, paint, render_menu, render_page, rgb, select_page, status_exit, status_json,
-        status_line, Navigation, Page, PAGES,
+        choose_color_mode, navigate, paint, render_menu, render_page, rgb, select_page,
+        status_exit, status_json, status_line, ColorMode, Navigation, Page, PAGES,
     };
     use sofia_ui_broker::control_center::{
         ControlCenterView, LinkState, PermissionState, SafeState,
@@ -473,6 +513,46 @@ mod tests {
     }
 
     #[test]
+    fn terminal_color_selection_is_bounded_and_honors_plain_and_no_color() {
+        assert_eq!(
+            choose_color_mode(
+                true,
+                false,
+                false,
+                Some("xterm-256color"),
+                Some("truecolor")
+            ),
+            ColorMode::TrueColor
+        );
+        assert_eq!(
+            choose_color_mode(true, false, false, Some("xterm"), None),
+            ColorMode::Ansi16
+        );
+        for (terminal, plain, no_color, term, color) in [
+            (false, false, false, Some("xterm"), Some("truecolor")),
+            (true, true, false, Some("xterm"), Some("truecolor")),
+            (true, false, true, Some("xterm"), Some("truecolor")),
+            (true, false, false, Some("dumb"), Some("truecolor")),
+            (true, false, false, None, Some("truecolor")),
+        ] {
+            assert_eq!(
+                choose_color_mode(terminal, plain, no_color, term, color),
+                ColorMode::Plain
+            );
+        }
+        assert_eq!(
+            choose_color_mode(true, false, false, Some("xterm"), Some("nottruecolor")),
+            ColorMode::Ansi16
+        );
+        let limited = render_menu(ColorMode::Ansi16, &ControlCenterView::offline());
+        assert!(limited.contains("\x1b["));
+        assert!(!limited.contains("38;2;"));
+        let plain = render_menu(ColorMode::Plain, &ControlCenterView::offline());
+        assert!(plain.is_ascii());
+        assert!(!plain.contains('\x1b'));
+    }
+
+    #[test]
     fn theme_imports_exact_shared_manifest() {
         assert_eq!(rgb("primary"), Some((148, 0, 211)));
         assert_eq!(rgb("accent"), Some((0, 194, 255)));
@@ -481,13 +561,17 @@ mod tests {
 
     #[test]
     fn plain_mode_has_no_ansi_or_unsupported_authority_claims() {
-        let menu = render_menu(false, &ControlCenterView::offline());
+        let menu = render_menu(ColorMode::Plain, &ControlCenterView::offline());
         assert!(!menu.contains('\x1b'));
         assert!(menu.contains("UNAVAILABLE"));
         assert!(menu.contains("SOURCE UNVERIFIED"));
         assert!(menu.contains("Settings"));
         assert!(!menu.contains("VERIFIED HEALTHY"));
-        let page = render_page(Page::Settings, false, &ControlCenterView::offline());
+        let page = render_page(
+            Page::Settings,
+            ColorMode::Plain,
+            &ControlCenterView::offline(),
+        );
         assert!(page.contains("UNVERIFIED"));
         assert!(page.contains("No writes"));
         assert!(!page.contains('\x1b'));
@@ -505,7 +589,7 @@ mod tests {
         ] {
             let mut state = ControlCenterView::offline();
             state.link = link;
-            let page = render_page(Page::Modules, false, &state);
+            let page = render_page(Page::Modules, ColorMode::Plain, &state);
             assert!(page.contains(label));
             assert!(page.contains("NOT_CURRENTLY_VERIFIED"));
             assert!(!page.contains('\x1b'));
@@ -519,7 +603,7 @@ mod tests {
         state.platform_generation = Some(7);
         state.safe = SafeState::StopActive;
         state.permission = PermissionState::Denied;
-        let page = render_page(Page::Security, false, &state);
+        let page = render_page(Page::Security, ColorMode::Plain, &state);
         assert!(page.contains("SAFE-STOP: STOP_ACTIVE"));
         assert!(page.contains("PERMISSION: DENIED"));
         assert!(!page.contains('\x1b'));
@@ -536,7 +620,7 @@ mod tests {
             (Page::LibraryHub, "HUB_ROLE: UNKNOWN"),
             (Page::LibraryHistory, "RECEIPTS: NOT_OBSERVED"),
         ] {
-            let text = render_page(page, false, &ControlCenterView::offline());
+            let text = render_page(page, ColorMode::Plain, &ControlCenterView::offline());
             assert!(text.contains(expected));
             assert!(text.contains("SOURCE: UNVERIFIED"));
             assert!(!text.contains('\x1b'));
@@ -567,12 +651,12 @@ mod tests {
         view.safe = SafeState::Clear;
         view.settings_revision = Some(7);
         view.effective_settings_revision = Some(6);
-        let observed = render_page(Page::Settings, false, &view);
+        let observed = render_page(Page::Settings, ColorMode::Plain, &view);
         assert!(observed.contains("PLATFORM GENERATION: 9"));
         assert!(observed.contains("SAVED SETTINGS REVISION: 7"));
         assert!(observed.contains("APPLIED SETTINGS REVISION: 6"));
         view.link = LinkState::Stale;
-        let stale = render_page(Page::Settings, false, &view);
+        let stale = render_page(Page::Settings, ColorMode::Plain, &view);
         assert!(stale.contains("VALUES: UNAVAILABLE"));
         assert!(!stale.contains("PLATFORM GENERATION: 9"));
         assert!(!stale.contains("SETTINGS REVISION: 7"));
@@ -582,12 +666,12 @@ mod tests {
     fn menu_reflects_observation_or_denial_instead_of_hardcoded_offline() {
         let mut view = ControlCenterView::offline();
         view.link = LinkState::Revoked;
-        let denied = render_menu(false, &view);
+        let denied = render_menu(ColorMode::Plain, &view);
         assert!(denied.contains("SERVICE REVOKED"));
         assert!(denied.contains("SOURCE REVOKED"));
         view.link = LinkState::Observed;
         view.platform_generation = Some(9);
-        let live = render_menu(false, &view);
+        let live = render_menu(ColorMode::Plain, &view);
         assert!(live.contains("SERVICE OBSERVED"));
         assert!(live.contains("SOURCE SERVICE_OBSERVED"));
         assert!(!live.contains("SERVICE UNAVAILABLE"));
@@ -646,6 +730,6 @@ mod tests {
         assert_eq!(select_page("9"), Some(Page::LibraryCatalog));
         assert_eq!(select_page("15"), Some(Page::LibraryHistory));
         assert_eq!(select_page("16"), None);
-        assert!(paint("X", "accent", false) == "X");
+        assert!(paint("X", "accent", ColorMode::Plain) == "X");
     }
 }
