@@ -303,6 +303,40 @@ fn read_bounded(pipe: &mut impl Read, deadline: Instant) -> Result<Vec<u8>, Read
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn read_fixture_request(pipe: &mut impl Read, deadline: Instant) -> Option<Vec<u8>> {
+        let mut bytes = Vec::new();
+        while Instant::now() < deadline {
+            let mut chunk = [0_u8; 4096];
+            match pipe.read(&mut chunk) {
+                Ok(0) => {
+                    // A just-connected PIPE_NOWAIT server can transiently report
+                    // zero bytes before the client has dispatched its request.
+                    let _ = pause(deadline);
+                }
+                Ok(count) => {
+                    bytes.extend_from_slice(&chunk[..count]);
+                    if bytes.len() > MAX_MANAGEMENT_RESPONSE_BYTES + 1 {
+                        return None;
+                    }
+                    if bytes.contains(&b'\n') {
+                        if bytes.last() != Some(&b'\n') || bytes[..bytes.len() - 1].contains(&b'\n')
+                        {
+                            return None;
+                        }
+                        bytes.pop();
+                        return Some(bytes);
+                    }
+                }
+                Err(error) if temporarily_empty(&error) => {
+                    let _ = pause(deadline);
+                }
+                Err(_) => return None,
+            }
+        }
+        None
+    }
+
     fn native_fixture(
         outcome: &'static str,
     ) -> (InstalledNativeServicePins, std::thread::JoinHandle<()>) {
@@ -339,11 +373,18 @@ mod tests {
         )
         .unwrap();
         let thread = std::thread::spawn(move || {
-            let pipe = listener.accept().unwrap();
+            let pipe = match listener.accept() {
+                Ok(pipe) => pipe,
+                // A client that rejects the pinned process before dispatch may
+                // close while ConnectNamedPipe is still completing. That is the
+                // expected result of the negative identity cases.
+                Err(error) if error.raw_os_error() == Some(232) => return,
+                Err(error) => panic!("fixture pipe accept failed: {error}"),
+            };
             pipe.set_nonblocking(true).unwrap();
             let deadline = Instant::now() + IO_TIMEOUT;
             let mut io = File::from(pipe.as_handle().try_clone_to_owned().unwrap());
-            if let Ok(body) = read_bounded(&mut io, deadline) {
+            if let Some(body) = read_fixture_request(&mut io, deadline) {
                 let request: serde_json::Value = serde_json::from_slice(&body).unwrap();
                 let mut response = serde_json::json!({
                     "schema": "aegis.platform.management.read-response.v1", "protocol": "1.0",
