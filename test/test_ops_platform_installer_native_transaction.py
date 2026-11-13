@@ -612,3 +612,55 @@ def test_operator_stop_during_service_effect_forces_unknown_outcome(
     assert len(calls) == 1
     journal = scope["store"].path.parent / "native-service-transaction.json"
     assert '"OUTCOME_UNKNOWN"' in journal.read_text()
+
+
+@pytest.mark.parametrize("observation", ("RUNNING", "NOT_RUNNING", "FOREIGN"))
+def test_attended_reconciliation_requires_exact_owned_config_and_fresh_approval(
+        installed_scope, observation):
+    import json
+    from sofia.platform.ops.platform_installer_native_transaction import (
+        native_service_reconciliation_request, reconcile_owner_approved_native_service,
+    )
+    scope = dict(installed_scope)
+    backend, effects = fake_backend(error="interrupted native effect")
+    now = datetime.now(timezone.utc)
+    approval = grant_for_request(scope, id="approval:uncertain-" + observation, now=now)
+    with pytest.raises(RuntimeError, match="interrupted"):
+        apply_owner_approved_native_service(**scope, backend=backend,
+                                           approval_id=approval.approval_id, now=now)
+    journal = scope["store"].path.parent / "native-service-transaction.json"
+    before = journal.read_bytes()
+    def observe(spec):
+        return dict(schema="aegis.native-service-receipt.v1",
+                    origin="OWNED_CONFIG_VERIFIED", fully_healthy=False,
+                    process_id=7182, platform_id=spec.platform_id if observation != "FOREIGN" else "foreign",
+                    release_manifest_sha256=spec.manifest_sha256,
+                    process_state="NOT_RUNNING" if observation == "NOT_RUNNING" else "RUNNING",
+                    service_health="UNKNOWN", core_activated=False)
+    backend.observe = observe
+    args = {k: v for k, v in scope.items() if k != "operation"}
+    args["backend"] = backend
+    if observation != "RUNNING":
+        with pytest.raises(PlatformInstallationDenied):
+            native_service_reconciliation_request(**args)
+        assert journal.read_bytes() == before
+        return
+    request = native_service_reconciliation_request(**args)
+    # The original operation approval cannot authorize a different journal operation.
+    with pytest.raises(PermissionError):
+        reconcile_owner_approved_native_service(**args, approval_id=approval.approval_id, now=now)
+    assert journal.read_bytes() == before
+    fresh = ExecutionApproval(
+        approval_id="approval:reconcile-exact", capability=request["capability"],
+        request_fingerprint=request["fingerprint"], approved_by="person:sparks",
+        approved_at=now-timedelta(seconds=1), expires_at=now+timedelta(minutes=5))
+    record_verified_owner_approval(ExecutionApprovalVerifier(scope["canonical_safe_state"]), fresh)
+    result = reconcile_owner_approved_native_service(**args, approval_id=fresh.approval_id, now=now)
+    after = json.loads(journal.read_bytes())
+    assert after["phase"] == "SERVICE_OBSERVED"
+    assert after["generation"] == json.loads(before)["generation"] + 1
+    assert result["full_health_certified"] is False
+    assert result["native_service_mutated"] is False
+    assert len(effects) == 1
+    with pytest.raises(PlatformInstallationDenied):
+        reconcile_owner_approved_native_service(**args, approval_id=fresh.approval_id, now=now)

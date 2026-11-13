@@ -521,3 +521,106 @@ def apply_owner_approved_native_service(
             # proof. Exact native OS reconciliation required by an operator.
             _record_journal(store, {**base, "phase": "OUTCOME_UNKNOWN"})
             raise
+
+
+def native_service_reconciliation_request(
+    *, store, verifier, expected_target, destination, identity_home,
+    local_state, canonical_safe_state, backend,
+) -> dict[str, object]:
+    """Bind an attended journal repair to signed bytes and owned OS configuration.
+
+    This cannot reconcile removal or missing configuration and conveys no
+    authenticated health, Core activation or external management authority.
+    """
+    if store.pending_attempts():
+        raise PlatformInstallationDenied("pending B1 attempt blocks reconciliation")
+    journal = _load_journal(store)
+    if (journal is None or journal["phase"] not in ("PENDING", "OUTCOME_UNKNOWN")
+            or journal["last_operation"] not in ("register", "repair", "update", "rollback")):
+        raise PlatformInstallationDenied("no supported uncertain native outcome")
+    review = review_native_outcome_for_reconciliation(
+        store=store, verifier=verifier, expected_target=expected_target,
+        destination=destination, identity_home=identity_home,
+        local_state=local_state, backend=backend,
+    )
+    if (review["process_state"] != "RUNNING"
+            or review["native_observation"] != "SIGNED_OS_CONFIG_OBSERVED"):
+        raise PlatformInstallationDenied("exact signed owned configuration not observed")
+    candidate = _spec(store=store, verifier=verifier, expected_target=expected_target,
+                      destination=destination, identity_home=identity_home,
+                      local_state=local_state)
+    checkpoint = store.checkpoint()
+    if (checkpoint is not None and journal["last_operation"] in ("register", "update")
+            and candidate.revision < checkpoint.minimum_accepted_revision):
+        raise PlatformInstallationDenied("reconciliation below B1 signed revision floor")
+    safe = Path(canonical_safe_state).absolute()
+    assert_no_redirected_components(safe, include_leaf=True)
+    params = {
+        "operation": "reconcile_observed_native_outcome",
+        "journal": journal,
+        "candidate": _public_spec(candidate),
+        "destination": str(Path(destination).absolute()),
+        "identity_home": str(Path(identity_home).absolute()),
+        "local_state": str(Path(local_state).absolute()),
+        "canonical_safe_state": str(safe),
+        "b1_generation": 0 if checkpoint is None else checkpoint.generation,
+        "b1_revision_floor": 0 if checkpoint is None else checkpoint.minimum_accepted_revision,
+    }
+    return {"schema": "aegis.native-service-reconciliation-request.v1",
+            "capability": _NATIVE_CAPABILITY, "parameters": params,
+            "fingerprint": execution_fingerprint(_NATIVE_CAPABILITY, params),
+            "owner_approved": False, "executed": False}
+
+
+def reconcile_owner_approved_native_service(
+    *, approval_id: str, store, verifier, expected_target, destination,
+    identity_home, local_state, canonical_safe_state, backend,
+    now: datetime | None = None,
+) -> dict[str, object]:
+    """Clear only an exactly approved uncertain journal, without OS mutation.
+
+    Owned configuration plus current one-use SAFE evidence is required. A
+    running process alone is insufficient. Failed verification preserves the
+    original durable uncertainty fence; replay requires a new approval.
+    """
+    moment = now or datetime.now(timezone.utc)
+    if moment.tzinfo is None or moment.utcoffset() is None:
+        raise ValueError("timezone aware authorization time required")
+    args = dict(store=store, verifier=verifier, expected_target=expected_target,
+                destination=destination, identity_home=identity_home,
+                local_state=local_state, canonical_safe_state=canonical_safe_state,
+                backend=backend)
+    safe = Path(canonical_safe_state).absolute()
+    with StateProcessLock(store.path, resource="aegis-native-install",
+                          lock_directory=Path(store.path).absolute().parent):
+        if OperatorStopStore(safe).current().active:
+            raise PlatformInstallationDenied("STOP blocks native reconciliation")
+        expected = native_service_reconciliation_request(**args)
+        approvals = ExecutionApprovalVerifier(safe)
+        approvals.consume(approval_id=approval_id, capability=expected["capability"],
+                          parameters=expected["parameters"], now=moment)
+        checked = native_service_reconciliation_request(**args)
+        if checked["fingerprint"] != expected["fingerprint"]:
+            raise PlatformInstallationDenied("native reconciliation evidence changed")
+        if (OperatorStopStore(safe).current().active
+                or not approvals.consumed_owner_proof_remains_current(
+                    approval_id=approval_id, capability=expected["capability"],
+                    parameters=expected["parameters"])):
+            raise PlatformInstallationDenied("owner authority changed before reconciliation")
+        journal = expected["parameters"]["journal"]
+        if _load_journal(store) != journal:
+            raise PlatformInstallationDenied("native journal changed before reconciliation commit")
+        receipt = {
+            "schema": "aegis.native-service-reconciliation-receipt.v1",
+            "platform_id": expected["parameters"]["candidate"]["platform_id"],
+            "owner_approval_consumed": True,
+            "journal_reconciled": True, "native_service_mutated": False,
+            "service_health": "UNKNOWN", "full_health_certified": False,
+            "authenticated_platform_ready_verified": False,
+            "core_activated": False, "fleet_enrolled": False,
+        }
+        _record_journal(store, {**journal, "phase": "SERVICE_OBSERVED",
+                              "generation": journal["generation"] + 1,
+                              "current": expected["parameters"]["candidate"],
+                              "last_receipt": receipt})
+        return receipt
