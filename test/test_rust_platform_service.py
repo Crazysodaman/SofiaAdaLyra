@@ -16,6 +16,20 @@ from test.test_platform_service_session import provision
 ROOT = Path(__file__).resolve().parents[1]
 
 
+@pytest.fixture(autouse=True)
+def foreground_service_context(monkeypatch):
+    """Do not inherit the CI runner's own systemd service identity.
+
+    These tests launch an explicit foreground supervisor. A self-hosted or
+    hosted runner may itself be a systemd service, and its children otherwise
+    inherit ``INVOCATION_ID`` without the Aegis unit's ``RUNTIME_DIRECTORY``.
+    The production validator deliberately rejects that malformed installed
+    service context.
+    """
+    monkeypatch.delenv("INVOCATION_ID", raising=False)
+    monkeypatch.delenv("RUNTIME_DIRECTORY", raising=False)
+
+
 @pytest.fixture(scope='module')
 def service_environment(tmp_path_factory, component_wheels):
     home = tmp_path_factory.mktemp('platform-service-venv')

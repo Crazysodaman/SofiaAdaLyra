@@ -11,6 +11,16 @@ publish = false
 default = []
 desktop = ["dep:eframe"]
 
+[[bin]]
+name = "aegis-control-center"
+path = "src/bin/aegis_control_center.rs"
+required-features = ["desktop"]
+
+[[bin]]
+name = "sofia-desktop"
+path = "src/bin/sofia_desktop.rs"
+required-features = ["desktop"]
+
 [dependencies]
 eframe = { version = "=0.31.1", optional = true, default-features = false, features = ["default_fonts", "glow", "x11", "wayland"] }
 chrono = { version = "=0.4.40", default-features = false, features = ["std", "clock"] }

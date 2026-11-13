@@ -78,6 +78,11 @@ jobs:
           python -m sofia.platform.verify.package_selection --repo "$env:GITHUB_WORKSPACE" --marker "${{ matrix.package }}" --receipt "package-selection-${{ matrix.package }}.json"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Build native TUI required by UI binary smoke tests
+        if: matrix.package == 'pkg_ui'
+        shell: pwsh
+        run: cargo build --locked -p sofia-ui-broker --bin aegis_tui
+
       - name: Run package tests
         shell: pwsh
         run: |
