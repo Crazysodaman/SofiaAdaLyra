@@ -279,7 +279,13 @@ fn read_bounded(pipe: &mut impl Read, deadline: Instant) -> Result<Vec<u8>, Read
         }
         let mut chunk = [0_u8; 4096];
         match pipe.read(&mut chunk) {
-            Ok(0) => return Err(ReadFailure::Offline),
+            // A connected byte-mode PIPE_NOWAIT handle can report zero bytes
+            // while the peer is still live but has not produced its response.
+            // Treat it like ERROR_NO_DATA, bounded by the same hard deadline.
+            Ok(0) => {
+                pause(deadline)?;
+                continue;
+            }
             Ok(count) => bytes.extend_from_slice(&chunk[..count]),
             Err(error) if temporarily_empty(&error) => {
                 pause(deadline)?;
@@ -510,20 +516,23 @@ mod tests {
     #[test]
     fn native_no_data_is_temporary_and_does_not_become_false_eof() {
         struct Delayed {
-            first: bool,
+            attempt: u8,
         }
         impl Read for Delayed {
             fn read(&mut self, target: &mut [u8]) -> std::io::Result<usize> {
-                if self.first {
-                    self.first = false;
-                    return Err(std::io::Error::from_raw_os_error(232));
+                let attempt = self.attempt;
+                self.attempt += 1;
+                match attempt {
+                    0 => return Err(std::io::Error::from_raw_os_error(232)),
+                    1 => return Ok(0),
+                    _ => {}
                 }
                 target[..3].copy_from_slice(b"{}\n");
                 Ok(3)
             }
         }
         assert_eq!(
-            read_bounded(&mut Delayed { first: true }, Instant::now() + IO_TIMEOUT).unwrap(),
+            read_bounded(&mut Delayed { attempt: 0 }, Instant::now() + IO_TIMEOUT).unwrap(),
             b"{}"
         );
     }
@@ -535,7 +544,7 @@ mod tests {
             Err(ReadFailure::Unverified)
         );
         assert_eq!(
-            read_bounded(&mut &b"{}"[..], Instant::now() + IO_TIMEOUT),
+            read_bounded(&mut &b"{}"[..], Instant::now() + Duration::from_millis(5)),
             Err(ReadFailure::Offline)
         );
     }
