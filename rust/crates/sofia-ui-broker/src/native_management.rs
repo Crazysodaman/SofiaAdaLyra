@@ -43,7 +43,7 @@ pub mod linux {
     /// currently enrolled B1 installed-service profile. Merely constructing
     /// this value NEVER authenticates an installation or enrolls an operator.
     /// The UI and CLI must not create these from flags, environment or Hub.
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct InstalledNativeServicePins {
         socket_path: PathBuf,
         platform_id: String,
@@ -98,6 +98,45 @@ pub mod linux {
                 service_pid,
             })
         }
+    }
+
+    /// One installer-authority result. The revision is durable publication
+    /// state, not the Platform RUN generation.
+    #[derive(Debug, Clone)]
+    pub struct ResolvedLinuxService {
+        pins: InstalledNativeServicePins,
+        authority_revision: u64,
+    }
+
+    impl ResolvedLinuxService {
+        /// Construct only after verifying the installed release/profile and
+        /// its current revocation state outside the UI process.
+        ///
+        /// # Errors
+        /// A zero or unbounded durable revision is never current authority.
+        pub fn from_verified_installation_authority(
+            pins: InstalledNativeServicePins,
+            authority_revision: u64,
+        ) -> Result<Self, ReadFailure> {
+            if authority_revision == 0 || authority_revision > MAX_GENERATION {
+                return Err(ReadFailure::Unverified);
+            }
+            Ok(Self {
+                pins,
+                authority_revision,
+            })
+        }
+    }
+
+    /// Adapter over independently verified installed-service authority.
+    /// Implementations must recheck publisher/release revocation on every
+    /// call. GUI flags, environment and Hub metadata are not authority.
+    pub trait LinuxInstalledServiceResolver {
+        /// Resolve one current installed service profile.
+        ///
+        /// # Errors
+        /// Missing, stale, revoked or corrupt authority must fail closed.
+        fn resolve_current(&self) -> Result<ResolvedLinuxService, ReadFailure>;
     }
 
     /// One new request per call, bounded native IO and exact shared v1 parser.
@@ -219,6 +258,62 @@ pub mod linux {
     impl DisplayReadSource for NativeLinuxManagementReader {
         fn next(&mut self) -> Result<DisplaySnapshot, ReadFailure> {
             self.status()
+        }
+    }
+
+    /// Shared authenticated management client for Linux native interfaces.
+    /// Resolver rollback is rejected, restarts require a newer verified
+    /// publication, and authority is rechecked before status is released.
+    pub struct AuthenticatedLinuxManagementClient<R: LinuxInstalledServiceResolver> {
+        resolver: R,
+        authority_revision: u64,
+        pins: InstalledNativeServicePins,
+        reader: NativeLinuxManagementReader,
+    }
+
+    impl<R: LinuxInstalledServiceResolver> AuthenticatedLinuxManagementClient<R> {
+        /// Resolve initial current installation authority.
+        ///
+        /// # Errors
+        /// Unavailable resolver evidence is never cached as healthy.
+        pub fn new(resolver: R) -> Result<Self, ReadFailure> {
+            let current = resolver.resolve_current()?;
+            Ok(Self {
+                authority_revision: current.authority_revision,
+                pins: current.pins.clone(),
+                reader: NativeLinuxManagementReader::new(current.pins),
+                resolver,
+            })
+        }
+
+        fn refresh_authority(&mut self) -> Result<(), ReadFailure> {
+            let current = self.resolver.resolve_current()?;
+            if current.authority_revision < self.authority_revision
+                || (current.authority_revision == self.authority_revision
+                    && current.pins != self.pins)
+            {
+                return Err(ReadFailure::Unverified);
+            }
+            if current.authority_revision > self.authority_revision {
+                self.authority_revision = current.authority_revision;
+                self.pins = current.pins.clone();
+                self.reader = NativeLinuxManagementReader::new(current.pins);
+            }
+            Ok(())
+        }
+    }
+
+    impl<R: LinuxInstalledServiceResolver> DisplayReadSource for AuthenticatedLinuxManagementClient<R> {
+        fn next(&mut self) -> Result<DisplaySnapshot, ReadFailure> {
+            self.refresh_authority()?;
+            let dispatched_revision = self.authority_revision;
+            let dispatched_pins = self.pins.clone();
+            let result = self.reader.next();
+            let after = self.resolver.resolve_current()?;
+            if after.authority_revision != dispatched_revision || after.pins != dispatched_pins {
+                return Err(ReadFailure::Unverified);
+            }
+            result
         }
     }
 
@@ -635,9 +730,30 @@ pub mod linux {
     #[cfg(test)]
     mod tests {
         use super::*;
+        use std::cell::RefCell;
+        use std::collections::VecDeque;
         use std::io::{BufRead, BufReader, Write};
         use std::os::unix::net::UnixListener;
         use std::thread;
+
+        struct SequenceResolver {
+            values: RefCell<VecDeque<Result<ResolvedLinuxService, ReadFailure>>>,
+        }
+        impl SequenceResolver {
+            fn new(values: Vec<Result<ResolvedLinuxService, ReadFailure>>) -> Self {
+                Self {
+                    values: RefCell::new(values.into()),
+                }
+            }
+        }
+        impl LinuxInstalledServiceResolver for SequenceResolver {
+            fn resolve_current(&self) -> Result<ResolvedLinuxService, ReadFailure> {
+                self.values
+                    .borrow_mut()
+                    .pop_front()
+                    .unwrap_or(Err(ReadFailure::Unverified))
+            }
+        }
 
         #[test]
         fn external_operator_group_requires_exact_live_service_pid() {
@@ -1095,6 +1211,49 @@ pub mod linux {
             assert_eq!(snapshot.permission, PermissionState::Unknown);
             assert_eq!(snapshot.installation, InstallationState::Unknown);
             assert!(!snapshot.removal_receipt_verified);
+            thread.join().unwrap();
+        }
+
+        #[test]
+        fn authenticated_client_rechecks_same_authority_before_response_release() {
+            let (_home, pins, thread) = fake_service("OK");
+            let current =
+                ResolvedLinuxService::from_verified_installation_authority(pins, 7).unwrap();
+            let resolver =
+                SequenceResolver::new(vec![Ok(current.clone()), Ok(current.clone()), Ok(current)]);
+            let mut client = AuthenticatedLinuxManagementClient::new(resolver).unwrap();
+            assert_eq!(client.next().unwrap().platform_id, "platform:alpha");
+            thread.join().unwrap();
+        }
+
+        #[test]
+        fn authenticated_client_adopts_restart_only_from_newer_publication() {
+            let (home, pins, thread) = fake_service("OK");
+            let mut old = pins.clone();
+            old.socket_path = home.path().join("retired.sock");
+            old.generation = 2;
+            let retired =
+                ResolvedLinuxService::from_verified_installation_authority(old, 6).unwrap();
+            let current =
+                ResolvedLinuxService::from_verified_installation_authority(pins, 7).unwrap();
+            let resolver =
+                SequenceResolver::new(vec![Ok(retired), Ok(current.clone()), Ok(current)]);
+            let mut client = AuthenticatedLinuxManagementClient::new(resolver).unwrap();
+            assert_eq!(client.next().unwrap().generation, 3);
+            thread.join().unwrap();
+        }
+
+        #[test]
+        fn resolver_change_during_dispatch_never_releases_status() {
+            let (_home, pins, thread) = fake_service("OK");
+            let current =
+                ResolvedLinuxService::from_verified_installation_authority(pins.clone(), 7)
+                    .unwrap();
+            let newer =
+                ResolvedLinuxService::from_verified_installation_authority(pins, 8).unwrap();
+            let resolver = SequenceResolver::new(vec![Ok(current.clone()), Ok(current), Ok(newer)]);
+            let mut client = AuthenticatedLinuxManagementClient::new(resolver).unwrap();
+            assert_eq!(client.next().err(), Some(ReadFailure::Unverified));
             thread.join().unwrap();
         }
 
