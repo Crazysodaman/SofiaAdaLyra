@@ -275,9 +275,8 @@ def test_d028_peer_requires_actual_mutually_authenticated_tls_not_a_fake_identit
     from uuid import uuid4
 
     from sofia.platform.config.roles import PlatformRole, PlatformRoleConfiguration
-    from sofia.platform.run.library_peer_gate import admit_owner_enrolled_library_chunk
-    from sofia.platform.safe.permissions import PermissionStore, capability_permission_policy
-    from sofia.platform.safe.operator_stop import OperatorStopStore
+    from sofia.platform.run import library_peer_gate
+    from sofia.platform.safe.permissions import capability_permission_policy
     from sofia.platform.state.local_store import PlatformLocalStore
 
     tmp_path.chmod(0o700)
@@ -288,8 +287,11 @@ def test_d028_peer_requires_actual_mutually_authenticated_tls_not_a_fake_identit
         roles=PlatformRoleConfiguration((PlatformRole.MODULE_HOST,)),
         host_identity=host,
     )
-    permissions = PermissionStore(state)
-    stop = OperatorStopStore(state)
+    # Some installed-component verification tests deliberately reload namespace
+    # modules. Construct the authority objects from the already-loaded gate so
+    # this denial test exercises its exact canonical class identities.
+    permissions = library_peer_gate.PermissionStore(state)
+    stop = library_peer_gate.OperatorStopStore(state)
     # Scoped peer reads are owner-authenticated standing capabilities; the
     # exact scope, short expiry and fake-TLS denial below remain mandatory.
     assert capability_permission_policy("library.peer.fetch").standing_grant_allowed is True
@@ -308,15 +310,19 @@ def test_d028_peer_requires_actual_mutually_authenticated_tls_not_a_fake_identit
         total_bytes=4096,
     )
     with pytest.raises(PermissionError, match="real OS TLS"):
-        admit_owner_enrolled_library_chunk(**arguments)
+        library_peer_gate.admit_owner_enrolled_library_chunk(**arguments)
     with pytest.raises(ValueError, match="out of declared bounds"):
-        admit_owner_enrolled_library_chunk(**{**arguments, "offset": 1000})
+        library_peer_gate.admit_owner_enrolled_library_chunk(
+            **{**arguments, "offset": 1000}
+        )
     with pytest.raises(ValueError, match="signed pinned digest"):
-        admit_owner_enrolled_library_chunk(
+        library_peer_gate.admit_owner_enrolled_library_chunk(
             **{**arguments, "content_digest": "signed-by-hub-only"}
         )
     with pytest.raises(ValueError, match="declared bounds"):
-        admit_owner_enrolled_library_chunk(**{**arguments, "length": 10 * 1024 * 1024})
+        library_peer_gate.admit_owner_enrolled_library_chunk(
+            **{**arguments, "length": 10 * 1024 * 1024}
+        )
 
 
 
