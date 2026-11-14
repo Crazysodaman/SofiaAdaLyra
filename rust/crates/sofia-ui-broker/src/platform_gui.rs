@@ -1,5 +1,6 @@
 //! Rust desktop presentation. No enrollment, permission engine or state writer.
 use eframe::egui;
+use sofia_ui_broker::control_center::{ActionHint, ControlCenterView, ProposedAction};
 use sofia_ui_broker::control_center_session::{DisplayReadSource, DisplaySession, OfflineReader};
 use std::time::{Duration, Instant};
 
@@ -106,6 +107,40 @@ const PAGES: &[&str] = &[
     "Diagnostics",
 ];
 
+fn proposed_action(page: usize) -> ProposedAction {
+    match page {
+        2 => ProposedAction::RestartCore,
+        3 => ProposedAction::InstallModule,
+        7 => ProposedAction::RequestApproval,
+        8 => ProposedAction::UpdatePlatform,
+        10 => ProposedAction::SaveSettings,
+        _ => ProposedAction::Inspect,
+    }
+}
+
+fn action_label(page: usize) -> &'static str {
+    match page {
+        2 => "Restart selected Core",
+        3 => "Install selected module",
+        7 => "Request owner approval",
+        8 => "Update Platform",
+        10 => "Save Platform settings",
+        _ => "Inspect current state",
+    }
+}
+
+fn action_status(page: usize, view: &ControlCenterView) -> String {
+    match view.action_hint(proposed_action(page)) {
+        ActionHint::Blocked(reason) => format!("BLOCKED · {reason}"),
+        ActionHint::ReadOnly => "READ ONLY · CURRENT OBSERVATION AVAILABLE".to_owned(),
+        ActionHint::RecheckWithService => format!(
+            "SERVICE RECHECK REQUIRED · PREVIEW + EXPLICIT TARGET + GENERATION {} + RECEIPT",
+            view.platform_generation
+                .map_or_else(|| "UNKNOWN".to_owned(), |value| value.to_string())
+        ),
+    }
+}
+
 pub struct PlatformApp<S: DisplayReadSource> {
     status: DesktopStatus<S>,
     page: usize,
@@ -136,6 +171,9 @@ impl<S: DisplayReadSource> PlatformApp<S> {
                 ui.checkbox(&mut self.large_text, "Larger text");
                 ui.checkbox(&mut self.compact, "Compact spacing");
                 ui.label("Platform settings require canonical authenticated settings IPC; no local configuration is written.");
+                ui.separator();
+                ui.add_enabled(false, egui::Button::new(action_label(self.page)));
+                ui.monospace(action_status(self.page, self.status.session.view()));
             }
             11 => {
                 ui.label(
@@ -161,8 +199,11 @@ impl<S: DisplayReadSource> PlatformApp<S> {
                 ui.label(explanation);
                 ui.separator();
                 self.status.draw(ui);
-                ui.add_enabled(false, egui::Button::new("Protected operation unavailable"));
-                ui.label("A verified installed-service source and operation-specific contract must be connected first.");
+                let view = self.status.session.view();
+                let status = action_status(self.page, view);
+                ui.add_enabled(false, egui::Button::new(action_label(self.page)));
+                ui.monospace(status);
+                ui.label("Buttons never grant authority. Protected execution requires a fresh canonical service decision and a verified operation receipt.");
             }
         }
     }
@@ -279,6 +320,50 @@ mod tests {
             let _ = context.run(egui::RawInput::default(), |ctx| {
                 egui::CentralPanel::default().show(ctx, |ui| app.body(ui));
             });
+        }
+    }
+
+    #[test]
+    fn page_actions_explain_exact_authority_blockers() {
+        let offline = ControlCenterView::offline();
+        assert_eq!(action_status(2, &offline), "BLOCKED · PLATFORM_OFFLINE");
+        assert_eq!(action_status(4, &offline), "BLOCKED · PLATFORM_OFFLINE");
+
+        let mut current = ControlCenterView::offline();
+        current.link = sofia_ui_broker::control_center::LinkState::Observed;
+        current.safe = SafeState::Clear;
+        current.permission = PermissionState::MayRequest;
+        current.platform_generation = Some(14);
+        current.installation = InstallationState::Absent;
+        assert_eq!(
+            action_status(2, &current),
+            "SERVICE RECHECK REQUIRED · PREVIEW + EXPLICIT TARGET + GENERATION 14 + RECEIPT"
+        );
+        assert_eq!(
+            action_status(4, &current),
+            "READ ONLY · CURRENT OBSERVATION AVAILABLE"
+        );
+
+        current.safe = SafeState::StopActive;
+        assert_eq!(action_status(8, &current), "BLOCKED · SAFE_STOP_ACTIVE");
+        current.safe = SafeState::Clear;
+        current.permission = PermissionState::Denied;
+        assert_eq!(action_status(7, &current), "BLOCKED · PERMISSION_DENIED");
+    }
+
+    #[test]
+    fn every_page_maps_to_a_bounded_existing_action_contract() {
+        for page in 0..PAGES.len() {
+            assert!(!action_label(page).is_empty());
+            assert!(matches!(
+                proposed_action(page),
+                ProposedAction::Inspect
+                    | ProposedAction::RestartCore
+                    | ProposedAction::InstallModule
+                    | ProposedAction::RequestApproval
+                    | ProposedAction::UpdatePlatform
+                    | ProposedAction::SaveSettings
+            ));
         }
     }
 }
