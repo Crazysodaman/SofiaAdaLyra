@@ -2,7 +2,9 @@
 use chrono::Utc;
 use reqwest::Url;
 use sofia_core_link::{
-    platform_authority::{PlatformStatusClient, PlatformStatusConfiguration},
+    platform_authority::{
+        PlatformConversationClient, PlatformStatusClient, PlatformStatusConfiguration,
+    },
     Error, TlsCredentials,
 };
 use std::{
@@ -15,7 +17,11 @@ use std::{
 
 fn run() -> Result<(), Error> {
     let args: Vec<String> = env::args().collect();
-    if !matches!(args.len(), 10 | 11) || (args.len() == 11 && args[10] != "revocation-cycle") {
+    if !matches!(args.len(), 10 | 11 | 12 | 14)
+        || (args.len() == 11 && args[10] != "revocation-cycle")
+        || (args.len() == 12 && args[10] != "conversation-history")
+        || (args.len() == 14 && args[10] != "conversation-cycle")
+    {
         return Err(Error::Contract("invalid status probe arguments"));
     }
     let config = PlatformStatusConfiguration {
@@ -27,7 +33,7 @@ fn run() -> Result<(), Error> {
         endpoint: Url::parse(&args[6]).map_err(|_| Error::Malformed)?,
         timeout: Duration::from_secs(3),
     };
-    let client = PlatformStatusClient::new(config, |reference| {
+    let resolve = |reference: &str| {
         if reference != args[5] {
             return Err(Error::BindingMismatch);
         }
@@ -40,7 +46,53 @@ fn run() -> Result<(), Error> {
             ca_pem: fs::read(&args[7]).map_err(|_| Error::Contract("fixture CA unavailable"))?,
             client_identity_pem: identity,
         })
-    })?;
+    };
+    if matches!(args.len(), 12 | 14) {
+        let client = PlatformConversationClient::new(config, resolve)?;
+        if args.len() == 12 {
+            let history = client.history(&args[11], None, 100, Utc::now())?;
+            let messages = history
+                .payload
+                .get("messages")
+                .and_then(serde_json::Value::as_array)
+                .ok_or(Error::Malformed)?;
+            println!(
+                "{}",
+                serde_json::json!({
+                    "operation":"conversation-history",
+                    "history_status":history.status,
+                    "messages":messages.len(),
+                })
+            );
+            return Ok(());
+        }
+        let created = client.create(&args[11], Utc::now())?;
+        let session_id = created
+            .payload
+            .get("session_id")
+            .and_then(serde_json::Value::as_str)
+            .ok_or(Error::Malformed)?;
+        let sent = client.send(&args[12], session_id, &args[13], None, Utc::now())?;
+        let history = client.history(session_id, None, 100, Utc::now())?;
+        let messages = history
+            .payload
+            .get("messages")
+            .and_then(serde_json::Value::as_array)
+            .ok_or(Error::Malformed)?;
+        println!(
+            "{}",
+            serde_json::json!({
+                "operation":"conversation-cycle",
+                "create_status":created.status,
+                "send_status":sent.status,
+                "history_status":history.status,
+                "messages":messages.len(),
+                "session_id":session_id,
+            })
+        );
+        return Ok(());
+    }
+    let client = PlatformStatusClient::new(config, resolve)?;
     let result = client.status(Utc::now())?;
     println!(
         "{}",

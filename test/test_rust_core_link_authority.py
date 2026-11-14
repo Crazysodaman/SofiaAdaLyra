@@ -1,4 +1,5 @@
 """Real mTLS dispatch through installed Core-free canonical Platform authority."""
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 import json
 import os
@@ -128,3 +129,109 @@ def test_installed_authority_fences_real_rust_dispatch(tmp_path, authority_probe
     finally:
         server.close()
         thread.join(timeout=3)
+
+
+def test_rust_conversation_restarts_and_reads_canonical_core_history(
+        tmp_path, authority_probe, production_venv):
+    """Two Rust processes use one enrolled Core and its canonical history."""
+    from sofia.platform.application import SofiaApplication
+    from sofia.platform.core_link import CoreLinkClientAccessStore, CoreLinkConversationGateway
+    from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
+    from test.test_core_link_conversation import access, authorize, configuration
+
+    state = tmp_path / 'sofia.db'
+    bootstrap_canonical_sqlite(state)
+    ca, (server_cert, server_key), (client_cert, client_key) = tls_material(tmp_path)
+    server_pin = public_key_fingerprint_from_pem_certificate(server_cert)
+    client_pin = public_key_fingerprint_from_pem_certificate(client_cert)
+    scopes = (
+        'conversation.create', 'conversation.select', 'conversation.send',
+        'conversation.history', 'conversation.result',
+    )
+    registry, selected = active_store(tmp_path, server_pin, scopes)
+    selected_binding = selected.selected()
+
+    application = SofiaApplication(configuration(tmp_path))
+    application.start()
+    gateway = None
+    server = None
+    thread = None
+    try:
+        host_access = replace(
+            access(),
+            certificate_public_key_sha256=client_pin,
+            local_platform_id=selected_binding.local_platform_id,
+            remote_platform_id=selected_binding.remote_platform_id,
+            remote_core_identity_id=selected_binding.remote_core_identity_id,
+            remote_core_generation=selected_binding.remote_core_generation,
+        )
+        access_store = CoreLinkClientAccessStore(state)
+        approval_id = authorize(
+            state, capability='core-link.enroll',
+            parameters=host_access.parameters(),
+        )
+        access_store.enroll(
+            host_access, approval_id=approval_id, now=host_access.enrolled_at,
+        )
+        gateway = CoreLinkConversationGateway(
+            application, access_store=access_store,
+            remote_platform_id=selected_binding.remote_platform_id,
+            remote_core_identity_id=selected_binding.remote_core_identity_id,
+            generation_provider=lambda: selected_binding.remote_core_generation,
+            clock=lambda: datetime.now(timezone.utc),
+        )
+        server = CoreLinkServer(
+            CoreLinkServerConfiguration(
+                '127.0.0.1', 0, server_cert, server_key, ca,
+                socket_timeout_seconds=20,
+            ),
+            gateway,
+        )
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        base = [
+            str(authority_probe), str(production_venv['python']), str(registry.path),
+            str(selected.revision), selected_binding.endpoint_id,
+            selected_binding.credential_ref,
+            f'https://localhost:{server.address[1]}/v1/core-link',
+            str(ca), str(client_cert), str(client_key),
+        ]
+        first = subprocess.run(
+            base + ['conversation-cycle', 'session:rust-restart',
+                    'turn:rust-restart', 'Authenticated desktop continuity'],
+            cwd=production_venv['venv_root'], capture_output=True, text=True,
+            timeout=30,
+        )
+        assert first.returncode == 0, first.stderr
+        created = json.loads(first.stdout)
+        assert created['operation'] == 'conversation-cycle'
+        assert created['create_status'] == created['send_status'] == 'completed'
+        assert created['history_status'] == 'completed'
+        assert created['messages'] == 2
+
+        # A separate Rust process represents a restarted desktop. It receives
+        # no response cache or local database, only current Platform authority
+        # and the previously issued opaque session identifier.
+        restarted = subprocess.run(
+            base + ['conversation-history', created['session_id']],
+            cwd=production_venv['venv_root'], capture_output=True, text=True,
+            timeout=30,
+        )
+        assert restarted.returncode == 0, restarted.stderr
+        recovered = json.loads(restarted.stdout)
+        assert recovered == {
+            'operation': 'conversation-history',
+            'history_status': 'completed',
+            'messages': 2,
+        }
+        assert state.is_file()
+        assert list(tmp_path.rglob('*.db')) == [state]
+        assert 'Authenticated desktop continuity' not in first.stderr + restarted.stderr
+    finally:
+        if server is not None:
+            server.close()
+        if thread is not None:
+            thread.join(timeout=3)
+        if gateway is not None:
+            gateway.close()
+        application.shutdown()

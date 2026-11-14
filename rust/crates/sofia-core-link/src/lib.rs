@@ -192,6 +192,111 @@ impl Request {
         ))
     }
 
+    /// Builds an idempotent request for a new canonical conversation session.
+    ///
+    /// # Errors
+    /// Returns an error when the request or idempotency identifier is invalid.
+    pub fn create(
+        binding: &EnrolledBinding,
+        request_id: &str,
+        idempotency_key: &str,
+        now: DateTime<Utc>,
+    ) -> Result<Self, Error> {
+        if !valid_id(request_id) || !valid_id(idempotency_key) {
+            return Err(Error::Contract("invalid conversation create identifiers"));
+        }
+        Ok(Self::new(
+            binding,
+            request_id,
+            idempotency_key,
+            "conversation.create",
+            Value::Object(Map::new()),
+            now,
+        ))
+    }
+
+    /// Builds a request to select an existing authorized conversation.
+    ///
+    /// # Errors
+    /// Returns an error when the request or session identifier is invalid.
+    pub fn select(
+        binding: &EnrolledBinding,
+        request_id: &str,
+        session_id: &str,
+        now: DateTime<Utc>,
+    ) -> Result<Self, Error> {
+        if !valid_id(request_id) || !valid_id(session_id) {
+            return Err(Error::Contract("invalid conversation selection"));
+        }
+        Ok(Self::new(
+            binding,
+            request_id,
+            request_id,
+            "conversation.select",
+            serde_json::json!({"session_id": session_id}),
+            now,
+        ))
+    }
+
+    /// Builds a bounded, idempotent canonical conversation turn request.
+    ///
+    /// # Errors
+    /// Returns an error for invalid identifiers, empty content, or content
+    /// exceeding the Python Core Link contract's 12,000-character limit.
+    pub fn send(
+        binding: &EnrolledBinding,
+        request_id: &str,
+        idempotency_key: &str,
+        session_id: &str,
+        content: &str,
+        client_created_at: Option<DateTime<Utc>>,
+        now: DateTime<Utc>,
+    ) -> Result<Self, Error> {
+        if !valid_id(request_id)
+            || !valid_id(idempotency_key)
+            || !valid_id(session_id)
+            || content.trim().is_empty()
+            || content.chars().count() > 12_000
+        {
+            return Err(Error::Contract("invalid conversation turn"));
+        }
+        Ok(Self::new(
+            binding,
+            request_id,
+            idempotency_key,
+            "conversation.send",
+            serde_json::json!({
+                "session_id": session_id,
+                "content": content,
+                "client_created_at": client_created_at.map(|value| value.to_rfc3339()),
+            }),
+            now,
+        ))
+    }
+
+    /// Builds an idempotency reconciliation query for an uncertain turn.
+    ///
+    /// # Errors
+    /// Returns an error when either correlation identifier is invalid.
+    pub fn result(
+        binding: &EnrolledBinding,
+        request_id: &str,
+        target_idempotency_key: &str,
+        now: DateTime<Utc>,
+    ) -> Result<Self, Error> {
+        if !valid_id(request_id) || !valid_id(target_idempotency_key) {
+            return Err(Error::Contract("invalid conversation result identifiers"));
+        }
+        Ok(Self::new(
+            binding,
+            request_id,
+            request_id,
+            "conversation.result",
+            serde_json::json!({"idempotency_key": target_idempotency_key}),
+            now,
+        ))
+    }
+
     fn new(
         binding: &EnrolledBinding,
         request_id: &str,
@@ -233,8 +338,16 @@ impl Request {
         if self.remote_core_generation == 0 {
             return Err(Error::Contract("generation must be positive"));
         }
-        if !matches!(self.operation.as_str(), "status" | "conversation.history") {
-            return Err(Error::Contract("operation is not read-only"));
+        if !matches!(
+            self.operation.as_str(),
+            "status"
+                | "conversation.create"
+                | "conversation.select"
+                | "conversation.send"
+                | "conversation.history"
+                | "conversation.result"
+        ) {
+            return Err(Error::Contract("operation is not supported"));
         }
         if !self.payload.is_object() || canonical_size(&self.payload)? > MAX_PAYLOAD_BYTES {
             return Err(Error::Contract(
@@ -774,7 +887,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_mutation_and_malformed_response() {
+    fn rejects_unsupported_operation_and_malformed_response() {
         let now = Utc::now();
         let binding = EnrolledBinding {
             active: true,
@@ -787,9 +900,72 @@ mod tests {
             trust_anchor_sha256: "0".repeat(64),
         };
         let mut request = Request::status(&binding, "req:1", now);
-        request.operation = "conversation.send".into();
+        request.operation = "settings.update".into();
         assert!(request.to_value().is_err());
         assert!(parse_response(br#"{"schema":"wrong"}"#).is_err());
+    }
+    #[test]
+    fn conversation_turns_match_python_payload_and_remain_authority_free() {
+        let now = Utc::now();
+        let binding = EnrolledBinding {
+            active: true,
+            local_platform_id: "platform:windows".into(),
+            remote_platform_id: "platform:canonical".into(),
+            remote_core_identity_id: "core:sofia".into(),
+            remote_core_generation: 7,
+            endpoint: Url::parse("https://localhost/v1/core-link").unwrap(),
+            protocol: PROTOCOL.into(),
+            trust_anchor_sha256: "0".repeat(64),
+        };
+        let created = Request::create(&binding, "request:create", "create:stable", now)
+            .unwrap()
+            .to_value()
+            .unwrap();
+        assert_eq!(created["operation"], "conversation.create");
+        assert_eq!(created["payload"], serde_json::json!({}));
+        let sent = Request::send(
+            &binding,
+            "request:send",
+            "turn:stable",
+            "session:one",
+            "private synthetic turn",
+            Some(now),
+            now,
+        )
+        .unwrap()
+        .to_value()
+        .unwrap();
+        assert_eq!(sent["operation"], "conversation.send");
+        assert_eq!(sent["payload"]["session_id"], "session:one");
+        assert_eq!(sent["payload"]["content"], "private synthetic turn");
+        for forbidden in ["principal", "audience", "credential", "grant"] {
+            assert!(sent.get(forbidden).is_none());
+        }
+        assert!(Request::send(
+            &binding,
+            "request:send",
+            "turn:stable",
+            "session:one",
+            " ",
+            None,
+            now,
+        )
+        .is_err());
+        assert!(Request::send(
+            &binding,
+            "request:send",
+            "turn:stable",
+            "session:one",
+            &"x".repeat(12_001),
+            None,
+            now,
+        )
+        .is_err());
+        let result = Request::result(&binding, "request:result", "turn:stable", now)
+            .unwrap()
+            .to_value()
+            .unwrap();
+        assert_eq!(result["payload"]["idempotency_key"], "turn:stable");
     }
     #[test]
     fn history_is_exact_and_authority_free() {

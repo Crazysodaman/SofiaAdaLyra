@@ -70,6 +70,36 @@ def test_status_scope_is_required(tmp_path):
     assert status_admission(registry, request_id=NONCE)['admission'] == 'denied'
 
 
+def test_conversation_admission_requires_every_exact_current_scope(tmp_path):
+    required = (
+        'conversation.create', 'conversation.select', 'conversation.send',
+        'conversation.history', 'conversation.result',
+    )
+    registry = store(tmp_path)
+    original = binding(granted_scopes=required)
+    registry.add_pending(original, expected_store_revision=0)
+    registry.transition(original.binding_id, expected_binding_revision=1,
+        expected_store_revision=1, state=CoreLinkBindingState.VERIFYING,
+        at=NOW+timedelta(seconds=1))
+    current = registry.reconcile_contact(original.binding_id, expected_binding_revision=2,
+        expected_store_revision=2, remote_platform_id=original.remote_platform_id,
+        remote_core_identity_id=original.remote_core_identity_id,
+        remote_core_generation=original.remote_core_generation,
+        endpoint_id=original.endpoint_id, trust_anchor_ref=original.trust_anchor_ref,
+        at=NOW+timedelta(seconds=2))
+    registry.select(original.binding_id, expected_store_revision=current.revision)
+    assert status_admission(
+        registry, request_id=NONCE, required_scopes=required,
+    )['admission'] == 'allowed'
+    assert status_admission(
+        registry, request_id=NONCE,
+        required_scopes=required + ('status.read',),
+    )['admission'] == 'denied'
+    for invalid in ((), ('conversation.send', 'conversation.send'), ('owner.grant',)):
+        with pytest.raises(ValueError, match='scopes'):
+            status_admission(registry, request_id=NONCE, required_scopes=invalid)
+
+
 def test_cli_output_is_correlated_and_corruption_is_not_cached(tmp_path, capsys):
     registry, _ = selected_store(tmp_path)
     args = ['--store',str(registry.path),'--request-id',NONCE]

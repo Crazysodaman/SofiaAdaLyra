@@ -3,7 +3,8 @@
 //! never renderer or model input. No binding or credential store is created.
 use super::{
     AuthorizedCoreLinkClient, BindingAuthority, CurrentEnrollment, EnrolledBinding,
-    EnrollmentIdentity, Error, Request, Response, StrictValueVisitor, TlsCredentials, PROTOCOL,
+    EnrollmentIdentity, Error, HistoryCursor, Request, Response, StrictValueVisitor,
+    TlsCredentials, PROTOCOL,
 };
 use chrono::{DateTime, Utc};
 use reqwest::Url;
@@ -62,6 +63,7 @@ fn query(
     expected: Option<&EnrollmentIdentity>,
     minimum: u64,
     request_id: &str,
+    required_scopes: &[String],
 ) -> Result<Vec<u8>, Error> {
     let mut command = Command::new(&config.python);
     command
@@ -79,6 +81,9 @@ fn query(
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null());
+    for scope in required_scopes {
+        command.arg("--required-scope").arg(scope);
+    }
     if let Some(identity) = expected {
         command
             .arg("--binding-id")
@@ -186,6 +191,7 @@ struct StatusAuthority {
     config: PlatformStatusConfiguration,
     expected: Option<EnrollmentIdentity>,
     highest: AtomicU64,
+    required_scopes: Vec<String>,
 }
 impl StatusAuthority {
     fn read(&self) -> Result<(CurrentEnrollment, String), Error> {
@@ -195,6 +201,7 @@ impl StatusAuthority {
             self.expected.as_ref(),
             self.highest.load(Ordering::SeqCst),
             &request_id,
+            &self.required_scopes,
         )?;
         let value = reply_value(&bytes, &request_id)?;
         let revision = number(&value, "store_revision")?;
@@ -235,11 +242,14 @@ impl StatusAuthority {
             || text(row, "protocol_version")? != "1.0"
             || text(row, "endpoint_id")? != self.config.endpoint_id
             || text(row, "credential_ref")? != self.config.credential_ref
-            || !row["granted_scopes"]
-                .as_array()
-                .ok_or(Error::Malformed)?
-                .iter()
-                .any(|v| v.as_str() == Some("status.read"))
+        {
+            return Err(Error::BindingMismatch);
+        }
+        let scopes = row["granted_scopes"].as_array().ok_or(Error::Malformed)?;
+        if self
+            .required_scopes
+            .iter()
+            .any(|scope| !scopes.iter().any(|value| value.as_str() == Some(scope)))
         {
             return Err(Error::BindingMismatch);
         }
@@ -322,6 +332,7 @@ impl PlatformStatusClient {
             highest: AtomicU64::new(config.minimum_store_revision),
             config,
             expected: None,
+            required_scopes: vec!["status.read".into()],
         };
         let (current, credential_ref) = authority.read()?;
         let credentials = resolve_credentials(&credential_ref)?;
@@ -351,6 +362,148 @@ impl PlatformStatusClient {
             return Err(Error::RevokedBinding);
         }
         Ok(response)
+    }
+}
+
+/// Production conversation client. The canonical Platform binding owner is
+/// re-read before dispatch and again before any private response is released.
+/// It cannot enroll, select a binding, launch a Core, or write Core state.
+pub struct PlatformConversationClient {
+    authority: StatusAuthority,
+    client: AuthorizedCoreLinkClient,
+    binding: EnrolledBinding,
+}
+
+impl PlatformConversationClient {
+    /// Resolve a currently selected binding with every scope required for a
+    /// complete desktop chat and history recovery session.
+    ///
+    /// # Errors
+    /// Rejects invalid configuration, missing scopes, stale/revoked selection,
+    /// or invalid mTLS credentials.
+    pub fn new(
+        config: PlatformStatusConfiguration,
+        resolve_credentials: impl FnOnce(&str) -> Result<TlsCredentials, Error>,
+    ) -> Result<Self, Error> {
+        if !config.python.is_absolute()
+            || !config.python.is_file()
+            || !config.binding_store.is_absolute()
+            || config.minimum_store_revision == 0
+            || config.timeout < Duration::from_millis(50)
+            || config.timeout > Duration::from_secs(10)
+            || !super::valid_id(&config.endpoint_id)
+        {
+            return Err(Error::Contract(
+                "trusted absolute Platform authority configuration required",
+            ));
+        }
+        let mut authority = StatusAuthority {
+            highest: AtomicU64::new(config.minimum_store_revision),
+            config,
+            expected: None,
+            required_scopes: [
+                "conversation.create",
+                "conversation.select",
+                "conversation.send",
+                "conversation.history",
+                "conversation.result",
+            ]
+            .map(str::to_owned)
+            .to_vec(),
+        };
+        let (current, credential_ref) = authority.read()?;
+        let credentials = resolve_credentials(&credential_ref)?;
+        let client = AuthorizedCoreLinkClient::new(
+            current.binding.clone(),
+            current.identity.clone(),
+            &credentials,
+            authority.config.timeout,
+        )?;
+        authority.expected = Some(current.identity);
+        Ok(Self {
+            binding: current.binding,
+            authority,
+            client,
+        })
+    }
+
+    fn execute(&self, request: &Request, now: DateTime<Utc>) -> Result<Response, Error> {
+        self.client.execute(request, now, &self.authority)
+    }
+
+    /// Create one idempotent canonical conversation session.
+    ///
+    /// # Errors
+    /// Fails closed on current enrollment, transport, correlation, or contract errors.
+    pub fn create(&self, idempotency_key: &str, now: DateTime<Utc>) -> Result<Response, Error> {
+        let id = format!("conversation-create:{}", &nonce()?[..24]);
+        let request = Request::create(&self.binding, &id, idempotency_key, now)?;
+        self.execute(&request, now)
+    }
+
+    /// Select an existing conversation owned by the enrolled principal.
+    ///
+    /// # Errors
+    /// Fails closed on current enrollment, transport, correlation, or contract errors.
+    pub fn select(&self, session_id: &str, now: DateTime<Utc>) -> Result<Response, Error> {
+        let id = format!("conversation-select:{}", &nonce()?[..24]);
+        let request = Request::select(&self.binding, &id, session_id, now)?;
+        self.execute(&request, now)
+    }
+
+    /// Submit one idempotent bounded turn to the canonical Python Core.
+    ///
+    /// # Errors
+    /// Fails closed on current enrollment, transport, correlation, or contract errors.
+    pub fn send(
+        &self,
+        idempotency_key: &str,
+        session_id: &str,
+        content: &str,
+        client_created_at: Option<DateTime<Utc>>,
+        now: DateTime<Utc>,
+    ) -> Result<Response, Error> {
+        let id = format!("conversation-send:{}", &nonce()?[..24]);
+        let request = Request::send(
+            &self.binding,
+            &id,
+            idempotency_key,
+            session_id,
+            content,
+            client_created_at,
+            now,
+        )?;
+        self.execute(&request, now)
+    }
+
+    /// Retrieve a bounded persisted history page through the canonical Core.
+    ///
+    /// # Errors
+    /// Fails closed on current enrollment, transport, correlation, or contract errors.
+    pub fn history(
+        &self,
+        session_id: &str,
+        after: Option<&HistoryCursor>,
+        limit: u16,
+        now: DateTime<Utc>,
+    ) -> Result<Response, Error> {
+        let id = format!("conversation-history:{}", &nonce()?[..24]);
+        let request = Request::history(&self.binding, &id, session_id, after, limit, now)?;
+        self.execute(&request, now)
+    }
+
+    /// Reconcile a turn whose response delivery was uncertain, without resend.
+    ///
+    /// # Errors
+    /// Fails closed on current enrollment, transport, correlation, or contract errors.
+    pub fn result(
+        &self,
+        target_idempotency_key: &str,
+        now: DateTime<Utc>,
+    ) -> Result<Response, Error> {
+        let id = format!("conversation-result:{}", &nonce()?[..24]);
+        let request = Request::result(&self.binding, &id, target_idempotency_key, now)?;
+        self.execute(&request, now)
     }
 }
 
