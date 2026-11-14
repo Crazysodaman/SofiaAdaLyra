@@ -1,5 +1,6 @@
 """D028 receiver tests on a disposable local private store only."""
 import hashlib
+import multiprocessing
 import os
 from pathlib import Path
 
@@ -25,6 +26,22 @@ def _setup(tmp_path):
     return data, transfer, ChunkedArtifactReceiver(tmp_path / "library", max_bytes=1024 * 1024)
 
 
+def _append_from_process(root, transfer, data, ready, start, results):
+    """Independent receiver process used to exercise the OS-backed writer lock."""
+    try:
+        receiver = ChunkedArtifactReceiver(root, max_bytes=1024 * 1024)
+        ready.put(True)
+        start.wait(10)
+        offset = receiver.append_chunk(
+            transfer, offset=0, chunk=data,
+            chunk_sha256=hashlib.sha256(data).hexdigest(),
+            authorize=lambda _: True,
+        )
+        results.put(("committed", offset))
+    except Exception as error:  # process result must remain serializable
+        results.put(("denied", type(error).__name__))
+
+
 def test_resume_verify_and_publish(tmp_path):
     data, pin, receiver = _setup(tmp_path)
     approve = lambda _pin: True
@@ -39,6 +56,67 @@ def test_resume_verify_and_publish(tmp_path):
         chunk_sha256=hashlib.sha256(data[n:]).hexdigest(), authorize=approve,
     ) == len(data)
     assert restarted.finalize(pin, authorize=approve).read_bytes() == data
+
+
+def test_two_processes_cannot_publish_the_same_transfer_chunk_twice(tmp_path):
+    """Separate processes have one writer; a loser cannot duplicate bytes."""
+    data, pin, receiver = _setup(tmp_path)
+    context = multiprocessing.get_context("fork")
+    ready = context.Queue()
+    results = context.Queue()
+    start = context.Event()
+    processes = [
+        context.Process(
+            target=_append_from_process,
+            args=(receiver.root, pin, data, ready, start, results),
+        )
+        for _ in range(2)
+    ]
+    for process in processes:
+        process.start()
+    for _ in processes:
+        assert ready.get(timeout=10) is True
+    start.set()
+    for process in processes:
+        process.join(timeout=10)
+        assert process.exitcode == 0
+    observed = [results.get(timeout=10) for _ in processes]
+    assert sorted(item[0] for item in observed) == ["committed", "denied"]
+    assert receiver.received_bytes(pin, authorize=lambda _: True) == len(data)
+    assert receiver.finalize(pin, authorize=lambda _: True).read_bytes() == data
+
+
+def test_restart_recovers_crash_after_cas_link_without_duplicate_publication(
+        tmp_path, monkeypatch):
+    """A durable scope fences recovery after link/partial cleanup interruption."""
+    data, pin, receiver = _setup(tmp_path)
+    approve = lambda _: True
+    receiver.append_chunk(
+        pin, offset=0, chunk=data,
+        chunk_sha256=hashlib.sha256(data).hexdigest(), authorize=approve,
+    )
+    original_existing = receiver._existing_file
+
+    def fail_after_partial_unlink(path):
+        if Path(path).parent == receiver.completed and not (
+                receiver.incoming / (pin.content_sha256 + ".part")
+        ).exists():
+            raise OSError("synthetic interruption after CAS publication")
+        return original_existing(path)
+
+    monkeypatch.setattr(receiver, "_existing_file", fail_after_partial_unlink)
+    with pytest.raises(RuntimeError, match="CAS OUTCOME_UNKNOWN"):
+        receiver.finalize(pin, authorize=approve)
+
+    restarted = ChunkedArtifactReceiver(receiver.root, max_bytes=1024 * 1024)
+    assert restarted.pending_signed_cache_admission(pin, authorize=approve) is True
+    with pytest.raises(ChunkTransferRejected, match="SAFE grant"):
+        restarted.recover_interrupted_publication(
+            pin, authorize=lambda _: False,
+        )
+    recovered = restarted.recover_interrupted_publication(pin, authorize=approve)
+    assert recovered.read_bytes() == data
+    assert not restarted._scope_path(pin).exists()
 
 
 def test_revoked_grant_denies_before_write(tmp_path):
