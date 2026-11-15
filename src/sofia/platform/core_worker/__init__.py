@@ -11,6 +11,10 @@ from .process import (
     PlatformProviderBinding,
     installed_core_release_digest,
 )
+from .synthetic_backend import (
+    SyntheticCoreBackendError,
+    SyntheticCoreProcessBackend,
+)
 
 __all__ = [
     "CoreEngineProcessSpec",
@@ -21,5 +25,7 @@ __all__ = [
     "CoreWorkerProcessOwner",
     "CoreWorkerRuntimeBackend",
     "PlatformProviderBinding",
+    "SyntheticCoreBackendError",
+    "SyntheticCoreProcessBackend",
     "installed_core_release_digest",
 ]
