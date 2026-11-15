@@ -20,6 +20,12 @@ from uuid import uuid4
 
 from sofia.platform.config.roles import PlatformRole, PlatformRoleConfiguration
 from sofia.platform.run.lease import LocalRunLeaseStore
+from sofia.platform.run.management_mutation import (
+    ManagementMutationDispatcher, operator_stop_mutation_registry,
+)
+from sofia.platform.run.management_mutation_store import (
+    ManagementMutationReceiptStore,
+)
 from sofia.platform.run.management_read import ManagementReadDispatcher
 from sofia.platform.run.library_read_authority import CurrentLibraryReadPeerAuthority
 from sofia.platform.run.library_read_dispatch import (
@@ -215,9 +221,22 @@ class PlatformServiceSession:
             ),
             read_owner_sources=read_owner_sources,
         )
+        # Mutations use the same canonical Platform SQLite approval/receipt
+        # owners as every other SAFE effect. No second approval DB or listener.
+        from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
+        mutation_dispatcher = ManagementMutationDispatcher(
+            current_status=self.status,
+            registry=operator_stop_mutation_registry(self.stop),
+            approvals=ExecutionApprovalVerifier(state_path),
+            receipts=ManagementMutationReceiptStore(state_path),
+        )
         read_mux = LocalReadMultiplexer(
             management=dispatcher, library=library_dispatcher,
+            mutation=mutation_dispatcher,
         )
+        # Same single transport dispatcher serves reads, Library reads and
+        # mutations. Kept as the service-owned composition for audit/tests.
+        self._management_mux = read_mux
         if os.name == "nt":
             # A single native pipe serves BOTH separately owner-enrolled read
             # protocols. Union only if all current owner grants resolve to
