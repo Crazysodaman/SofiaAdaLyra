@@ -117,6 +117,18 @@ def _record_journal(store: PlatformInstallationStore, state: dict[str, object]) 
     )
 
 
+def native_transaction_state(store: PlatformInstallationStore) -> dict[str, object] | None:
+    """Read-only copy of the durable native journal for status/diagnostics.
+
+    The returned value is not an approval and must never be written back without
+    the attended reconciliation contract. An absent journal is ``None``.
+    """
+    if not isinstance(store, PlatformInstallationStore):
+        raise TypeError("canonical B1 installation store required")
+    journal = _load_journal(store)
+    return None if journal is None else json.loads(json.dumps(journal))
+
+
 def _spec(*, store, verifier, expected_target, destination, identity_home, local_state):
     return signed_native_service_specification(
         store=store, verifier=verifier, expected_target=expected_target,
@@ -323,7 +335,18 @@ def native_service_operation_request(
     # approved rollback of an already owned native service. Ordinary first
     # registration/update must never bypass the durable revision floor.
     floor = 0 if checkpoint is None else checkpoint.minimum_accepted_revision
-    if operation in ("register", "update") and current.revision < floor:
+    reinstall_after_rollback = (
+        operation == "register"
+        and journal is not None
+        and journal["phase"] == "REMOVED"
+        and journal["last_operation"] == "unregister"
+        and type(journal["last_receipt"]) is dict
+        and journal["last_receipt"].get("platform_id") == current.platform_id
+        and journal["last_receipt"].get("release_manifest_sha256")
+        == current.manifest_sha256
+    )
+    if (operation in ("register", "update") and current.revision < floor
+            and not reinstall_after_rollback):
         raise PlatformInstallationDenied(
             "native registration/update below B1 signed revision floor")
     if operation == "register" and checkpoint is not None and checkpoint.active_release_id is not None:

@@ -18,7 +18,7 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 
 from sofia.platform.ops.platform_installation import (
-    PlatformInstallationStore, install_staged_release,
+    PlatformInstallationStore, install_staged_release, platform_rollback_request,
 )
 from sofia.platform.ops.platform_installer_bundle import PlatformReleaseRejected
 from sofia.platform.ops.platform_installer_cli import (
@@ -554,3 +554,275 @@ def test_cli_output_scrubs_paths_and_exceptions(capsys, scope):
     assert "Traceback" not in output
 
 
+
+
+def test_install_denies_wrong_signed_host_target_before_any_effect(scope):
+    effects = []
+    invalid = replace(scope.inputs, target=PlatformReleaseTarget.WINDOWS_X86_64.value)
+    result = execute_command("install", invalid, backend=_fake_backend(effects))
+    assert result["outcome"] == "DENIED"
+    assert result["executed"] is False and result["owner_approved"] is False
+    assert effects == []
+    assert not invalid.destination.exists()
+
+
+@pytest.mark.parametrize("defect", ("asset", "signature"))
+def test_tampered_release_bytes_deny_before_publication(scope, defect):
+    effects = []
+    if defect == "asset":
+        asset = next(item for item in (scope.release_root / "assets").rglob("*")
+                     if item.is_file())
+        asset.write_bytes(asset.read_bytes() + b"tampered")
+    else:
+        (scope.release_root / "release-signature.json").write_text(
+            "{}", encoding="utf-8")
+    result = execute_command("install", scope.inputs, backend=_fake_backend(effects))
+    assert result["outcome"] == "DENIED"
+    assert result["executed"] is False and result["owner_approved"] is False
+    assert effects == []
+    assert not scope.inputs.destination.exists()
+    assert _store(scope).history() == []
+
+
+def test_rollback_refuses_unattested_older_release(scope):
+    effects = []
+    backend = _fake_backend(effects)
+    _install(scope, backend)
+    older_root, older_manifest, _ = scope.builder.stage(
+        release_id="unattested-rollback-target", revision=3,
+    )
+    destination = scope.tmp_path / "unattested-rollback"
+    inputs = replace(
+        scope.inputs, release_root=older_root, destination=destination,
+        previous_destination=scope.inputs.destination,
+        expected_source_sha=older_manifest.source_sha, minimum_revision=5,
+    )
+    first = execute_command("rollback", inputs, backend=backend)
+    assert first["outcome"] == "DENIED"
+    assert first["required_approval"] == "code"
+    request = platform_rollback_request(
+        staging_candidate_path(scope.store_path, older_manifest.release_id, 3),
+        destination, scope.safe, store=_store(scope),
+        verifier=scope.builder.verifier,
+    )
+    assert request["fingerprint"] == first["approval_fingerprint"]
+    approval = _approve(
+        scope, request["capability"], request["fingerprint"],
+        "approval:unattested-rollback",
+    )
+    denied = execute_command(
+        "rollback", replace(inputs, code_approval_id=approval), backend=backend,
+    )
+    assert denied["outcome"] == "DENIED"
+    assert len(effects) == 1
+    assert not destination.exists()
+
+
+def test_native_owner_approval_cannot_be_replayed(scope):
+    effects = []
+    backend = _fake_backend(effects)
+    _installed, _code, install_native = _install(scope, backend)
+    removal = _native_request(scope, operation="unregister")
+    removal_approval = _approve(
+        scope, removal["capability"], removal["fingerprint"],
+        "approval:replay-uninstall",
+    )
+    uninstalled = execute_command(
+        "uninstall", replace(scope.inputs, approval_id=removal_approval),
+        backend=backend,
+    )
+    assert uninstalled["outcome"] == "UNINSTALLED"
+    before = len(effects)
+    replayed_register = execute_command(
+        "reinstall", replace(scope.inputs, approval_id=install_native),
+        backend=backend,
+    )
+    assert replayed_register["outcome"] == "DENIED"
+    assert len(effects) == before
+    replayed_removal = execute_command(
+        "uninstall", replace(scope.inputs, approval_id=removal_approval),
+        backend=backend,
+    )
+    assert replayed_removal["outcome"] == "DENIED"
+    assert len(effects) == before
+
+
+def test_unresolved_native_journal_blocks_replay_and_is_visible_to_status(scope):
+    effects = []
+    backend = _fake_backend(effects)
+    first = execute_command("install", scope.inputs, backend=backend)
+    assert first["required_approval"] == "code"
+    code_request = _code_request(scope)
+    code_approval = _approve(
+        scope, code_request["capability"], code_request["fingerprint"],
+        "approval:journal-code",
+    )
+    second = execute_command(
+        "install", replace(scope.inputs, code_approval_id=code_approval),
+        backend=backend,
+    )
+    assert second["required_approval"] == "native"
+    native = _native_request(scope)
+    native_approval = _approve(
+        scope, native["capability"], native["fingerprint"],
+        "approval:journal-native",
+    )
+    interrupted = execute_command(
+        "install", replace(scope.inputs, approval_id=native_approval),
+        backend=_fake_backend(effects, fail_register=True),
+    )
+    assert interrupted["outcome"] == "DENIED"
+    assert effects == []
+    status = execute_command("status", scope.inputs)
+    assert status["outcome"] == "RECONCILIATION_REQUIRED"
+    assert status["pending_native_attempts"] == 1
+    assert status["native_journal_phase"] == "OUTCOME_UNKNOWN"
+    assert status["native_service_registered"] is False
+    replay = execute_command(
+        "install",
+        replace(scope.inputs, code_approval_id=code_approval,
+                approval_id=native_approval),
+        backend=backend,
+    )
+    assert replay["outcome"] == "DENIED"
+    assert effects == []
+
+
+def test_signed_installer_end_to_end_lifecycle_retains_identity_and_floor(scope):
+    effects = []
+    backend = _fake_backend(effects)
+    installed, _code, _install_native = _install(scope, backend)
+    assert installed["outcome"] == "INSTALLED"
+    identity_before = InstallationIdentityStore(scope.identity.home).load()
+    status = execute_command("status", scope.inputs)
+    assert status["outcome"] == "OK"
+    assert status["installed_verified"] is True
+    assert status["history_entries"] == 1
+    assert status["pending_attempts"] == 0
+    assert status["pending_native_attempts"] == 0
+    assert status["native_journal_phase"] == "SERVICE_OBSERVED"
+    assert status["native_service_registered"] is True
+    assert status["release_id"] == scope.manifest.release_id
+
+    next_root, next_manifest, _ = scope.builder.stage(
+        release_id="cli-e2e-release-v5", revision=5,
+        parent_manifest_sha256=scope.manifest.digest,
+    )
+    next_destination = scope.tmp_path / "installed-e2e-v5"
+    update_inputs = replace(
+        scope.inputs, release_root=next_root, destination=next_destination,
+        previous_destination=scope.inputs.destination, minimum_revision=5,
+    )
+    first_update = execute_command("update", update_inputs, backend=backend)
+    assert first_update["required_approval"] == "code"
+    update_code_request = signed_code_publication_request(
+        staged_candidate=staging_candidate_path(
+            scope.store_path, next_manifest.release_id, 5,
+        ),
+        destination=next_destination, identity_home=scope.identity.home,
+        state_path=scope.safe, store=_store(scope), verifier=scope.builder.verifier,
+        expected_target=TARGET, previous_destination=scope.inputs.destination,
+    )
+    assert update_code_request["fingerprint"] == first_update["approval_fingerprint"]
+    update_code_approval = _approve(
+        scope, update_code_request["capability"],
+        update_code_request["fingerprint"], "approval:e2e-update-code",
+    )
+    second_update = execute_command(
+        "update", replace(update_inputs, code_approval_id=update_code_approval),
+        backend=backend,
+    )
+    assert second_update["required_approval"] == "native"
+    update_native = native_service_operation_request(
+        operation="update", store=_store(scope), verifier=scope.builder.verifier,
+        expected_target=TARGET, destination=next_destination,
+        identity_home=scope.identity.home, local_state=scope.local_state,
+        canonical_safe_state=scope.safe,
+        previous_destination=scope.inputs.destination,
+    )
+    assert update_native["fingerprint"] == second_update["approval_fingerprint"]
+    update_native_approval = _approve(
+        scope, update_native["capability"], update_native["fingerprint"],
+        "approval:e2e-update-native",
+    )
+    updated = execute_command(
+        "update", replace(update_inputs, approval_id=update_native_approval),
+        backend=backend,
+    )
+    assert updated["outcome"] == "UPDATED"
+    assert updated["revision"] == 5
+    assert _store(scope).revision_floor() == 5
+    update_status = execute_command("status", update_inputs)
+    assert update_status["outcome"] == "OK"
+    assert update_status["installed_verified"] is True
+    assert update_status["release_id"] == next_manifest.release_id
+    assert update_status["history_entries"] == 2
+    assert update_status["minimum_accepted_revision"] == 5
+
+    rollback_inputs = replace(
+        scope.inputs, release_root=scope.release_root,
+        destination=scope.inputs.destination,
+        previous_destination=next_destination, minimum_revision=5,
+    )
+    first_rollback = execute_command("rollback", rollback_inputs, backend=backend)
+    assert first_rollback["required_approval"] == "native"
+    rollback_request = native_service_operation_request(
+        operation="rollback", store=_store(scope),
+        verifier=scope.builder.verifier, expected_target=TARGET,
+        destination=scope.inputs.destination,
+        identity_home=scope.identity.home, local_state=scope.local_state,
+        canonical_safe_state=scope.safe, previous_destination=next_destination,
+    )
+    assert rollback_request["fingerprint"] == first_rollback["approval_fingerprint"]
+    rollback_approval = _approve(
+        scope, rollback_request["capability"], rollback_request["fingerprint"],
+        "approval:e2e-rollback-native",
+    )
+    rolled_back = execute_command(
+        "rollback", replace(rollback_inputs, approval_id=rollback_approval),
+        backend=backend,
+    )
+    assert rolled_back["outcome"] == "ROLLED_BACK"
+    assert rolled_back["revision"] == 4
+    assert _store(scope).revision_floor() == 5
+    rollback_status = execute_command("status", scope.inputs)
+    assert rollback_status["outcome"] == "OK"
+    assert rollback_status["installed_verified"] is True
+    assert rollback_status["release_id"] == scope.manifest.release_id
+    assert rollback_status["minimum_accepted_revision"] == 5
+    history_before_uninstall = len(_store(scope).history())
+
+    removal = _native_request(scope, operation="unregister")
+    removal_approval = _approve(
+        scope, removal["capability"], removal["fingerprint"],
+        "approval:e2e-uninstall",
+    )
+    uninstalled = execute_command(
+        "uninstall", replace(scope.inputs, approval_id=removal_approval),
+        backend=backend,
+    )
+    assert uninstalled["outcome"] == "UNINSTALLED"
+    assert uninstalled["protected_identity_policy"] == "RETAIN"
+    assert uninstalled["protected_state_policy"] == "RETAIN"
+    assert InstallationIdentityStore(scope.identity.home).load() == identity_before
+    assert scope.inputs.destination.is_dir() and scope.local_state.is_file()
+    assert _store(scope).revision_floor() == 5
+
+    reinstall_request = _native_request(scope)
+    reinstall_approval = _approve(
+        scope, reinstall_request["capability"], reinstall_request["fingerprint"],
+        "approval:e2e-reinstall",
+    )
+    reinstalled = execute_command(
+        "reinstall", replace(scope.inputs, approval_id=reinstall_approval),
+        backend=backend,
+    )
+    assert reinstalled["outcome"] == "REINSTALLED"
+    assert reinstalled["identity_policy"] == "REUSE_EXACT"
+    assert reinstalled["revision"] == 4
+    assert InstallationIdentityStore(scope.identity.home).load() == identity_before
+    assert _store(scope).revision_floor() == 5
+    assert len(_store(scope).history()) == history_before_uninstall
+    assert [entry[0] for entry in effects] == [
+        "RUNNING", "RUNNING", "RUNNING", "REMOVED", "RUNNING",
+    ]
