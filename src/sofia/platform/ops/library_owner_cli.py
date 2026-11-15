@@ -15,6 +15,7 @@ Usage:
   python -m sofia.platform.ops.library_owner_cli --state STATE --platform-id ID revoke-attended
   python -m sofia.platform.ops.library_owner_cli --state STATE --platform-id ID primary-status --logical-library-id LIBRARY
   python -m sofia.platform.ops.library_owner_cli --state STATE --platform-id ID replica-status --logical-library-id LIBRARY
+  python -m sofia.platform.ops.library_owner_cli --state STATE --platform-id ID role-status --logical-library-id LIBRARY
 
 A separate attended owner-secret/WebAuthn workflow must record the exact
 approval fingerprint returned by prepare-enroll/prepare-revoke before the
@@ -144,6 +145,8 @@ def main(argv: list[str] | None = None) -> int:
     primary_status.add_argument("--logical-library-id", required=True)
     replica_status = actions.add_parser("replica-status")
     replica_status.add_argument("--logical-library-id", required=True)
+    role_status = actions.add_parser("role-status")
+    role_status.add_argument("--logical-library-id", required=True)
     args = parser.parse_args(argv)
 
     try:
@@ -162,6 +165,51 @@ def main(argv: list[str] | None = None) -> int:
                 replica_platform_id=store.platform_id,
             )
             _result(replica_state.status(now=datetime.now(timezone.utc)))
+            return 0
+        if args.action == "role-status":
+            now = datetime.now(timezone.utc)
+            lease = LibraryPrimaryLeaseStore(
+                store.state, logical_library_id=args.logical_library_id,
+            )
+            replica_state = LibraryReplicaStateStore(
+                store.state, logical_library_id=args.logical_library_id,
+                replica_platform_id=store.platform_id,
+            )
+            primary = lease.status(now=now)
+            replica = replica_state.status(now=now)
+            is_local_primary = (
+                primary["primary_platform_id"] == store.platform_id
+                and primary["state"] in {"PRIMARY", "STALE"}
+            )
+            is_local_replica = (
+                primary["role"] == "READ_REPLICA"
+                or replica["state"] != "UNKNOWN"
+            )
+            _result({
+                "schema": "aegis.library.role-status.v1",
+                "platform_id": store.platform_id,
+                "logical_library_id": args.logical_library_id,
+                "owner_mode": "SINGLE_OWNER_PRIVATE",
+                "role": (
+                    "PRIMARY" if is_local_primary
+                    else "READ_REPLICA" if is_local_replica
+                    else "UNKNOWN"
+                ),
+                "primary_state": primary["state"],
+                "replica_state": replica["state"],
+                "primary_epoch": primary["primary_epoch"],
+                "catalog_revision": primary["catalog_revision"],
+                "read_only": not is_local_primary,
+                "catalog_writable": (
+                    is_local_primary and primary["lease_current"] is True
+                ),
+                "zero_replicas_supported": True,
+                "local_role_conflict": bool(
+                    is_local_primary and is_local_replica
+                ),
+                "install_executed": False,
+                "core_activated": False,
+            })
             return 0
         if args.action == "prepare-local-read":
             _result(preview_personal_local_read_grant(

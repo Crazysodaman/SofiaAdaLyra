@@ -219,3 +219,34 @@ def test_owner_cli_exposes_only_redacted_primary_and_replica_status(
     assert LibraryReplicaStateStore(
         local, logical_library_id=LIBRARY, replica_platform_id=platform_id,
     ).current() is None
+
+
+def test_owner_cli_role_status_reports_read_only_replica_without_paths(
+    tmp_path, capsys,
+):
+    identity, current, state = provision(tmp_path)
+    platform_id = current.identity.canonical_uuid
+    local = PlatformLocalStore(
+        state, create=False, host_identity=platform_id,
+        roles=PlatformRoleConfiguration((PlatformRole.MODULE_HOST,)),
+    )
+    lease = LibraryPrimaryLeaseStore(local, logical_library_id=LIBRARY)
+    lease.mark_read_only_replica(
+        host_identity=platform_id, platform_id=platform_id,
+        primary_platform_id="primary-platform", primary_epoch=1,
+        catalog_revision=7, now=datetime.now(timezone.utc),
+    )
+    assert main([
+        "--state", str(state), "--platform-id", platform_id,
+        "role-status", "--logical-library-id", LIBRARY,
+    ]) == 0
+    output = capsys.readouterr().out
+    status = json.loads(output)
+    assert status["schema"] == "aegis.library.role-status.v1"
+    assert status["role"] == "READ_REPLICA"
+    assert status["read_only"] is True
+    assert status["catalog_writable"] is False
+    assert status["primary_epoch"] == 1
+    assert status["catalog_revision"] == 7
+    assert str(tmp_path) not in output
+    assert "writer_token" not in output
