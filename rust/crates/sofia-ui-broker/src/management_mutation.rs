@@ -43,18 +43,20 @@ const REQUEST_KEYS: [&str; 13] = [
     "payload",
 ];
 
-const RESPONSE_KEYS: [&str; 12] = [
+const RESPONSE_KEYS: [&str; 14] = [
     "schema",
     "protocol_version",
     "request_id",
     "correlation_id",
-    "target_platform_id",
+    "idempotency_key",
+    "platform_id",
     "operation",
     "outcome",
     "receipt_id",
     "current_generation",
     "current_revision",
     "error_code",
+    "detail",
     "observed_at",
 ];
 
@@ -230,13 +232,15 @@ pub struct ManagementMutationReply {
     pub protocol_version: String,
     pub request_id: String,
     pub correlation_id: String,
-    pub target_platform_id: String,
+    pub idempotency_key: String,
+    pub platform_id: String,
     pub operation: String,
     pub outcome: MutationOutcome,
     pub receipt_id: Option<String>,
     pub current_generation: u64,
     pub current_revision: u64,
     pub error_code: Option<String>,
+    pub detail: Option<String>,
     pub observed_at: String,
 }
 
@@ -266,7 +270,8 @@ impl ManagementMutationReply {
             || reply.protocol_version != MANAGEMENT_MUTATION_PROTOCOL
             || reply.request_id != expected.request_id
             || reply.correlation_id != expected.correlation_id
-            || reply.target_platform_id != expected.target_platform_id
+            || reply.idempotency_key != expected.idempotency_key
+            || reply.platform_id != expected.target_platform_id
             || reply.operation != expected.operation
         {
             return Err(ContractError::new(
@@ -298,6 +303,16 @@ impl ManagementMutationReply {
             return Err(ContractError::new(
                 "invalid_management_mutation_response",
                 "receipt or error identity is invalid",
+            ));
+        }
+        if reply
+            .detail
+            .as_deref()
+            .is_some_and(|value| !valid_detail(value))
+        {
+            return Err(ContractError::new(
+                "invalid_management_mutation_response",
+                "mutation detail is invalid or unbounded",
             ));
         }
         match reply.outcome {
@@ -418,6 +433,13 @@ fn valid_id(value: &str) -> bool {
         && bytes.iter().all(|byte| {
             byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-' | b':' | b'@' | b'/')
         })
+}
+
+fn valid_detail(value: &str) -> bool {
+    value.len() <= 512
+        && !value
+            .chars()
+            .any(|character| character.is_control() || character == '\u{FFFD}')
 }
 
 fn valid_timestamp_text(value: &str) -> bool {
@@ -595,13 +617,15 @@ mod tests {
             "protocol_version": "1.0",
             "request_id": request.request_id,
             "correlation_id": request.correlation_id,
-            "target_platform_id": request.target_platform_id,
+            "idempotency_key": request.idempotency_key,
+            "platform_id": request.target_platform_id,
             "operation": request.operation,
             "outcome": "SUCCEEDED",
             "receipt_id": "receipt:install:1",
             "current_generation": 3,
             "current_revision": 8,
             "error_code": null,
+            "detail": null,
             "observed_at": "2026-11-08T03:59:59Z"
         })
     }
