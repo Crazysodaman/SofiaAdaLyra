@@ -1,8 +1,9 @@
 #Requires -Version 5.1
 <#
-Aegis Platform installer, UX-1 preflight only.
-Never install, elevate, change a service, or infer signed artifact trust.
-The release executor and owner approval backend are not connected.
+Aegis Platform installer, preview-only by default.
+The opt-in -Wired path delegates to the canonical Python installer adapter and
+still requires independent publisher trust plus one-use SAFE owner approvals.
+This script never elevates, changes a service or infers signed artifact trust.
 #>
 [CmdletBinding()]
 param(
@@ -64,9 +65,8 @@ $wiredInputs = @(
 if ($Wired) {
     if ($Check -or $VerifySeed -or $VerifyPublisherBootstrap -or $DryRun -or
         [string]::IsNullOrWhiteSpace($Operation) -or
-        [string]::IsNullOrWhiteSpace($ReleaseRoot) -or
-        [string]::IsNullOrWhiteSpace($BundledPython) -or $MinimumRevision -lt 1) {
-        [Console]::Error.WriteLine('Wired installer requires operation, release root, bundled Python and revision floor.')
+        [string]::IsNullOrWhiteSpace($ReleaseRoot) -or $MinimumRevision -lt 1) {
+        [Console]::Error.WriteLine('Wired installer requires operation, release root, revision floor and a safe bundled Python.')
         exit 2
     }
 } elseif (@($wiredInputs | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count -gt 0 -or
@@ -356,20 +356,93 @@ function Assert-AegisWiredLocalPath {
     if ([string]::IsNullOrWhiteSpace($Path)) { throw 'Local wired path required' }
     $absolute = [IO.Path]::GetFullPath($Path)
     if ($absolute.StartsWith('\\')) { throw 'Network/UNC wired path refused' }
-    $item = Get-Item -LiteralPath $absolute -Force -ErrorAction Stop
-    if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
-        throw 'Wired path contains a reparse point'
+    # A redirected parent can silently relocate an otherwise ordinary leaf.
+    # Walk to the volume root so junctions/reparse points fail closed.
+    $cursor = $absolute
+    while ($cursor) {
+        $node = Get-Item -LiteralPath $cursor -Force -ErrorAction Stop
+        if (($node.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw 'Wired path contains a reparse point'
+        }
+        $parent = [IO.Directory]::GetParent($cursor)
+        if ($null -eq $parent) { break }
+        $cursor = $parent.FullName
     }
+    $item = Get-Item -LiteralPath $absolute -Force -ErrorAction Stop
     if ($Directory -and -not $item.PSIsContainer) { throw 'Wired release root is not a directory' }
     if (-not $Directory -and $item.PSIsContainer) { throw 'Wired Python path is a directory' }
+    if (-not $Directory -and -not ($item -is [IO.FileInfo])) {
+        throw 'Wired Python path is not a regular file'
+    }
     return $absolute
+}
+
+function Resolve-AegisBundledPython {
+    param([string]$Root)
+    # The caller supplies the verified release root. Discovery is deliberately
+    # limited to the reviewed runtime layout for the observed host; there is no
+    # search path, environment lookup or fallback to a system interpreter.
+    $rootPath = Assert-AegisWiredLocalPath -Path $Root -Directory
+    $windows = [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
+    if ($windows) {
+        $relative = @('runtime\python\python.exe')
+        $foreign = @('runtime/python/bin/python3.12', 'runtime/python/bin/python3')
+    } else {
+        $relative = @('runtime/python/bin/python3.12', 'runtime/python/bin/python3')
+        $foreign = @('runtime\python\python.exe')
+    }
+    foreach ($item in $foreign) {
+        $candidate = [IO.Path]::GetFullPath((Join-Path $rootPath $item))
+        try {
+            $null = Get-Item -LiteralPath $candidate -Force -ErrorAction Stop
+        } catch [System.Management.Automation.ItemNotFoundException] {
+            continue
+        }
+        throw 'Bundled runtime layout does not match the host operating system'
+    }
+    $separator = [IO.Path]::DirectorySeparatorChar
+    $prefix = $rootPath.TrimEnd([IO.Path]::DirectorySeparatorChar,
+        [IO.Path]::AltDirectorySeparatorChar) + $separator
+    $comparison = if ($windows) {
+        [StringComparison]::OrdinalIgnoreCase
+    } else {
+        [StringComparison]::Ordinal
+    }
+    $found = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($item in $relative) {
+        $candidate = [IO.Path]::GetFullPath((Join-Path $rootPath $item))
+        if (-not $candidate.StartsWith($prefix, $comparison)) {
+            throw 'Bundled runtime path escapes the release root'
+        }
+        $present = $false
+        try {
+            $null = Get-Item -LiteralPath $candidate -Force -ErrorAction Stop
+            $present = $true
+        } catch [System.Management.Automation.ItemNotFoundException] {
+            $present = $false
+        }
+        if (-not $present) { continue }
+        $checked = Assert-AegisWiredLocalPath -Path $candidate
+        if (-not $checked.StartsWith($prefix, $comparison)) {
+            throw 'Bundled runtime resolves outside the release root'
+        }
+        $found.Add($checked)
+    }
+    if ($found.Count -ne 1) {
+        throw 'Exactly one bundled Python runtime must exist inside the release root'
+    }
+    return $found[0]
 }
 
 function Invoke-AegisWiredInstaller {
     $release = Assert-AegisWiredLocalPath -Path $ReleaseRoot -Directory
     $python = Assert-AegisWiredLocalPath -Path $BundledPython
     $arguments = New-Object 'System.Collections.Generic.List[string]'
-    foreach ($value in @('-I', '-m', 'sofia.platform.ops.platform_installer_cli', $Operation, '--json')) {
+    # Isolation without -I: -E/-s ignore ambient Python configuration and user
+    # site packages, -P keeps the working directory off sys.path, and -B avoids
+    # writing bytecode into a read-only release. The bundled runtime still
+    # resolves its own signed site-packages.
+    foreach ($value in @('-E', '-s', '-P', '-B', '-m', 'sofia.platform.ops.platform_installer_cli', $Operation, '--json')) {
         $arguments.Add($value)
     }
     $options = @(
@@ -404,9 +477,14 @@ function Invoke-AegisWiredInstaller {
 
 if ($Wired) {
     try {
+        if ([string]::IsNullOrWhiteSpace($BundledPython)) {
+            $BundledPython = Resolve-AegisBundledPython -Root $ReleaseRoot
+        } else {
+            $BundledPython = Assert-AegisWiredLocalPath -Path $BundledPython
+        }
         Invoke-AegisWiredInstaller
     } catch {
-        [Console]::Error.WriteLine('Wired installer inputs are unavailable or redirected.')
+        [Console]::Error.WriteLine('Wired bundled runtime is missing, ambiguous, redirected or unsafe.')
         exit 2
     }
 }

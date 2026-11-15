@@ -1,6 +1,6 @@
 # Aegis Platform 1.0 | Installer operator runbook (pre-release)
 
-**Status: PREVIEW ONLY / NOT INSTALLED / PLATFORM GO = NO-GO.**
+**Status: PREVIEW ONLY BY DEFAULT / OPT-IN WIRED SOURCE PATH / NOT CERTIFIED.**
 This runbook covers the reviewed UX-1 entrypoints on draft PR #244. A verified signature, artifact staging, unit test or theme preview
 is **not** permission to install, register a service or activate Core.
 Use a disposable Windows or Debian 12 host for future installation tests.
@@ -59,6 +59,115 @@ cargo run --locked -p sofia-ui-broker --bin aegis_tui -- --status
 The `--status` probe intentionally returns exit code **3** and
 `status=UNAVAILABLE source=UNVERIFIED`. It must not report a connected,
 healthy or installed service without authenticated IPC.
+
+## Opt-in wired signed lifecycle (source entrypoint; not certified)
+
+Both launchers keep their preview-only default. Adding `-Wired` (PowerShell) or
+`--wired` (Bash) delegates every operation to the canonical Python adapter
+`sofia.platform.ops.platform_installer_cli`. The shell never registers, starts,
+stops or deletes a service and never elevates.
+
+The wired path is machine-readable and noninteractive: it always requests JSON,
+emits no ANSI art and never prompts. Exit `0` means the adapter reported a
+success outcome, `3` means denied/unknown/reconciliation-required, and `2` means
+the launcher inputs or bundled runtime were ambiguous, missing or redirected.
+Do not convert any nonzero exit into success.
+
+When `-BundledPython`/`--bundled-python` is omitted, the launcher discovers
+exactly one runtime inside the verified release root:
+
+- Windows: `runtime/python/python.exe`
+- Debian 12: `runtime/python/bin/python3.12` (or `runtime/python/bin/python3`)
+
+Discovery refuses zero or multiple matches, path escapes, symlinks or reparse
+points anywhere in the path, network/UNC roots, a non-executable file, a
+directory, and a non-Windows/non-x86_64 host. An explicit bundled Python is
+still checked for local, non-redirected files, but its location is an operator
+assertion rather than release-relative discovery.
+
+Verify media first (no approval, no OS change):
+
+```powershell
+powershell.exe -NoProfile -NonInteractive -File .\packaging\installers\Install-Aegis.ps1 `
+  -Wired -Operation verify -ReleaseRoot C:\aegis-release `
+  -PublisherKey C:\trust\publisher.pem -PublisherKeySha256 PINNED_SHA256 `
+  -PublisherSigner APPROVED_SIGNER -ExpectedSourceSha EXACT_SOURCE_SHA `
+  -Target windows-x86_64 -MinimumRevision 1 -Json -NoColor
+```
+
+```bash
+bash ./packaging/installers/install-aegis.sh --wired --operation verify \
+  --release-root /opt/aegis-release \
+  --publisher-key /etc/aegis/trust/publisher.pem \
+  --publisher-sha256 PINNED_SHA256 --publisher-signer APPROVED_SIGNER \
+  --expected-source-sha EXACT_SOURCE_SHA \
+  --target debian12-x86_64 --minimum-revision 1 --json
+```
+
+Mutating operations need two independent existing one-use SAFE approvals: first
+the canonical B1 code publication (`--code-approval-id`) and then the native
+service transaction (`--approval-id`). A missing or stale grant returns
+`DENIED` with `required_approval` and `approval_fingerprint`; it never executes.
+Record the approval through the existing attended SAFE owner ceremony, then
+rerun the same command with the returned approval ID. Do not invent a `--yes`
+flag, reuse a consumed ID or bypass the fingerprint.
+
+```powershell
+powershell.exe -NoProfile -NonInteractive -File .\packaging\installers\Install-Aegis.ps1 `
+  -Wired -Operation install -ReleaseRoot C:\aegis-release `
+  -PublisherKey C:\trust\publisher.pem -PublisherKeySha256 PINNED_SHA256 `
+  -PublisherSigner APPROVED_SIGNER -ExpectedSourceSha EXACT_SOURCE_SHA `
+  -Target windows-x86_64 -MinimumRevision 1 `
+  -Destination C:\ProgramData\Aegis\release `
+  -IdentityHome C:\ProgramData\Aegis\identity `
+  -LocalState C:\ProgramData\Aegis\state\platform.db `
+  -LocalInstallationState C:\ProgramData\Aegis\state\b1.db `
+  -SafeState C:\ProgramData\Aegis\state\sofia.db `
+  -CodeApprovalId RECORDED_CODE_APPROVAL -ApprovalId RECORDED_NATIVE_APPROVAL `
+  -Json -NoColor
+```
+
+```bash
+bash ./packaging/installers/install-aegis.sh --wired --operation install \
+  --release-root /opt/aegis-release \
+  --publisher-key /etc/aegis/trust/publisher.pem \
+  --publisher-sha256 PINNED_SHA256 --publisher-signer APPROVED_SIGNER \
+  --expected-source-sha EXACT_SOURCE_SHA \
+  --target debian12-x86_64 --minimum-revision 1 \
+  --destination /var/lib/aegis/release \
+  --identity-home /var/lib/aegis/identity \
+  --local-state /var/lib/aegis/state/platform.db \
+  --local-installation-state /var/lib/aegis/state/b1.db \
+  --safe-state /var/lib/aegis/state/sofia.db \
+  --code-approval-id RECORDED_CODE_APPROVAL \
+  --approval-id RECORDED_NATIVE_APPROVAL --json
+```
+
+`status`, `doctor`, `install`, `update`, `repair`, `rollback`, `uninstall`,
+`reinstall` and `reconcile` use the same inputs. `update` and `rollback` also
+require `--previous-destination`/`-PreviousDestination`. `rollback` must target
+exactly previously attested older signed bytes and never lowers the B1 durable
+revision floor. `uninstall` and `reinstall` retain the exact Platform identity
+and protected state. `status` reports the durable B1 history and native journal;
+an interrupted native transaction appears as `RECONCILIATION_REQUIRED` with
+`pending_native_attempts=1` and must use the separately approved `reconcile`
+path. Never delete `native-service-transaction.json` manually.
+
+Truthful limitations of this wired path:
+
+- Disposable Ed25519 test keys prove the source contract only. Production
+  publisher signing, revocation freshness and release approval remain separate
+  gates.
+- The source adapter calls the reviewed native driver. Actual Windows SCM or
+  Debian systemd mutation still needs the provisioned service account, owner
+  filesystem policy and the elevated reviewed executor; this runbook does not
+  add `sudo`, `Start-Service`, `New-Service` or any shell-side service command.
+- The tests exercise a simulated native backend. No installed-host READY,
+  reboot/crash recovery, authenticated management IPC, Core activation or Fleet
+  enrollment is claimed here.
+- `status` reads durable B1/native state; `service_state` remains
+  `NOT_OBSERVED` unless a separate authenticated observer is supplied. Process
+  state is not service health.
 
 ## Signed offline capsule staging (Debian Bash; inert files only)
 
@@ -183,16 +292,19 @@ every declared asset, exact source SHA, trusted key fingerprint provisioned
 `PlatformInstallationStore` to preview install, update, repair, rollback and
 retention-preserving uninstall. A preview is non-executable and refuses an
 unreconciled attempt or missing active installation. These APIs require an
-already authenticated and independently trusted runtime. They are **not**
-invoked from the two untrusted shell launchers, and do not provide an installer.
+already authenticated and independently trusted runtime. The canonical CLI
+adapter is reachable only through the explicit opt-in wired path above; the
+default launcher behavior remains preview-only, and neither shell provides
+owner approval, publisher revocation or installed-host certification.
 
-## Planned installed-host procedure, NOT YET ENABLED
+## Installed-host procedure (source-wired; no host certification)
 
 The installed release executor must consume an exact, verified Platform-only
 bundle signed by an approved production signer. The owner must review the
 target OS/architecture, manifest hash, revision floor, destination, service
 identity, protected-state policy and required approvals before enabling
-consequential operations.
+consequential operations. The opt-in wired commands above implement this source
+flow, but no production-signed host acceptance receipt exists yet.
 
 1. Verify the **original** signed release and all installed asset hashes.
    Do not use an arbitrary local Git checkout as the production trust root.
@@ -260,9 +372,10 @@ an unresolved transaction, not a false clean uninstall. On Debian and
 Windows, the removal receipt must identify the **exact signed Platform UUID
 and release manifest**. Protected state/identity remain retained by default.
 
-This read-only review is **not a journal-repair command**. An authorized
+This read-only review is **not** a journal-repair command. An authorized
 operator must separately review authentic native OS, B1 installation and SAFE
-evidence before implementing any future approved reconciliation action.
+evidence and then use the one-use approved `reconcile` operation above; no
+process state alone clears the fence.
 Never delete a `native-service-transaction.json` file to bypass an
 uncertain outcome, and never treat process state as service health.
 
