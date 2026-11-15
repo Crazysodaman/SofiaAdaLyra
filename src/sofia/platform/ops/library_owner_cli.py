@@ -13,6 +13,8 @@ Usage:
   python -m sofia.platform.ops.library_owner_cli --state STATE --platform-id ID revoke --approval-id ID
   python -m sofia.platform.ops.library_owner_cli --state STATE --platform-id ID enroll-attended --source-platform-id HUB --public-key KEY --catalog-generation 1 --minimum-revision 1
   python -m sofia.platform.ops.library_owner_cli --state STATE --platform-id ID revoke-attended
+  python -m sofia.platform.ops.library_owner_cli --state STATE --platform-id ID primary-status --logical-library-id LIBRARY
+  python -m sofia.platform.ops.library_owner_cli --state STATE --platform-id ID replica-status --logical-library-id LIBRARY
 
 A separate attended owner-secret/WebAuthn workflow must record the exact
 approval fingerprint returned by prepare-enroll/prepare-revoke before the
@@ -37,6 +39,12 @@ from sofia.platform.safe.execution_approval import execution_fingerprint
 from sofia.platform.ops.library_owner_grant_preflight import (
     OwnerLibraryPreflightDenied, preview_personal_hub_grant,
     preview_personal_local_read_grant,
+)
+from sofia.platform.ops.library_primary_lease import (
+    LibraryPrimaryDenied, LibraryPrimaryLeaseStore,
+)
+from sofia.platform.ops.library_replica import (
+    LibraryReplicaDenied, LibraryReplicaStateStore,
 )
 from sofia.platform.state.private_file import assert_no_redirected_components
 
@@ -132,12 +140,29 @@ def main(argv: list[str] | None = None) -> int:
     command.add_argument("--approval-id", required=True)
     command = actions.add_parser("import-index")
     command.add_argument("--file", type=Path, required=True)
+    primary_status = actions.add_parser("primary-status")
+    primary_status.add_argument("--logical-library-id", required=True)
+    replica_status = actions.add_parser("replica-status")
+    replica_status.add_argument("--logical-library-id", required=True)
     args = parser.parse_args(argv)
 
     try:
         store = OwnerLibraryTrustStore(
             args.state, platform_id=args.platform_id,
         )
+        if args.action == "primary-status":
+            lease = LibraryPrimaryLeaseStore(
+                store.state, logical_library_id=args.logical_library_id,
+            )
+            _result(lease.status(now=datetime.now(timezone.utc)))
+            return 0
+        if args.action == "replica-status":
+            replica_state = LibraryReplicaStateStore(
+                store.state, logical_library_id=args.logical_library_id,
+                replica_platform_id=store.platform_id,
+            )
+            _result(replica_state.status(now=datetime.now(timezone.utc)))
+            return 0
         if args.action == "prepare-local-read":
             _result(preview_personal_local_read_grant(
                 store=store, operation=args.operation,
@@ -281,6 +306,7 @@ def main(argv: list[str] | None = None) -> int:
         raise OwnerLibraryTrustDenied("unknown owner Library operation")
     except (
         OwnerLibraryTrustDenied, OwnerLibraryPreflightDenied,
+        LibraryPrimaryDenied, LibraryReplicaDenied,
         PermissionError, RuntimeError,
         ValueError, TypeError, OSError, sqlite3.Error,
     ) as exc:
