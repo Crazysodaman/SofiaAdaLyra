@@ -3,13 +3,21 @@
 //! NEVER infer host health from a local launch, cached file or process ID.
 
 use serde_json::Value;
+use sofia_ui_broker::action_preview::{
+    empty_payload, ActionPreview, CallerApproval, MutationSubmission,
+};
 use sofia_ui_broker::connection_state::{ConnectionState, ConnectionStateModel};
 use sofia_ui_broker::control_center::{
     ActionHint, ControlCenterView, LinkState, ProposedAction, SafeState,
 };
 use sofia_ui_broker::control_center_session::{DisplayReadSource, DisplaySession, OfflineReader};
-use sofia_ui_broker::manager_views::{self, ManagerPage};
+use sofia_ui_broker::management_mutation::{MutationClient, MutationTransport};
+use sofia_ui_broker::manager_snapshot::{
+    read_manager_snapshot, AuthenticatedManagerSnapshotSource,
+};
+use sofia_ui_broker::manager_views::{self, ManagerPage, ManagerSnapshot};
 use std::env;
+use std::fmt::Write as _;
 use std::io::{self, IsTerminal, Write};
 use std::process::ExitCode;
 
@@ -99,6 +107,9 @@ const PAGES: [Page; 15] = [
 enum Navigation {
     Show(Page),
     Refresh,
+    Preview,
+    Approval(String),
+    Submit,
     Exit,
     Invalid,
 }
@@ -107,6 +118,8 @@ fn navigate(command: &str, selected: &mut usize) -> Navigation {
     match command.trim() {
         "0" | "q" | "quit" => Navigation::Exit,
         "r" | "refresh" => Navigation::Refresh,
+        "p" | "preview" => Navigation::Preview,
+        "s" | "submit" => Navigation::Submit,
         "j" | "next" => {
             *selected = (*selected + 1) % PAGES.len();
             Navigation::Show(PAGES[*selected])
@@ -116,14 +129,22 @@ fn navigate(command: &str, selected: &mut usize) -> Navigation {
             Navigation::Show(PAGES[*selected])
         }
         "" => Navigation::Show(PAGES[*selected]),
-        choice => match select_page(choice) {
-            Some(page) => {
-                // select_page and PAGES describe the same bounded menu.
-                *selected = PAGES.iter().position(|entry| *entry == page).unwrap_or(0);
-                Navigation::Show(page)
+        choice => {
+            if let Some(approval) = choice
+                .strip_prefix("a ")
+                .or_else(|| choice.strip_prefix("approval "))
+            {
+                return Navigation::Approval(approval.trim().to_owned());
             }
-            None => Navigation::Invalid,
-        },
+            match select_page(choice) {
+                Some(page) => {
+                    // select_page and PAGES describe the same bounded menu.
+                    *selected = PAGES.iter().position(|entry| *entry == page).unwrap_or(0);
+                    Navigation::Show(page)
+                }
+                None => Navigation::Invalid,
+            }
+        }
     }
 }
 
@@ -259,15 +280,16 @@ fn render_menu_with_connection(
     )
 }
 
-fn render_page_with_connection(
+fn render_page_with_connection_and_snapshot(
     page: Page,
     colors: ColorMode,
     view: &ControlCenterView,
     connection: ConnectionState,
+    snapshot: Option<&ManagerSnapshot>,
 ) -> String {
     format!(
         "{}\n{} {}",
-        render_page(page, colors, view),
+        render_page_with_snapshot(page, colors, view, snapshot),
         paint("LIVE CONNECTION:", "accent", colors),
         connection.label()
     )
@@ -327,13 +349,33 @@ fn manager_page(page: Page) -> Option<ManagerPage> {
     }
 }
 
-fn manager_section(page: Page, state: &ControlCenterView) -> String {
+fn manager_section(
+    page: Page,
+    state: &ControlCenterView,
+    snapshot: Option<&ManagerSnapshot>,
+) -> String {
     manager_page(page).map_or_else(String::new, |manager| {
-        manager_views::manager_lines(manager, state, None).join("\n")
+        let mut lines = manager_views::manager_lines(manager, state, snapshot);
+        if let Some(snapshot) = snapshot {
+            lines.extend(sofia_ui_broker::action_preview::context_lines(
+                manager, state, snapshot,
+            ));
+        }
+        lines.join("\n")
     })
 }
 
+#[cfg(test)]
 fn render_page(page: Page, colors: ColorMode, state: &ControlCenterView) -> String {
+    render_page_with_snapshot(page, colors, state, None)
+}
+
+fn render_page_with_snapshot(
+    page: Page,
+    colors: ColorMode,
+    state: &ControlCenterView,
+    snapshot: Option<&ManagerSnapshot>,
+) -> String {
     // No catalog, inventory, progress, signer or receipt is invented by a
     // locally launched UI; only Team A's authenticated service can supply it.
     let library = match page {
@@ -367,7 +409,7 @@ fn render_page(page: Page, colors: ColorMode, state: &ControlCenterView) -> Stri
     } else {
         "VALUES: UNAVAILABLE (not disconnected, removed, healthy or zero)".into()
     };
-    let manager = manager_section(page, state);
+    let manager = manager_section(page, state, snapshot);
     format!(
         "{}\nCONNECTION: {}\nSERVICE: {} / SOURCE: {}\nSETTINGS: {}\nINSTALLATION: {}\n{}\n{}\n{}\n{}\n{}\n{}",
         paint(page.heading(), "primary", colors),
@@ -459,6 +501,14 @@ fn status_exit(view: &ControlCenterView) -> ExitCode {
 // Native Linux status implements the SAME reader. Only an independently
 // B1-verified installed profile may activate it, never untrusted CLI flags.
 fn run_with_source(source: &mut impl DisplayReadSource) -> io::Result<ExitCode> {
+    run_with_sources(source, None, None)
+}
+
+fn run_with_sources(
+    source: &mut impl DisplayReadSource,
+    snapshot_source: Option<&mut dyn AuthenticatedManagerSnapshotSource>,
+    mutation_transport: Option<&mut dyn MutationTransport>,
+) -> io::Result<ExitCode> {
     let args: Vec<String> = env::args().skip(1).collect();
     let mut session = DisplaySession::default();
     if args.iter().any(|arg| arg == "--help" || arg == "-h") {
@@ -467,8 +517,9 @@ fn run_with_source(source: &mut impl DisplayReadSource) -> io::Result<ExitCode> 
             " | --library-status | --library-json]"
         );
         println!("{HELP}");
-        println!("This read-only shell does not perform management operations.");
-        println!("Protected manager actions are previews requiring owner approval and a service receipt.");
+        println!("This shell is read-only unless an authenticated snapshot/mutation channel is composed.");
+        println!("Protected manager actions are previews requiring a caller-supplied owner approval and a service receipt.");
+        println!("Preview: p; attach approval: 'a <approval-id>'; submit: s.");
         println!("Keyboard: 1-15 select, j/k next/previous, Enter open, r refresh, q exit.");
         return Ok(ExitCode::SUCCESS);
     }
@@ -530,13 +581,122 @@ fn run_with_source(source: &mut impl DisplayReadSource) -> io::Result<ExitCode> 
         println!("\nInteractive input requires a terminal; no operation performed.");
         return Ok(ExitCode::SUCCESS);
     }
-    run_interactive(source, colors)
+    let mutation_transport =
+        mutation_transport.map(|transport| Box::new(transport) as Box<dyn MutationTransport + '_>);
+    run_interactive(source, snapshot_source, mutation_transport, colors)
 }
 
-fn run_interactive(source: &mut impl DisplayReadSource, colors: ColorMode) -> io::Result<ExitCode> {
+fn exact_target(page: Page, snapshot: Option<&ManagerSnapshot>) -> Option<String> {
+    let snapshot = snapshot?;
+    match manager_page(page)? {
+        ManagerPage::Cores => snapshot.cores.first().map(|core| core.core_id.clone()),
+        ManagerPage::Modules => snapshot
+            .modules
+            .first()
+            .map(|module| module.module_id.clone()),
+        ManagerPage::Security | ManagerPage::Updates => snapshot.platform_id.clone(),
+        ManagerPage::Fleet | ManagerPage::Diagnostics => None,
+    }
+}
+
+fn print_preview(
+    page: Page,
+    state: &ControlCenterView,
+    snapshot: Option<&ManagerSnapshot>,
+    approval: Option<&CallerApproval>,
+) -> Option<ActionPreview> {
+    let Some(manager) = manager_page(page) else {
+        println!("ACTION PREVIEW: READ_ONLY / NO_MUTATION\n");
+        return None;
+    };
+    let Some(snapshot) = snapshot else {
+        println!("ACTION PREVIEW: BLOCKED / MANAGER_SNAPSHOT_NOT_OBSERVED\n");
+        return None;
+    };
+    let Some(target) = exact_target(page, Some(snapshot)) else {
+        println!(
+            "ACTION PREVIEW: BLOCKED / EXACT_TARGET_NOT_SELECTED / DISPLAY_NAME_IS_NOT_AUTHORITY\n"
+        );
+        return None;
+    };
+    match ActionPreview::prepare(manager, &target, empty_payload(), state, snapshot) {
+        Ok(preview) => {
+            println!("{}\n", preview.lines(approval).join("\n"));
+            Some(preview)
+        }
+        Err(error) => {
+            println!("ACTION PREVIEW: BLOCKED / {}\n", error.label());
+            None
+        }
+    }
+}
+
+fn random_id(prefix: &str) -> Option<String> {
+    let mut bytes = [0_u8; 16];
+    getrandom::getrandom(&mut bytes).ok()?;
+    let mut id = String::from(prefix);
+    for byte in bytes {
+        write!(&mut id, "{byte:02x}").ok()?;
+    }
+    Some(id)
+}
+
+fn submit_preview<T: MutationTransport + ?Sized>(
+    preview: &ActionPreview,
+    approval: &CallerApproval,
+    submitted: &mut MutationSubmission,
+    transport: Option<&mut T>,
+) {
+    let Some(transport) = transport else {
+        println!("SUBMISSION: NOT_SUBMITTED / NO_AUTHENTICATED_MUTATION_TRANSPORT\n");
+        return;
+    };
+    let (Some(request_id), Some(correlation_id), Some(idempotency_key)) = (
+        random_id("req:mutation:"),
+        random_id("corr:"),
+        random_id("idem:"),
+    ) else {
+        println!("SUBMISSION: NOT_SUBMITTED / ID_GENERATION_UNAVAILABLE\n");
+        return;
+    };
+    let request_now = chrono::Utc::now().fixed_offset();
+    let deadline = (request_now + chrono::Duration::seconds(30))
+        .to_rfc3339_opts(chrono::SecondsFormat::Micros, true);
+    let request = match preview.request(
+        request_id,
+        correlation_id,
+        idempotency_key,
+        &deadline,
+        approval,
+    ) {
+        Ok(request) => request,
+        Err(error) => {
+            println!("SUBMISSION: NOT_SUBMITTED / {}\n", error.label());
+            return;
+        }
+    };
+    let mut client = MutationClient::new(transport);
+    match submitted.submit_with_clock(&mut client, &request, request_now, || {
+        chrono::Utc::now().fixed_offset()
+    }) {
+        Ok(outcome) => println!("{}\n", outcome.lines().join("\n")),
+        Err(error) => println!("SUBMISSION: FAILED / {}\n", error.label()),
+    }
+}
+
+#[allow(clippy::too_many_lines)]
+fn run_interactive(
+    source: &mut impl DisplayReadSource,
+    mut snapshot_source: Option<&mut dyn AuthenticatedManagerSnapshotSource>,
+    mut mutation_transport: Option<Box<dyn MutationTransport + '_>>,
+    colors: ColorMode,
+) -> io::Result<ExitCode> {
     let mut session = DisplaySession::default();
     let mut selected = 0;
     let mut connection = ConnectionStateModel::default();
+    let mut preview: Option<ActionPreview> = None;
+    let mut approval: Option<CallerApproval> = None;
+    let mut submitted = MutationSubmission::default();
     loop {
         let _ = session.refresh(source, std::time::Instant::now());
         session.expire_at(std::time::Instant::now());
@@ -545,7 +705,9 @@ fn run_interactive(source: &mut impl DisplayReadSource, colors: ColorMode) -> io
             "{}",
             render_menu_with_connection(colors, session.view(), connection.state())
         );
-        print!("Select [0-15], j/k next/previous, Enter selected, r refresh, q exit: ");
+        print!(
+            "Select [0-15], j/k next/previous, Enter selected, p preview, a <approval-id>, s submit, r refresh, q exit: "
+        );
         io::stdout().flush()?;
         let mut selection = String::new();
         if io::stdin().read_line(&mut selection)? == 0 {
@@ -558,14 +720,65 @@ fn run_interactive(source: &mut impl DisplayReadSource, colors: ColorMode) -> io
         let _ = session.refresh(source, std::time::Instant::now());
         session.expire_at(std::time::Instant::now());
         connection.observe_link(session.view().link);
+        let snapshot = snapshot_source
+            .as_mut()
+            .map(|source| read_manager_snapshot(&mut **source));
         match command {
             Navigation::Exit => unreachable!("exit handled before service refresh"),
             Navigation::Show(page) => {
+                if preview
+                    .as_ref()
+                    .is_some_and(|preview| manager_page(page) != Some(preview.page))
+                {
+                    preview = None;
+                    approval = None;
+                }
                 println!(
                     "{}\n",
-                    render_page_with_connection(page, colors, session.view(), connection.state())
+                    render_page_with_connection_and_snapshot(
+                        page,
+                        colors,
+                        session.view(),
+                        connection.state(),
+                        snapshot.as_ref(),
+                    )
                 );
             }
+            Navigation::Preview => {
+                preview = print_preview(
+                    PAGES[selected],
+                    session.view(),
+                    snapshot.as_ref(),
+                    approval.as_ref(),
+                );
+            }
+            Navigation::Approval(value) => match CallerApproval::new(value) {
+                Ok(value) => {
+                    approval = Some(value);
+                    if let Some(preview) = &preview {
+                        println!("{}\n", preview.lines(approval.as_ref()).join("\n"));
+                    } else {
+                        println!("APPROVAL: SUPPLIED / NO_PREVIEW_SELECTED\n");
+                    }
+                }
+                Err(error) => {
+                    println!("APPROVAL: REJECTED / {}\n", error.label());
+                }
+            },
+            Navigation::Submit => match (&preview, &approval) {
+                (None, _) => println!("SUBMISSION: NOT_SUBMITTED / NO_PREVIEW\n"),
+                (Some(_), None) => {
+                    println!("SUBMISSION: NOT_SUBMITTED / CALLER_SUPPLIED_APPROVAL_ID_REQUIRED\n");
+                }
+                (Some(preview), Some(approval)) => {
+                    submit_preview(
+                        preview,
+                        approval,
+                        &mut submitted,
+                        mutation_transport.as_deref_mut(),
+                    );
+                }
+            },
             Navigation::Refresh => {
                 connection.begin_reconnect();
                 let _ = session.refresh(source, std::time::Instant::now());
@@ -603,8 +816,9 @@ fn main() -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::{
-        action_request_line, choose_color_mode, navigate, paint, render_menu, render_page, rgb,
-        select_page, status_exit, status_json, status_line, ColorMode, Navigation, Page, PAGES,
+        action_request_line, choose_color_mode, navigate, paint, render_menu, render_page,
+        render_page_with_snapshot, rgb, select_page, status_exit, status_json, status_line,
+        ColorMode, Navigation, Page, PAGES,
     };
     use sofia_ui_broker::control_center::{
         ControlCenterView, InstallationState, LinkState, PermissionState, SafeState,
@@ -633,9 +847,61 @@ mod tests {
             Navigation::Show(Page::Platform)
         );
         assert_eq!(navigate("r", &mut selected), Navigation::Refresh);
+        assert_eq!(navigate("p", &mut selected), Navigation::Preview);
+        assert_eq!(
+            navigate("a approval:owner:1", &mut selected),
+            Navigation::Approval("approval:owner:1".into())
+        );
+        assert_eq!(navigate("s", &mut selected), Navigation::Submit);
         assert_eq!(selected, 0);
         assert_eq!(navigate("approve", &mut selected), Navigation::Invalid);
         assert_eq!(navigate("q", &mut selected), Navigation::Exit);
+    }
+
+    #[test]
+    fn snapshot_aware_pages_show_exact_target_and_never_fabricate_success() {
+        use sofia_ui_broker::manager_views::{
+            CoreLifecycle, CoreObservation, ManagedHealth, ManagerPage, ManagerSnapshot,
+            SectionTruth,
+        };
+        use sofia_ui_broker::platform_status::ObservationFreshness;
+        let mut view = ControlCenterView::offline();
+        view.link = LinkState::Observed;
+        view.safe = SafeState::Clear;
+        view.permission = PermissionState::MayRequest;
+        view.platform_generation = Some(9);
+        view.installation = InstallationState::Absent;
+        view.settings_revision = Some(4);
+        view.effective_settings_revision = Some(4);
+        let mut snapshot = ManagerSnapshot {
+            freshness: ObservationFreshness::Fresh,
+            platform_id: Some("platform:alpha".into()),
+            platform_generation: Some(9),
+            platform_revision: Some(6),
+            ..ManagerSnapshot::default()
+        };
+        snapshot.mark(ManagerPage::Cores, SectionTruth::Observed);
+        snapshot.cores.push(CoreObservation {
+            core_id: "core:primary".into(),
+            lifecycle: CoreLifecycle::Active,
+            health: ManagedHealth::VerifiedHealthy,
+            generation: 3,
+            source_digest: "a".repeat(64),
+        });
+        let text = render_page_with_snapshot(Page::Cores, ColorMode::Plain, &view, Some(&snapshot));
+        assert!(text.contains("CORE core:primary"));
+        assert!(text.contains("SNAPSHOT TARGET: platform:alpha"));
+        assert!(text.contains("ACTION PREVIEW CONTEXT: core.restart"));
+        assert!(text.contains("EXPECTED REVISION: 6"));
+        assert!(!text.contains('\x1b'));
+
+        snapshot.mark(ManagerPage::Cores, SectionTruth::Revoked);
+        snapshot.cores.clear();
+        let denied =
+            render_page_with_snapshot(Page::Cores, ColorMode::Plain, &view, Some(&snapshot));
+        assert!(denied.contains("CORE MANAGER: REVOKED"));
+        assert!(!denied.contains("NONE_INSTALLED"));
+        assert!(!denied.contains("VERIFIED_HEALTHY"));
     }
 
     #[test]
