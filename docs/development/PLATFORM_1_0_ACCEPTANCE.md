@@ -264,3 +264,89 @@ Signed-staged artifact VM integration is separately in draft PR209; do not
 infer its success from PR208's inert byte-staging fixtures or earlier VM jobs.
 Authenticated management, final installers and recovery, remote Fleet, isolated
 modules, governed synthetic Core lifecycle and operator runbook remain open.
+
+## Exact-main reconciliation 2026-11-15
+
+**Inspected main:** `c26adddb2ce739844d70a8992acaba720b7f9fa6`, fast-forwarded
+from `d90ed7811b26ff1302b75586bd88f75f4ec4b52d` (34 commits). Worktree was
+clean before and after the pull. No reset, force-push or history rewrite was
+used.
+
+**Branch/PR consolidation:** `gh` is unauthenticated in this environment, so
+remote PR metadata could not be read; every local and remote branch was
+compared by ancestry, two-dot tree diff and patch identity. No branch was
+merged. Classifications:
+
+- Already integrated or content-superseded by newer main: all `codex/aegis-*`
+  candidates (`aegis-signed-vm-install`, `aegis-release-ci-correctness`,
+  `aegis-shakedown`), the `chatgpt/platform-*` installer, management,
+  acceptance-preflight, status-response, GUI and TUI branches, the `opencode/*`
+  installer, UI, Core Link and gate-timing branches, and the Team E `ig001`
+  assembly branch. Their added paths already exist under current main names
+  (for example `packaging/gui/` replaced `packaging/ui/`, and
+  `platform_management_response.py` replaced `platform_management_reply.py`).
+- Stale/superseded implementation: `opencode/r2-readonly-core-link-hardening`
+  (main has the later Core Link client and renamed fixtures).
+- Out of Platform 1.0 scope: AG-D026/AG-D027 module rationalization and
+  Portainer projection branches, constitution-v2 proposal, module-document
+  branches and the older package/feature branches.
+- Evidence-only: `team-e/ig001-disposable-platform-e008-20261108` adds
+  dated disposable receipts already summarized in `PLATFORM_1_0_TEAM_E_*`;
+  no production source difference remains that is not present in main.
+
+**Local verification at the inspected SHA (Windows, Python 3.12.10,
+`pytest 9.1.1`, Rust 1.88.0):**
+
+- Platform-only Python regression selection: 376 passed, 12 skipped.
+- Regressions touched by the newly pulled 34 commits: 204 passed, 130 skipped
+  after one harness fix. The only failure was
+  `test_stock_windows_hash_does_not_require_get_filehash_cmdlet`, which invoked
+  PowerShell without the `-ExecutionPolicy Bypass` already used by every other
+  installer test in the repository; the local machine's default execution
+  policy blocked the script. The test harness now passes the same bound flag;
+  no assertion, production path or security check was removed.
+- Broad Platform/library/management/installer/Fleet/SAFE regression set:
+  1,251 passed, 306 skipped.
+- Rust: `cargo fmt --all --check` passed; strict workspace Clippy passed;
+  `cargo test --workspace --locked` passed every suite; the native TUI binary
+  built.
+- `test_rust_platform_scm` is BLOCKED on this non-elevated shell
+  (`OpenSCManager` error 5). That is an environment limit, not a source pass;
+  native SCM evidence still requires an elevated disposable Windows host.
+- The complete unfiltered suite was started and exceeded one hour before
+  reaching 20 percent. It was not allowed to finish and therefore is not
+  reported as green. The known full-project beside-Ollama failures remain
+  unverified at this SHA.
+
+**Source audit against the 38 rows and LIB-01..LIB-16:**
+
+- The signed release verifier, B1 installation store, staged/installed code
+  publication, native SCM/systemd transaction, recovery journal and installer
+  preflight/staging backend are present and covered by passing unit and
+  disposable-process tests.
+- `Install-Aegis.ps1` and `install-aegis.sh` remain deliberately PREVIEW-ONLY.
+  They verify pinned bytes, publisher material and signed staging, then refuse
+  install/update/repair/rollback/uninstall because no signed release executor
+  and current SAFE/STOP owner proof are connected. This is still the AG-D011
+  release blocker; the scripts must not be described as a working installer.
+- Management IPC is authenticated and peer-bound but read-only. There is no
+  versioned mutating management operation for Core/module/Fleet lifecycle, so
+  rows 10 and 31 remain FAIL and the GUI/TUI cannot perform governed actions.
+- Remote Fleet naming has a pinned, signed, read-only client with a
+  caller-supplied transport; no production authenticated registry adapter or
+  installed-host evidence exists, so row 15 remains FAIL.
+- Signed Core component install/uninstall exists, but no governed installed
+  synthetic Core start/stop/detach or "Platform healthy after removal" service
+  path exists, so rows 22-24 remain FAIL.
+- The Artifact Library has extensive source-level coverage (catalog, signed
+  index, TLS chunk transfer, resume, CAS recovery, quotas, GC pins, owner
+  grants and negatives). No LIB scenario is promoted: all still require the
+  four disposable signed installed-host receipts.
+
+**No matrix state changed by this reconciliation.** No row or LIB scenario is
+PASS. Remaining P0 blockers are the real signed installer execution path,
+mutating authenticated management plus synthetic Core lifecycle, production
+remote naming, a signed Platform 1.0 release artifact under an available
+signing authority, and the full disposable Windows/Debian four-host evidence
+campaign. Issue updates to #201/#250 are also blocked until GitHub
+authentication is available.
