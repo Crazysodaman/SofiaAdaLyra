@@ -343,6 +343,85 @@ class LibraryPrimaryLeaseStore:
                 self._update(db, record)
                 return record, token
 
+    def mark_read_only_replica(
+        self, *, host_identity: str, platform_id: str,
+        primary_platform_id: str, primary_epoch: int,
+        catalog_revision: int, now: datetime, lease_seconds: int = 60,
+    ) -> LibraryPrimaryRole:
+        """Record this installed Platform as a read-only replica of one primary.
+
+        A replica record can never claim primary write authority, advance the
+        catalog revision or be fenced as a writer. It only tracks the current
+        signed primary epoch/revision for stale-epoch refusal. It never
+        overwrites a live writer, durable fence evidence or another primary.
+        """
+        host = _identifier(host_identity, "replica host identity")
+        platform = _identifier(platform_id, "replica Platform identity")
+        primary = _identifier(primary_platform_id, "primary Platform identity")
+        if platform == primary:
+            raise LibraryPrimaryDenied("replica must differ from its primary")
+        epoch = _positive(primary_epoch, "primary epoch")
+        revision = _positive(catalog_revision, "catalog revision")
+        moment = _utc(now)
+        ttl = _lease_seconds(lease_seconds)
+        with closing(self.storage.connect()) as db:
+            with db:
+                db.row_factory = sqlite3.Row
+                db.execute("BEGIN IMMEDIATE")
+                self._create_schema(db)
+                current = self._read(db)
+                if current is not None:
+                    if current.role == "PRIMARY" or current.is_primary:
+                        raise LibraryPrimaryDenied(
+                            "a current writable primary cannot be reclassified as replica"
+                        )
+                    if current.is_fenced or current.role == "FENCED":
+                        raise LibraryPrimaryDenied(
+                            "fenced primary evidence cannot be replaced by a replica record"
+                        )
+                    if (current.role != "READ_REPLICA"
+                            or not current.read_only_replica):
+                        raise LibraryPrimaryDenied(
+                            "unknown local Library role cannot become a replica"
+                        )
+                    if current.host_identity != host:
+                        raise LibraryPrimaryDenied(
+                            "local replica host identity changed without owner rotation"
+                        )
+                    if current.primary_platform_id != primary:
+                        raise LibraryPrimaryDenied(
+                            "replica primary identity change requires owner rotation"
+                        )
+                    if epoch < current.primary_epoch:
+                        raise LibraryPrimaryDenied("primary epoch rollback denied")
+                    if revision < current.catalog_revision:
+                        raise LibraryPrimaryDenied("catalog revision rollback denied")
+                # The local token never authorizes a write: _verify_writer and
+                # claim_primary both deny READ_REPLICA before any token check.
+                local_token = secrets.token_hex(32)
+                record = LibraryPrimaryRole(
+                    logical_library_id=self.logical_library_id,
+                    host_identity=host, primary_platform_id=primary,
+                    primary_epoch=epoch, catalog_revision=revision,
+                    writer_token_sha256=sha256(
+                        local_token.encode("ascii")
+                    ).hexdigest(),
+                    lease_expires_at=moment + timedelta(seconds=ttl),
+                    role="READ_REPLICA", read_only_replica=True,
+                    fenced_at=None, fence_receipt_sha256=None,
+                    updated_at=moment,
+                )
+                if current is None:
+                    self._insert(db, record)
+                else:
+                    self._update(db, record)
+                result = self._read(db)
+                if result is None or not result.read_only_replica:
+                    raise LibraryPrimaryDenied(
+                        "read-only replica role commit was not durable"
+                    )
+                return result
+
     def require_writer(
         self, *, host_identity: str, platform_id: str, epoch: int,
         writer_token: str, now: datetime,
@@ -546,6 +625,8 @@ class LibraryPrimaryLeaseStore:
                     "fenced": False}
         if record.is_fenced or record.role == "FENCED":
             state = "FENCED"
+        elif record.read_only_replica or record.role == "READ_REPLICA":
+            state = "READ_REPLICA"
         elif record.lease_current(moment):
             state = "PRIMARY"
         else:
