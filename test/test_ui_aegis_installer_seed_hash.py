@@ -124,7 +124,8 @@ def test_stock_windows_hash_does_not_require_get_filehash_cmdlet(seed):
         f"-TrustedSeedSha256 {quote(digest)} -Json"
     )
     result = subprocess.run(
-        ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", command],
+        ["powershell.exe", "-ExecutionPolicy", "Bypass",
+         "-NoProfile", "-NonInteractive", "-Command", command],
         capture_output=True, text=True, timeout=25,
     )
     assert result.returncode == 0, result.stderr
