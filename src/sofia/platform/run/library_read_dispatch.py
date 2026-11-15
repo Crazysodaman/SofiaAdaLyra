@@ -28,6 +28,7 @@ from sofia.sdk.platform_library import (
     LIBRARY_PROTOCOL, LIBRARY_RESPONSE_SCHEMA,
     UntrustedLibraryRequest, UntrustedLibraryResponse,
 )
+from sofia.sdk.platform_management_mutation import MANAGEMENT_MUTATION_SCHEMA
 
 _MAX_RESPONSE_BYTES = 32768
 
@@ -220,16 +221,22 @@ class LibraryReadDispatcher:
 class LocalReadMultiplexer:
     """Route strict v1 envelopes over the *existing* OS-authenticated socket.
 
-    The routing schema never confers authority. Both dispatchers independently
-    authorize exact current OS caller, RUN generation, STOP and operation.
+    The routing schema never confers authority. Every dispatcher independently
+    authorizes exact current OS caller, RUN generation, STOP and operation.
+    A mutating envelope uses the same single transport/dispatch path as reads.
     """
-    def __init__(self, *, management, library: LibraryReadDispatcher) -> None:
+    def __init__(
+        self, *, management, library: LibraryReadDispatcher, mutation=None,
+    ) -> None:
         if not callable(getattr(management, "dispatch", None)):
             raise TypeError("existing canonical management dispatcher required")
         if not isinstance(library, LibraryReadDispatcher):
             raise TypeError("separate canonical Library read dispatcher required")
+        if mutation is not None and not callable(getattr(mutation, "dispatch", None)):
+            raise TypeError("service-owned management mutation dispatcher required")
         self.management = management
         self.library = library
+        self.mutation = mutation
 
     def dispatch(
         self, raw: bytes, *, authenticated_peer: str, now: datetime,
@@ -244,6 +251,14 @@ class LocalReadMultiplexer:
             raise PermissionError("typed Platform read envelope required")
         if document.get("schema") == "aegis.platform.library.request.v1":
             return self.library.dispatch(
+                raw, authenticated_peer=authenticated_peer, now=now,
+            )
+        if document.get("schema") == MANAGEMENT_MUTATION_SCHEMA:
+            if self.mutation is None:
+                raise PermissionError(
+                    "management mutation service is not composed"
+                )
+            return self.mutation.dispatch(
                 raw, authenticated_peer=authenticated_peer, now=now,
             )
         return self.management.dispatch(

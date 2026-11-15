@@ -321,6 +321,8 @@ _PROTECTED = frozenset({
     # Offline seed, enrolled peer CAS and retention are distinct protected effects.
     "platform.library.cache_admit_verified_seed",
     "platform.library.cache_admit_enrolled_peer",
+    # Authenticated local management mutation; always one-use exact approval.
+    "platform.management.mutate",
     "ops.restore.replace_protected",
     "home_assistant.service.call",
     "github.pull_request.merge",
