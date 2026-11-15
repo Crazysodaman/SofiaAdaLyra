@@ -88,6 +88,27 @@ class PinnedHttpsRemoteTransport(RemoteTransport):
         finally:
             connection.close()
 
+    def request_json(
+        self,
+        enrollment:NodeEnrollment,
+        method:str,
+        path:str,
+        payload:Any=None,
+    )->Any:
+        """Expose one bounded pinned mTLS JSON exchange to reviewed adapters.
+
+        Callers still own the endpoint path and response schema. This method
+        performs only the already-established CA validation, mutual TLS and
+        SPKI pinning; it introduces no new trust or listener.
+        """
+        if not isinstance(enrollment,NodeEnrollment):
+            raise TypeError("exact NodeEnrollment required")
+        if method not in {"GET","POST"}:
+            raise ValueError("only bounded GET/POST JSON exchanges are supported")
+        if not isinstance(path,str) or not path.startswith("/") or len(path)>512:
+            raise ValueError("bounded absolute agent path required")
+        return self._request(enrollment,method,path,payload)
+
     def authenticate(self,enrollment:NodeEnrollment)->bool:
         try:
             data=self._request(enrollment,"GET","/v1/identity")
