@@ -3,10 +3,13 @@
 
 use std::collections::BTreeMap;
 
+pub mod connection_state;
 pub mod control_center;
 pub mod control_center_session;
 pub mod journal;
 pub mod library_display;
+pub mod management_mutation;
+pub mod manager_views;
 pub mod native_management;
 pub mod platform_status;
 

@@ -3,10 +3,12 @@
 //! NEVER infer host health from a local launch, cached file or process ID.
 
 use serde_json::Value;
+use sofia_ui_broker::connection_state::{ConnectionState, ConnectionStateModel};
 use sofia_ui_broker::control_center::{
     ActionHint, ControlCenterView, LinkState, ProposedAction, SafeState,
 };
 use sofia_ui_broker::control_center_session::{DisplayReadSource, DisplaySession, OfflineReader};
+use sofia_ui_broker::manager_views::{self, ManagerPage};
 use std::env;
 use std::io::{self, IsTerminal, Write};
 use std::process::ExitCode;
@@ -244,6 +246,33 @@ fn render_menu(colors: ColorMode, view: &ControlCenterView) -> String {
     lines.join("\n")
 }
 
+fn render_menu_with_connection(
+    colors: ColorMode,
+    view: &ControlCenterView,
+    connection: ConnectionState,
+) -> String {
+    format!(
+        "{}\n{} {}",
+        render_menu(colors, view),
+        paint("CONNECTION:", "accent", colors),
+        connection.label()
+    )
+}
+
+fn render_page_with_connection(
+    page: Page,
+    colors: ColorMode,
+    view: &ControlCenterView,
+    connection: ConnectionState,
+) -> String {
+    format!(
+        "{}\n{} {}",
+        render_page(page, colors, view),
+        paint("LIVE CONNECTION:", "accent", colors),
+        connection.label()
+    )
+}
+
 fn proposed_action(page: Page) -> ProposedAction {
     match page {
         Page::Cores => ProposedAction::RestartCore,
@@ -269,13 +298,39 @@ fn action_request_line(page: Page, state: &ControlCenterView) -> String {
         ActionHint::Blocked(reason) => format!("ACTION REQUEST: BLOCKED / REASON: {reason}"),
         ActionHint::ReadOnly => "ACTION REQUEST: READ_ONLY / NO RECEIPT REQUIRED".to_owned(),
         ActionHint::RecheckWithService => format!(
-            "ACTION REQUEST: PREVIEW_REQUIRED / EXPLICIT_TARGET_REQUIRED / EXPECTED_GENERATION: {} / EXECUTION_RECEIPT_REQUIRED",
+            "ACTION REQUEST: PREVIEW_REQUIRED / REQUIRES_OWNER_APPROVAL / EXPLICIT_TARGET_REQUIRED / EXPECTED_GENERATION: {} / EXECUTION_RECEIPT_REQUIRED",
             state.platform_generation.map_or_else(
                 || "UNKNOWN".to_owned(),
                 |generation| generation.to_string(),
             )
         ),
     }
+}
+
+fn manager_page(page: Page) -> Option<ManagerPage> {
+    match page {
+        Page::Cores => Some(ManagerPage::Cores),
+        Page::Modules => Some(ManagerPage::Modules),
+        Page::Fleet => Some(ManagerPage::Fleet),
+        Page::Security => Some(ManagerPage::Security),
+        Page::Updates => Some(ManagerPage::Updates),
+        Page::Diagnostics => Some(ManagerPage::Diagnostics),
+        Page::Platform
+        | Page::Settings
+        | Page::LibraryCatalog
+        | Page::LibrarySources
+        | Page::LibraryDownloads
+        | Page::LibraryInstalled
+        | Page::LibraryStorage
+        | Page::LibraryHub
+        | Page::LibraryHistory => None,
+    }
+}
+
+fn manager_section(page: Page, state: &ControlCenterView) -> String {
+    manager_page(page).map_or_else(String::new, |manager| {
+        manager_views::manager_lines(manager, state, None).join("\n")
+    })
 }
 
 fn render_page(page: Page, colors: ColorMode, state: &ControlCenterView) -> String {
@@ -312,9 +367,11 @@ fn render_page(page: Page, colors: ColorMode, state: &ControlCenterView) -> Stri
     } else {
         "VALUES: UNAVAILABLE (not disconnected, removed, healthy or zero)".into()
     };
+    let manager = manager_section(page, state);
     format!(
-        "{}\nSERVICE: {} / SOURCE: {}\nSETTINGS: {}\nINSTALLATION: {}\n{}\n{}\n{}\n{}\n{}",
+        "{}\nCONNECTION: {}\nSERVICE: {} / SOURCE: {}\nSETTINGS: {}\nINSTALLATION: {}\n{}\n{}\n{}\n{}\n{}\n{}",
         paint(page.heading(), "primary", colors),
+        ConnectionState::from_view(state).label(),
         state.service_label(),
         state.source_label(),
         state.settings_label(),
@@ -323,6 +380,7 @@ fn render_page(page: Page, colors: ColorMode, state: &ControlCenterView) -> Stri
         permission,
         action_request_line(page, state),
         "No writes, approvals, downloads, installation, state files or service changes.",
+        manager,
         library
     )
 }
@@ -360,12 +418,13 @@ fn status_source(view: &ControlCenterView) -> &'static str {
 
 fn status_line(view: &ControlCenterView) -> String {
     format!(
-        "status={} source={} safe={} permission={} installation={}",
+        "status={} source={} safe={} permission={} installation={} connection={}",
         status_name(view),
         status_source(view),
         view.safe_label(),
         view.permission_label(),
-        view.installation_label()
+        view.installation_label(),
+        ConnectionState::from_view(view).label()
     )
 }
 
@@ -376,6 +435,7 @@ fn status_json(view: &ControlCenterView) -> Value {
         "schema": "aegis.ui.platform.status-display.v1",
         "status": status_name(view),
         "source": status_source(view),
+        "connection": ConnectionState::from_view(view).label(),
         "platform_generation": if current { view.platform_generation } else { None },
         "safe": view.safe_label(),
         "operator_stop": operator_stop,
@@ -408,6 +468,7 @@ fn run_with_source(source: &mut impl DisplayReadSource) -> io::Result<ExitCode> 
         );
         println!("{HELP}");
         println!("This read-only shell does not perform management operations.");
+        println!("Protected manager actions are previews requiring owner approval and a service receipt.");
         println!("Keyboard: 1-15 select, j/k next/previous, Enter open, r refresh, q exit.");
         return Ok(ExitCode::SUCCESS);
     }
@@ -469,11 +530,21 @@ fn run_with_source(source: &mut impl DisplayReadSource) -> io::Result<ExitCode> 
         println!("\nInteractive input requires a terminal; no operation performed.");
         return Ok(ExitCode::SUCCESS);
     }
+    run_interactive(source, colors)
+}
+
+fn run_interactive(source: &mut impl DisplayReadSource, colors: ColorMode) -> io::Result<ExitCode> {
+    let mut session = DisplaySession::default();
     let mut selected = 0;
+    let mut connection = ConnectionStateModel::default();
     loop {
         let _ = session.refresh(source, std::time::Instant::now());
         session.expire_at(std::time::Instant::now());
-        println!("{}", render_menu(colors, session.view()));
+        connection.observe_link(session.view().link);
+        println!(
+            "{}",
+            render_menu_with_connection(colors, session.view(), connection.state())
+        );
         print!("Select [0-15], j/k next/previous, Enter selected, r refresh, q exit: ");
         io::stdout().flush()?;
         let mut selection = String::new();
@@ -486,12 +557,26 @@ fn run_with_source(source: &mut impl DisplayReadSource) -> io::Result<ExitCode> 
         }
         let _ = session.refresh(source, std::time::Instant::now());
         session.expire_at(std::time::Instant::now());
+        connection.observe_link(session.view().link);
         match command {
             Navigation::Exit => unreachable!("exit handled before service refresh"),
             Navigation::Show(page) => {
-                println!("{}\n", render_page(page, colors, session.view()));
+                println!(
+                    "{}\n",
+                    render_page_with_connection(page, colors, session.view(), connection.state())
+                );
             }
-            Navigation::Refresh => println!("{}\n", status_line(session.view())),
+            Navigation::Refresh => {
+                connection.begin_reconnect();
+                let _ = session.refresh(source, std::time::Instant::now());
+                session.expire_at(std::time::Instant::now());
+                connection.observe_link(session.view().link);
+                println!(
+                    "{} reconnect_attempts={}",
+                    status_line(session.view()),
+                    connection.reconnect_attempts()
+                );
+            }
             Navigation::Invalid => {
                 println!("Not a valid menu command; no operation performed.\n");
             }

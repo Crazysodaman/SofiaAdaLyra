@@ -266,6 +266,37 @@ evidence before implementing any future approved reconciliation action.
 Never delete a `native-service-transaction.json` file to bypass an
 uncertain outcome, and never treat process state as service health.
 
+## Operator manager views and truthful live states (source preview)
+
+The Rust terminal Control Center (`aegis_tui`) and the Rust Control Center
+window expose keyboard-reachable **Core Manager**, **Module Manager**,
+**Fleet Manager**, **Security and Approvals**, **Updates and Recovery**, and
+**Diagnostics** views over the same presentation model. These views are
+read-only until an independently authenticated management client supplies a
+current snapshot.
+
+- Connection state is shown explicitly as one of `CONNECTED`, `OFFLINE`,
+  `STALE`, `REVOKED`, `STOP`, `UNKNOWN` or `UNAVAILABLE`. `UNAVAILABLE` means
+  no verified service contact yet; `OFFLINE` is a lost connection after prior
+  contact. The client reconnects without restarting, but cached generation and
+  revisions are never displayed as current while stale or disconnected.
+- `NOT_OBSERVED`, `NOT_CURRENTLY_VERIFIED`, `NONE_INSTALLED` and `UNKNOWN` are
+  distinct. Discovery, a callsign, a process, or a local UI launch never grants
+  permission or proves health.
+- Protected Core, Module, Security and Update actions display
+  `PREVIEW_REQUIRED / REQUIRES_OWNER_APPROVAL` and
+  `EXECUTION_RECEIPT_REQUIRED`. The UI cannot mint an approval. Any future
+  submission uses the typed `aegis.platform.management_mutation.v1` client
+  adapter; unknown schemas, fields, outcomes and missing receipts fail closed.
+- `NO_COLOR`, `--plain`, non-TTY output and JSON output remain ASCII/no-ANSI.
+  The shared 22-token theme is unchanged.
+
+This is source-level operator experience only. It does **not** certify an
+installed host, authenticated mutation transport, owner approval ceremony,
+Windows SCM/Debian systemd service, or release readiness. Row 30 remains
+`NOT TESTED`; row 32-38 acceptance still requires exact-SHA installed-host
+receipts.
+
 ## Release evidence required by #201
 
 | Row | Evidence still required |
