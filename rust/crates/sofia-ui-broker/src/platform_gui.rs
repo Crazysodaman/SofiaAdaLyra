@@ -3,7 +3,10 @@ use eframe::egui;
 use sofia_ui_broker::connection_state::ConnectionStateModel;
 use sofia_ui_broker::control_center::{ActionHint, ControlCenterView, ProposedAction};
 use sofia_ui_broker::control_center_session::{DisplayReadSource, DisplaySession, OfflineReader};
-use sofia_ui_broker::manager_views::{self, ManagerPage};
+use sofia_ui_broker::manager_snapshot::{
+    read_manager_snapshot, AuthenticatedManagerSnapshotSource,
+};
+use sofia_ui_broker::manager_views::{self, ManagerPage, ManagerSnapshot};
 use std::time::{Duration, Instant};
 
 const THEME: &str = include_str!("../../../../contracts/ui/aegis-theme-v1.json");
@@ -160,7 +163,10 @@ fn action_status(page: usize, view: &ControlCenterView) -> String {
 pub struct PlatformApp<S: DisplayReadSource> {
     status: DesktopStatus<S>,
     page: usize,
-    manager_snapshot: Option<manager_views::ManagerSnapshot>,
+    manager_snapshot: Option<ManagerSnapshot>,
+    snapshot_source: Option<Box<dyn AuthenticatedManagerSnapshotSource>>,
+    last_snapshot: Instant,
+    approval_id: String,
     large_text: bool,
     compact: bool,
 }
@@ -170,22 +176,79 @@ impl<S: DisplayReadSource> PlatformApp<S> {
             status: DesktopStatus::new(source),
             page: 0,
             manager_snapshot: None,
+            snapshot_source: None,
+            last_snapshot: Instant::now(),
+            approval_id: String::new(),
             large_text: false,
             compact: false,
         }
     }
 
+    /// Compose only an independently authenticated native manager snapshot
+    /// source. The source authenticates the peer; this window never does.
+    #[allow(dead_code)] // integration seam for the installed management client
+    pub fn set_snapshot_source(
+        &mut self,
+        source: Option<Box<dyn AuthenticatedManagerSnapshotSource>>,
+    ) {
+        self.snapshot_source = source;
+        self.last_snapshot = Instant::now()
+            .checked_sub(Duration::from_secs(2))
+            .unwrap_or_else(Instant::now);
+    }
+
     /// Supply only observations produced by the separately authenticated
     /// management client. This does not verify or authorize the snapshot.
     #[allow(dead_code)] // integration seam for the installed management client
-    pub fn set_manager_snapshot(&mut self, snapshot: Option<manager_views::ManagerSnapshot>) {
+    pub fn set_manager_snapshot(&mut self, snapshot: Option<ManagerSnapshot>) {
         self.manager_snapshot = snapshot;
+    }
+
+    fn refresh_manager_snapshot(&mut self) {
+        if self.last_snapshot.elapsed() < Duration::from_secs(1) {
+            return;
+        }
+        self.last_snapshot = Instant::now();
+        if let Some(source) = self.snapshot_source.as_mut() {
+            self.manager_snapshot = Some(read_manager_snapshot(&mut **source));
+        }
     }
 
     fn manager_panel(&mut self, ui: &mut egui::Ui, manager: ManagerPage) {
         let view = self.status.session.view().clone();
         for line in manager_views::manager_lines(manager, &view, self.manager_snapshot.as_ref()) {
             ui.monospace(line);
+        }
+        if let Some(snapshot) = self.manager_snapshot.as_ref() {
+            for line in sofia_ui_broker::action_preview::context_lines(manager, &view, snapshot) {
+                ui.monospace(line);
+            }
+        }
+        if matches!(
+            manager,
+            ManagerPage::Cores
+                | ManagerPage::Modules
+                | ManagerPage::Security
+                | ManagerPage::Updates
+        ) {
+            ui.separator();
+            ui.label("Caller-supplied owner approval ID (never minted by this window)");
+            ui.text_edit_singleline(&mut self.approval_id);
+            ui.add_enabled(
+                false,
+                egui::Button::new(
+                    "Submit approved action (no authenticated mutation transport composed)",
+                ),
+            );
+            let approval = if self.approval_id.trim().is_empty() {
+                "APPROVAL: NOT_SUPPLIED / CALLER_SUPPLIED_APPROVAL_ID_REQUIRED"
+            } else {
+                "APPROVAL: SUPPLIED_BY_CALLER / NOT_VERIFIED_BY_UI"
+            };
+            ui.monospace(approval);
+            ui.monospace(
+                "SUBMISSION: BLOCKED / NO_AUTHENTICATED_MUTATION_TRANSPORT / NO_LOCAL_AUTHORIZATION",
+            );
         }
         ui.separator();
         ui.add_enabled(false, egui::Button::new(action_label(self.page)));
@@ -267,6 +330,7 @@ impl<S: DisplayReadSource> PlatformApp<S> {
 }
 impl<S: DisplayReadSource> eframe::App for PlatformApp<S> {
     fn update(&mut self, context: &egui::Context, _frame: &mut eframe::Frame) {
+        self.refresh_manager_snapshot();
         context.set_zoom_factor(if self.large_text { 1.25 } else { 1.0 });
         context
             .style_mut(|style| style.spacing.item_spacing.y = if self.compact { 4.0 } else { 9.0 });

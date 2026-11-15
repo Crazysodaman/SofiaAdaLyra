@@ -285,17 +285,81 @@ current snapshot.
   permission or proves health.
 - Protected Core, Module, Security and Update actions display
   `PREVIEW_REQUIRED / REQUIRES_OWNER_APPROVAL` and
-  `EXECUTION_RECEIPT_REQUIRED`. The UI cannot mint an approval. Any future
-  submission uses the typed `aegis.platform.management_mutation.v1` client
-  adapter; unknown schemas, fields, outcomes and missing receipts fail closed.
+  `EXECUTION_RECEIPT_REQUIRED`. The UI cannot mint an approval.
 - `NO_COLOR`, `--plain`, non-TTY output and JSON output remain ASCII/no-ANSI.
   The shared 22-token theme is unchanged.
 
+### Authenticated native snapshot and mutation channel (source preview)
+
+`sofia-ui-broker` now includes a real peer-bound mutation transport for the
+existing native management endpoint (`NativeWindowsMutationTransport` on the
+Windows named pipe and `NativeLinuxMutationTransport` on the Linux Unix
+socket). It reuses the exact pinned installed-service identity checks already
+used by read-only status:
+
+- The exact request bytes are written followed by one newline. Exactly one
+  bounded newline-framed reply body is read back. Pipelining, trailing data,
+  missing newline and oversized frames fail closed.
+- The OS peer is reverified before writing and after reading. Unix endpoint
+  inode/owner/mode fencing is retained; Windows PID/SID/creation-time pins are
+  retained.
+- Request IDs, correlation IDs and idempotency keys are never rewritten, and
+  no approval, owner identity or receipt is minted.
+- The transport performs one exchange and never retries. The client adapter
+  parses only the strict canonical `aegis.platform.management_mutation-response.v1`
+  reply.
+- `DENIED`, `FAILED` and `OUTCOME_UNKNOWN` are surfaced distinctly. Any
+  transport failure, invalid reply or canonical `OUTCOME_UNKNOWN` fences the
+  idempotency key from blind retry for that session; reconciliation is
+  required.
+
+An optional snapshot reader uses the same native channel. It queries
+`core.list`, `module.list`, `fleet.list`, `security.status`, `updates.status`
+and `diagnostics.summary` independently and records each page as `OBSERVED`,
+`NOT_OBSERVED`, `STALE`, `OFFLINE`, `REVOKED`, `STOP`, `DENIED` or `UNKNOWN`.
+An empty list is rendered as `NONE_INSTALLED` only when the service explicitly
+answered `OBSERVED`. A denied or unavailable operation is never converted into
+an empty inventory or verified health. `jobs.list` supplies the mutation
+revision only when the service returns a positive `revision`; it is never
+inferred from settings or a display name.
+
+The current service-side read dispatcher supports `platform.status` and
+`settings.inspect`; the other reviewed operations can still answer `DENIED`.
+That denial is displayed truthfully and is not treated as empty state until
+the service owner enables the operation.
+
+### Interactive preview and submission
+
+From an interactive terminal, the bounded operator flow is:
+
+1. Select a manager page (`2` Core Manager, `3` Module Manager, `5` Security,
+   `6` Updates / Recovery).
+2. Press `p` to preview the exact operation, target Platform, exact target
+   identity, expected generation and expected revision. A preview is blocked
+   when the page is not currently observed, no exact target is selected, the
+   revision is not observed, or SAFE/STOP/revocation/offline state forbids it.
+3. Attach a caller-supplied approval ID produced by the independent owner
+   ceremony with `a <approval-id>` (or `approval <approval-id>`). The UI
+   validates only syntax; it does not verify or create the approval.
+4. Press `s` to submit the typed request. Without a composed authenticated
+   mutation transport the result is
+   `NOT_SUBMITTED / NO_AUTHENTICATED_MUTATION_TRANSPORT`. With a transport the
+   UI prints the exact `SUCCEEDED` receipt, `DENIED` code, `FAILED` code or
+   `OUTCOME_UNKNOWN / RECONCILIATION_REQUIRED / NO_BLIND_RETRY` result.
+
+The default `aegis_tui` binary still composes `OfflineReader` because no
+B1-verified installed-service pins or approved operator entitlement are
+installed in this source build. Pins are never accepted from CLI flags,
+environment variables, Hub metadata or display names. A future installer-
+backed composition must supply `InstalledNativeServicePins`, the snapshot
+source and the mutation transport explicitly.
+
 This is source-level operator experience only. It does **not** certify an
-installed host, authenticated mutation transport, owner approval ceremony,
-Windows SCM/Debian systemd service, or release readiness. Row 30 remains
-`NOT TESTED`; row 32-38 acceptance still requires exact-SHA installed-host
-receipts.
+installed host, an attended owner approval ceremony, Windows SCM/Debian
+systemd service, real mutation receipt execution on a disposable host, or
+release readiness. The Linux Unix-socket mutation path has source tests but
+was not executed on this Windows host. Row 30 remains `NOT TESTED`; row 32-38
+acceptance still requires exact-SHA installed-host receipts.
 
 ## Release evidence required by #201
 

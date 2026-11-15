@@ -361,6 +361,18 @@ pub trait MutationTransport {
     fn exchange(&mut self, request_wire: &[u8]) -> Result<Vec<u8>, MutationTransportError>;
 }
 
+impl<T: MutationTransport + ?Sized> MutationTransport for &mut T {
+    fn exchange(&mut self, request_wire: &[u8]) -> Result<Vec<u8>, MutationTransportError> {
+        (**self).exchange(request_wire)
+    }
+}
+
+impl<T: MutationTransport + ?Sized> MutationTransport for Box<T> {
+    fn exchange(&mut self, request_wire: &[u8]) -> Result<Vec<u8>, MutationTransportError> {
+        (**self).exchange(request_wire)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MutationTransportError {
     Unavailable,
@@ -396,14 +408,53 @@ impl<T: MutationTransport> MutationClient<T> {
         request: &ManagementMutationRequest,
         now: DateTime<FixedOffset>,
     ) -> Result<ManagementMutationReply, MutationClientError> {
+        self.submit_at(request, now, now)
+    }
+
+    /// Submit with a separately sampled reply clock.
+    ///
+    /// The request deadline is validated against `request_now`, while the
+    /// correlated reply freshness is validated against `reply_now` sampled
+    /// after the transport exchange. Real transports MUST use this method so a
+    /// service observation produced after dispatch is not misclassified as a
+    /// future reply.
+    ///
+    /// # Errors
+    /// Returns no reply on invalid framing, transport failure or invalid reply.
+    pub fn submit_at(
+        &mut self,
+        request: &ManagementMutationRequest,
+        request_now: DateTime<FixedOffset>,
+        reply_now: DateTime<FixedOffset>,
+    ) -> Result<ManagementMutationReply, MutationClientError> {
+        self.submit_with_clock(request, request_now, || reply_now)
+    }
+
+    /// Submit and sample the reply-freshness clock only after the exchange.
+    ///
+    /// This is the preferred real-transport API: the clock is evaluated after
+    /// the bounded reply has been received, so a service observation produced
+    /// during dispatch is not misclassified as a future reply.
+    ///
+    /// # Errors
+    /// Returns no reply on invalid framing, transport failure or invalid reply.
+    pub fn submit_with_clock<C>(
+        &mut self,
+        request: &ManagementMutationRequest,
+        request_now: DateTime<FixedOffset>,
+        reply_clock: C,
+    ) -> Result<ManagementMutationReply, MutationClientError>
+    where
+        C: FnOnce() -> DateTime<FixedOffset>,
+    {
         let wire = request
-            .encode(now)
+            .encode(request_now)
             .map_err(|_| MutationClientError::InvalidRequest)?;
         let raw = self
             .transport
             .exchange(&wire)
             .map_err(MutationClientError::Transport)?;
-        ManagementMutationReply::parse(&raw, request, now)
+        ManagementMutationReply::parse(&raw, request, reply_clock())
             .map_err(|_| MutationClientError::InvalidReply)
     }
 }
