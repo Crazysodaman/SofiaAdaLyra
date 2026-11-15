@@ -42,6 +42,38 @@ class MutationFailed(RuntimeError):
     """The handler failed *before* any effect; the mutation may be retried."""
 
 
+_HANDLER_DENIAL_CODES = frozenset({
+    "UNSUPPORTED_OPERATION",
+    "EVIDENCE_UNAVAILABLE",
+    "NOT_PERMITTED",
+    "TARGET_MISMATCH",
+    "STALE_REVISION",
+    "INVALID_PAYLOAD",
+})
+
+
+class MutationDenied(RuntimeError):
+    """The handler refused before any effect with a reviewed denial code.
+
+    A handler may raise this only when it has established that no canonical
+    state or external effect was changed. It never turns a failure into a
+    success; the dispatcher records a durable DENIED receipt.
+    """
+
+    def __init__(self, code: str, detail: str) -> None:
+        if code not in _HANDLER_DENIAL_CODES:
+            raise ValueError("unreviewed management mutation denial code")
+        if (
+            not isinstance(detail, str)
+            or not detail
+            or len(detail) > 512
+        ):
+            raise ValueError("bounded management mutation denial detail required")
+        super().__init__(detail)
+        self.code = code
+        self.detail = detail
+
+
 @dataclass(frozen=True, slots=True)
 class MutationInvocation:
     request: UntrustedManagementMutation
@@ -385,6 +417,10 @@ class ManagementMutationDispatcher:
             )
             try:
                 operation.handler(invocation)
+            except MutationDenied as error:
+                outcome = "DENIED"
+                error_code = error.code
+                detail = error.detail
             except MutationFailed:
                 outcome = "FAILED"
                 error_code = "HANDLER_FAILED"
