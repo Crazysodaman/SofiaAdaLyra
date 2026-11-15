@@ -1,7 +1,9 @@
 //! Rust desktop presentation. No enrollment, permission engine or state writer.
 use eframe::egui;
+use sofia_ui_broker::connection_state::ConnectionStateModel;
 use sofia_ui_broker::control_center::{ActionHint, ControlCenterView, ProposedAction};
 use sofia_ui_broker::control_center_session::{DisplayReadSource, DisplaySession, OfflineReader};
+use sofia_ui_broker::manager_views::{self, ManagerPage};
 use std::time::{Duration, Instant};
 
 const THEME: &str = include_str!("../../../../contracts/ui/aegis-theme-v1.json");
@@ -11,6 +13,7 @@ const THEME: &str = include_str!("../../../../contracts/ui/aegis-theme-v1.json")
 pub struct DesktopStatus<S: DisplayReadSource> {
     session: DisplaySession,
     source: S,
+    connection: ConnectionStateModel,
     error: Option<String>,
 }
 impl<S: DisplayReadSource> DesktopStatus<S> {
@@ -18,6 +21,7 @@ impl<S: DisplayReadSource> DesktopStatus<S> {
         Self {
             session: DisplaySession::default(),
             source,
+            connection: ConnectionStateModel::default(),
             error: None,
         }
     }
@@ -27,14 +31,17 @@ impl<S: DisplayReadSource> DesktopStatus<S> {
             .refresh(&mut self.source, Instant::now())
             .err()
             .map(|error| format!("Rejected status: {error:?}"));
+        self.connection.observe_link(self.session.view().link);
     }
     pub fn draw(&mut self, ui: &mut egui::Ui) {
         self.session.expire_at(Instant::now());
+        self.connection.observe_link(self.session.view().link);
         let view = self.session.view();
         egui::Grid::new("verified-status")
             .striped(true)
             .show(ui, |ui| {
                 for (name, value) in [
+                    ("Connection", self.connection.state().label()),
                     ("Management", view.service_label()),
                     ("Observation source", view.source_label()),
                     ("SAFE / STOP", view.safe_label()),
@@ -61,7 +68,16 @@ impl<S: DisplayReadSource> DesktopStatus<S> {
     }
     pub fn diagnostic(&self) -> String {
         let view = self.session.view();
-        format!("Aegis desktop diagnostic\nManagement: {}\nSource: {}\nPlatform: {}\nSAFE: {}\nPermission: {}\nInstallation: {}\n", view.service_label(), view.source_label(), self.session.platform_id().unwrap_or("NOT VERIFIED"), view.safe_label(), view.permission_label(), view.installation_label())
+        format!(
+            "Aegis desktop diagnostic\nConnection: {}\nManagement: {}\nSource: {}\nPlatform: {}\nSAFE: {}\nPermission: {}\nInstallation: {}\n",
+            self.connection.state().label(),
+            view.service_label(),
+            view.source_label(),
+            self.session.platform_id().unwrap_or("NOT VERIFIED"),
+            view.safe_label(),
+            view.permission_label(),
+            view.installation_label()
+        )
     }
 }
 
@@ -134,7 +150,7 @@ fn action_status(page: usize, view: &ControlCenterView) -> String {
         ActionHint::Blocked(reason) => format!("BLOCKED · {reason}"),
         ActionHint::ReadOnly => "READ ONLY · CURRENT OBSERVATION AVAILABLE".to_owned(),
         ActionHint::RecheckWithService => format!(
-            "SERVICE RECHECK REQUIRED · PREVIEW + EXPLICIT TARGET + GENERATION {} + RECEIPT",
+            "SERVICE RECHECK REQUIRED · PREVIEW · REQUIRES OWNER APPROVAL · EXPLICIT TARGET · GENERATION {} · RECEIPT",
             view.platform_generation
                 .map_or_else(|| "UNKNOWN".to_owned(), |value| value.to_string())
         ),
@@ -144,6 +160,7 @@ fn action_status(page: usize, view: &ControlCenterView) -> String {
 pub struct PlatformApp<S: DisplayReadSource> {
     status: DesktopStatus<S>,
     page: usize,
+    manager_snapshot: Option<manager_views::ManagerSnapshot>,
     large_text: bool,
     compact: bool,
 }
@@ -152,10 +169,29 @@ impl<S: DisplayReadSource> PlatformApp<S> {
         Self {
             status: DesktopStatus::new(source),
             page: 0,
+            manager_snapshot: None,
             large_text: false,
             compact: false,
         }
     }
+
+    /// Supply only observations produced by the separately authenticated
+    /// management client. This does not verify or authorize the snapshot.
+    #[allow(dead_code)] // integration seam for the installed management client
+    pub fn set_manager_snapshot(&mut self, snapshot: Option<manager_views::ManagerSnapshot>) {
+        self.manager_snapshot = snapshot;
+    }
+
+    fn manager_panel(&mut self, ui: &mut egui::Ui, manager: ManagerPage) {
+        let view = self.status.session.view().clone();
+        for line in manager_views::manager_lines(manager, &view, self.manager_snapshot.as_ref()) {
+            ui.monospace(line);
+        }
+        ui.separator();
+        ui.add_enabled(false, egui::Button::new(action_label(self.page)));
+        ui.monospace(action_status(self.page, &view));
+    }
+
     fn body(&mut self, ui: &mut egui::Ui) {
         ui.heading(PAGES[self.page]);
         ui.separator();
@@ -165,6 +201,26 @@ impl<S: DisplayReadSource> PlatformApp<S> {
                 ui.separator();
                 ui.label("Core-free operation: the desktop does not require a Core or an inference provider.");
                 ui.label("Launching this window does not verify an installation or service.");
+            }
+            1 => {
+                ui.label("Enrolled peers, candidates, stale and unreachable hosts remain distinct. Discovery and callsigns are not permission.");
+                self.manager_panel(ui, ManagerPage::Fleet);
+            }
+            2 => {
+                ui.label("Core identity, lifecycle and health come only from the authenticated Platform. A Core-free Platform remains usable.");
+                self.manager_panel(ui, ManagerPage::Cores);
+            }
+            3 => {
+                ui.label("Installed lifecycle and verified runtime health remain separate. Removal requires a receipt.");
+                self.manager_panel(ui, ManagerPage::Modules);
+            }
+            7 => {
+                ui.label("SAFE/STOP, approvals, revocation and grants are service-owned. This window cannot grant permissions.");
+                self.manager_panel(ui, ManagerPage::Security);
+            }
+            8 => {
+                ui.label("Release preview, rollback eligibility and staged receipts are read-only observations.");
+                self.manager_panel(ui, ManagerPage::Updates);
             }
             10 => {
                 ui.label("Desktop appearance (this window only)");
@@ -179,6 +235,7 @@ impl<S: DisplayReadSource> PlatformApp<S> {
                 ui.label(
                     "Bounded diagnostic summary; no private files, logs or credentials are read.",
                 );
+                self.manager_panel(ui, ManagerPage::Diagnostics);
                 if ui.button("Copy diagnostic summary").clicked() {
                     ui.ctx().copy_text(self.status.diagnostic());
                 }
@@ -337,7 +394,7 @@ mod tests {
         current.installation = InstallationState::Absent;
         assert_eq!(
             action_status(2, &current),
-            "SERVICE RECHECK REQUIRED · PREVIEW + EXPLICIT TARGET + GENERATION 14 + RECEIPT"
+            "SERVICE RECHECK REQUIRED · PREVIEW · REQUIRES OWNER APPROVAL · EXPLICIT TARGET · GENERATION 14 · RECEIPT"
         );
         assert_eq!(
             action_status(4, &current),
