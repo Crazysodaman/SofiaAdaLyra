@@ -32,6 +32,22 @@ CAPSULE_STAGE_REQUESTED=0
 CAPSULE_ARCHIVE=''
 CAPSULE_SIGNATURE=''
 CAPSULE_DESTINATION=''
+WIRED=0
+WIRED_RELEASE_ROOT=''
+BUNDLED_PYTHON=''
+EXPECTED_SOURCE_SHA=''
+TARGET=''
+MINIMUM_REVISION=''
+DESTINATION=''
+IDENTITY_HOME=''
+LOCAL_STATE=''
+LOCAL_INSTALLATION_STATE=''
+SAFE_STATE=''
+APPROVAL_ID=''
+CODE_APPROVAL_ID=''
+PREVIOUS_DESTINATION=''
+STAGING_CANDIDATE=''
+EXPECTED_PARENT_MANIFEST_SHA256=''
 
 usage() {
   printf '%s\n' 'Aegis installer (PREVIEW ONLY; signed offline staging available)' \
@@ -40,8 +56,9 @@ usage() {
     '       install-aegis.sh --verify-seed FILE --trusted-seed-sha256 HEX [--json]' \
     '       install-aegis.sh --verify-publisher DIR --publisher-key PEM --publisher-sha256 HEX --publisher-signer ID [--json]' \
     '       install-aegis.sh --stage-capsule ZIP --capsule-signature RAW64 --publisher-key PEM --publisher-sha256 HEX --publisher-signer ID --staging-destination NEW_PRIVATE_DIR' \
-    'OP: status, doctor, install, update, repair, rollback, uninstall, purge' \
-    'Mutation is BLOCKED until the signed OS executor and SAFE/STOP are connected.'
+    '       install-aegis.sh --wired --operation OP [trust and approval options] --json' \
+    'OP: verify, status, doctor, install, update, repair, rollback, uninstall, reinstall, reconcile' \
+    'Wired mutation is fail-closed and requires independent publisher trust plus owner SAFE approval.'
 }
 
 while (($#)); do
@@ -78,13 +95,59 @@ while (($#)); do
     --no-color|--plain|--line-mode) PLAIN=1; shift ;;
     --json) JSON_MODE=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
+    --wired) WIRED=1; shift ;;
+    --release-root)
+      if [[ -n "$WIRED_RELEASE_ROOT" ]] || (($# < 2)); then printf '%s\n' 'Invalid wired release root' >&2; exit 2; fi
+      WIRED_RELEASE_ROOT="$2"; shift 2 ;;
+    --bundled-python)
+      if [[ -n "$BUNDLED_PYTHON" ]] || (($# < 2)); then printf '%s\n' 'Invalid bundled Python' >&2; exit 2; fi
+      BUNDLED_PYTHON="$2"; shift 2 ;;
+    --expected-source-sha)
+      if [[ -n "$EXPECTED_SOURCE_SHA" ]] || (($# < 2)); then printf '%s\n' 'Invalid expected source SHA' >&2; exit 2; fi
+      EXPECTED_SOURCE_SHA="$2"; shift 2 ;;
+    --target)
+      if [[ -n "$TARGET" ]] || (($# < 2)); then printf '%s\n' 'Invalid release target' >&2; exit 2; fi
+      TARGET="$2"; shift 2 ;;
+    --minimum-revision)
+      if [[ -n "$MINIMUM_REVISION" ]] || (($# < 2)); then printf '%s\n' 'Invalid revision floor' >&2; exit 2; fi
+      MINIMUM_REVISION="$2"; shift 2 ;;
+    --destination)
+      if [[ -n "$DESTINATION" ]] || (($# < 2)); then printf '%s\n' 'Invalid destination' >&2; exit 2; fi
+      DESTINATION="$2"; shift 2 ;;
+    --identity-home)
+      if [[ -n "$IDENTITY_HOME" ]] || (($# < 2)); then printf '%s\n' 'Invalid identity home' >&2; exit 2; fi
+      IDENTITY_HOME="$2"; shift 2 ;;
+    --local-state)
+      if [[ -n "$LOCAL_STATE" ]] || (($# < 2)); then printf '%s\n' 'Invalid local state' >&2; exit 2; fi
+      LOCAL_STATE="$2"; shift 2 ;;
+    --local-installation-state)
+      if [[ -n "$LOCAL_INSTALLATION_STATE" ]] || (($# < 2)); then printf '%s\n' 'Invalid local installation state' >&2; exit 2; fi
+      LOCAL_INSTALLATION_STATE="$2"; shift 2 ;;
+    --safe-state)
+      if [[ -n "$SAFE_STATE" ]] || (($# < 2)); then printf '%s\n' 'Invalid canonical SAFE state' >&2; exit 2; fi
+      SAFE_STATE="$2"; shift 2 ;;
+    --approval-id)
+      if [[ -n "$APPROVAL_ID" ]] || (($# < 2)); then printf '%s\n' 'Invalid owner approval' >&2; exit 2; fi
+      APPROVAL_ID="$2"; shift 2 ;;
+    --code-approval-id)
+      if [[ -n "$CODE_APPROVAL_ID" ]] || (($# < 2)); then printf '%s\n' 'Invalid code owner approval' >&2; exit 2; fi
+      CODE_APPROVAL_ID="$2"; shift 2 ;;
+    --previous-destination)
+      if [[ -n "$PREVIOUS_DESTINATION" ]] || (($# < 2)); then printf '%s\n' 'Invalid previous destination' >&2; exit 2; fi
+      PREVIOUS_DESTINATION="$2"; shift 2 ;;
+    --staging-candidate)
+      if [[ -n "$STAGING_CANDIDATE" ]] || (($# < 2)); then printf '%s\n' 'Invalid staging candidate' >&2; exit 2; fi
+      STAGING_CANDIDATE="$2"; shift 2 ;;
+    --expected-parent-manifest-sha256)
+      if [[ -n "$EXPECTED_PARENT_MANIFEST_SHA256" ]] || (($# < 2)); then printf '%s\n' 'Invalid expected parent manifest' >&2; exit 2; fi
+      EXPECTED_PARENT_MANIFEST_SHA256="$2"; shift 2 ;;
     --operation)
       if ((OPERATION_REQUESTED)); then printf '%s\n' 'Operation specified twice' >&2; exit 2; fi
       OPERATION_REQUESTED=1
       if (($# < 2)); then printf '%s\n' 'Missing operation' >&2; exit 2; fi
       OPERATION="$2"
       case "$OPERATION" in
-        status|doctor|install|update|repair|rollback|uninstall|purge) ;;
+        verify|status|doctor|install|update|repair|rollback|uninstall|reinstall|reconcile|purge) ;;
         *) printf '%s\n' 'Unknown operation' >&2; exit 2 ;;
       esac
       MODE=operation; shift 2 ;;
@@ -102,11 +165,36 @@ fi
 if ((PUBLISHER_REQUESTED && (CHECK_REQUESTED || OPERATION_REQUESTED || SEED_REQUESTED || DRY_RUN))); then
   printf '%s\n' 'Publisher signature check cannot authorize a protected operation' >&2; exit 2
 fi
-if (( !PUBLISHER_REQUESTED && !CAPSULE_STAGE_REQUESTED )) && [[ -n "$PUBLISHER_KEY" || -n "$PUBLISHER_FINGERPRINT" || -n "$PUBLISHER_SIGNER" ]]; then
-  printf '%s\n' 'Publisher trust flags require --verify-publisher' >&2; exit 2
+if (( !PUBLISHER_REQUESTED && !CAPSULE_STAGE_REQUESTED && !WIRED )) && [[ -n "$PUBLISHER_KEY" || -n "$PUBLISHER_FINGERPRINT" || -n "$PUBLISHER_SIGNER" ]]; then
+  printf '%s\n' 'Publisher trust flags require --verify-publisher or --wired' >&2; exit 2
 fi
 if ((PUBLISHER_REQUESTED)) && [[ -n "$SEED_SHA256" ]]; then
   printf '%s\n' 'Publisher mode cannot be mixed with seed mode' >&2; exit 2
+fi
+
+# Wired mode delegates only to the bundled Python canonical adapter. It never
+# performs a service action or elevation in this shell entrypoint.
+if ((WIRED)); then
+  if ((CHECK_REQUESTED || SEED_REQUESTED || PUBLISHER_REQUESTED ||
+        CAPSULE_STAGE_REQUESTED || DRY_RUN || ! OPERATION_REQUESTED)) ||
+     [[ -z "$WIRED_RELEASE_ROOT" || -z "$BUNDLED_PYTHON" ||
+        ! "$MINIMUM_REVISION" =~ ^[1-9][0-9]*$ ]]; then
+    printf '%s\n' 'Wired installer requires operation, release root, bundled Python and revision floor' >&2
+    exit 2
+  fi
+  if [[ ! -d "$WIRED_RELEASE_ROOT" || -L "$WIRED_RELEASE_ROOT" ||
+        ! -f "$BUNDLED_PYTHON" || -L "$BUNDLED_PYTHON" ]]; then
+    printf '%s\n' 'Wired release root or bundled Python is unavailable or redirected' >&2
+    exit 2
+  fi
+elif [[ -n "$WIRED_RELEASE_ROOT" || -n "$BUNDLED_PYTHON" ||
+        -n "$EXPECTED_SOURCE_SHA" || -n "$TARGET" || -n "$MINIMUM_REVISION" ||
+        -n "$DESTINATION" || -n "$IDENTITY_HOME" || -n "$LOCAL_STATE" ||
+        -n "$LOCAL_INSTALLATION_STATE" || -n "$SAFE_STATE" || -n "$APPROVAL_ID" ||
+        -n "$CODE_APPROVAL_ID" || -n "$PREVIOUS_DESTINATION" ||
+        -n "$STAGING_CANDIDATE" || -n "$EXPECTED_PARENT_MANIFEST_SHA256" ]]; then
+  printf '%s\n' 'Wired trust and approval inputs require --wired' >&2
+  exit 2
 fi
 
 # Explicit verified-media staging is NOT a service installation. Keep it
@@ -353,6 +441,31 @@ verify_publisher_manifest() {
   return 0
 }
 if [[ "$MODE" == help ]]; then usage; exit 0; fi
+if ((WIRED)); then
+  wired_args=(--release-root "$WIRED_RELEASE_ROOT" --json)
+  wired_add() {
+    local name="$1" value="$2"
+    if [[ -n "$value" ]]; then wired_args+=("$name" "$value"); fi
+  }
+  wired_add --publisher-key "$PUBLISHER_KEY"
+  wired_add --publisher-key-sha256 "$PUBLISHER_FINGERPRINT"
+  wired_add --publisher-signer "$PUBLISHER_SIGNER"
+  wired_add --expected-source-sha "$EXPECTED_SOURCE_SHA"
+  wired_add --target "$TARGET"
+  wired_add --minimum-revision "$MINIMUM_REVISION"
+  wired_add --destination "$DESTINATION"
+  wired_add --identity-home "$IDENTITY_HOME"
+  wired_add --local-state "$LOCAL_STATE"
+  wired_add --local-installation-state "$LOCAL_INSTALLATION_STATE"
+  wired_add --safe-state "$SAFE_STATE"
+  wired_add --approval-id "$APPROVAL_ID"
+  wired_add --code-approval-id "$CODE_APPROVAL_ID"
+  wired_add --previous-destination "$PREVIOUS_DESTINATION"
+  wired_add --staging-candidate "$STAGING_CANDIDATE"
+  wired_add --expected-parent-manifest-sha256 "$EXPECTED_PARENT_MANIFEST_SHA256"
+  exec "$BUNDLED_PYTHON" -I -m sofia.platform.ops.platform_installer_cli \
+    "$OPERATION" "${wired_args[@]}"
+fi
 if [[ "$MODE" == capsule_stage ]]; then
   # Inert, owner-private disk staging only. No escalation, SAFE bypass,
   # service registration, release installation, Core or Fleet enrollment.

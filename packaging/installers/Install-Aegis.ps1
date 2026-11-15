@@ -16,8 +16,27 @@ param(
     [string]$VerifyPublisherBootstrap,
     [string]$TrustedPublisherThumbprint,
     [string]$TrustedBootstrapSha256,
-    [ValidateSet('status','doctor','install','update','repair','rollback','uninstall','purge')]
-    [string]$Operation
+    [ValidateSet('verify','status','doctor','install','update','repair','rollback','uninstall','reinstall','reconcile','purge')]
+    [string]$Operation,
+    [switch]$Wired,
+    [string]$ReleaseRoot,
+    [string]$BundledPython,
+    [string]$PublisherKey,
+    [string]$PublisherKeySha256,
+    [string]$PublisherSigner,
+    [string]$ExpectedSourceSha,
+    [string]$Target,
+    [int]$MinimumRevision,
+    [string]$Destination,
+    [string]$IdentityHome,
+    [string]$LocalState,
+    [string]$LocalInstallationState,
+    [string]$SafeState,
+    [string]$ApprovalId,
+    [string]$CodeApprovalId,
+    [string]$PreviousDestination,
+    [string]$StagingCandidate,
+    [string]$ExpectedParentManifestSha256
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -26,12 +45,33 @@ if ($Check -and $Operation) {
     exit 2
 }
 
-if (($VerifySeed -and ($Check -or $Operation -or $DryRun -or $VerifyPublisherBootstrap)) -or
+if (($VerifySeed -and ($Check -or $Operation -or $DryRun -or $VerifyPublisherBootstrap -or $Wired)) -or
     ((-not [string]::IsNullOrEmpty($TrustedSeedSha256)) -and -not $VerifySeed) -or
-    ($VerifyPublisherBootstrap -and ($Check -or $Operation -or $DryRun)) -or
+    ($VerifyPublisherBootstrap -and ($Check -or $Operation -or $DryRun -or $Wired)) -or
     ((-not [string]::IsNullOrEmpty($TrustedPublisherThumbprint) -or
       -not [string]::IsNullOrEmpty($TrustedBootstrapSha256)) -and -not $VerifyPublisherBootstrap)) {
     [Console]::Error.WriteLine('Conflicting or incomplete protected verifier arguments.')
+    exit 2
+}
+
+$wiredInputs = @(
+    $ReleaseRoot, $BundledPython, $PublisherKey, $PublisherKeySha256,
+    $PublisherSigner, $ExpectedSourceSha, $Target, $Destination,
+    $IdentityHome, $LocalState, $SafeState, $ApprovalId, $CodeApprovalId,
+    $PreviousDestination, $StagingCandidate, $LocalInstallationState,
+    $ExpectedParentManifestSha256
+)
+if ($Wired) {
+    if ($Check -or $VerifySeed -or $VerifyPublisherBootstrap -or $DryRun -or
+        [string]::IsNullOrWhiteSpace($Operation) -or
+        [string]::IsNullOrWhiteSpace($ReleaseRoot) -or
+        [string]::IsNullOrWhiteSpace($BundledPython) -or $MinimumRevision -lt 1) {
+        [Console]::Error.WriteLine('Wired installer requires operation, release root, bundled Python and revision floor.')
+        exit 2
+    }
+} elseif (@($wiredInputs | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count -gt 0 -or
+          $MinimumRevision -ne 0) {
+    [Console]::Error.WriteLine('Wired trust and approval inputs require -Wired.')
     exit 2
 }
 
@@ -311,6 +351,65 @@ function Test-AegisPublisherSignedBootstrap {
     }
 }
 
+function Assert-AegisWiredLocalPath {
+    param([string]$Path, [switch]$Directory)
+    if ([string]::IsNullOrWhiteSpace($Path)) { throw 'Local wired path required' }
+    $absolute = [IO.Path]::GetFullPath($Path)
+    if ($absolute.StartsWith('\\')) { throw 'Network/UNC wired path refused' }
+    $item = Get-Item -LiteralPath $absolute -Force -ErrorAction Stop
+    if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw 'Wired path contains a reparse point'
+    }
+    if ($Directory -and -not $item.PSIsContainer) { throw 'Wired release root is not a directory' }
+    if (-not $Directory -and $item.PSIsContainer) { throw 'Wired Python path is a directory' }
+    return $absolute
+}
+
+function Invoke-AegisWiredInstaller {
+    $release = Assert-AegisWiredLocalPath -Path $ReleaseRoot -Directory
+    $python = Assert-AegisWiredLocalPath -Path $BundledPython
+    $arguments = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($value in @('-I', '-m', 'sofia.platform.ops.platform_installer_cli', $Operation, '--json')) {
+        $arguments.Add($value)
+    }
+    $options = @(
+        @('--release-root', $release),
+        @('--publisher-key', $PublisherKey),
+        @('--publisher-key-sha256', $PublisherKeySha256),
+        @('--publisher-signer', $PublisherSigner),
+        @('--expected-source-sha', $ExpectedSourceSha),
+        @('--target', $Target),
+        @('--minimum-revision', $(if ($MinimumRevision -gt 0) { [string]$MinimumRevision } else { '' })),
+        @('--destination', $Destination),
+        @('--identity-home', $IdentityHome),
+        @('--local-state', $LocalState),
+        @('--safe-state', $SafeState),
+        @('--local-installation-state', $LocalInstallationState),
+        @('--approval-id', $ApprovalId),
+        @('--code-approval-id', $CodeApprovalId),
+        @('--previous-destination', $PreviousDestination),
+        @('--staging-candidate', $StagingCandidate),
+        @('--expected-parent-manifest-sha256', $ExpectedParentManifestSha256)
+    )
+    foreach ($option in $options) {
+        if (-not [string]::IsNullOrWhiteSpace($option[1])) {
+            $arguments.Add($option[0])
+            $arguments.Add($option[1])
+        }
+    }
+    & $python @arguments
+    if (Test-Path Variable:LASTEXITCODE) { exit $LASTEXITCODE }
+    exit 0
+}
+
+if ($Wired) {
+    try {
+        Invoke-AegisWiredInstaller
+    } catch {
+        [Console]::Error.WriteLine('Wired installer inputs are unavailable or redirected.')
+        exit 2
+    }
+}
 if ($VerifySeed) {
     Test-AegisOfflineSeedHash -Path $VerifySeed -ExternalSha256 $TrustedSeedSha256
     exit 3
