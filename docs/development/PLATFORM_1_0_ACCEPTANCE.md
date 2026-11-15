@@ -350,3 +350,38 @@ remote naming, a signed Platform 1.0 release artifact under an available
 signing authority, and the full disposable Windows/Debian four-host evidence
 campaign. Issue updates to #201/#250 are also blocked until GitHub
 authentication is available.
+
+## Parallel implementation checkpoint 2026-11-15
+
+Five isolated workers were launched concurrently from `ceafbfe7`. All five
+committed, all were reviewed, and all were merged into main without altering
+another authority or weakening a test. Merge commits: `a2c524f1` (A),
+`e6fafcbb` (B), `5a1b57fc` (C), `5198d92a` (D), `575a09b6` (E), plus the
+integration correction `7eda8c09`.
+
+| Worker | Branch / commit | Delivered source | Focused evidence |
+| --- | --- | --- | --- |
+| A management | `aegis/p1-management` / `220984d2` | Strict `aegis.platform.management_mutation.v1` request/response contract, service-owned mutation registry/dispatcher, durable receipt/idempotency/revision store in canonical Platform SQLite, peer-bound one-use SAFE approval consumption with pre/post revalidation, STOP/generation/revision fencing, existing Windows pipe and Unix socket dispatch. Only canonical operator STOP is wired as a backend. | 21 passed, 1 skipped for the new suite; 115 passed, 18 skipped for management/SAFE; broader 165 passed, 33 skipped |
+| B installer | `aegis/p1-installer` / `c78ab64f` | `platform_installer_cli` adapter over the existing verifier, B1 store, code publication, native transaction and reconciliation owners; verify/status/doctor/install/update/repair/rollback/uninstall/reinstall/reconcile; two-phase code/native owner approvals; opt-in `-Wired`/`--wired` launch delegation with the default still PREVIEW-ONLY. | New CLI 18 passed; wired launcher 3 passed, 1 POSIX skip; installer/platform/UI batch 172 passed, 189 skipped |
+| C library | `aegis/p1-library` / `86d36c8f` | Durable one-primary logical Library epoch/lease/fence record in canonical Platform SQLite, read-only replica sync with signed-index/CAS verification and truthful STALE/OFFLINE/UNKNOWN states, dual-primary denial, SAFE-callback + old-primary fence promotion, additive `primary-status`/`replica-status` owner CLI. | 12 passed new; all `test_library_*` 343 passed, 79 skipped |
+| D Fleet/Core | `aegis/p1-fleet-core` / `08e09719` | Governed synthetic Core lifecycle over the existing component installer: owner-scoped identity/generation bindings, one-writer fencing, start/stop/detach/remove, crash/PENDING reconciliation, authorization and Platform-health interfaces; pinned remote callsign transport adapter over an existing authenticated transport. | 205 passed, 3 skipped across new and existing component/Fleet/workload suites |
+| E UI | `aegis/p1-ui` / `d2a8b103` | Strict Rust mutation client/adapter, explicit connection states, Core/Module/Fleet/Security/Updates/Diagnostics manager views in TUI and GUI, reconnect without restart, truthful NOT_OBSERVED/STALE/REVOKED/STOP handling, runbook update. The coordinator corrected the Rust reply parser to the canonical Python key set (`idempotency_key`, `platform_id`, `detail`) in `7eda8c09`. | UI crate 108 passed; desktop-feature 120 passed; targeted Python UI 30 passed; fmt/Clippy/TUI build passed |
+
+**Integrated verification at `7eda8c09` (Windows):**
+
+- Targeted cross-worker Python suite: 236 passed, 69 skipped.
+- Broad Platform/library/management/installer/Fleet/SAFE suite: 1,314 passed,
+  308 skipped.
+- Rust `cargo fmt --all --check`, strict workspace Clippy and
+  `cargo test --workspace --locked`: passed.
+- Package ownership: 8 passed.
+
+These are source and disposable-process results, not installed-host
+certification. The new mutation dispatcher currently wires only the canonical
+operator STOP backend; module, Core, and Fleet handlers remain to be bound to
+their canonical owners. Synthetic Core process control is an injected-backend
+state machine with disposable fake-backend tests, not a real Core process.
+Library replica support is API-level and still requires a service-owned TLS
+primary client. No signed Platform release artifact was produced. Therefore
+every acceptance row and every LIB scenario keeps its prior state, and no PASS
+is claimed.
