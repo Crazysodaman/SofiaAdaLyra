@@ -16,7 +16,7 @@ from test.test_platform_service_session import provision
 LINUX = sys.platform == "linux" and hasattr(socket, "SO_PEERCRED")
 
 
-def request(platform_id, generation):
+def request(platform_id, generation, operation="platform.status"):
     now = datetime.now(timezone.utc)
     return json.dumps({
         "schema": "aegis.platform.management.read.v1",
@@ -24,7 +24,7 @@ def request(platform_id, generation):
         "request_id": "req:security",
         "target_platform_id": platform_id,
         "expected_generation": generation,
-        "operation": "platform.status",
+        "operation": operation,
         "created_at": (now - timedelta(seconds=1)).isoformat(),
         "deadline": (now + timedelta(seconds=5)).isoformat(),
     }).encode("utf-8") + b"\n"
@@ -100,6 +100,39 @@ def test_service_restart_rotates_endpoint_and_fences_generation(tmp_path):
         assert new["generation"] > old["generation"]
         assert old["management_endpoint"] != new["management_endpoint"]
         assert not os.path.exists(old["management_endpoint"])
+
+
+def test_service_reports_core_list_not_observed_without_reader(tmp_path):
+    from test.owner_auth_fixture import grant_with_signed_owner
+
+    identity, current, state = provision(tmp_path)
+    permissions = PermissionStore(state)
+    peer = "windows:sid:S-1-5-21-1234-5678-9012-1234"
+    with PlatformServiceSession(
+        identity.home, state, current.identity.canonical_uuid,
+        current.public_key_sha256,
+    ) as session:
+        status = session.status()
+        dispatcher = session._management_mux.management
+        now = datetime.now(timezone.utc)
+        scope = {
+            "platform_id": current.identity.canonical_uuid,
+            "peer": peer, "operation": "core.list",
+        }
+        grant_with_signed_owner(
+            permissions, "platform.management.read", scope=scope,
+            expires_at=now + timedelta(minutes=5),
+        )
+        payload = json.loads(request(
+            status["platform_id"], status["generation"], "core.list",
+        ))
+        inventory = dispatcher.dispatch(
+            json.dumps(payload).encode("utf-8"),
+            authenticated_peer=peer, now=datetime.now(timezone.utc),
+        )
+        assert inventory["outcome"] == "DENIED"
+        assert inventory["denial"] == {"code": "NOT_PERMITTED"}
+        assert inventory["data"] is None
 
 
 def test_grant_authorizer_requires_real_safe_store_and_exact_proof(tmp_path):

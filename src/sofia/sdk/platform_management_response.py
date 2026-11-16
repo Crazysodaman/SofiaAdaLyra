@@ -37,9 +37,24 @@ _STARTUP = frozenset({
     "management_listening",
 })
 _STARTUP_STATES = frozenset({
-    "ZERO_CORE_HEALTHY", "CORES_RUNNING", "DEGRADED", "UNKNOWN",
+    "ZERO_CORE_HEALTHY", "CORES_RUNNING", "CORES_DISABLED", "DEGRADED",
+    "UNKNOWN",
 })
+_CORE_FIELDS = frozenset({
+    "core_id", "installed", "enabled", "startup_mode", "observed_state",
+    "generation", "last_error_code",
+})
+_STARTUP_MODES = frozenset({"on_platform_ready", "manual", "on_demand"})
+_OBSERVED_STATES = frozenset({
+    "RUNNING", "STOPPED", "STARTING", "FAILED", "UNKNOWN", "NOT_OBSERVED",
+})
+_CORE_ID = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+)
+_ERROR_CODE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$")
 _MAX_COUNT = 65535
+_MAX_CORES = 256
+_MAX_PORTABLE_INT = 2**53 - 1
 _RFC3339 = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$"
 )
@@ -78,6 +93,53 @@ def _startup_data(data: Mapping[str, object], expected: UntrustedManagementRead)
         raise PermissionError("inconsistent zero-core startup state")
     if data["startup_state"] == "CORES_RUNNING" and data["active_core_count"] == 0:
         raise PermissionError("inconsistent running-core startup state")
+
+
+def _core_data(data: Mapping[str, object], expected: UntrustedManagementRead) -> None:
+    if (set(data) != {
+            "platform_id", "generation", "operator_stop", "cores",
+        }
+            or data["platform_id"] != expected.target_platform_id
+            or type(data["generation"]) is not int
+            or data["generation"] != expected.expected_generation
+            or data["operator_stop"] is not False):
+        raise PermissionError("inconsistent Platform Core inventory projection")
+    rows = data["cores"]
+    if isinstance(rows, Mapping) or not isinstance(rows, (list, tuple)):
+        raise PermissionError("invalid Platform Core inventory")
+    if len(rows) > _MAX_CORES:
+        raise PermissionError("Platform Core inventory exceeds bound")
+    seen: set[str] = set()
+    for row in rows:
+        if not isinstance(row, Mapping) or set(row) != _CORE_FIELDS:
+            raise PermissionError("invalid Platform Core inventory row")
+        core_id = row["core_id"]
+        installed = row["installed"]
+        enabled = row["enabled"]
+        startup_mode = row["startup_mode"]
+        observed_state = row["observed_state"]
+        generation = row["generation"]
+        last_error_code = row["last_error_code"]
+        if (not isinstance(core_id, str)
+                or _CORE_ID.fullmatch(core_id) is None
+                or core_id in seen):
+            raise PermissionError("invalid or duplicate Platform Core identity")
+        if type(installed) is not bool or type(enabled) is not bool:
+            raise PermissionError("invalid Platform Core inventory flags")
+        if not isinstance(startup_mode, str) or startup_mode not in _STARTUP_MODES:
+            raise PermissionError("invalid Platform Core startup mode")
+        if (not isinstance(observed_state, str)
+                or observed_state not in _OBSERVED_STATES):
+            raise PermissionError("invalid Platform Core observed state")
+        if (type(generation) is not int
+                or not 0 <= generation <= _MAX_PORTABLE_INT):
+            raise PermissionError("invalid Platform Core generation")
+        if last_error_code is not None and (
+            not isinstance(last_error_code, str)
+            or _ERROR_CODE.fullmatch(last_error_code) is None
+        ):
+            raise PermissionError("invalid Platform Core error code")
+        seen.add(core_id)
 
 
 def _unique(pairs: list[tuple[str, object]]) -> dict[str, object]:
@@ -209,6 +271,8 @@ class UntrustedManagementResponse:
                 raise PermissionError("inconsistent Platform status projection")
             if expected.operation == "startup.status":
                 _startup_data(data, expected)
+            if expected.operation == "core.list":
+                _core_data(data, expected)
             code = None
         elif outcome == "DENIED":
             if (data is not None or not isinstance(denial, dict)

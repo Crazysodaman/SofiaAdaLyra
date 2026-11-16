@@ -1,4 +1,4 @@
-"""Linux native client for ONE current, SAFE-enrolled Platform status read.
+"""Linux native client for reviewed, SAFE-enrolled Platform management reads.
 
 This client neither creates credentials nor authorizes an operator. Its pins
 must come from B's trusted installed-service metadata, not Hub JSON or a
@@ -26,6 +26,7 @@ _MAX_CONTROL = 32 * 1024
 _MAX_REQUEST = 64 * 1024
 _MAX_SOCK_PATH = 100
 _MAX_WAIT = 2.0
+_SUPPORTED_READS = frozenset({"platform.status", "startup.status", "core.list"})
 
 
 def _no_redirects(path: Path) -> None:
@@ -99,11 +100,12 @@ def _read_one_reply(connection: socket.socket, *, deadline: float) -> bytes:
             return bytes(raw[:-1])
 
 
-def read_linux_platform_status(
+def read_linux_management(
     *,
     socket_path: Path,
     expected_platform_id: str,
     expected_generation: int,
+    operation: str,
     installed_service_uid: int,
     installed_service_gid: int,
     installed_service_pid: int | None = None,
@@ -114,7 +116,10 @@ def read_linux_platform_status(
     The caller supplies signed installer-derived exact pins and current RUN
     generation, not values obtained from untrusted peer JSON. The service
     independently checks current owner SAFE/STOP and may close without reply.
+    Only platform.status, startup.status and core.list are requestable.
     """
+    if not isinstance(operation, str) or operation not in _SUPPORTED_READS:
+        raise ValueError("unsupported Platform management read operation")
     if installed_service_pid is not None and (
         type(installed_service_pid) is not int or installed_service_pid <= 0
     ):
@@ -139,7 +144,7 @@ def read_linux_platform_status(
         "request_id": "req:" + uuid4().hex,
         "target_platform_id": expected_platform_id,
         "expected_generation": expected_generation,
-        "operation": "platform.status",
+        "operation": operation,
         "created_at": now.isoformat(timespec="microseconds").replace("+00:00", "Z"),
         "deadline": (now + timedelta(seconds=5)).isoformat(
             timespec="microseconds"
@@ -181,4 +186,73 @@ def read_linux_platform_status(
             raise PermissionError("management socket replaced during read")
     return UntrustedManagementResponse.parse(
         raw, expected=request, now=datetime.now(timezone.utc),
+    )
+
+
+def read_linux_platform_status(
+    *,
+    socket_path: Path,
+    expected_platform_id: str,
+    expected_generation: int,
+    installed_service_uid: int,
+    installed_service_gid: int,
+    installed_service_pid: int | None = None,
+    installed_socket_group_gid: int | None = None,
+) -> UntrustedManagementResponse:
+    """Request only the reviewed platform.status projection."""
+    return read_linux_management(
+        socket_path=socket_path,
+        expected_platform_id=expected_platform_id,
+        expected_generation=expected_generation,
+        operation="platform.status",
+        installed_service_uid=installed_service_uid,
+        installed_service_gid=installed_service_gid,
+        installed_service_pid=installed_service_pid,
+        installed_socket_group_gid=installed_socket_group_gid,
+    )
+
+
+def read_linux_platform_startup(
+    *,
+    socket_path: Path,
+    expected_platform_id: str,
+    expected_generation: int,
+    installed_service_uid: int,
+    installed_service_gid: int,
+    installed_service_pid: int | None = None,
+    installed_socket_group_gid: int | None = None,
+) -> UntrustedManagementResponse:
+    """Request only the reviewed startup.status projection."""
+    return read_linux_management(
+        socket_path=socket_path,
+        expected_platform_id=expected_platform_id,
+        expected_generation=expected_generation,
+        operation="startup.status",
+        installed_service_uid=installed_service_uid,
+        installed_service_gid=installed_service_gid,
+        installed_service_pid=installed_service_pid,
+        installed_socket_group_gid=installed_socket_group_gid,
+    )
+
+
+def read_linux_core_inventory(
+    *,
+    socket_path: Path,
+    expected_platform_id: str,
+    expected_generation: int,
+    installed_service_uid: int,
+    installed_service_gid: int,
+    installed_service_pid: int | None = None,
+    installed_socket_group_gid: int | None = None,
+) -> UntrustedManagementResponse:
+    """Request only the reviewed core.list projection."""
+    return read_linux_management(
+        socket_path=socket_path,
+        expected_platform_id=expected_platform_id,
+        expected_generation=expected_generation,
+        operation="core.list",
+        installed_service_uid=installed_service_uid,
+        installed_service_gid=installed_service_gid,
+        installed_service_pid=installed_service_pid,
+        installed_socket_group_gid=installed_socket_group_gid,
     )

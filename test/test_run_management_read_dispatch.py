@@ -2,6 +2,7 @@
 from datetime import datetime, timezone
 import json
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 
@@ -15,6 +16,8 @@ FIXTURE = (
     Path(__file__).resolve().parents[1]
     / "contracts/platform/management-read-valid-v1.json"
 )
+CORE_ONE = str(uuid4())
+CORE_TWO = str(uuid4())
 
 
 def request(operation="platform.status", **changes):
@@ -81,6 +84,37 @@ def startup_service(**startup_changes):
         clock=lambda: NOW,
     )
     return dispatcher, current, startup, events
+
+
+def core_row(**changes):
+    row = {
+        "core_id": CORE_ONE, "installed": True, "enabled": True,
+        "startup_mode": "on_platform_ready", "observed_state": "RUNNING",
+        "generation": 3, "last_error_code": None,
+    }
+    row.update(changes)
+    return row
+
+
+def inventory_service(rows=None):
+    current = {
+        "platform_id": "platform:alpha", "generation": 3,
+        "operator_stop": False, "core_started": False,
+    }
+    inventory = [core_row()] if rows is None else rows
+    events = []
+    def authorize(peer, operation):
+        events.append(("authorize", peer, operation))
+        return frozenset({SettingsOwner.HOST}) if peer == "peer:authorized" else None
+
+    dispatcher = ManagementReadDispatcher(
+        current_status=lambda: current,
+        authorize=authorize,
+        read_settings=lambda _scopes: {},
+        read_core_inventory=lambda: inventory,
+        clock=lambda: NOW,
+    )
+    return dispatcher, current, inventory, events
 
 
 def test_platform_status_uses_current_scope_and_generation():
@@ -242,6 +276,133 @@ def test_startup_status_redacts_unknown_service_fields():
         "autostart_enabled_count", "autostart_reconciled_at",
         "management_listening",
     }
+
+
+def test_startup_status_disabled_cores_is_a_reviewed_state():
+    dispatcher, _, _, _ = startup_service(
+        core_count=2, active_core_count=0,
+        startup_state="CORES_DISABLED",
+    )
+    result = dispatcher.dispatch(
+        request("startup.status"), authenticated_peer="peer:authorized", now=NOW
+    )
+    assert result["outcome"] == "OK"
+    assert result["data"]["startup_state"] == "CORES_DISABLED"
+    assert result["data"]["core_count"] == 2
+    assert result["data"]["active_core_count"] == 0
+
+
+def test_core_list_uses_service_inventory_for_enrolled_peer():
+    dispatcher, _, inventory, events = inventory_service([
+        core_row(),
+        core_row(
+            core_id=CORE_TWO, installed=True, enabled=False,
+            startup_mode="manual", observed_state="STOPPED",
+            generation=0, last_error_code="OPERATOR_STOP",
+        ),
+    ])
+    result = dispatcher.dispatch(
+        request("core.list"), authenticated_peer="peer:authorized", now=NOW
+    )
+    assert result["outcome"] == "OK"
+    assert result["data"] == {
+        "platform_id": "platform:alpha", "generation": 3,
+        "operator_stop": False, "cores": inventory,
+    }
+    assert len(events) == 2
+
+
+def test_core_list_without_service_reader_is_denied():
+    dispatcher, _, events = service()
+    result = dispatcher.dispatch(
+        request("core.list"), authenticated_peer="peer:authorized", now=NOW
+    )
+    assert result["outcome"] == "DENIED"
+    assert result["denial"] == {"code": "NOT_PERMITTED"}
+    assert result["data"] is None
+    assert len(events) == 2
+
+
+def test_core_list_non_callable_reader_is_refused():
+    with pytest.raises(TypeError, match="callable"):
+        ManagementReadDispatcher(
+            current_status=lambda: {},
+            authorize=lambda _peer, _operation: frozenset(),
+            read_settings=lambda _scopes: {},
+            read_core_inventory=object(),
+        )
+
+
+@pytest.mark.parametrize("change,match", [
+    ({"operator_stop": True}, "STOP"),
+    ({"generation": 4}, "generation"),
+])
+def test_core_list_cannot_bypass_stop_or_stale_generation(change, match):
+    dispatcher, state, inventory, events = inventory_service()
+    state.update(change)
+    with pytest.raises(ManagementReadDenied, match=match):
+        dispatcher.dispatch(
+            request("core.list"), authenticated_peer="peer:authorized", now=NOW
+        )
+    assert inventory and not any(event[0] == "settings" for event in events)
+
+
+def test_core_list_denies_wrong_peer():
+    dispatcher, _, _, _ = inventory_service()
+    with pytest.raises(ManagementReadDenied):
+        dispatcher.dispatch(
+            request("core.list"), authenticated_peer="peer:unknown", now=NOW
+        )
+
+
+@pytest.mark.parametrize("row", [
+    core_row(extra="field"),
+    {key: value for key, value in core_row().items() if key != "core_id"},
+    core_row(core_id="not-a-uuid"),
+    core_row(core_id=CORE_ONE.upper()),
+    core_row(installed=1),
+    core_row(enabled="true"),
+    core_row(startup_mode="automatic"),
+    core_row(observed_state="HEALTHY"),
+    core_row(observed_state="running"),
+    core_row(generation=-1),
+    core_row(generation=True),
+    core_row(generation=2**53),
+    core_row(last_error_code=""),
+    core_row(last_error_code="/private/path"),
+    core_row(last_error_code=4),
+])
+def test_core_list_invalid_inventory_rows_are_denied(row):
+    dispatcher, _, _, _ = inventory_service([row])
+    with pytest.raises(ManagementReadDenied):
+        dispatcher.dispatch(
+            request("core.list"), authenticated_peer="peer:authorized", now=NOW
+        )
+
+
+def test_core_list_duplicate_core_identity_and_mapping_are_denied():
+    dispatcher, _, _, _ = inventory_service([core_row(), core_row()])
+    with pytest.raises(ManagementReadDenied, match="duplicate"):
+        dispatcher.dispatch(
+            request("core.list"), authenticated_peer="peer:authorized", now=NOW
+        )
+    dispatcher, _, _, _ = inventory_service({"cores": [core_row()]})
+    with pytest.raises(ManagementReadDenied, match="inventory projection"):
+        dispatcher.dispatch(
+            request("core.list"), authenticated_peer="peer:authorized", now=NOW
+        )
+
+
+def test_core_list_is_bounded():
+    rows = [
+        core_row(core_id=str(uuid4()))
+        for _ in range(257)
+    ]
+    dispatcher, _, _, _ = inventory_service(rows)
+    with pytest.raises(ManagementReadDenied, match="bound"):
+        dispatcher.dispatch(
+            request("core.list"), authenticated_peer="peer:authorized", now=NOW
+        )
 
 
 def test_settings_use_service_scopes_and_not_client_supplied_field_scopes():

@@ -34,9 +34,24 @@ _STARTUP_FIELDS = frozenset({
     "management_listening",
 })
 _STARTUP_STATES = frozenset({
-    "ZERO_CORE_HEALTHY", "CORES_RUNNING", "DEGRADED", "UNKNOWN",
+    "ZERO_CORE_HEALTHY", "CORES_RUNNING", "CORES_DISABLED", "DEGRADED",
+    "UNKNOWN",
 })
+_CORE_FIELDS = frozenset({
+    "core_id", "installed", "enabled", "startup_mode", "observed_state",
+    "generation", "last_error_code",
+})
+_STARTUP_MODES = frozenset({"on_platform_ready", "manual", "on_demand"})
+_OBSERVED_STATES = frozenset({
+    "RUNNING", "STOPPED", "STARTING", "FAILED", "UNKNOWN", "NOT_OBSERVED",
+})
+_CORE_ID = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+)
+_ERROR_CODE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$")
 _MAX_COUNT = 65535
+_MAX_CORES = 256
+_MAX_PORTABLE_INT = 2**53 - 1
 
 
 class ManagementReadDenied(PermissionError):
@@ -51,8 +66,10 @@ class ManagementReadDispatcher:
     enrollment/revocation for this exact operation. Returning None denies.
     read_settings must use the canonical SettingsService with service-chosen
     owner scopes. read_startup must be a service-owned bounded projection of
-    current startup state; it is never supplied by a client. None of these
-    callbacks may be client-provided.
+    current startup state; it is never supplied by a client. read_core_inventory
+    must be a service-owned bounded projection of current installed Core state;
+    it is never supplied by a client. None of these callbacks may be
+    client-provided.
     """
 
     def __init__(
@@ -61,6 +78,7 @@ class ManagementReadDispatcher:
         authorize: Callable[[str, str], frozenset[SettingsOwner] | None],
         read_settings: Callable[[frozenset[SettingsOwner]], Mapping[str, Any]],
         read_startup: Callable[[], Mapping[str, Any]] | None = None,
+        read_core_inventory: Callable[[], object] | None = None,
         clock: Callable[[], datetime] | None = None,
         enrolled_denial_responses: bool = False,
     ) -> None:
@@ -68,10 +86,13 @@ class ManagementReadDispatcher:
             raise TypeError("explicit enrolled-denial policy must be bool")
         if read_startup is not None and not callable(read_startup):
             raise TypeError("service-owned startup status reader must be callable")
+        if read_core_inventory is not None and not callable(read_core_inventory):
+            raise TypeError("service-owned Core inventory reader must be callable")
         self._status = current_status
         self._authorize = authorize
         self._settings = read_settings
         self._startup = read_startup
+        self._core_inventory = read_core_inventory
         self._clock = clock if clock is not None else lambda: datetime.now(timezone.utc)
         self._enrolled_denials = enrolled_denial_responses
 
@@ -155,6 +176,66 @@ class ManagementReadDispatcher:
         if state == "CORES_RUNNING" and active == 0:
             raise ManagementReadDenied("inconsistent running-core startup state")
         return data
+
+    def _core_inventory_projection(
+        self, request: UntrustedManagementRead
+    ) -> dict[str, object]:
+        reader = self._core_inventory
+        if reader is None:
+            raise ManagementReadDenied("Core inventory reader unavailable")
+        provided = reader()
+        if isinstance(provided, Mapping) or not isinstance(provided, (list, tuple)):
+            raise ManagementReadDenied("invalid Core inventory projection")
+        if len(provided) > _MAX_CORES:
+            raise ManagementReadDenied("Core inventory exceeds bound")
+        rows: list[dict[str, object]] = []
+        seen: set[str] = set()
+        for row in provided:
+            if not isinstance(row, Mapping) or set(row) != _CORE_FIELDS:
+                raise ManagementReadDenied("invalid Core inventory row")
+            core_id = row["core_id"]
+            installed = row["installed"]
+            enabled = row["enabled"]
+            startup_mode = row["startup_mode"]
+            observed_state = row["observed_state"]
+            generation = row["generation"]
+            last_error_code = row["last_error_code"]
+            if (not isinstance(core_id, str)
+                    or _CORE_ID.fullmatch(core_id) is None
+                    or core_id in seen):
+                raise ManagementReadDenied("invalid or duplicate Core identity")
+            if type(installed) is not bool or type(enabled) is not bool:
+                raise ManagementReadDenied("invalid Core inventory flags")
+            if (not isinstance(startup_mode, str)
+                    or startup_mode not in _STARTUP_MODES):
+                raise ManagementReadDenied("invalid Core startup mode")
+            if (not isinstance(observed_state, str)
+                    or observed_state not in _OBSERVED_STATES):
+                raise ManagementReadDenied("invalid Core observed state")
+            if (type(generation) is not int
+                    or not 0 <= generation <= _MAX_PORTABLE_INT):
+                raise ManagementReadDenied("invalid Core generation")
+            if last_error_code is not None and (
+                not isinstance(last_error_code, str)
+                or _ERROR_CODE.fullmatch(last_error_code) is None
+            ):
+                raise ManagementReadDenied("invalid Core error code")
+            seen.add(core_id)
+            rows.append({
+                "core_id": core_id,
+                "installed": installed,
+                "enabled": enabled,
+                "startup_mode": startup_mode,
+                "observed_state": observed_state,
+                "generation": generation,
+                "last_error_code": last_error_code,
+            })
+        return {
+            "platform_id": request.target_platform_id,
+            "generation": request.expected_generation,
+            "operator_stop": False,
+            "cores": rows,
+        }
 
     def _deny(
         self, request: UntrustedManagementRead, authenticated_peer: str,
@@ -241,6 +322,12 @@ class ManagementReadDispatcher:
                     request, authenticated_peer, scopes, "NOT_PERMITTED",
                 )
             observation = self._startup_projection(request)
+        elif request.operation == "core.list":
+            if self._core_inventory is None:
+                return self._deny(
+                    request, authenticated_peer, scopes, "NOT_PERMITTED",
+                )
+            observation = self._core_inventory_projection(request)
         elif request.operation == "platform.status":
             status = self._status()
             if (not isinstance(status, Mapping)
