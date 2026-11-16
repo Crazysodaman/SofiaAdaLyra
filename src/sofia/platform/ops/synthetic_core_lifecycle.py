@@ -34,6 +34,7 @@ from sofia.platform.ops.component_install import (
     CoreComponentInstallError,
     CoreComponentInstaller,
     CoreComponentReceipt,
+    CoreComponentRemovalReceipt,
 )
 from sofia.platform.ops.platform_install import InstallAuthority, InstallOutcome
 from sofia.platform.state.private_file import (
@@ -84,6 +85,7 @@ class SyntheticCoreOutcome(str, Enum):
     ALREADY_STOPPED = "ALREADY_STOPPED"
     ALREADY_DETACHED = "ALREADY_DETACHED"
     ALREADY_REMOVED = "ALREADY_REMOVED"
+    COMPONENT_RETAINED = "COMPONENT_RETAINED"
     FAILED = "FAILED"
     OUTCOME_UNKNOWN = "OUTCOME_UNKNOWN"
 
@@ -209,6 +211,7 @@ class SyntheticCoreLifecycleReceipt:
     detail: str = ""
     platform_healthy: bool | None = None
     install_receipt: CoreComponentReceipt | None = None
+    removal_receipt: CoreComponentRemovalReceipt | None = None
 
 
 class SyntheticCoreLifecycleStore:
@@ -554,6 +557,65 @@ class SyntheticCoreLifecycle:
             ),
         )
 
+    def _persist_install_binding(self, binding: SyntheticCoreBinding) -> None:
+        with self.store.transaction() as db:
+            db.execute(
+                "INSERT INTO ops_synthetic_core_binding("
+                "owner_id,core_id,lineage_id,generation,state,"
+                "artifact_sha256,version,installed_at,updated_at,"
+                "last_operation,last_outcome,detail"
+                ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    binding.owner_id,
+                    binding.core_id,
+                    binding.lineage_id,
+                    binding.generation,
+                    binding.state.value,
+                    binding.artifact_sha256,
+                    binding.version,
+                    binding.installed_at.isoformat(),
+                    binding.updated_at.isoformat(),
+                    binding.last_operation.value,
+                    binding.last_outcome.value,
+                    binding.detail,
+                ),
+            )
+            self._append_event(
+                db,
+                owner_id=binding.owner_id,
+                core_id=binding.core_id,
+                lineage_id=binding.lineage_id,
+                operation=SyntheticCoreOperation.INSTALL,
+                generation=binding.generation,
+                state_before=None,
+                state_after=SyntheticCoreState.INSTALLED,
+                outcome=SyntheticCoreOutcome.SUCCEEDED,
+                artifact_sha256=binding.artifact_sha256,
+                occurred_at=binding.updated_at,
+                detail=binding.detail,
+            )
+
+    def _rollback_install_after_binding_failure(
+        self,
+        *,
+        installed: CoreComponentReceipt,
+        prior: CoreComponentReceipt | None,
+    ) -> bool:
+        """Remove only a component introduced by the failed binding attempt."""
+        if (
+            prior is not None
+            and prior.version == installed.version
+            and prior.artifact_sha256 == installed.artifact_sha256
+        ):
+            return False
+        try:
+            self.installer.uninstall_component(
+                installed.version, installed.artifact_sha256
+            )
+        except Exception:
+            return False
+        return True
+
     def _begin_pending(
         self,
         *,
@@ -782,6 +844,7 @@ class SyntheticCoreLifecycle:
             raise SyntheticCoreLifecycleConflict(
                 "synthetic Core artifact is already bound to this owner"
             )
+        prior_install = self.installer.registry.installed(CORE_DISTRIBUTION)
         try:
             installed = self.installer.execute(
                 artifact,
@@ -811,45 +874,19 @@ class SyntheticCoreLifecycle:
             detail="signed synthetic Core installed by the existing component installer",
         )
         try:
-            with self.store.transaction() as db:
-                db.execute(
-                    "INSERT INTO ops_synthetic_core_binding("
-                    "owner_id,core_id,lineage_id,generation,state,"
-                    "artifact_sha256,version,installed_at,updated_at,"
-                    "last_operation,last_outcome,detail"
-                    ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
-                    (
-                        binding.owner_id,
-                        binding.core_id,
-                        binding.lineage_id,
-                        binding.generation,
-                        binding.state.value,
-                        binding.artifact_sha256,
-                        binding.version,
-                        binding.installed_at.isoformat(),
-                        binding.updated_at.isoformat(),
-                        binding.last_operation.value,
-                        binding.last_outcome.value,
-                        binding.detail,
-                    ),
-                )
-                self._append_event(
-                    db,
-                    owner_id=owner,
-                    core_id=core,
-                    lineage_id=lineage,
-                    operation=SyntheticCoreOperation.INSTALL,
-                    generation=0,
-                    state_before=None,
-                    state_after=SyntheticCoreState.INSTALLED,
-                    outcome=SyntheticCoreOutcome.SUCCEEDED,
-                    artifact_sha256=artifact.sha256,
-                    occurred_at=at,
-                    detail=binding.detail,
-                )
-        except sqlite3.IntegrityError as exc:
+            self._persist_install_binding(binding)
+        except sqlite3.Error as exc:
+            rolled_back = self._rollback_install_after_binding_failure(
+                installed=installed, prior=prior_install
+            )
+            if rolled_back:
+                raise SyntheticCoreLifecycleConflict(
+                    "synthetic Core binding failed; freshly installed "
+                    "component was rolled back"
+                ) from exc
             raise SyntheticCoreLifecycleConflict(
-                "synthetic Core identity or artifact is already bound"
+                "synthetic Core binding failed; installed component retained "
+                "and requires reconciliation"
             ) from exc
         return SyntheticCoreLifecycleReceipt(
             operation=SyntheticCoreOperation.INSTALL,
@@ -1257,6 +1294,22 @@ class SyntheticCoreLifecycle:
         self._require_no_pending(core)
         binding = self._require_binding(self.store.binding(owner, core), owner, core)
         if binding.state is SyntheticCoreState.REMOVED:
+            try:
+                remaining = self.installer.installed_component_root(
+                    binding.version, binding.artifact_sha256
+                )
+            except CoreComponentInstallError as error:
+                return self._component_retained(
+                    binding,
+                    self._now(),
+                    f"removed binding has an unverifiable component root: {error}",
+                )
+            if remaining is not None:
+                return self._component_retained(
+                    binding,
+                    self._now(),
+                    "removed binding still has an installed component",
+                )
             return SyntheticCoreLifecycleReceipt(
                 operation=SyntheticCoreOperation.REMOVE,
                 outcome=SyntheticCoreOutcome.ALREADY_REMOVED,
@@ -1285,6 +1338,20 @@ class SyntheticCoreLifecycle:
             SyntheticCoreOperation.REMOVE, binding.artifact_sha256, expected
         )
         at = self._now()
+        try:
+            removal = self.installer.uninstall_component(
+                binding.version, binding.artifact_sha256
+            )
+        except (CoreComponentInstallError, OSError, PermissionError) as error:
+            return self._component_retained(
+                binding,
+                at,
+                f"verified uninstall refused or failed: {error}",
+            )
+        detail = (
+            "synthetic Core component removed; Platform identity and state "
+            f"remain untouched (removal {removal.removal_id})"
+        )
         with self.store.transaction() as db:
             updated = SyntheticCoreBinding(
                 owner_id=binding.owner_id,
@@ -1298,10 +1365,7 @@ class SyntheticCoreLifecycle:
                 updated_at=at,
                 last_operation=SyntheticCoreOperation.REMOVE,
                 last_outcome=SyntheticCoreOutcome.SUCCEEDED,
-                detail=(
-                    "synthetic Core binding removed; Platform installation "
-                    "identity/state remains owned by the Platform"
-                ),
+                detail=detail,
             )
             self._write_binding(db, updated)
             self._append_event(
@@ -1331,6 +1395,58 @@ class SyntheticCoreLifecycle:
             happened_at=at,
             detail=updated.detail,
             platform_healthy=platform_healthy,
+            removal_receipt=removal,
+        )
+
+    def _component_retained(
+        self,
+        binding: SyntheticCoreBinding,
+        at: datetime,
+        detail: str,
+    ) -> SyntheticCoreLifecycleReceipt:
+        """Record truthful retention without pretending the component is gone."""
+        with self.store.transaction() as db:
+            updated = SyntheticCoreBinding(
+                owner_id=binding.owner_id,
+                core_id=binding.core_id,
+                lineage_id=binding.lineage_id,
+                generation=binding.generation,
+                state=binding.state,
+                artifact_sha256=binding.artifact_sha256,
+                version=binding.version,
+                installed_at=binding.installed_at,
+                updated_at=at,
+                last_operation=SyntheticCoreOperation.REMOVE,
+                last_outcome=SyntheticCoreOutcome.COMPONENT_RETAINED,
+                detail=detail,
+            )
+            self._write_binding(db, updated)
+            self._append_event(
+                db,
+                owner_id=binding.owner_id,
+                core_id=binding.core_id,
+                lineage_id=binding.lineage_id,
+                operation=SyntheticCoreOperation.REMOVE,
+                generation=binding.generation,
+                state_before=binding.state,
+                state_after=binding.state,
+                outcome=SyntheticCoreOutcome.COMPONENT_RETAINED,
+                artifact_sha256=binding.artifact_sha256,
+                occurred_at=at,
+                detail=detail,
+            )
+        return SyntheticCoreLifecycleReceipt(
+            operation=SyntheticCoreOperation.REMOVE,
+            outcome=SyntheticCoreOutcome.COMPONENT_RETAINED,
+            owner_id=binding.owner_id,
+            core_id=binding.core_id,
+            lineage_id=binding.lineage_id,
+            generation=binding.generation,
+            state=binding.state,
+            artifact_sha256=binding.artifact_sha256,
+            happened_at=at,
+            detail=detail,
+            platform_healthy=self._platform_is_healthy(),
         )
 
 
