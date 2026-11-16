@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import os
 from pathlib import Path
+import shutil
 import sqlite3
 from uuid import uuid4
 
@@ -19,6 +20,7 @@ from sofia.core.memory.access import (
     MemoryStateUnavailable,
     MemoryStateUnsafe,
     MemoryWriterConflict,
+    MemoryWriterLease,
 )
 from sofia.core.memory.audience import (
     ActivePrincipalRegistry,
@@ -77,16 +79,33 @@ def _seed_promoted(store: DurableMemoryCandidateStore, *items: MemoryCandidate):
 def test_exactly_one_canonical_memory_writer_is_allowed(tmp_path):
     state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     first = DurableMemoryCandidateStore.open_canonical(state)
+    item = _candidate("first writer owns mutations")
     try:
-        with pytest.raises(MemoryWriterConflict):
-            DurableMemoryCandidateStore(state)
-        with pytest.raises(MemoryWriterConflict):
-            DurableMemoryCandidateStore.open_canonical(state)
+        first.propose(item)
+
+        # Constructing another writer is a read until it mutates.
+        second = DurableMemoryCandidateStore(state)
+        try:
+            assert second.get(item.candidate_id) == item
+            with pytest.raises(MemoryWriterConflict):
+                second.reject(item.candidate_id)
+        finally:
+            second.close()
+
+        third = DurableMemoryCandidateStore.open_canonical(state)
+        try:
+            with pytest.raises(MemoryWriterConflict):
+                third.propose(_candidate("second writer must fail closed"))
+        finally:
+            third.close()
     finally:
         first.close()
 
     reopened = DurableMemoryCandidateStore.open_canonical(state)
-    reopened.close()
+    try:
+        reopened.promote(item.candidate_id)
+    finally:
+        reopened.close()
 
 
 def test_second_process_writer_is_denied(tmp_path):
@@ -96,6 +115,7 @@ def test_second_process_writer_is_denied(tmp_path):
     state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     holder = DurableMemoryCandidateStore.open_canonical(state)
     try:
+        holder.propose(_candidate("live process writer"))
         source_root = Path(__file__).resolve().parents[1] / "src"
         environment = dict(os.environ)
         environment["PYTHONPATH"] = os.pathsep.join(
@@ -104,10 +124,12 @@ def test_second_process_writer_is_denied(tmp_path):
         script = (
             "import sys\n"
             "from pathlib import Path\n"
+            "from uuid import uuid4\n"
             "from sofia.core.memory.provenance_store import "
             "DurableMemoryCandidateStore\n"
             "try:\n"
-            "    DurableMemoryCandidateStore(Path(sys.argv[1]))\n"
+            "    store = DurableMemoryCandidateStore(Path(sys.argv[1]))\n"
+            "    store.reject(uuid4())\n"
             "except Exception as error:\n"
             "    name = type(error).__name__\n"
             "    print(name)\n"
@@ -122,6 +144,79 @@ def test_second_process_writer_is_denied(tmp_path):
         assert "MemoryWriterConflict" in result.stdout
     finally:
         holder.close()
+
+
+def test_read_only_stores_open_together_and_observe_committed_state(tmp_path):
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    first = DurableMemoryCandidateStore.open_canonical(state, writer=False)
+    second = DurableMemoryCandidateStore(state, writer=False)
+    item = _candidate("read-only reader observes committed writer state")
+    writer = DurableMemoryCandidateStore.open_canonical(state)
+    try:
+        writer.propose(item)
+        writer.promote(item.candidate_id)
+
+        assert first.get(item.candidate_id) == item
+        assert second.status(item.candidate_id) is CandidateStatus.PROMOTED
+        assert first.list_ids(status=CandidateStatus.PROMOTED) == (
+            item.candidate_id,
+        )
+
+        with pytest.raises(PermissionError, match="read-only"):
+            first.propose(_candidate("read-only mutation must fail"))
+        with pytest.raises(PermissionError, match="read-only"):
+            second.reject(item.candidate_id)
+    finally:
+        writer.close()
+        second.close()
+        first.close()
+
+
+def test_two_writers_cannot_both_mutate(tmp_path):
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    first = DurableMemoryCandidateStore.open_canonical(state)
+    second = DurableMemoryCandidateStore.open_canonical(state)
+    first_item = _candidate("first mutation wins the writer lease")
+    second_item = _candidate("second mutation must fail while first is live")
+    try:
+        first.propose(first_item)
+        with pytest.raises(MemoryWriterConflict):
+            second.propose(second_item)
+        assert second.get(second_item.candidate_id) is None
+    finally:
+        first.close()
+
+    try:
+        second.propose(second_item)
+        assert second.get(second_item.candidate_id) == second_item
+    finally:
+        second.close()
+
+
+def test_existing_read_and_import_call_sites_do_not_steal_the_writer(tmp_path):
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    writer = DurableMemoryCandidateStore.open_canonical(state)
+    item = _candidate("runtime writer remains the only mutator")
+    try:
+        writer.propose(item)
+
+        # Settings review opens read-only; verification and migration use the
+        # default constructor but only read before any consequential mutation.
+        settings_store = DurableMemoryCandidateStore(state, writer=False)
+        verify_store = DurableMemoryCandidateStore(state)
+        import_store = DurableMemoryCandidateStore(state)
+        try:
+            assert settings_store.get(item.candidate_id) == item
+            assert verify_store.get(item.candidate_id) == item
+            assert import_store.status(item.candidate_id) is CandidateStatus.PROPOSED
+
+            writer.propose(_candidate("writer still owns mutations"))
+        finally:
+            import_store.close()
+            verify_store.close()
+            settings_store.close()
+    finally:
+        writer.close()
 
 
 def test_strict_writer_never_bootstraps_missing_state(tmp_path):
@@ -310,6 +405,7 @@ def test_legacy_schema_is_quarantined_without_import_or_mutation(tmp_path):
 def test_future_memory_schema_is_refused_and_preserved(tmp_path):
     state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     store = DurableMemoryCandidateStore(state)
+    store.propose(_candidate("materialize current schema before future marker"))
     store.close()
     with sqlite3.connect(state) as db:
         db.execute(
@@ -535,6 +631,8 @@ def test_restore_never_merges_into_a_live_memory_writer(tmp_path):
     target = make_state(target_root)
     writer = DurableMemoryCandidateStore.open_canonical(target)
     try:
+        # Construction alone is a read; a live writer is one that mutates.
+        writer.propose(_candidate("live mutation during restore"))
         with pytest.raises(BackupError, match="live canonical writer"):
             engine.restore(
                 backup_dir=bundle,
@@ -544,3 +642,30 @@ def test_restore_never_merges_into_a_live_memory_writer(tmp_path):
             )
     finally:
         writer.close()
+
+
+def test_restore_holds_writer_lease_through_publication(tmp_path, monkeypatch):
+    _state, _identity, bundle, _evidence, engine, _core_identity_id = _backup(tmp_path)
+    target = tmp_path / "lease-target" / "sofia.db"
+    observed = []
+    real_copyfileobj = shutil.copyfileobj
+
+    def probe_writer_during_publication(source, destination, *args, **kwargs):
+        if not observed:
+            observed.append(True)
+            with pytest.raises(MemoryWriterConflict):
+                MemoryWriterLease(target)
+        return real_copyfileobj(source, destination, *args, **kwargs)
+
+    monkeypatch.setattr(shutil, "copyfileobj", probe_writer_during_publication)
+    result = engine.restore(
+        backup_dir=bundle,
+        target_state_path=target,
+        verifier="disposable-test",
+        erasure_journal=make_erasure_journal(tmp_path),
+        expected_identity_id=_core_identity_id,
+        expected_generation=3,
+    )
+    assert result.succeeded is True
+    assert target.is_file()
+    assert observed == [True]

@@ -42,6 +42,7 @@ class DurableMemoryCandidateStore:
         database_path: Path | str,
         *,
         require_existing: bool = False,
+        writer: bool = True,
     ) -> None:
         if not isinstance(database_path, (str, Path)) or not str(database_path).strip():
             raise ValueError("an on-disk SQLite path is required")
@@ -49,6 +50,8 @@ class DurableMemoryCandidateStore:
             raise ValueError("in-memory storage is not durable")
         if type(require_existing) is not bool:
             raise TypeError("require_existing must be bool")
+        if type(writer) is not bool:
+            raise TypeError("writer must be bool")
 
         target = validate_canonical_memory_path(database_path)
         if not target.parent.exists():
@@ -63,46 +66,42 @@ class DurableMemoryCandidateStore:
                 "canonical memory state is empty or truncated"
             )
 
+        # The operator-held deletion ledger is deliberately stored outside
+        # sofia.db backups. On a configured production restart, reconcile
+        # any durable erasure whose live SQL transaction was interrupted
+        # BEFORE opening the candidate store or projecting recalled text.
+        from os import environ
+        journal_path = environ.get("SOFIA_MEMORY_ERASURE_JOURNAL", "").strip()
+        key_path = environ.get("SOFIA_MEMORY_ERASURE_KEY", "").strip()
+        if bool(journal_path) != bool(key_path):
+            raise RuntimeError(
+                "memory erasure requires both external journal and operator key"
+            )
+        if journal_path and not exists:
+            raise FileNotFoundError(
+                "erasure-enabled runtime requires existing canonical state"
+            )
+        if not exists and not writer:
+            raise MemoryStateUnavailable(
+                "canonical memory state is unavailable; read-only open cannot bootstrap"
+            )
+
         self._database_path = target
         self._lock = RLock()
         self._writer: MemoryWriterLease | None = None
+        self._writer_enabled = writer
+        self._schema_ready = False
         try:
-            self._writer = MemoryWriterLease(target)
-
-            # The operator-held deletion ledger is deliberately stored outside
-            # sofia.db backups. On a configured production restart, reconcile
-            # any durable erasure whose live SQL transaction was interrupted
-            # BEFORE opening the candidate store or projecting recalled text.
-            from os import environ
-            journal_path = environ.get("SOFIA_MEMORY_ERASURE_JOURNAL", "").strip()
-            key_path = environ.get("SOFIA_MEMORY_ERASURE_KEY", "").strip()
-            if bool(journal_path) != bool(key_path):
-                raise RuntimeError(
-                    "memory erasure requires both external journal and operator key"
-                )
-            if journal_path:
-                if not target.is_file():
-                    raise FileNotFoundError(
-                        "erasure-enabled runtime requires existing canonical state"
-                    )
-                from sofia.core.memory.deletion_ledger import MemoryDeletionLedger
-                from sofia.platform.ops.backup import BackupCipher, load_backup_key
-                MemoryDeletionLedger(
-                    Path(journal_path).absolute(),
-                    BackupCipher(load_backup_key(Path(key_path))),
-                ).apply_to_sqlite(target)
-
-            # Existing canonical state is inspected (read-only) before any
-            # schema write. Incompatible legacy or corrupt bytes are never
-            # silently adopted as a fresh memory database.
-            if exists:
-                require_selectable_memory_state(target)
             # Existing canonical state is pinned before opening. Independent
             # fixture imports may still bootstrap a new test database, but only
             # the original file identity can be accessed after the first open.
             self._guard = CanonicalSQLiteGuard(target) if exists else None
             self._db: sqlite3.Connection | None = (
-                self._guard.connect(timeout=3.0, check_same_thread=False)
+                self._guard.connect(
+                    timeout=3.0,
+                    check_same_thread=False,
+                    read_only=not writer,
+                )
                 if self._guard is not None
                 else sqlite3.connect(target, timeout=3.0, check_same_thread=False)
             )
@@ -110,6 +109,53 @@ class DurableMemoryCandidateStore:
                 self._guard = CanonicalSQLiteGuard(target)
             if not exists:
                 ensure_memory_file_private(target)
+
+            with self._lock:
+                db = self._require_db()
+                db.execute("PRAGMA foreign_keys = ON")
+                db.execute("PRAGMA busy_timeout = 3000")
+                if journal_path:
+                    if not writer:
+                        raise PermissionError(
+                            "read-only memory store cannot apply a pending "
+                            "erasure journal"
+                        )
+                    # Erasure reconciliation is an authorized mutation, so it
+                    # takes writer ownership even though ordinary construction
+                    # and reads do not.
+                    self._acquire_writer()
+                    from sofia.core.memory.deletion_ledger import (
+                        MemoryDeletionLedger,
+                    )
+                    from sofia.platform.ops.backup import (
+                        BackupCipher, load_backup_key,
+                    )
+                    MemoryDeletionLedger(
+                        Path(journal_path).absolute(),
+                        BackupCipher(load_backup_key(Path(key_path))),
+                    ).apply_to_sqlite(target)
+
+                # Existing canonical state is inspected (read-only) before any
+                # schema write. Incompatible legacy or corrupt bytes are never
+                # silently adopted as a fresh memory database.
+                if exists:
+                    require_selectable_memory_state(target)
+
+                if writer:
+                    # New/empty fixture state needs the base tables before other
+                    # components can bind triggers to them. This idempotent DDL
+                    # is bootstrap, not a candidate mutation, so it does not take
+                    # the exclusive writer lease. Existing current state already
+                    # has these tables and is left untouched until first mutation.
+                    tables = {
+                        row[0] for row in db.execute(
+                            "SELECT name FROM sqlite_master "
+                            "WHERE type='table' AND name='memory_candidate'"
+                        ).fetchall()
+                    }
+                    if "memory_candidate" not in tables:
+                        self._initialize_schema(db)
+                        self._schema_ready = True
         except BaseException:
             database = getattr(self, "_db", None)
             if database is not None:
@@ -118,126 +164,138 @@ class DurableMemoryCandidateStore:
                 except Exception:
                     pass
                 self._db = None
-            writer = getattr(self, "_writer", None)
-            if writer is not None:
-                writer.release()
+            writer_lease = getattr(self, "_writer", None)
+            if writer_lease is not None:
+                writer_lease.release()
                 self._writer = None
             raise
 
-        with self._lock:
-            db = self._require_db()
-            db.execute("PRAGMA foreign_keys = ON")
-            db.execute("PRAGMA busy_timeout = 3000")
-            db.execute(
-                """
-                CREATE TABLE IF NOT EXISTS memory_candidate (
-                    candidate_id TEXT PRIMARY KEY,
-                    content TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    principal_id TEXT,
-                    audience_id TEXT
-                )
-                """
+    def _acquire_writer(self) -> MemoryWriterLease:
+        if not self._writer_enabled:
+            raise PermissionError("memory candidate store is read-only")
+        if self._writer is None:
+            self._writer = MemoryWriterLease(self._guard.canonical_path)
+        return self._writer
+
+    def _ensure_writer(self) -> sqlite3.Connection:
+        db = self._require_db()
+        self._acquire_writer()
+        if not self._schema_ready:
+            self._initialize_schema(db)
+            self._schema_ready = True
+        return db
+
+    def _initialize_schema(self, db: sqlite3.Connection) -> None:
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS memory_candidate (
+                candidate_id TEXT PRIMARY KEY,
+                content TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                status TEXT NOT NULL,
+                principal_id TEXT,
+                audience_id TEXT
             )
-            existing_columns = {
-                row[1]
-                for row in db.execute(
-                    "PRAGMA table_info(memory_candidate)"
-                ).fetchall()
-            }
-            if "principal_id" not in existing_columns:
-                db.execute(
-                    "ALTER TABLE memory_candidate ADD COLUMN principal_id TEXT"
-                )
-            if "audience_id" not in existing_columns:
-                db.execute(
-                    "ALTER TABLE memory_candidate ADD COLUMN audience_id TEXT"
-                )
+            """
+        )
+        existing_columns = {
+            row[1]
+            for row in db.execute(
+                "PRAGMA table_info(memory_candidate)"
+            ).fetchall()
+        }
+        if "principal_id" not in existing_columns:
             db.execute(
-                """
-                CREATE TABLE IF NOT EXISTS memory_candidate_correction (
-                    new_candidate_id TEXT PRIMARY KEY,
-                    old_candidate_id TEXT NOT NULL UNIQUE,
-                    linked_at TEXT NOT NULL,
-                    FOREIGN KEY(new_candidate_id)
-                        REFERENCES memory_candidate(candidate_id),
-                    FOREIGN KEY(old_candidate_id)
-                        REFERENCES memory_candidate(candidate_id),
-                    CHECK(new_candidate_id != old_candidate_id)
-                )
-                """
+                "ALTER TABLE memory_candidate ADD COLUMN principal_id TEXT"
             )
+        if "audience_id" not in existing_columns:
             db.execute(
-                """
-                CREATE TABLE IF NOT EXISTS memory_candidate_source (
-                    candidate_id TEXT NOT NULL,
-                    ordinal INTEGER NOT NULL,
-                    message_id TEXT NOT NULL,
-                    session_id TEXT NOT NULL,
-                    role TEXT NOT NULL,
-                    content TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    position INTEGER NOT NULL,
-                    PRIMARY KEY (candidate_id, ordinal),
-                    FOREIGN KEY (candidate_id)
-                        REFERENCES memory_candidate(candidate_id)
-                )
-                """
+                "ALTER TABLE memory_candidate ADD COLUMN audience_id TEXT"
             )
-            # A verified reviewed-memory source is an immutable link to
-            # current canonical originals, not a copied claim that can outlive
-            # original erasure or a changed conversation audience.
-            db.execute(
-                """
-                CREATE TABLE IF NOT EXISTS memory_candidate_source_review (
-                    candidate_id TEXT PRIMARY KEY,
-                    source_session_id TEXT NOT NULL,
-                    principal_id TEXT NOT NULL,
-                    audience_id TEXT NOT NULL,
-                    audience_kind TEXT NOT NULL,
-                    reviewed_at TEXT NOT NULL,
-                    FOREIGN KEY(candidate_id) REFERENCES memory_candidate(candidate_id)
-                )
-                """
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS memory_candidate_correction (
+                new_candidate_id TEXT PRIMARY KEY,
+                old_candidate_id TEXT NOT NULL UNIQUE,
+                linked_at TEXT NOT NULL,
+                FOREIGN KEY(new_candidate_id)
+                    REFERENCES memory_candidate(candidate_id),
+                FOREIGN KEY(old_candidate_id)
+                    REFERENCES memory_candidate(candidate_id),
+                CHECK(new_candidate_id != old_candidate_id)
             )
-            db.execute(
-                """
-                CREATE TABLE IF NOT EXISTS memory_candidate_validity (
-                    candidate_id TEXT PRIMARY KEY,
-                    expires_at TEXT,
-                    reviewed_at TEXT NOT NULL,
-                    reviewed_by TEXT NOT NULL,
-                    reason TEXT NOT NULL,
-                    FOREIGN KEY(candidate_id) REFERENCES memory_candidate(candidate_id)
-                )
-                """
+            """
+        )
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS memory_candidate_source (
+                candidate_id TEXT NOT NULL,
+                ordinal INTEGER NOT NULL,
+                message_id TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                position INTEGER NOT NULL,
+                PRIMARY KEY (candidate_id, ordinal),
+                FOREIGN KEY (candidate_id)
+                    REFERENCES memory_candidate(candidate_id)
             )
-            db.execute(
-                """
-                CREATE TABLE IF NOT EXISTS memory_candidate_validity_event (
-                    event_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    candidate_id TEXT NOT NULL,
-                    previous_expires_at TEXT,
-                    expires_at TEXT,
-                    reviewed_at TEXT NOT NULL,
-                    reviewed_by TEXT NOT NULL,
-                    reason TEXT NOT NULL,
-                    FOREIGN KEY(candidate_id) REFERENCES memory_candidate(candidate_id)
-                )
-                """
+            """
+        )
+        # A verified reviewed-memory source is an immutable link to
+        # current canonical originals, not a copied claim that can outlive
+        # original erasure or a changed conversation audience.
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS memory_candidate_source_review (
+                candidate_id TEXT PRIMARY KEY,
+                source_session_id TEXT NOT NULL,
+                principal_id TEXT NOT NULL,
+                audience_id TEXT NOT NULL,
+                audience_kind TEXT NOT NULL,
+                reviewed_at TEXT NOT NULL,
+                FOREIGN KEY(candidate_id) REFERENCES memory_candidate(candidate_id)
             )
-            # Canonical indexes support bounded keyset search without a
-            # second memory database or an unreviewed semantic copy.
-            db.execute(
-                "CREATE INDEX IF NOT EXISTS memory_candidate_order_idx "
-                "ON memory_candidate(status,created_at,candidate_id)"
+            """
+        )
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS memory_candidate_validity (
+                candidate_id TEXT PRIMARY KEY,
+                expires_at TEXT,
+                reviewed_at TEXT NOT NULL,
+                reviewed_by TEXT NOT NULL,
+                reason TEXT NOT NULL,
+                FOREIGN KEY(candidate_id) REFERENCES memory_candidate(candidate_id)
             )
-            db.execute(
-                "CREATE INDEX IF NOT EXISTS memory_candidate_principal_order_idx "
-                "ON memory_candidate(status,principal_id,created_at,candidate_id)"
+            """
+        )
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS memory_candidate_validity_event (
+                event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                candidate_id TEXT NOT NULL,
+                previous_expires_at TEXT,
+                expires_at TEXT,
+                reviewed_at TEXT NOT NULL,
+                reviewed_by TEXT NOT NULL,
+                reason TEXT NOT NULL,
+                FOREIGN KEY(candidate_id) REFERENCES memory_candidate(candidate_id)
             )
-            db.commit()
+            """
+        )
+        # Canonical indexes support bounded keyset search without a
+        # second memory database or an unreviewed semantic copy.
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS memory_candidate_order_idx "
+            "ON memory_candidate(status,created_at,candidate_id)"
+        )
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS memory_candidate_principal_order_idx "
+            "ON memory_candidate(status,principal_id,created_at,candidate_id)"
+        )
+        db.commit()
 
     @classmethod
     def open_canonical(
@@ -245,11 +303,14 @@ class DurableMemoryCandidateStore:
         database_path: Path | str,
         *,
         expected_state_path: Path | str | None = None,
+        writer: bool = True,
     ) -> "DurableMemoryCandidateStore":
-        """Open one existing owner-private canonical state as its only writer.
+        """Open one existing owner-private canonical state.
 
         This is the strict production/restart entry point. It never creates a
-        missing database and never adopts redirected or legacy state.
+        missing database and never adopts redirected or legacy state. A writer
+        store owns at most one mutation lease, acquired lazily; a read-only
+        store never acquires it and rejects every mutation.
         """
         path = validate_canonical_memory_path(
             database_path,
@@ -261,7 +322,7 @@ class DurableMemoryCandidateStore:
                 "canonical memory state is unavailable; refusing silent bootstrap"
             )
         require_selectable_memory_state(path)
-        return cls(path, require_existing=True)
+        return cls(path, require_existing=True, writer=writer)
 
     @property
     def database_path(self) -> Path:
@@ -290,7 +351,7 @@ class DurableMemoryCandidateStore:
 
         try:
             with self._lock:
-                db = self._require_db()
+                db = self._ensure_writer()
                 with db:
                     db.execute(
                         """
@@ -417,7 +478,7 @@ class DurableMemoryCandidateStore:
             raise ValueError("a bounded reviewer reason is required")
         stamp = _utc(datetime.now(timezone.utc))
         with self._lock:
-            db = self._require_db()
+            db = self._ensure_writer()
             with db:
                 db.execute("BEGIN IMMEDIATE")
                 candidate = db.execute(
@@ -479,7 +540,7 @@ class DurableMemoryCandidateStore:
             if not isinstance(value, str) or not value.strip():
                 raise ValueError("complete verified source binding is required")
         with self._lock:
-            db = self._require_db()
+            db = self._ensure_writer()
             with db:
                 db.execute("BEGIN IMMEDIATE")
                 row = db.execute(
@@ -550,7 +611,7 @@ class DurableMemoryCandidateStore:
         )
 
         with self._lock:
-            db = self._require_db()
+            db = self._ensure_writer()
             with db:
                 db.execute("BEGIN IMMEDIATE")
                 try:
@@ -640,7 +701,7 @@ class DurableMemoryCandidateStore:
         )):
             raise ValueError("fresh owner testimony must be scoped and sourced")
         with self._lock:
-            db = self._require_db()
+            db = self._ensure_writer()
             with db:
                 db.execute("BEGIN IMMEDIATE")
                 row = db.execute(
@@ -1028,7 +1089,7 @@ class DurableMemoryCandidateStore:
         if not isinstance(candidate_id, UUID):
             raise TypeError("candidate_id must be a UUID")
         with self._lock:
-            db = self._require_db()
+            db = self._ensure_writer()
             with db:
                 db.execute("BEGIN IMMEDIATE")
                 self._verify_reviewed_originals_in_writer(db, candidate_id)
@@ -1105,7 +1166,7 @@ class DurableMemoryCandidateStore:
         if replacement_id == superseded_id:
             raise ValueError("a candidate cannot supersede itself")
         with self._lock:
-            db = self._require_db()
+            db = self._ensure_writer()
             with db:
                 db.execute("BEGIN IMMEDIATE")
                 rows = db.execute(
@@ -1179,7 +1240,7 @@ class DurableMemoryCandidateStore:
             raise TypeError("candidate_id must be a UUID")
 
         with self._lock:
-            db = self._require_db()
+            db = self._ensure_writer()
             with db:
                 cursor = db.execute(
                     """
@@ -1220,11 +1281,11 @@ class DurableMemoryCandidateStore:
                 return
             self._guard.validate()
             require_selectable_memory_state(self._guard.canonical_path)
-            writer = MemoryWriterLease(self._guard.canonical_path)
             try:
                 self._db = self._guard.connect(
                     timeout=3.0,
                     check_same_thread=False,
+                    read_only=not self._writer_enabled,
                 )
                 self._db.execute("PRAGMA foreign_keys = ON")
                 self._db.execute("PRAGMA busy_timeout = 3000")
@@ -1235,9 +1296,7 @@ class DurableMemoryCandidateStore:
                     except Exception:
                         pass
                     self._db = None
-                writer.release()
                 raise
-            self._writer = writer
 
     def close(self) -> None:
         with self._lock:

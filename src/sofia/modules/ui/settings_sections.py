@@ -86,7 +86,9 @@ class SettingsSections:
                 raise ValueError("bounded review query of 1..500 characters required")
             from sofia.core.memory.provenance_store import DurableMemoryCandidateStore
             from sofia.core.memory.provenance import CandidateStatus
-            candidate_store = DurableMemoryCandidateStore(config.state_path)
+            candidate_store = DurableMemoryCandidateStore(
+                config.state_path, writer=False,
+            )
             try:
                 candidate = candidate_store.get(candidate_id)
                 if (
@@ -2346,8 +2348,10 @@ class SettingsSections:
         expiration_reason = self.tk.StringVar(self.root)
         self.ttk.Entry(parent, textvariable=expiration_reason).pack(fill="x", pady=6)
 
-        def candidates(action):
-            store = DurableMemoryCandidateStore(self.config.state_path)
+        def candidates(action, *, writer=True):
+            store = DurableMemoryCandidateStore(
+                self.config.state_path, writer=writer,
+            )
             try:
                 return action(store)
             finally:
@@ -2364,7 +2368,7 @@ class SettingsSections:
                     principal_id=SPARKS_PRINCIPAL_ID,
                     audience_id="local:text",
                 ),
-            ))
+            ), writer=False)
             choices = tuple(str(value) for value in ids)
             combo.configure(values=choices)
             if choice.get() not in choices:
@@ -2392,7 +2396,7 @@ class SettingsSections:
                         for source in candidate.sources
                     )
                 )
-            return candidates(read)
+            return candidates(read, writer=False)
 
         frame = self.viewer(parent, "Candidate and original evidence", refresh)
         combo.bind("<<ComboboxSelected>>", lambda event: frame.refresh())
@@ -2460,7 +2464,7 @@ class SettingsSections:
                 ):
                     raise PermissionError("Correction candidates are not eligible")
                 return old.content, new.content
-            old_text, new_text = candidates(evidence)
+            old_text, new_text = candidates(evidence, writer=False)
             if self.messagebox.askyesno(
                 "Review memory correction",
                 "Link these exact facts for atomic correction upon later promotion?\n\n"
@@ -2504,7 +2508,7 @@ class SettingsSections:
                     raise PermissionError("Only reviewed, promoted owner memory can expire")
                 return store.get(candidate_id).content
 
-            original = candidates(check_candidate)
+            original = candidates(check_candidate, writer=False)
             described = (
                 "Clear the reviewed expiration"
                 if deadline is None else f"Expire this fact at {deadline.isoformat()}"
