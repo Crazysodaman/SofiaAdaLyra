@@ -751,8 +751,10 @@ class _CoreWorkerProcess:
             if sha256(payload).hexdigest() != value["payload_digest"]:
                 raise PermissionError("Core provider request digest mismatch")
             decoded = decode_request(payload)
+            cancel = getattr(binding.provider, "cancel", None)
             response = call_with_deadline(
                 lambda: binding.provider.respond(decoded), deadline=deadline,
+                cancel=cancel if callable(cancel) else None,
             )
             result = encode_response(response)
             if time.monotonic() >= deadline:

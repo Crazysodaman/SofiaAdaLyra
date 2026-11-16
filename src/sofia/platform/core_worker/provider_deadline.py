@@ -16,14 +16,35 @@ from typing import Callable, TypeVar
 _T = TypeVar("_T")
 
 
-def call_with_deadline(call: Callable[[], _T], *, deadline: float) -> _T:
+def _cancel(cancel: Callable[[], None] | None) -> None:
+    if cancel is None:
+        return
+    try:
+        cancel()
+    except Exception:
+        # Cancellation is best-effort signalling only. The deadline result is
+        # already authoritative and must not be replaced by a cancel hook bug.
+        pass
+
+
+def call_with_deadline(
+    call: Callable[[], _T],
+    *,
+    deadline: float,
+    cancel: Callable[[], None] | None = None,
+) -> _T:
     """Wait until one monotonic deadline; never publish late provider results.
 
-    A daemon provider thread is intentionally not claimed to be cancelled.
-    External provider effects are restricted to the existing model transport.
+    A daemon provider thread is intentionally not claimed to be forcibly
+    killed. ``cancel`` is invoked deterministically on timeout so a provider
+    with a cooperative cancellation event can discard any late result. The
+    Core/IPC caller still quarantines the generation because a native/network
+    call may already have produced external effects.
     """
     if not callable(call):
         raise TypeError("provider call must be callable")
+    if cancel is not None and not callable(cancel):
+        raise TypeError("cancel must be callable or None")
     if isinstance(deadline, bool) or not isinstance(deadline, (int, float)):
         raise TypeError("deadline must be monotonic seconds")
     if not isfinite(deadline):
@@ -45,8 +66,10 @@ def call_with_deadline(call: Callable[[], _T], *, deadline: float) -> _T:
     try:
         ok, result = results.get(timeout=max(0.0, deadline - time.monotonic()))
     except Empty as exc:
+        _cancel(cancel)
         raise TimeoutError("Core provider response deadline expired") from exc
     if time.monotonic() >= deadline:
+        _cancel(cancel)
         raise TimeoutError("Core provider response deadline expired")
     if not ok:
         raise result

@@ -19,7 +19,16 @@ class LLMCognitiveEngine(CognitiveEngine):
         try:
             return self.provider.respond(request)
         except LLMProviderError as exc:
-            raise CognitiveEngineError('LLM provider failed to process the cognitive request.') from exc
+            raise CognitiveEngineError(
+                'LLM provider failed to process the cognitive request.',
+                category=exc.category,
+                provider=exc.provider,
+                model=exc.model or self.configuration.model,
+                timeout_seconds=exc.timeout_seconds,
+                elapsed_ms=exc.elapsed_ms,
+                status_code=exc.status_code,
+                retryable=exc.retryable,
+            ) from exc
 
 
 class TestCognitiveEngine(CognitiveEngine):

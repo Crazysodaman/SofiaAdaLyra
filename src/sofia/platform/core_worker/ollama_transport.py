@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import math
+from threading import Event as ThreadEvent
 from time import perf_counter
 
 from typing import TYPE_CHECKING
@@ -22,7 +23,10 @@ from sofia.platform.cognition_budget import model_token_budget
 from sofia.platform.state.performance import (
     emit_performance, model_call_finished, model_call_started, ollama_metric,
 )
-from sofia.sdk.cognition_engine import LLMProvider, LLMProviderError
+from sofia.sdk.cognition import MAX_REQUEST_BYTES
+from sofia.sdk.cognition_engine import (
+    LLMProvider, LLMProviderError, ProviderFailureKind,
+)
 from sofia.platform.config.model import ProviderConfiguration
 from sofia.sdk.cognition_json import loads_strict_model_json
 from sofia.platform.config.inference_endpoint import (
@@ -39,10 +43,61 @@ from sofia.platform.config.inference_endpoint import (
 # Custom shorter worker deadlines still require explicit compatibility QA.
 OLLAMA_IO_TIMEOUT_SECONDS = 45.0
 
+# Bound the complete provider-visible payload before any network I/O. The SDK
+# supplies the shared byte ceiling; the transport validates its own translated
+# messages/options so provider-specific payloads cannot silently exceed it.
+OLLAMA_MAX_REQUEST_BYTES = MAX_REQUEST_BYTES
+
 _MAX_TOOL_CALLS = 16
 _MAX_TOOL_ARGUMENT_BYTES = 64 * 1024
 _MAX_TOOL_ARGUMENT_NODES = 4096
 _MAX_TOOL_ARGUMENT_DEPTH = 16
+
+
+def _http_retryable(status_code: int | None) -> bool:
+    """Only overload/server faults are eligible for provider failover."""
+    if status_code is None:
+        return False
+    return status_code == 429 or 500 <= status_code <= 599
+
+
+def _exception_status_code(exc: BaseException) -> int | None:
+    for name in ("status_code", "status"):
+        value = getattr(exc, name, None)
+        if type(value) is int and 100 <= value <= 599:
+            return value
+    response = getattr(exc, "response", None)
+    value = getattr(response, "status_code", None)
+    return value if type(value) is int and 100 <= value <= 599 else None
+
+
+def _classify_transport_failure(
+    exc: BaseException,
+) -> tuple[ProviderFailureKind, bool, int | None]:
+    """Classify provider exceptions without exposing their text to users."""
+    status_code = _exception_status_code(exc)
+    name = type(exc).__name__.casefold()
+    if name == "responseerror" or hasattr(exc, "status_code"):
+        return ProviderFailureKind.HTTP, _http_retryable(status_code), status_code
+    if isinstance(exc, TimeoutError) or "timeout" in name:
+        if "connect" in name:
+            return ProviderFailureKind.CONNECT, True, status_code
+        if "read" in name:
+            return ProviderFailureKind.READ, True, status_code
+        return ProviderFailureKind.TIMEOUT, True, status_code
+    if isinstance(exc, (ConnectionResetError, BrokenPipeError)):
+        return ProviderFailureKind.READ, True, status_code
+    if isinstance(exc, ConnectionError) or "connect" in name:
+        return ProviderFailureKind.CONNECT, True, status_code
+    if "stream" in name:
+        return ProviderFailureKind.STREAM, True, status_code
+    if any(marker in name for marker in (
+        "readerror", "remoteprotocol", "protocolerror", "incomplete",
+    )):
+        return ProviderFailureKind.READ, True, status_code
+    if isinstance(exc, OSError):
+        return ProviderFailureKind.CONNECT, True, status_code
+    return ProviderFailureKind.UNKNOWN, False, status_code
 
 
 def _validate_tool_arguments(arguments: dict) -> None:
@@ -95,6 +150,7 @@ class GenericOllamaProvider(LLMProvider):
         *,
         keep_alive: str | None = None,
         endpoint: str | None = None,
+        cancel_event: ThreadEvent | None = None,
     ):
         self.configuration = configuration
         self.endpoint = (
@@ -107,6 +163,9 @@ class GenericOllamaProvider(LLMProvider):
         ):
             raise ValueError("keep_alive must be a nonempty string or None")
         self.keep_alive = keep_alive
+        if cancel_event is not None and not isinstance(cancel_event, ThreadEvent):
+            raise TypeError("cancel_event must be a threading.Event or None")
+        self._cancel_event = cancel_event if cancel_event is not None else ThreadEvent()
 
     @staticmethod
     def _new_client(endpoint: str):
@@ -114,12 +173,65 @@ class GenericOllamaProvider(LLMProvider):
 
         return Client(host=endpoint, timeout=OLLAMA_IO_TIMEOUT_SECONDS)
 
+    def cancel(self) -> None:
+        """Request deterministic cancellation before any later result is used."""
+        self._cancel_event.set()
+
+    def _provider_error(
+        self, message: str, *, category: ProviderFailureKind,
+        retryable: bool | None = None, status_code: int | None = None,
+        elapsed_ms: float | None = None,
+    ) -> LLMProviderError:
+        return LLMProviderError(
+            message,
+            category=category,
+            provider=self.configuration.provider,
+            model=self.configuration.model,
+            timeout_seconds=OLLAMA_IO_TIMEOUT_SECONDS,
+            elapsed_ms=elapsed_ms,
+            status_code=status_code,
+            retryable=retryable,
+        )
+
+    def _check_cancelled(self) -> None:
+        if self._cancel_event.is_set():
+            raise self._provider_error(
+                "Ollama request was cancelled.",
+                category=ProviderFailureKind.CANCELLED,
+                retryable=False,
+            )
+
+    def _validate_request(self, request: CognitiveRequest) -> None:
+        if not isinstance(request, CognitiveRequest):
+            raise TypeError("request must be a CognitiveRequest")
+
+    def _validate_payload(self, payload: dict) -> None:
+        try:
+            encoded = json.dumps(
+                payload, ensure_ascii=False, allow_nan=False,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        except (TypeError, ValueError, UnicodeError, RecursionError) as exc:
+            raise self._provider_error(
+                "Ollama request exceeds the bounded transport contract.",
+                category=ProviderFailureKind.INVALID_REQUEST,
+                retryable=False,
+            ) from exc
+        if len(encoded) > OLLAMA_MAX_REQUEST_BYTES:
+            raise self._provider_error(
+                "Ollama request exceeds the bounded transport contract.",
+                category=ProviderFailureKind.INVALID_REQUEST,
+                retryable=False,
+            )
+
     def respond(self, request: CognitiveRequest) -> CognitiveResponse:
         return self._respond_once(request)
 
     def _respond_once(self, request: CognitiveRequest) -> CognitiveResponse:
         from ollama import ResponseError
 
+        self._check_cancelled()
+        self._validate_request(request)
         messages = [self._message_to_ollama(message) for message in request.messages]
         # An explicit no-tools request must never advertise executable tools
         # to the model, even if a caller supplies stale tool definitions.
@@ -128,19 +240,39 @@ class GenericOllamaProvider(LLMProvider):
             if request.allow_tools else []
         )
         kwargs = self._build_chat_kwargs(request=request, messages=messages, tools=tools)
+        self._validate_payload(kwargs)
         started = perf_counter()
         model_call_started()
         try:
             response = self.client.chat(**kwargs)
         except ResponseError as exc:
-            emit_performance("ollama", elapsed_ms=(perf_counter() - started) * 1000)
-            raise LLMProviderError("Ollama failed to process the cognitive request.") from exc
+            elapsed_ms = (perf_counter() - started) * 1000
+            emit_performance("ollama", elapsed_ms=elapsed_ms)
+            category, retryable, status_code = _classify_transport_failure(exc)
+            raise self._provider_error(
+                "Ollama failed to process the cognitive request.",
+                category=category, retryable=retryable,
+                status_code=status_code, elapsed_ms=elapsed_ms,
+            ) from exc
         except Exception as exc:
-            emit_performance("ollama", elapsed_ms=(perf_counter() - started) * 1000)
-            raise LLMProviderError("Ollama provider failed to process the cognitive request.") from exc
+            elapsed_ms = (perf_counter() - started) * 1000
+            emit_performance("ollama", elapsed_ms=elapsed_ms)
+            if self._cancel_event.is_set():
+                raise self._provider_error(
+                    "Ollama request was cancelled.",
+                    category=ProviderFailureKind.CANCELLED,
+                    retryable=False, elapsed_ms=elapsed_ms,
+                ) from exc
+            category, retryable, status_code = _classify_transport_failure(exc)
+            raise self._provider_error(
+                "Ollama provider failed to process the cognitive request.",
+                category=category, retryable=retryable,
+                status_code=status_code, elapsed_ms=elapsed_ms,
+            ) from exc
         finally:
             model_call_finished()
 
+        self._check_cancelled()
         elapsed_ms = (perf_counter() - started) * 1000
         budget = model_token_budget(
             request.route_hint,
