@@ -1,0 +1,8 @@
+{
+  "schema": "aegis.sdk-validation.runtime-release.v1",
+  "component": "sdk-validation-core",
+  "release": "0.1.0",
+  "engine": "DETERMINISTIC_TEST_ENGINE",
+  "model_status": "MODEL_NOT_LOADED",
+  "test_only": true
+}

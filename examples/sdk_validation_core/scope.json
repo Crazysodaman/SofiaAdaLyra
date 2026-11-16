@@ -1,0 +1,13 @@
+{
+  "schema": "aegis.sdk-validation.scope.v1",
+  "audience_kind": "private",
+  "scope": "core.private.sdk-validation",
+  "identity_id": "4f2c9a17-6d3b-4e58-8a01-c7d9e2b6f430",
+  "identity_serial": "AEG-C-4F2C9A17-6D3B4E58-8A01C7D9-E2B6F430",
+  "definition_revision": 1,
+  "definition_digest": "a8ad5f1aa88d3f2cad2ae7c13bb4281c18ceef51ce2659734a72f8a29200b3d6",
+  "runtime_release_sha256": "f4ad1a7455f75a4fda4a0902cd67541ad27c67c4f3e898c8beac035da58c2bce",
+  "test_only": true,
+  "contains_sofia_assets": false,
+  "contains_owner_secrets": false
+}
