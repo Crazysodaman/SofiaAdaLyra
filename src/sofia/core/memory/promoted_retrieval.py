@@ -124,6 +124,7 @@ def retrieve_promoted(
     budget_characters: int = 4000,
     principal_id: str | None = None,
     audience_id: str | None = None,
+    audience_kind: str | None = None,
     influence: ContinuityInfluence | None = None,
     association_store=None,
     eligibility_policy: ReviewedMemoryEligibilityV1 | None = None,
@@ -154,6 +155,7 @@ def retrieve_promoted(
         for order, (candidate_id, content) in enumerate(
             store.iter_promoted_summaries(
                 principal_id=principal_id, audience_id=audience_id,
+                audience_kind=audience_kind,
                 require_reviewed_source_v1=eligibility_policy is not None,
             )
         ):

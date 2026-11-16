@@ -194,7 +194,11 @@ def compose(
     )
 
     memory_candidate_store = DurableMemoryCandidateStore(
-        configuration.state_path
+        configuration.state_path,
+        require_existing=(
+            configuration.identity_bootstrap_mode
+            is IdentityBootstrapMode.REQUIRE_EXISTING
+        ),
     )
 
     # One canonical memory owner, with opt-in association scoring that can

@@ -68,6 +68,53 @@ class BackupError(RuntimeError):
     pass
 
 
+def _protected_identity_id(state_path: Path) -> str | None:
+    """Read the protected logical Core UUID for manifest binding."""
+    layout = production_storage_layout(state_path=state_path)
+    identity = layout.identity_path
+    if not identity.is_file():
+        return None
+    try:
+        document = json.loads(identity.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    value = document.get("instance_id") if isinstance(document, dict) else None
+    return value if isinstance(value, str) and value.strip() else None
+
+
+def _state_generation(state_path: Path) -> int | None:
+    """Read an explicit durable generation marker when the state carries one."""
+    if not state_path.is_file():
+        return None
+    try:
+        with closing(sqlite3.connect(
+            sqlite_file_uri(state_path, read_only=True), uri=True, timeout=5,
+        )) as db:
+            tables = {
+                row[0] for row in db.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )
+            }
+            for table in ("state_plane_meta", "core_state_meta", "memory_state_meta"):
+                if table not in tables:
+                    continue
+                for key in ("generation", "writer_generation", "core_generation"):
+                    row = db.execute(
+                        f"SELECT value FROM {table} WHERE key=?", (key,),
+                    ).fetchone()
+                    if row is None:
+                        continue
+                    try:
+                        value = int(row[0])
+                    except (TypeError, ValueError):
+                        continue
+                    if value >= 0:
+                        return value
+    except sqlite3.DatabaseError:
+        return None
+    return None
+
+
 def _refuse_replacement_when_stopped(target_state_path: Path) -> None:
     """Keep an active operator STOP between replacement and publication.
 
@@ -297,6 +344,8 @@ class BackupManifest:
     failure_domain: str
     created_at: datetime
     entries: tuple[BackupEntry, ...]
+    core_identity_id: str | None = None
+    generation: int | None = None
     format_version: int = 1
 
     def __post_init__(self) -> None:
@@ -308,6 +357,15 @@ class BackupManifest:
             raise ValueError("failure_domain required")
         if self.created_at.tzinfo is None or self.created_at.utcoffset() is None:
             raise ValueError("created_at must be timezone-aware")
+        if self.core_identity_id is not None and (
+            not isinstance(self.core_identity_id, str)
+            or not self.core_identity_id.strip()
+        ):
+            raise ValueError("core_identity_id must be None or nonempty")
+        if self.generation is not None and (
+            type(self.generation) is not int or self.generation < 0
+        ):
+            raise ValueError("generation must be None or a nonnegative integer")
         if type(self.format_version) is not int or self.format_version != 1:
             raise ValueError("unsupported backup format version")
         if not isinstance(self.entries, tuple):
@@ -339,6 +397,8 @@ class BackupManifest:
             "failure_domain": self.failure_domain,
             "format_version": self.format_version,
             "source_host_id": self.source_host_id,
+            "core_identity_id": self.core_identity_id,
+            "generation": self.generation,
         }
         return json.dumps(
             document,
@@ -358,6 +418,11 @@ class BackupManifest:
             source_host_id=document["source_host_id"],
             failure_domain=document["failure_domain"],
             created_at=datetime.fromisoformat(document["created_at"]),
+            core_identity_id=document.get("core_identity_id"),
+            generation=(
+                None if document.get("generation") is None
+                else int(document["generation"])
+            ),
             format_version=int(document["format_version"]),
             entries=tuple(
                 BackupEntry(
@@ -488,6 +553,8 @@ class BackupEngine:
         source_host_id: str,
         failure_domain: str,
         now: datetime | None = None,
+        core_identity_id: str | None = None,
+        generation: int | None = None,
     ) -> tuple[Path, BackupEvidence]:
         if not isinstance(state_path, Path) or not state_path.is_file():
             raise FileNotFoundError("existing canonical state database required")
@@ -496,6 +563,35 @@ class BackupEngine:
             raise TypeError("destination_root must be a Path")
         if not source_host_id.strip() or not failure_domain.strip():
             raise ValueError("source_host_id and failure_domain are required")
+        observed_identity = _protected_identity_id(state_path)
+        if core_identity_id is None:
+            core_identity_id = observed_identity
+        elif (
+            observed_identity is not None
+            and core_identity_id != observed_identity
+        ):
+            raise BackupError(
+                "backup identity does not match the protected state identity"
+            )
+        if core_identity_id is not None and (
+            not isinstance(core_identity_id, str)
+            or not core_identity_id.strip()
+        ):
+            raise ValueError("core_identity_id must be None or nonempty")
+        observed_generation = _state_generation(state_path)
+        if generation is None:
+            generation = observed_generation
+        elif (
+            observed_generation is not None
+            and generation != observed_generation
+        ):
+            raise BackupError(
+                "backup generation does not match the canonical state generation"
+            )
+        if generation is not None and (
+            type(generation) is not int or generation < 0
+        ):
+            raise ValueError("generation must be None or nonnegative")
         created_at = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
         backup_id = (
             created_at.strftime("%Y%m%dT%H%M%SZ")
@@ -560,6 +656,8 @@ class BackupEngine:
                 failure_domain=failure_domain,
                 created_at=created_at,
                 entries=tuple(entries),
+                core_identity_id=core_identity_id,
+                generation=generation,
             )
             manifest_bytes = manifest.canonical_bytes()
             if len(manifest_bytes) > _MAX_BACKUP_MANIFEST_BYTES:
@@ -685,6 +783,8 @@ class BackupEngine:
         now: datetime | None = None,
         erasure_journal: Path | None = None,
         replacement_authority: ProtectedRestoreLedger | None = None,
+        expected_identity_id: str | None = None,
+        expected_generation: int | None = None,
     ) -> RestoreVerification:
         started = monotonic()
         requested_at = datetime.now(timezone.utc) if now is None else now
@@ -723,6 +823,44 @@ class BackupEngine:
         manifest = self.verify(backup_dir)
         if not isinstance(target_state_path, Path):
             raise TypeError("target_state_path must be a Path")
+        if expected_identity_id is not None and (
+            not isinstance(expected_identity_id, str)
+            or manifest.core_identity_id != expected_identity_id
+        ):
+            raise BackupError("restore Core identity does not match the expected identity")
+        if expected_generation is not None and (
+            type(expected_generation) is not int
+            or manifest.generation != expected_generation
+        ):
+            raise BackupError("restore generation does not match the expected generation")
+        from sofia.core.memory.access import (
+            MemoryWriterConflict, assert_no_live_writer,
+        )
+        try:
+            assert_no_live_writer(target_state_path)
+        except MemoryWriterConflict as exc:
+            raise BackupError(
+                "restore target is owned by a live canonical writer"
+            ) from exc
+        if target_state_path.is_file():
+            if manifest.core_identity_id is not None:
+                target_identity = _protected_identity_id(target_state_path)
+                if (
+                    target_identity is not None
+                    and target_identity != manifest.core_identity_id
+                ):
+                    raise BackupError(
+                        "restore refuses a bundle from a different Core identity"
+                    )
+            if manifest.generation is not None:
+                target_generation = _state_generation(target_state_path)
+                if (
+                    target_generation is not None
+                    and target_generation != manifest.generation
+                ):
+                    raise BackupError(
+                        "restore refuses a bundle from a different state generation"
+                    )
         target_root = target_state_path.parent
         # Never mix restored plaintext into its authenticated encrypted source.
         # Resolve existing ancestors so spelling aliases cannot evade this
@@ -920,6 +1058,16 @@ class BackupEngine:
                     bootstrap_mode=IdentityBootstrapMode.REQUIRE_EXISTING,
                 ).load()
 
+            # The target must remain writer-free through the whole staged
+            # verification. A writer that appeared while decrypting cannot be
+            # merged with or silently replaced by this restore.
+            try:
+                assert_no_live_writer(target_state_path)
+            except MemoryWriterConflict as exc:
+                raise BackupError(
+                    "restore target acquired a live canonical writer before publication"
+                ) from exc
+
             # The same independent journal lock serializes signed deletion
             # append and the final file-by-file restore publication. Without
             # it, a deletion can arrive after the last freshness read while
@@ -952,6 +1100,13 @@ class BackupEngine:
                             "protected state replacement authorization was "
                             f"revoked or refused before publication: {exc}"
                         ) from exc
+                try:
+                    assert_no_live_writer(target_state_path)
+                except MemoryWriterConflict as exc:
+                    raise BackupError(
+                        "restore target acquired a live canonical writer during "
+                        "staged verification"
+                    ) from exc
                 published_directories: set[Path] = set()
                 published_any = False
                 try:

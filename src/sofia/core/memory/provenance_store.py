@@ -13,6 +13,14 @@ import sqlite3
 from threading import RLock
 from uuid import UUID
 
+from sofia.core.memory.access import (
+    MemoryStateCorrupt,
+    MemoryStateUnavailable,
+    MemoryWriterLease,
+    ensure_memory_file_private,
+    validate_canonical_memory_path,
+)
+from sofia.core.memory.legacy import require_selectable_memory_state
 from sofia.core.memory.provenance import CandidateStatus, MemoryCandidate
 from sofia.core.memory.originals import SourceMessage
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
@@ -29,52 +37,92 @@ def _utc(value: datetime) -> str:
 class DurableMemoryCandidateStore:
     """Thread-safe SQLite store for reviewed memory candidates."""
 
-    def __init__(self, database_path: Path | str) -> None:
+    def __init__(
+        self,
+        database_path: Path | str,
+        *,
+        require_existing: bool = False,
+    ) -> None:
         if not isinstance(database_path, (str, Path)) or not str(database_path).strip():
             raise ValueError("an on-disk SQLite path is required")
         if str(database_path) == ":memory:":
             raise ValueError("in-memory storage is not durable")
+        if type(require_existing) is not bool:
+            raise TypeError("require_existing must be bool")
 
-        target = Path(database_path)
+        target = validate_canonical_memory_path(database_path)
         if not target.parent.exists():
             raise FileNotFoundError("memory database parent directory must exist")
-
-        # The operator-held deletion ledger is deliberately stored outside
-        # sofia.db backups. On a configured production restart, reconcile
-        # any durable erasure whose live SQL transaction was interrupted
-        # BEFORE opening the candidate store or projecting recalled text.
-        from os import environ
-        journal_path = environ.get("SOFIA_MEMORY_ERASURE_JOURNAL", "").strip()
-        key_path = environ.get("SOFIA_MEMORY_ERASURE_KEY", "").strip()
-        if bool(journal_path) != bool(key_path):
-            raise RuntimeError(
-                "memory erasure requires both external journal and operator key"
+        exists = target.is_file()
+        if not exists and require_existing:
+            raise MemoryStateUnavailable(
+                "canonical memory state is unavailable; refusing silent bootstrap"
             )
-        if journal_path:
-            if not target.is_file():
-                raise FileNotFoundError(
-                    "erasure-enabled runtime requires existing canonical state"
-                )
-            from sofia.core.memory.deletion_ledger import MemoryDeletionLedger
-            from sofia.platform.ops.backup import BackupCipher, load_backup_key
-            MemoryDeletionLedger(
-                Path(journal_path).absolute(),
-                BackupCipher(load_backup_key(Path(key_path))),
-            ).apply_to_sqlite(target)
+        if exists and target.stat().st_size == 0:
+            raise MemoryStateCorrupt(
+                "canonical memory state is empty or truncated"
+            )
 
         self._database_path = target
         self._lock = RLock()
-        # Existing canonical state is pinned before opening. Independent
-        # fixture imports may still bootstrap a new test database, but only
-        # the original file identity can be accessed after the first open.
-        self._guard = CanonicalSQLiteGuard(target) if target.is_file() else None
-        self._db: sqlite3.Connection | None = (
-            self._guard.connect(timeout=3.0, check_same_thread=False)
-            if self._guard is not None
-            else sqlite3.connect(target, timeout=3.0, check_same_thread=False)
-        )
-        if self._guard is None:
-            self._guard = CanonicalSQLiteGuard(target)
+        self._writer: MemoryWriterLease | None = None
+        try:
+            self._writer = MemoryWriterLease(target)
+
+            # The operator-held deletion ledger is deliberately stored outside
+            # sofia.db backups. On a configured production restart, reconcile
+            # any durable erasure whose live SQL transaction was interrupted
+            # BEFORE opening the candidate store or projecting recalled text.
+            from os import environ
+            journal_path = environ.get("SOFIA_MEMORY_ERASURE_JOURNAL", "").strip()
+            key_path = environ.get("SOFIA_MEMORY_ERASURE_KEY", "").strip()
+            if bool(journal_path) != bool(key_path):
+                raise RuntimeError(
+                    "memory erasure requires both external journal and operator key"
+                )
+            if journal_path:
+                if not target.is_file():
+                    raise FileNotFoundError(
+                        "erasure-enabled runtime requires existing canonical state"
+                    )
+                from sofia.core.memory.deletion_ledger import MemoryDeletionLedger
+                from sofia.platform.ops.backup import BackupCipher, load_backup_key
+                MemoryDeletionLedger(
+                    Path(journal_path).absolute(),
+                    BackupCipher(load_backup_key(Path(key_path))),
+                ).apply_to_sqlite(target)
+
+            # Existing canonical state is inspected (read-only) before any
+            # schema write. Incompatible legacy or corrupt bytes are never
+            # silently adopted as a fresh memory database.
+            if exists:
+                require_selectable_memory_state(target)
+            # Existing canonical state is pinned before opening. Independent
+            # fixture imports may still bootstrap a new test database, but only
+            # the original file identity can be accessed after the first open.
+            self._guard = CanonicalSQLiteGuard(target) if exists else None
+            self._db: sqlite3.Connection | None = (
+                self._guard.connect(timeout=3.0, check_same_thread=False)
+                if self._guard is not None
+                else sqlite3.connect(target, timeout=3.0, check_same_thread=False)
+            )
+            if self._guard is None:
+                self._guard = CanonicalSQLiteGuard(target)
+            if not exists:
+                ensure_memory_file_private(target)
+        except BaseException:
+            database = getattr(self, "_db", None)
+            if database is not None:
+                try:
+                    database.close()
+                except Exception:
+                    pass
+                self._db = None
+            writer = getattr(self, "_writer", None)
+            if writer is not None:
+                writer.release()
+                self._writer = None
+            raise
 
         with self._lock:
             db = self._require_db()
@@ -191,6 +239,30 @@ class DurableMemoryCandidateStore:
             )
             db.commit()
 
+    @classmethod
+    def open_canonical(
+        cls,
+        database_path: Path | str,
+        *,
+        expected_state_path: Path | str | None = None,
+    ) -> "DurableMemoryCandidateStore":
+        """Open one existing owner-private canonical state as its only writer.
+
+        This is the strict production/restart entry point. It never creates a
+        missing database and never adopts redirected or legacy state.
+        """
+        path = validate_canonical_memory_path(
+            database_path,
+            expected_path=expected_state_path,
+            require_owner_private=True,
+        )
+        if not path.is_file():
+            raise MemoryStateUnavailable(
+                "canonical memory state is unavailable; refusing silent bootstrap"
+            )
+        require_selectable_memory_state(path)
+        return cls(path, require_existing=True)
+
     @property
     def database_path(self) -> Path:
         """Read-only canonical path needed to bind eligibility to this store.
@@ -199,6 +271,18 @@ class DurableMemoryCandidateStore:
         or permit resolving a substituted state file.
         """
         return self._guard.validate()
+
+    def state_report(self):
+        """Truthful read-only schema/provenance classification of this state."""
+        from sofia.core.memory.legacy import inspect_memory_state
+        return inspect_memory_state(self.database_path)
+
+    def quarantine_legacy(self, *, quarantine_root: Path | str):
+        """Copy incompatible state aside without import or mutation."""
+        from sofia.core.memory.legacy import quarantine_memory_state
+        return quarantine_memory_state(
+            self.database_path, quarantine_root=quarantine_root,
+        )
 
     def propose(self, candidate: MemoryCandidate) -> None:
         if not isinstance(candidate, MemoryCandidate):
@@ -659,6 +743,7 @@ class DurableMemoryCandidateStore:
         *,
         principal_id: str | None = None,
         audience_id: str | None = None,
+        audience_kind: str | None = None,
         batch_size: int = 128,
         require_reviewed_source_v1: bool = False,
     ) -> Iterator[tuple[UUID, str]]:
@@ -679,6 +764,10 @@ class DurableMemoryCandidateStore:
             raise ValueError("audience_id must be None or nonempty")
         if audience_id is not None and principal_id is None:
             raise ValueError("audience_id requires principal_id")
+        if audience_kind is not None and audience_kind not in {
+            "private", "shared",
+        }:
+            raise ValueError("audience_kind must be private, shared or None")
         if type(batch_size) is not int or not 1 <= batch_size <= 512:
             raise ValueError("batch_size must be 1..512")
         if type(require_reviewed_source_v1) is not bool:
@@ -754,6 +843,11 @@ class DurableMemoryCandidateStore:
             scope.append(principal_id)
             if audience_id is None:
                 clauses.append("audience_id IS NULL")
+            elif audience_kind == "shared":
+                # A guest/shared audience never inherits an unscoped
+                # principal-wide owner memory.
+                clauses.append("audience_id=?")
+                scope.append(audience_id)
             else:
                 clauses.append("(audience_id IS NULL OR audience_id=?)")
                 scope.append(audience_id)
@@ -1120,23 +1214,51 @@ class DurableMemoryCandidateStore:
         )
 
     def open(self) -> None:
-        """Reopen the candidate store after an owned runtime shutdown."""
+        """Reopen existing canonical state after an owned runtime shutdown."""
         with self._lock:
             if self._db is not None:
                 return
-            self._db = self._guard.connect(
-                timeout=3.0,
-                check_same_thread=False,
-            )
-            self._db.execute("PRAGMA foreign_keys = ON")
-            self._db.execute("PRAGMA busy_timeout = 3000")
+            self._guard.validate()
+            require_selectable_memory_state(self._guard.canonical_path)
+            writer = MemoryWriterLease(self._guard.canonical_path)
+            try:
+                self._db = self._guard.connect(
+                    timeout=3.0,
+                    check_same_thread=False,
+                )
+                self._db.execute("PRAGMA foreign_keys = ON")
+                self._db.execute("PRAGMA busy_timeout = 3000")
+            except BaseException:
+                if self._db is not None:
+                    try:
+                        self._db.close()
+                    except Exception:
+                        pass
+                    self._db = None
+                writer.release()
+                raise
+            self._writer = writer
 
     def close(self) -> None:
         with self._lock:
             if self._db is None:
+                writer = self._writer
+                self._writer = None
+                if writer is not None:
+                    writer.release()
                 return
             self._db.close()
             self._db = None
+            writer = self._writer
+            self._writer = None
+            if writer is not None:
+                writer.release()
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            pass
 
     def _require_db(self) -> sqlite3.Connection:
         if self._db is None:
