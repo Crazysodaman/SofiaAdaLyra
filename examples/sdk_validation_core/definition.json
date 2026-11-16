@@ -1,0 +1,22 @@
+{
+  "schema": "aegis.core.definition.v1",
+  "identity": {
+    "schema": "aegis.identity.v1",
+    "kind": "core",
+    "uuid": "4f2c9a17-6d3b-4e58-8a01-c7d9e2b6f430"
+  },
+  "name": "SDK Validation Core",
+  "revision": 1,
+  "runtime_release_sha256": "f4ad1a7455f75a4fda4a0902cd67541ad27c67c4f3e898c8beac035da58c2bce",
+  "sdk_protocol": "1.0",
+  "constitution": {
+    "path": "assets/constitution.md",
+    "sha256": "43d3cb2f76ba8502b957411ec5930f2ba9705388debab68d9ccb6235bd48e01a",
+    "size_bytes": 563
+  },
+  "personality": {
+    "path": "assets/personality.md",
+    "sha256": "f671664ca829d7b967e5109d1894143707291223dd074430385df6bfdd7e0dcc",
+    "size_bytes": 394
+  }
+}

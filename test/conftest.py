@@ -97,6 +97,7 @@ FILENAME_PACKAGE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("test_sdk_platform_management_client_linux.py", ("pkg_net", "pkg_safe", "pkg_verify")),
     ("test_sdk_platform_management_client_cross_uid_linux.py", ("pkg_net", "pkg_safe", "pkg_verify")),
     ("test_sdk_reference_core_platform.py", ("pkg_core", "pkg_integrate", "pkg_safe", "pkg_verify")),
+    ("test_sdk_validation_core.py", ("pkg_core", "pkg_integrate", "pkg_safe", "pkg_verify")),
     ("test_library_module_plan.py", ("pkg_run", "pkg_safe", "pkg_verify")),
     ("test_library_module_recipient.py", ("pkg_run", "pkg_safe", "pkg_verify")),
     ("test_library_catalog_adapter.py", ("pkg_run", "pkg_safe", "pkg_verify")),
