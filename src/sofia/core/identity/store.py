@@ -119,6 +119,41 @@ class IdentityStore:
             instance_id=instance_id,
         )
 
+    def load_strict(
+        self,
+        *,
+        expected_instance_id: UUID | None = None,
+    ) -> SofiaIdentity:
+        """Load canonical identity without creating or rewriting it.
+
+        ``REQUIRE_EXISTING`` refuses a missing file and a legacy record
+        without ``instance_id``.  An optional expected UUID additionally
+        binds the persisted value to the identity observed by the caller, so
+        a substituted but well-formed identity fails instead of loading.
+        """
+        if expected_instance_id is not None and not isinstance(
+            expected_instance_id, UUID
+        ):
+            raise TypeError(
+                "expected_instance_id must be a UUID or None."
+            )
+
+        identity = IdentityStore(
+            self.identity_path,
+            bootstrap_mode=IdentityBootstrapMode.REQUIRE_EXISTING,
+        ).load()
+
+        if (
+            expected_instance_id is not None
+            and identity.instance_id != expected_instance_id
+        ):
+            raise IdentityStoreError(
+                "Identity instance_id does not match the expected "
+                "canonical identity."
+            )
+
+        return identity
+
     @staticmethod
     def _load_name(data: dict) -> str:
         if "name" not in data:

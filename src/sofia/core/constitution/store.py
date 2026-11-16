@@ -32,8 +32,13 @@ class ConstitutionStore:
         self.constitution_path = constitution_path
 
     def load(self) -> Constitution:
-        raw = self.constitution_path.read_bytes()
-        content = canonical_constitution_text(raw.decode("utf-8"))
+        try:
+            raw = self.constitution_path.read_bytes()
+            content = canonical_constitution_text(raw.decode("utf-8"))
+        except (OSError, UnicodeError) as exc:
+            raise ConstitutionIntegrityError(
+                "Constitution is unreadable or corrupt."
+            ) from exc
         content_hash = sha256(content.encode("utf-8")).hexdigest()
 
         return Constitution(
@@ -42,6 +47,19 @@ class ConstitutionStore:
             content_hash=content_hash,
             loaded_at=datetime.now(timezone.utc),
         )
+
+    def load_verified(
+        self,
+        verifier: "ConstitutionIntegrityVerifier",
+    ) -> Constitution:
+        """Load and verify before either content or hash can be trusted."""
+        if not isinstance(verifier, ConstitutionIntegrityVerifier):
+            raise TypeError(
+                "verifier must be a ConstitutionIntegrityVerifier."
+            )
+        constitution = self.load()
+        verifier.verify(constitution)
+        return constitution
 
 
 class ConstitutionIntegrityError(Exception):
@@ -64,9 +82,14 @@ class ConstitutionIntegrityVerifier:
         return self._expected_hash_path
 
     def verify(self, constitution: Constitution) -> None:
-        expected_hash = self.expected_hash_path.read_text(
-            encoding="utf-8"
-        ).strip()
+        try:
+            expected_hash = self.expected_hash_path.read_text(
+                encoding="utf-8"
+            ).strip()
+        except (OSError, UnicodeError) as exc:
+            raise ConstitutionIntegrityError(
+                "Trusted Constitution hash is unreadable or corrupt."
+            ) from exc
 
         if len(expected_hash) != 64:
             raise ConstitutionIntegrityError(
