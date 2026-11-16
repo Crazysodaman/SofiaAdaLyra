@@ -26,6 +26,7 @@ from sofia.core.security import (
     CoreAccessDenied,
     CoreAccessPolicy,
     CoreOperation,
+    CorePrincipalRole,
     CoreProtectedResource,
     CoreSecurityBoundary,
     ProtectedCoreState,
@@ -83,6 +84,11 @@ def shared_owner() -> PrincipalContext:
         audience_kind=AudienceKind.SHARED,
         display_name="Sparks",
     )
+
+
+def accept_test_principal(principal: object) -> bool:
+    """Explicit test-only verifier for already synthetic authenticated fixtures."""
+    return isinstance(principal, PrincipalContext)
 
 
 def write_identity(
@@ -529,7 +535,7 @@ def test_protected_state_constructor_refuses_redirected_identity(tmp_path):
 
 def test_stop_between_plan_and_effect_denies_without_effect(tmp_path):
     stop, _ = stop_store(tmp_path)
-    boundary = CoreSecurityBoundary(stop=stop)
+    boundary = CoreSecurityBoundary(stop=stop, verify_principal=accept_test_principal)
     calls: list[str] = []
     plan = boundary.evaluate(
         owner(), CoreProtectedResource.PRIVATE_MEMORY, CoreOperation.WRITE,
@@ -550,7 +556,7 @@ def test_stop_between_plan_and_effect_denies_without_effect(tmp_path):
 def test_stop_survives_boundary_restart(tmp_path):
     stop, state = stop_store(tmp_path)
     stop.set(active=True, updated_by="Sparks", reason="synthetic restart STOP")
-    restarted = CoreSecurityBoundary(stop=OperatorStopStore(state))
+    restarted = CoreSecurityBoundary(stop=OperatorStopStore(state), verify_principal=accept_test_principal)
     with pytest.raises(CoreAccessDenied) as denied:
         restarted.execute(
             principal=owner(),
@@ -563,7 +569,7 @@ def test_stop_survives_boundary_restart(tmp_path):
 
 def test_boundary_never_caches_prior_authorization(tmp_path):
     stop, _ = stop_store(tmp_path)
-    boundary = CoreSecurityBoundary(stop=stop)
+    boundary = CoreSecurityBoundary(stop=stop, verify_principal=accept_test_principal)
     calls: list[str] = []
     boundary.execute(
         principal=owner(),
@@ -584,7 +590,7 @@ def test_boundary_never_caches_prior_authorization(tmp_path):
 
 def test_unreadable_stop_authority_fails_closed(tmp_path, monkeypatch):
     stop, _ = stop_store(tmp_path)
-    boundary = CoreSecurityBoundary(stop=stop)
+    boundary = CoreSecurityBoundary(stop=stop, verify_principal=accept_test_principal)
 
     def unavailable():
         raise FileNotFoundError("synthetic canonical state loss")
@@ -599,6 +605,89 @@ def test_unreadable_stop_authority_fails_closed(tmp_path, monkeypatch):
             effect=lambda: calls.append("effect"),
         )
     assert denied.value.decision.denial is CoreAccessDenial.OPERATOR_STOP
+    assert calls == []
+
+
+def test_public_boundary_cannot_be_constructed_without_a_verifier(tmp_path):
+    stop, _ = stop_store(tmp_path)
+    with pytest.raises(TypeError, match="verify_principal"):
+        CoreSecurityBoundary(stop=stop)
+
+
+def test_forged_local_owner_is_denied_unless_verifier_authenticates_it(tmp_path):
+    stop, _ = stop_store(tmp_path)
+    forged = local_sparks_principal()
+    denied = CoreSecurityBoundary(
+        stop=stop, verify_principal=lambda principal: False,
+    )
+    plan = denied.evaluate(
+        forged, CoreProtectedResource.IDENTITY, CoreOperation.READ,
+    )
+    assert plan.allowed is False
+    assert plan.role is CorePrincipalRole.UNKNOWN
+    assert plan.denial is CoreAccessDenial.NOT_AUTHENTICATED
+
+    calls: list[str] = []
+    with pytest.raises(CoreAccessDenied) as refused:
+        denied.execute(
+            principal=forged,
+            resource=CoreProtectedResource.PRIVATE_MEMORY,
+            operation=CoreOperation.WRITE,
+            effect=lambda: calls.append("forged-effect"),
+        )
+    assert refused.value.decision.role is CorePrincipalRole.UNKNOWN
+    assert refused.value.decision.denial is CoreAccessDenial.NOT_AUTHENTICATED
+    assert calls == []
+
+    authenticated = CoreSecurityBoundary(
+        stop=stop, verify_principal=lambda principal: principal == forged,
+    )
+    assert authenticated.evaluate(
+        forged, CoreProtectedResource.IDENTITY, CoreOperation.READ,
+    ).allowed is True
+
+
+def test_verifier_exception_fails_closed_without_effect(tmp_path):
+    stop, _ = stop_store(tmp_path)
+
+    def unavailable(principal):
+        raise RuntimeError("synthetic attestation store unavailable")
+
+    boundary = CoreSecurityBoundary(stop=stop, verify_principal=unavailable)
+    calls: list[str] = []
+    with pytest.raises(CoreAccessDenied) as denied:
+        boundary.execute(
+            principal=owner(),
+            resource=CoreProtectedResource.PRIVATE_MEMORY,
+            operation=CoreOperation.WRITE,
+            effect=lambda: calls.append("effect"),
+        )
+    assert denied.value.decision.role is CorePrincipalRole.UNKNOWN
+    assert denied.value.decision.denial is CoreAccessDenial.NOT_AUTHENTICATED
+    assert calls == []
+
+
+def test_revoked_attestation_is_rechecked_immediately_before_the_effect(
+    tmp_path,
+):
+    stop, _ = stop_store(tmp_path)
+    answers = iter((True, False))
+
+    def revoked_before_effect(principal):
+        return next(answers, False)
+
+    boundary = CoreSecurityBoundary(
+        stop=stop, verify_principal=revoked_before_effect,
+    )
+    calls: list[str] = []
+    with pytest.raises(CoreAccessDenied) as denied:
+        boundary.execute(
+            principal=owner(),
+            resource=CoreProtectedResource.PRIVATE_MEMORY,
+            operation=CoreOperation.WRITE,
+            effect=lambda: calls.append("effect"),
+        )
+    assert denied.value.decision.denial is CoreAccessDenial.NOT_AUTHENTICATED
     assert calls == []
 
 
@@ -621,7 +710,7 @@ def _current_approval(
 
 def test_replayed_owner_approval_cannot_reauthorize_effect(tmp_path):
     stop, state = stop_store(tmp_path)
-    boundary = CoreSecurityBoundary(stop=stop)
+    boundary = CoreSecurityBoundary(stop=stop, verify_principal=accept_test_principal)
     verifier, approval, parameters = _current_approval(state)
     calls: list[str] = []
 
@@ -660,7 +749,7 @@ def test_replayed_owner_approval_cannot_reauthorize_effect(tmp_path):
 
 def test_revoked_owner_credential_between_plan_and_effect_denies(tmp_path):
     stop, state = stop_store(tmp_path)
-    boundary = CoreSecurityBoundary(stop=stop)
+    boundary = CoreSecurityBoundary(stop=stop, verify_principal=accept_test_principal)
     verifier, approval, parameters = _current_approval(state)
     with sqlite3.connect(state) as db:
         db.execute(
@@ -691,7 +780,7 @@ def test_guest_unknown_and_core_self_cannot_export_protected_state(
     tmp_path, principal,
 ):
     stop, _ = stop_store(tmp_path)
-    boundary = CoreSecurityBoundary(stop=stop)
+    boundary = CoreSecurityBoundary(stop=stop, verify_principal=accept_test_principal)
     calls: list[str] = []
     with pytest.raises(CoreAccessDenied) as denied:
         boundary.execute(
@@ -701,7 +790,9 @@ def test_guest_unknown_and_core_self_cannot_export_protected_state(
             effect=lambda: calls.append("effect"),
         )
     assert denied.value.decision.denial in {
-        CoreAccessDenial.ROLE, CoreAccessDenial.PRINCIPAL,
+        CoreAccessDenial.ROLE,
+        CoreAccessDenial.PRINCIPAL,
+        CoreAccessDenial.NOT_AUTHENTICATED,
     }
     assert calls == []
 

@@ -53,6 +53,7 @@ class CoreOperation(str, Enum):
 class CoreAccessDenial(str, Enum):
     NONE = "none"
     PRINCIPAL = "principal"
+    NOT_AUTHENTICATED = "not_authenticated"
     ROLE = "role"
     AUDIENCE = "audience"
     ADULT = "adult"
@@ -102,11 +103,15 @@ class CoreAccessDenied(PermissionError):
 
 
 class CoreAccessPolicy:
-    """Classify one authenticated principal and decide protected access.
+    """Pure role mapping over trusted principal fields; it proves nothing.
 
-    owner: authenticated Sparks principal in a private audience.
-    guest: any other authenticated non-Core principal.
+    owner: Sparks principal in a private audience.
+    guest: any other non-Core principal.
     unknown: missing, malformed or Core self-asserted principal.
+
+    This policy deliberately has no verifier and must only be used by callers
+    that already hold an authenticated principal.  Public execution boundaries
+    use ``CoreSecurityBoundary``, which requires a service-owned verifier.
 
     ``display_name`` is presentation metadata and is deliberately never read.
     """
@@ -216,15 +221,23 @@ class CoreAccessPolicy:
 
 Effect = TypeVar("Effect")
 CurrentAuthority = Callable[[], bool]
+PrincipalVerifier = Callable[[PrincipalContext], bool]
 
 
 class CoreSecurityBoundary:
-    """Execute consequential Core work only under current Platform authority.
+    """Execute Core work only for a service-verified principal.
 
-    The supplied ``OperatorStopStore`` is the canonical Platform owner.  This
-    boundary never creates one and never caches its answer.  An optional
-    ``authority_check`` must be a current Platform-owned predicate (for
-    example an unconsumed execution-approval or credential check); it is also
+    The supplied ``OperatorStopStore`` is the canonical Platform owner.  The
+    supplied ``verify_principal`` is the service-owned authentication proof: it
+    must independently bind the portable ``PrincipalContext`` to a live
+    Platform channel/session.  A caller-supplied principal is never sufficient.
+
+    Verification runs before role resolution and again immediately before the
+    effect.  Missing, false or raising verification is denied as
+    ``UNKNOWN``/``NOT_AUTHENTICATED``.  This boundary never creates a permission
+    store, never creates an ``OperatorStopStore`` and never caches authority.
+    An optional ``authority_check`` must be a current Platform-owned predicate
+    (for example an unconsumed execution-approval or credential check); it is
     re-read immediately before the effect.
     """
 
@@ -232,14 +245,55 @@ class CoreSecurityBoundary:
         self,
         *,
         stop: OperatorStopStore,
+        verify_principal: PrincipalVerifier,
         policy: CoreAccessPolicy | None = None,
     ) -> None:
         if not isinstance(stop, OperatorStopStore):
             raise TypeError("canonical Platform OperatorStopStore required")
+        if not callable(verify_principal):
+            raise TypeError("service-owned verify_principal callable required")
         if policy is not None and not isinstance(policy, CoreAccessPolicy):
             raise TypeError("policy must be a CoreAccessPolicy or None")
         self._stop = stop
+        self._verify_principal = verify_principal
         self.policy = policy or CoreAccessPolicy()
+
+    def _unauthenticated(
+        self,
+        principal: object,
+        resource: CoreProtectedResource,
+        operation: CoreOperation,
+    ) -> CoreAccessDecision | None:
+        if not isinstance(principal, PrincipalContext):
+            verified = False
+        else:
+            try:
+                verified = self._verify_principal(principal) is True
+            except Exception:
+                verified = False
+        if verified:
+            return None
+        return CoreAccessDecision(
+            allowed=False,
+            role=CorePrincipalRole.UNKNOWN,
+            resource=resource,
+            operation=operation,
+            denial=CoreAccessDenial.NOT_AUTHENTICATED,
+            reason=(
+                "protected Core access requires a service-authenticated "
+                "Platform principal"
+            ),
+        )
+
+    def _require_authenticated(
+        self,
+        principal: object,
+        resource: CoreProtectedResource,
+        operation: CoreOperation,
+    ) -> None:
+        denial = self._unauthenticated(principal, resource, operation)
+        if denial is not None:
+            raise CoreAccessDenied(denial)
 
     def evaluate(
         self,
@@ -250,6 +304,9 @@ class CoreSecurityBoundary:
         required_audience: str | None = None,
         adult: bool = False,
     ) -> CoreAccessDecision:
+        denial = self._unauthenticated(principal, resource, operation)
+        if denial is not None:
+            return denial
         return self.policy.evaluate(
             principal, resource, operation,
             required_audience=required_audience, adult=adult,
@@ -264,10 +321,13 @@ class CoreSecurityBoundary:
         required_audience: str | None = None,
         adult: bool = False,
     ) -> CoreAccessDecision:
-        return self.policy.require(
+        decision = self.evaluate(
             principal, resource, operation,
             required_audience=required_audience, adult=adult,
         )
+        if not decision.allowed:
+            raise CoreAccessDenied(decision)
+        return decision
 
     def execute(
         self,
@@ -300,6 +360,9 @@ class CoreSecurityBoundary:
                 self._require_current_authority(
                     authority_check, decision.role, resource, operation,
                 )
+        # Re-prove the Platform-authenticated principal immediately before the
+        # effect so a stale or revoked attestation cannot ride an earlier plan.
+        self._require_authenticated(principal, resource, operation)
         return effect()
 
     def _require_current_stop(
