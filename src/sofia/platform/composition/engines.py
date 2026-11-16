@@ -16,6 +16,7 @@ from sofia.core.cognition.model_lifecycle import (
 from sofia.platform.cognition_provider import create_llm_provider
 from sofia.core.cognition.routing import (
     CognitiveEngineRegistry,
+    ProviderSelectionPolicy,
     RoutingCognitiveEngine,
 )
 from sofia.core.cognition.runtime_state import CognitionRuntimeStateStore
@@ -33,6 +34,24 @@ from sofia.platform.composition.split_topology import (
     validate_split_inference_runtime,
 )
 from sofia.platform.core_worker import CoreWorkerController, CoreWorkerCognitiveEngine
+
+
+def _provider_selection_policy(routing):
+    """Opt into strict provider failover only for explicit fallback policy."""
+    if (
+        not routing.fallback_enabled
+        or routing.primary is None
+        or routing.secondary is None
+    ):
+        return None
+    return ProviderSelectionPolicy(
+        order=("primary", "secondary"),
+        configured={
+            "primary": routing.primary,
+            "secondary": routing.secondary,
+        },
+        allowed_providers=("ollama", "test-llm"),
+    )
 
 
 def _create_llm_engine(
@@ -328,6 +347,7 @@ def create_cognitive_engine(
                     configuration.state_path
                 ),
                 local_host_id=local_host_id,
+                provider_policy=_provider_selection_policy(routing),
             )
         engine = CoreWorkerCognitiveEngine(
             core_worker_controller,
@@ -416,6 +436,7 @@ def create_cognitive_engine(
                 configuration.state_path
             ),
             local_host_id=local_host_id,
+            provider_policy=_provider_selection_policy(routing),
         )
 
     if configuration.provider.provider == "test":

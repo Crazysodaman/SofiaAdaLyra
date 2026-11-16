@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from enum import Enum
 from threading import RLock
 from time import perf_counter
+from typing import Mapping
 
 from sofia.core.cognition.activity import CognitiveModelActivityStore
 from sofia.core.cognition.runtime_state import CognitionRuntimeStateStore
@@ -16,6 +17,7 @@ from sofia.core.cognition.model import (
     CognitiveRole,
 )
 from sofia.core.cognition.performance import emit_performance
+from sofia.platform.config.model import ProviderConfiguration
 
 
 class CognitiveRoute(Enum):
@@ -41,6 +43,7 @@ class RoutingExecutionStep:
     model: str | None
     host: str | None
     succeeded: bool
+    provider: str | None = None
 
 
 @dataclass(frozen=True)
@@ -59,6 +62,193 @@ class RoutingExecution:
     def last_successful_step(self) -> RoutingExecutionStep | None:
         values = self.successful_steps
         return values[-1] if values else None
+
+    @property
+    def provider_provenance(self) -> RoutingExecutionStep | None:
+        """The exact configured provider role/model that produced the reply."""
+        return self.last_successful_step
+
+
+class ProviderSelectionError(CognitiveEngineError):
+    """A request cannot use the explicitly configured provider set."""
+
+
+@dataclass(frozen=True)
+class ProviderSelection:
+    role: str
+    provider: str
+    model: str
+    configuration: ProviderConfiguration
+
+
+class ProviderSelectionPolicy:
+    """Explicit, ordered selection over providers already in a registry.
+
+    No provider is discovered or constructed here. Unknown roles, stale
+    engine identities, model mismatches, unlisted providers and cloud/paid
+    providers fail closed before a request reaches a model. Only classified
+    transport/unavailability failures are eligible for failover.
+    """
+
+    CLOUD_PROVIDERS = frozenset({
+        "anthropic", "aws", "azure", "bedrock", "cohere", "deepseek",
+        "gemini", "google", "mistral", "openai", "vertex",
+    })
+
+    def __init__(
+        self,
+        *,
+        order: tuple[str, ...] = ("primary", "secondary"),
+        configured: Mapping[str, object] | None = None,
+        allowed_providers: tuple[str, ...] | None = None,
+        allow_cloud: bool = False,
+    ) -> None:
+        if not isinstance(order, tuple) or not order:
+            raise ValueError("provider selection order must be a nonempty tuple")
+        if any(not isinstance(role, str) or not role.strip() for role in order):
+            raise ValueError("provider selection roles must be nonempty strings")
+        if len(set(order)) != len(order):
+            raise ValueError("provider selection order must not contain duplicates")
+        if configured is not None and not isinstance(configured, Mapping):
+            raise TypeError("configured providers must be a mapping or None")
+        if configured is not None:
+            unknown = set(configured) - set(order)
+            if unknown:
+                raise ValueError(
+                    "configured providers must be part of the explicit order"
+                )
+        if allowed_providers is not None:
+            if not isinstance(allowed_providers, tuple) or any(
+                not isinstance(name, str) or not name.strip()
+                for name in allowed_providers
+            ):
+                raise ValueError(
+                    "allowed_providers must be a tuple of nonempty names or None"
+                )
+            allowed = frozenset(allowed_providers)
+        else:
+            allowed = None
+        if type(allow_cloud) is not bool:
+            raise TypeError("allow_cloud must be a bool")
+        self.order = order
+        self.configured = dict(configured or {})
+        self.allowed_providers = allowed
+        self.allow_cloud = allow_cloud
+
+    @staticmethod
+    def _engine_configuration(
+        engine: CognitiveEngine,
+    ) -> ProviderConfiguration | None:
+        configuration = getattr(engine, "configuration", None)
+        if isinstance(configuration, ProviderConfiguration):
+            return configuration
+        provider = getattr(engine, "provider", None)
+        configuration = getattr(provider, "configuration", None)
+        if isinstance(configuration, ProviderConfiguration):
+            return configuration
+        local = getattr(engine, "local", None)
+        if isinstance(local, CognitiveEngine):
+            return ProviderSelectionPolicy._engine_configuration(local)
+        return None
+
+    def evaluate(
+        self, registry: "CognitiveEngineRegistry",
+    ) -> tuple[ProviderSelection, ...]:
+        if not isinstance(registry, CognitiveEngineRegistry):
+            raise TypeError("registry must be a CognitiveEngineRegistry")
+        selected: list[ProviderSelection] = []
+        for role in self.order:
+            if self.configured and role not in self.configured:
+                raise ProviderSelectionError(
+                    f"provider role is not explicitly configured: {role}"
+                )
+            try:
+                engine = registry.get(role)
+            except KeyError as exc:
+                raise ProviderSelectionError(
+                    f"unknown provider role: {role}"
+                ) from exc
+            expected = self.configured.get(role)
+            if isinstance(expected, CognitiveEngine) and engine is not expected:
+                raise ProviderSelectionError(
+                    f"provider role no longer names the configured engine: {role}"
+                )
+            configuration = self._engine_configuration(engine)
+            if configuration is None:
+                raise ProviderSelectionError(
+                    f"provider role has no explicit configuration: {role}"
+                )
+            if (
+                isinstance(expected, ProviderConfiguration)
+                and configuration != expected
+            ):
+                raise ProviderSelectionError(
+                    f"provider model mismatch for role: {role}"
+                )
+            if (
+                isinstance(expected, CognitiveEngine)
+                and self._engine_configuration(expected) != configuration
+            ):
+                raise ProviderSelectionError(
+                    f"provider model mismatch for role: {role}"
+                )
+            provider_name = configuration.provider.strip().casefold()
+            if (
+                self.allowed_providers is not None
+                and provider_name not in self.allowed_providers
+            ):
+                raise ProviderSelectionError(
+                    f"provider is not in the explicit allowlist: {role}"
+                )
+            if (
+                provider_name in self.CLOUD_PROVIDERS
+                and not self.allow_cloud
+            ):
+                raise ProviderSelectionError(
+                    f"paid/cloud provider selection is not authorized: {role}"
+                )
+            selected.append(ProviderSelection(
+                role=role,
+                provider=configuration.provider,
+                model=configuration.model,
+                configuration=configuration,
+            ))
+        return tuple(selected)
+
+    def failover_allowed(
+        self, error: BaseException, *,
+        from_role: str | None = None,
+        to_role: str | None = None,
+    ) -> bool:
+        """Only classified transport/unavailability errors may switch roles."""
+        if from_role is not None and from_role not in self.order:
+            return False
+        if to_role is not None and to_role not in self.order:
+            return False
+        current: BaseException | None = error
+        seen: set[int] = set()
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            if getattr(current, "is_transport_failure", False) is True:
+                return True
+            if isinstance(
+                current,
+                (TimeoutError, ConnectionError, BrokenPipeError),
+            ):
+                return True
+            name = type(current).__name__.casefold()
+            if any(marker in name for marker in (
+                "connect", "readtimeout", "remoteprotocol",
+                "incomplete", "stream",
+            )):
+                return True
+            current = current.__cause__ or current.__context__
+        return False
+
+    # Explicit aliases for callers that name the policy action rather than the
+    # internal ordering operation.
+    select = evaluate
+    can_failover = failover_allowed
 
 
 class CognitiveEngineRegistry:
@@ -305,6 +495,7 @@ class RoutingCognitiveEngine(CognitiveEngine):
         activity_store: CognitiveModelActivityStore | None = None,
         runtime_state_store: CognitionRuntimeStateStore | None = None,
         local_host_id: str | None = None,
+        provider_policy: ProviderSelectionPolicy | None = None,
     ) -> None:
         if not isinstance(registry, CognitiveEngineRegistry):
             raise TypeError("registry must be a CognitiveEngineRegistry")
@@ -326,6 +517,12 @@ class RoutingCognitiveEngine(CognitiveEngine):
             raise TypeError(
                 "activity_store must be CognitiveModelActivityStore or None"
             )
+        if provider_policy is not None and not isinstance(
+            provider_policy, ProviderSelectionPolicy
+        ):
+            raise TypeError(
+                "provider_policy must be a ProviderSelectionPolicy or None"
+            )
 
         self.registry = registry
         self.policy = policy or CognitiveRoutingPolicy()
@@ -335,7 +532,9 @@ class RoutingCognitiveEngine(CognitiveEngine):
         self.activity_store = activity_store
         self.runtime_state_store = runtime_state_store
         self.local_host_id = local_host_id
+        self.provider_policy = provider_policy
         self.last_decision: RoutingDecision | None = None
+        self.last_selection: tuple[ProviderSelection, ...] | None = None
         self.last_execution: RoutingExecution | None = None
         self._execution_serial = 0
         self._execution_lock = RLock()
@@ -347,6 +546,10 @@ class RoutingCognitiveEngine(CognitiveEngine):
     def respond(self, request: CognitiveRequest) -> CognitiveResponse:
         decision = self.policy.decide(request)
         self.last_decision = decision
+        if self.provider_policy is not None:
+            self.last_selection = self.provider_policy.evaluate(self.registry)
+        else:
+            self.last_selection = None
         started = perf_counter()
         fallback_count = 0
         verification_passes = 0
@@ -364,10 +567,13 @@ class RoutingCognitiveEngine(CognitiveEngine):
                         request,
                         steps,
                     )
-                except CognitiveEngineError:
+                except CognitiveEngineError as primary_error:
                     if (
                         not self.fallback_enabled
                         or not self._tool_request_is_replay_safe(request)
+                        or not self._failover_allowed(
+                            primary_error, "primary", "secondary",
+                        )
                     ):
                         raise
                     fallback_count += 1
@@ -482,6 +688,17 @@ class RoutingCognitiveEngine(CognitiveEngine):
             for message in request.messages
         )
 
+    def _failover_allowed(
+        self, error: BaseException, from_role: str, to_role: str,
+    ) -> bool:
+        if self.provider_policy is None:
+            # Legacy routing preserves its existing fallback contract. A
+            # provider-aware deployment opts into the stricter classification.
+            return True
+        return self.provider_policy.failover_allowed(
+            error, from_role=from_role, to_role=to_role,
+        )
+
     @staticmethod
     def _engine_model(engine: CognitiveEngine) -> str | None:
         configuration = getattr(engine, "configuration", None)
@@ -507,6 +724,16 @@ class RoutingCognitiveEngine(CognitiveEngine):
             return RoutingCognitiveEngine._engine_host(local)
         return None
 
+    @staticmethod
+    def _engine_provider(engine: CognitiveEngine) -> str | None:
+        configuration = ProviderSelectionPolicy._engine_configuration(engine)
+        if configuration is not None:
+            return configuration.provider
+        local = getattr(engine, "local", None)
+        if isinstance(local, CognitiveEngine):
+            return RoutingCognitiveEngine._engine_provider(local)
+        return None
+
     def _invoke(
         self,
         role: str,
@@ -518,6 +745,7 @@ class RoutingCognitiveEngine(CognitiveEngine):
         with self._role_locks[role]:
             engine = self.registry.get(role)
             model = self._engine_model(engine)
+            provider = self._engine_provider(engine)
             request_host = self._engine_host(engine) or self.local_host_id
             if self.activity_store is not None and model is not None:
                 self.activity_store.mark_busy(
@@ -557,6 +785,7 @@ class RoutingCognitiveEngine(CognitiveEngine):
                         model=model,
                         host=host,
                         succeeded=False,
+                        provider=provider,
                     )
                 )
                 raise
@@ -582,6 +811,7 @@ class RoutingCognitiveEngine(CognitiveEngine):
                     model=model,
                     host=host,
                     succeeded=True,
+                    provider=provider,
                 )
             )
             return response
@@ -755,7 +985,12 @@ class RoutingCognitiveEngine(CognitiveEngine):
                 )
             return response, 0
         except CognitiveEngineError as preferred_error:
-            if not self.fallback_enabled:
+            if (
+                not self.fallback_enabled
+                or not self._failover_allowed(
+                    preferred_error, preferred_role, fallback_role,
+                )
+            ):
                 raise
             try:
                 return self._invoke(fallback_role, request, steps), 1
@@ -773,7 +1008,12 @@ class RoutingCognitiveEngine(CognitiveEngine):
         try:
             primary_response = self._invoke("primary", request, steps)
         except CognitiveEngineError as primary_error:
-            if not self.fallback_enabled:
+            if (
+                not self.fallback_enabled
+                or not self._failover_allowed(
+                    primary_error, "primary", "secondary",
+                )
+            ):
                 raise
             try:
                 secondary_response = self._invoke(
@@ -815,8 +1055,13 @@ class RoutingCognitiveEngine(CognitiveEngine):
                 critique_request,
                 steps,
             )
-        except CognitiveEngineError:
-            if not self.fallback_enabled:
+        except CognitiveEngineError as critique_error:
+            if (
+                not self.fallback_enabled
+                or not self._failover_allowed(
+                    critique_error, "secondary", "primary",
+                )
+            ):
                 raise
             return primary_response, fallback_count + 1, 0
 
@@ -831,8 +1076,13 @@ class RoutingCognitiveEngine(CognitiveEngine):
                 synthesis_request,
                 steps,
             )
-        except CognitiveEngineError:
-            if not self.fallback_enabled:
+        except CognitiveEngineError as synthesis_error:
+            if (
+                not self.fallback_enabled
+                or not self._failover_allowed(
+                    synthesis_error, "primary", "secondary",
+                )
+            ):
                 raise
             return primary_response, fallback_count + 1, 1
 

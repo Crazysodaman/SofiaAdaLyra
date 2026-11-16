@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sqlite3
 from threading import RLock
@@ -11,6 +12,26 @@ from sofia.core.conversation.model import (
 )
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.core.social.model import PrincipalContext
+
+
+class ConversationContinuityError(ValueError):
+    """A persisted conversation cannot be treated as current/resumable."""
+
+    def __init__(self, message: str, *, reason: str) -> None:
+        super().__init__(message)
+        self.reason = reason
+
+
+@dataclass(frozen=True, slots=True)
+class ConversationContinuity:
+    session: ConversationSession
+    state: str
+    message_count: int
+    last_message_id: str | None
+
+    def __post_init__(self) -> None:
+        if self.state not in {"current", "stale"}:
+            raise ValueError("conversation continuity state is invalid")
 
 
 def _storage_timestamp(value: datetime) -> str:
@@ -161,6 +182,78 @@ class ConversationStore:
             created_at=datetime.fromisoformat(row[1]),
             updated_at=datetime.fromisoformat(row[2]),
         )
+
+    def continuity(
+        self,
+        session_id: str,
+        *,
+        now: datetime | None = None,
+        stale_after: timedelta | None = None,
+    ) -> ConversationContinuity:
+        """Read existing conversation state without creating a new store.
+
+        Unknown IDs fail explicitly instead of fabricating an empty session.
+        A stale threshold is diagnostic: callers decide whether to resume it.
+        """
+        if not isinstance(session_id, str) or not session_id.strip():
+            raise ConversationContinuityError(
+                "conversation session ID must be nonempty", reason="unknown",
+            )
+        if stale_after is not None and not isinstance(stale_after, timedelta):
+            raise TypeError("stale_after must be a timedelta or None")
+        moment = now or datetime.now(timezone.utc)
+        if (
+            not isinstance(moment, datetime)
+            or moment.tzinfo is None
+            or moment.utcoffset() is None
+        ):
+            raise ValueError("continuity now must be timezone-aware")
+        session = self.get_session(session_id)
+        if session is None:
+            raise ConversationContinuityError(
+                "conversation session is unknown", reason="unknown",
+            )
+        with self._lock:
+            row = self._require_connection().execute(
+                "SELECT COUNT(*), "
+                "(SELECT id FROM conversation_messages WHERE session_id=? "
+                "ORDER BY created_at DESC, id DESC LIMIT 1) "
+                "FROM conversation_messages WHERE session_id=?",
+                (session_id, session_id),
+            ).fetchone()
+        state = "current"
+        if stale_after is not None and (
+            moment.astimezone(timezone.utc)
+            - session.updated_at.astimezone(timezone.utc)
+        ) > stale_after:
+            state = "stale"
+        return ConversationContinuity(
+            session=session,
+            state=state,
+            message_count=int(row[0]),
+            last_message_id=row[1],
+        )
+
+    def resume_session(
+        self,
+        session_id: str,
+        *,
+        now: datetime | None = None,
+        stale_after: timedelta | None = None,
+        allow_stale: bool = True,
+    ) -> ConversationContinuity:
+        """Explicitly resume persisted state; never silently create a session."""
+        if type(allow_stale) is not bool:
+            raise TypeError("allow_stale must be a bool")
+        continuity = self.continuity(
+            session_id, now=now, stale_after=stale_after,
+        )
+        if continuity.state == "stale" and not allow_stale:
+            raise ConversationContinuityError(
+                "conversation session is stale and resume was denied",
+                reason="stale",
+            )
+        return continuity
 
     def save(
         self,
