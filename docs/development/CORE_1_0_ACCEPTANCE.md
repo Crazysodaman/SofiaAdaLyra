@@ -263,3 +263,21 @@ These are disposable/source results. No signed installed Core, real
 Artemis/Venus conversation, owner-host receipt or G8 certification exists.
 This checkpoint changes no CORE per-row state and does not raise the
 source-only verdict (PASS 0, BLOCKED 54, NOT TESTED 1, G8 NOT CERTIFIED).
+
+## Live disposable Core evidence 2026-11-16
+
+At source `742b12f5685eb82fb6e5ffb6e117dd3238fc113f`, a disposable signed
+synthetic Core was physically installed, supervised as a real OS subprocess,
+started/observed/stopped, crashed and reconciled, restarted with generation
+advance, detached and physically uninstalled. Exactly one writer was active;
+STOP during execution denied effects; Platform health remained true with zero
+Cores. The canonical Ollama provider produced a genuine local completion from
+`qwen2.5-coder:14b` (no download). Core Link was exercised over real loopback
+mTLS with a deterministic test LLM, explicitly not counted as real inference:
+multi-turn durable history, restart/reconnect, duplicate-request idempotency,
+timeout, unavailable and STOP/revocation denial.
+
+This is disposable synthetic-process evidence only. It is not an installed
+Core service, real Artemis/Venus conversation, owner-host receipt or G8
+certification. CORE states remain PASS 0, BLOCKED 54, NOT TESTED 1, with G8
+NOT CERTIFIED.

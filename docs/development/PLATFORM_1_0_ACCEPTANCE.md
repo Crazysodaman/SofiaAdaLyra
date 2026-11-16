@@ -449,3 +449,53 @@ find four issues that were fixed before the final verdict:
 Focused post-fix verification: 212 passed, 6 skipped. These fixes do not
 change any acceptance row or LIB scenario state and still do not constitute
 installed-host or signed-release certification.
+
+## Disposable release-candidate and live shakedown 2026-11-16
+
+**Final source:** `742b12f5685eb82fb6e5ffb6e117dd3238fc113f`.
+
+**Windows test-signed RC (not production):** built from exact source SHA
+`662b9b25` with `tools/build_aegis_release.py`, bundled CPython 3.12.10, SDK
+and Platform wheels, native service and TUI. Independent
+`PlatformReleaseVerifier` verification passed. Tampered asset, wrong signer,
+wrong source SHA, wrong target and below-floor revision were all rejected.
+
+Key digests (SHA-256): manifest `4c8f7eb4…ec1d`, signature envelope
+`93c82d45…c8a4`, service `0a77f451…fb76`, TUI `93edae51…9109`, runtime
+`aa5123ff…923a`, SDK wheel `30265397…c593`, Platform wheel `8533df43…38f5`.
+Bundle: `%TEMP%\opencode\rc-out\relcand-662b9b25-win\windows-x86_64`.
+Private test key stayed outside the repository.
+
+**Live release-binary smoke:** the exact release service binary plus release
+wheels ran in a disposable isolated venv. Real supervisor/worker processes
+started, READY/health reported exact Platform ID, duplicate supervisor denied
+with exit 2, clean shutdown, restart advanced generation 1 -> 2. `sofia.core`
+and `ollama` were absent. Windows SCM creation rights are denied
+(`OpenSCManager` winerror 5, non-elevated), so OS service registration remains
+BLOCKED. Evidence: `%TEMP%\opencode\rc-evidence\svc-smoke-evidence.json`.
+
+**Live synthetic Core and inference:** signed disposable Core installed and
+removed; real supervised OS subprocess PID/generation observed; duplicate
+start denied; STOP during execution denied with no backend stop calls; forced
+crash reconciled and restart advanced generation; detach/uninstall removed
+files; Platform health stayed true with zero Cores. Canonical Ollama provider
+against local `qwen2.5-coder:14b` produced a genuine marker completion (no
+download). Core Link used real loopback mTLS with a deterministic test LLM
+(explicitly not real inference): multi-turn durable history, restart,
+duplicate-request idempotency, timeout, unavailable and STOP/revocation denial.
+Evidence: `%TEMP%\opencode\aegis-live-final-742b12f5\evidence.json`.
+This run exposed and fixed an unhandled Core Link server traceback when a
+client disconnects during an error response (`742b12f5`).
+
+**Regression and evidence:** Platform-only gate 460 passed, 16 skipped,
+1 environmental failure (`test_rust_platform_scm`, access denied without
+elevation); Core source probes 823 passed, 9 skipped; Rust workspace 188
+passed with fmt/Clippy clean; acceptance collectors reported NO_GO/0 PASS;
+four-host harness with no real evidence reported 16 NOT_TESTED and simulation
+reported SIMULATED 16 with 0 PASS.
+
+**Environment blockers:** no elevated service-control session, no Debian 12
+VM/container/WSL distribution, no Linux cross-linker (`cc` missing for the
+installed cross target), no W-EMPTY/D-HUB/D-CLIENT/W-PEER hosts, no real
+Artemis/Venus Core Link, and no production signing authority. No row, LIB
+scenario or Core item is promoted to PASS.
