@@ -47,17 +47,19 @@ only when **every** declared kind is present and internally valid.
 A skipped test is never `PASS`. A missing negative case is never `PASS`.
 Receipts older than `--max-age-days` (default 365) are rejected as stale.
 
-## Receipt schema
+## Signed receipt envelope
 
 Receipts are a single JSON object stored beside an `artifacts/` directory.
 `artifact_path` is relative to that directory; the collector hashes the actual
-bytes and rejects a mismatch.
+bytes and rejects a mismatch. The object must include a real Ed25519
+`signature` over the canonical JSON bytes of the same object with `signature`
+removed. A self-declared `signers` list is not part of the schema and can never
+establish trust.
 
 ```json
 {
   "schema": "aegis.core.acceptance-receipts.v1",
   "source_sha": "<exact 40-hex SHA>",
-  "signers": ["<trusted signer key id>"],
   "hosts": {
     "DISPOSABLE-01": {"host_class": "DISPOSABLE"},
     "INSTALLED-01": {"host_class": "INSTALLED"},
@@ -82,14 +84,52 @@ bytes and rejects a mismatch.
         }
       }
     }
+  },
+  "signature": {
+    "algorithm": "Ed25519",
+    "signer_key_id": "<trusted signer key id>",
+    "signature_b64": "<base64 Ed25519 signature>"
   }
 }
 ```
 
+Canonical signed bytes are exactly:
+
+```text
+json.dumps(payload, sort_keys=True, separators=(",", ":"),
+           ensure_ascii=False, allow_nan=False).encode("utf-8")
+```
+
+where `payload` is the receipt object with its `signature` key removed. The
+collector verifies the signature with `cryptography` against the caller's
+`--trusted-public-key` PEM file, its `--trusted-key-sha256` fingerprint, and
+`--signer-key-id`. All three arguments are required whenever `--receipts` or
+`--g8-receipt` is supplied. An unsigned, forged, wrong-key or unknown-signer
+receipt leaves every receipt-backed item `BLOCKED` and forces
+`core_release_verdict` to `NO_GO`.
+
+Exact signing command (development helper; it grants no acceptance authority):
+
+```text
+python -m tools.aegis_sign_acceptance_receipt \
+  --receipt core-receipts.json \
+  --private-key owner-key.pem \
+  --signer-key-id owner-key-1 \
+  --output core-receipts.signed.json
+```
+
+The matching public key fingerprint is the SHA-256 of the exact PEM bytes:
+
+```text
+python -c "from hashlib import sha256; print(sha256(open('owner-key.pub.pem','rb').read()).hexdigest())"
+```
+
 Validation rejects:
 
+- a missing, malformed, forged, wrong-key or unexpected-signer signature,
+- duplicate JSON keys and any unknown top-level/item/host/entry field,
 - a top-level or per-item SHA that differs from the exact source SHA,
-- an unregistered signer or host,
+- an unregistered host or an entry signer that differs from the trusted signer ID,
 - a host class that does not match the required kind,
 - a missing or unreadable artifact, or a digest mismatch,
 - `observed != true`, `result != "PASS"`, or missing negative cases,
@@ -99,22 +139,28 @@ Validation rejects:
 
 ## G8 is separate
 
-`g8` is never an inventory item and is never inferred from disposable
-evidence. The report always contains `g8.status` and `g8.certified`, defaulting
-to `NOT_CERTIFIED`. Certification requires a distinct
-`aegis.core.g8-real-host-receipt.v1` object with:
+G8 is never an inventory item, is never embedded in the regular receipt bundle,
+and is never inferred from disposable evidence. The report always contains
+`g8.status` and `g8.certified`, defaulting to `NOT_CERTIFIED`. Certification
+requires a distinct signed `aegis.core.g8-real-host-receipt.v1` file supplied
+with `--g8-receipt` and containing:
 
 - `real_host: true` and `host_class: "OWNER"`,
 - a registered owner host and a distinct registered `REMOTE` client,
-- a trusted signer, verified artifact bytes, fresh `witnessed_at` and negative cases,
+- a trusted signature, verified artifact bytes, fresh `witnessed_at` and negative cases,
 - `owner_approved: true`.
+
+Disposable fixtures in this repository's tests never certify G8.
 
 ## Verdict
 
 `core_release_verdict` is `NO_GO` unless every non-G8 in-scope item is `PASS`.
 It becomes `GO` only when all in-scope items are `PASS`; that still does not
-certify G8. `release_accepted` stays `false` unless G8 is also certified.
-`production_authorized` is always `false`.
+certify G8. Receipt-backed items cannot be `PASS` without a valid signature from
+the caller-trusted key. `release_accepted` stays `false` unless the distinct G8
+receipt is also independently valid. `production_authorized` is always `false`.
+
+No PASS or GO is claimed for the current release by this document.
 
 ## Inventory
 
@@ -174,8 +220,16 @@ python -m tools.aegis_core_acceptance \
   --junit core-acceptance-junit.xml \
   --source-sha <exact-40-hex-sha> \
   --receipts <evidence-dir>/core-receipts.json \
+  --g8-receipt <evidence-dir>/g8-receipt.json \
+  --trusted-public-key owner-key.pub.pem \
+  --trusted-key-sha256 <64-hex SHA-256 of owner-key.pub.pem> \
+  --signer-key-id owner-key-1 \
   --output core-acceptance-report.json
 ```
+
+`--g8-receipt` is optional; omitting it leaves G8 `NOT_CERTIFIED` and keeps
+`release_accepted` false. The three trust arguments are mandatory for any
+receipt input.
 
 List the declared source probes:
 

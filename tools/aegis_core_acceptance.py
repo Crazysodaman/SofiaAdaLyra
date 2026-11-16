@@ -10,9 +10,12 @@ Design rules:
 * ``PASS`` is only produced when *every* evidence kind declared by an item is
   present and internally valid.
 * A skipped test is never a pass.  A missing negative case is never a pass.
-* Receipts must bind the exact source SHA, artifact bytes, signer, host class
-  and a timezone-aware witnessed timestamp.  Stale, future, mismatched or
-  unregistered values are rejected.
+* Receipts must be signed with a caller-trusted Ed25519 key over canonical
+  JSON.  Self-declared signer lists never establish trust.  Every receipt binds
+  the exact source SHA, artifact bytes, host IDs, timestamps and result.
+  Stale, future, mismatched or unregistered values are rejected.
+* Receipts without a valid signature keep every receipt-backed item
+  ``BLOCKED`` and the verdict ``NO_GO``.
 * G8 (#129) is always a separate verdict.  It can only be certified by a
   distinct real-host receipt whose owner host and remote client are registered
   and independently attested.  Disposable evidence can never certify G8.
@@ -22,6 +25,7 @@ Design rules:
 from __future__ import annotations
 
 import argparse
+import base64
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
@@ -32,6 +36,10 @@ import subprocess
 import sys
 from typing import Any
 from xml.etree import ElementTree
+
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 if __package__ in (None, ""):
     _ROOT = Path(__file__).resolve().parents[1]
@@ -46,6 +54,28 @@ from tools.aegis_platform_row_preflight import (  # noqa: E402
 SCHEMA = "aegis.core.acceptance-report.v1"
 RECEIPTS_SCHEMA = "aegis.core.acceptance-receipts.v1"
 G8_SCHEMA = "aegis.core.g8-real-host-receipt.v1"
+SIGNATURE_ALGORITHM = "Ed25519"
+
+RECEIPTS_TOP_FIELDS = frozenset({
+    "schema", "source_sha", "hosts", "items", "signature",
+})
+G8_TOP_FIELDS = frozenset({
+    "schema", "source_sha", "hosts", "receipt", "signature",
+})
+SIGNATURE_FIELDS = frozenset({
+    "algorithm", "signer_key_id", "signature_b64",
+})
+HOST_FIELDS = frozenset({"host_class"})
+ITEM_FIELDS = frozenset({"source_sha", "evidence"})
+BASE_ENTRY_FIELDS = frozenset({
+    "host_id", "host_class", "signer_key_id", "artifact_path",
+    "artifact_sha256", "application_sha256", "observed", "result",
+    "witnessed_at", "negative_cases",
+})
+OWNER_ENTRY_FIELDS = BASE_ENTRY_FIELDS | frozenset({"real_host"})
+G8_ENTRY_FIELDS = OWNER_ENTRY_FIELDS | frozenset({
+    "remote_host_id", "owner_approved",
+})
 
 EVIDENCE_KINDS = (
     "source_tests",
@@ -439,57 +469,236 @@ def _source_status(
     return {"state": "PASS", "missing": [], "failed": False}
 
 
+def _canonical_payload_bytes(document: dict[str, Any]) -> bytes:
+    payload = {
+        key: value for key, value in document.items() if key != "signature"
+    }
+    return json.dumps(
+        payload, sort_keys=True, separators=(",", ":"),
+        ensure_ascii=False, allow_nan=False,
+    ).encode("utf-8")
+
+
+def _load_trusted_key(
+    public_key: Path | None,
+    key_sha256: str | None,
+    signer_key_id: str | None,
+) -> tuple[Ed25519PublicKey | None, list[str]]:
+    if (public_key is None or not key_sha256
+            or not isinstance(signer_key_id, str) or not signer_key_id):
+        return None, ["TRUST_ROOT_ABSENT"]
+    if not _SHA64.fullmatch(str(key_sha256)):
+        return None, ["TRUSTED_KEY_SHA256_INVALID"]
+    path = Path(public_key).absolute()
+    if path.is_symlink() or not path.is_file():
+        return None, ["TRUSTED_PUBLIC_KEY_UNAVAILABLE"]
+    raw = path.read_bytes()
+    if sha256(raw).hexdigest() != key_sha256:
+        return None, ["TRUSTED_KEY_SHA256_MISMATCH"]
+    try:
+        key = serialization.load_pem_public_key(raw)
+    except (TypeError, ValueError):
+        return None, ["TRUSTED_PUBLIC_KEY_INVALID"]
+    if not isinstance(key, Ed25519PublicKey):
+        return None, ["TRUSTED_PUBLIC_KEY_NOT_ED25519"]
+    return key, []
+
+
+def _verify_signature(
+    document: dict[str, Any],
+    *,
+    trusted_key: Ed25519PublicKey | None,
+    trusted_signer_key_id: str | None,
+) -> tuple[bool, list[str]]:
+    signature = document.get("signature")
+    if type(signature) is not dict:
+        return False, ["SIGNATURE_ABSENT"]
+    if set(signature) != SIGNATURE_FIELDS:
+        return False, ["SIGNATURE_FIELDS_MISMATCH"]
+    issues: list[str] = []
+    if signature.get("algorithm") != SIGNATURE_ALGORITHM:
+        issues.append("SIGNATURE_ALGORITHM_UNSUPPORTED")
+    if signature.get("signer_key_id") != trusted_signer_key_id:
+        issues.append("SIGNATURE_SIGNER_NOT_TRUSTED")
+    try:
+        raw = base64.b64decode(
+            str(signature.get("signature_b64", "")), validate=True,
+        )
+    except (TypeError, ValueError):
+        issues.append("SIGNATURE_BASE64_INVALID")
+        raw = b""
+    if len(raw) != 64:
+        issues.append("SIGNATURE_LENGTH_INVALID")
+    if issues:
+        return False, issues
+    if trusted_key is None:
+        return False, ["SIGNATURE_KEY_UNAVAILABLE"]
+    try:
+        trusted_key.verify(raw, _canonical_payload_bytes(document))
+    except InvalidSignature:
+        return False, ["SIGNATURE_INVALID"]
+    return True, []
+
+
+def _validate_hosts(
+    hosts: object, *, label: str,
+) -> tuple[dict[str, Any], list[str]]:
+    issues: list[str] = []
+    if not isinstance(hosts, dict) or not hosts:
+        return {}, [f"{label}_HOSTS_INVALID"]
+    for host_id, record in hosts.items():
+        if (not isinstance(host_id, str) or not host_id
+                or type(record) is not dict
+                or set(record) != HOST_FIELDS
+                or record.get("host_class") not in set(HOST_CLASS_BY_KIND.values())):
+            issues.append(f"{label}_HOSTS_INVALID")
+            return {}, issues
+    return hosts, issues
+
+
 def load_receipts(
     path: Path | None,
     *,
     source_sha: str,
+    trusted_public_key: Path | None = None,
+    trusted_key_sha256: str | None = None,
+    signer_key_id: str | None = None,
 ) -> dict[str, Any]:
     if path is None:
         return {
             "present": False,
+            "signature_valid": False,
             "schema_ok": False,
             "items": {},
-            "signers": frozenset(),
             "hosts": {},
-            "g8": None,
             "evidence_dir": None,
+            "signature_issues": ["EVIDENCE_RECEIPTS_ABSENT"],
+            "content_issues": [],
             "issues": ["EVIDENCE_RECEIPTS_ABSENT"],
+            "trusted_signer_key_id": signer_key_id,
         }
-    document = _read_json(path, limit=16 * 1024 * 1024)
-    issues: list[str] = []
+    try:
+        document = _read_json(path, limit=16 * 1024 * 1024)
+    except (ValueError, UnicodeDecodeError) as error:
+        raise CoreAcceptanceError(f"invalid receipt JSON: {error}") from error
+    trusted_key, trust_issues = _load_trusted_key(
+        trusted_public_key, trusted_key_sha256, signer_key_id,
+    )
+    signature_valid = False
+    signature_issues = list(trust_issues)
+    if not trust_issues:
+        signature_valid, signature_issues = _verify_signature(
+            document, trusted_key=trusted_key,
+            trusted_signer_key_id=signer_key_id,
+        )
+    content_issues: list[str] = []
+    if set(document) != RECEIPTS_TOP_FIELDS:
+        content_issues.append("RECEIPTS_FIELDS_MISMATCH")
     if document.get("schema") != RECEIPTS_SCHEMA:
-        issues.append("RECEIPTS_SCHEMA_MISMATCH")
+        content_issues.append("RECEIPTS_SCHEMA_MISMATCH")
     if document.get("source_sha") != source_sha:
-        issues.append("RECEIPTS_SOURCE_SHA_MISMATCH")
-    signers = document.get("signers")
-    if (not isinstance(signers, list) or not signers
-            or any(not isinstance(value, str) or not value for value in signers)):
-        issues.append("RECEIPTS_SIGNERS_INVALID")
-        signers = []
-    hosts = document.get("hosts")
-    if not isinstance(hosts, dict) or not hosts:
-        issues.append("RECEIPTS_HOSTS_INVALID")
-        hosts = {}
-    else:
-        for host_id, record in hosts.items():
-            if (not isinstance(host_id, str) or not host_id
-                    or type(record) is not dict
-                    or record.get("host_class") not in set(HOST_CLASS_BY_KIND.values())):
-                issues.append("RECEIPTS_HOSTS_INVALID")
-                break
+        content_issues.append("RECEIPTS_SOURCE_SHA_MISMATCH")
+    hosts, host_issues = _validate_hosts(
+        document.get("hosts"), label="RECEIPTS",
+    )
+    content_issues.extend(host_issues)
     items = document.get("items")
     if not isinstance(items, dict):
-        issues.append("RECEIPTS_ITEMS_INVALID")
+        content_issues.append("RECEIPTS_ITEMS_INVALID")
         items = {}
+    else:
+        for item_id, record in items.items():
+            if item_id not in INVENTORY_BY_ID:
+                content_issues.append("RECEIPTS_UNKNOWN_ITEM")
+                continue
+            if type(record) is not dict or set(record) != ITEM_FIELDS:
+                content_issues.append("RECEIPTS_ITEM_FIELDS_MISMATCH")
+                continue
+            if record.get("source_sha") != source_sha:
+                content_issues.append("RECEIPTS_ITEM_SOURCE_SHA_MISMATCH")
+            entries = record.get("evidence")
+            if type(entries) is not dict:
+                content_issues.append("RECEIPTS_ITEM_EVIDENCE_INVALID")
+                continue
+            for kind in entries:
+                if kind not in HOST_CLASS_BY_KIND:
+                    content_issues.append("RECEIPTS_UNKNOWN_EVIDENCE_KIND")
+    all_issues = sorted(set(signature_issues + content_issues))
     return {
         "present": True,
-        "schema_ok": not issues,
+        "signature_valid": signature_valid,
+        "schema_ok": not content_issues,
         "items": items,
-        "signers": frozenset(signers),
         "hosts": hosts,
-        "g8": document.get("g8"),
         "evidence_dir": Path(path).parent,
-        "issues": issues,
+        "signature_issues": sorted(set(signature_issues)),
+        "content_issues": sorted(set(content_issues)),
+        "issues": all_issues,
+        "trusted_signer_key_id": signer_key_id,
+    }
+
+
+def load_g8_receipt(
+    path: Path | None,
+    *,
+    source_sha: str,
+    trusted_public_key: Path | None = None,
+    trusted_key_sha256: str | None = None,
+    signer_key_id: str | None = None,
+) -> dict[str, Any]:
+    if path is None:
+        return {
+            "present": False,
+            "signature_valid": False,
+            "schema_ok": False,
+            "hosts": {},
+            "receipt": None,
+            "evidence_dir": None,
+            "signature_issues": ["G8_RECEIPT_ABSENT"],
+            "content_issues": [],
+            "issues": ["G8_RECEIPT_ABSENT"],
+            "trusted_signer_key_id": signer_key_id,
+        }
+    try:
+        document = _read_json(path, limit=8 * 1024 * 1024)
+    except (ValueError, UnicodeDecodeError) as error:
+        raise CoreAcceptanceError(f"invalid G8 receipt JSON: {error}") from error
+    trusted_key, trust_issues = _load_trusted_key(
+        trusted_public_key, trusted_key_sha256, signer_key_id,
+    )
+    signature_valid = False
+    signature_issues = list(trust_issues)
+    if not trust_issues:
+        signature_valid, signature_issues = _verify_signature(
+            document, trusted_key=trusted_key,
+            trusted_signer_key_id=signer_key_id,
+        )
+    content_issues: list[str] = []
+    if set(document) != G8_TOP_FIELDS:
+        content_issues.append("G8_FIELDS_MISMATCH")
+    if document.get("schema") != G8_SCHEMA:
+        content_issues.append("G8_SCHEMA_MISMATCH")
+    if document.get("source_sha") != source_sha:
+        content_issues.append("G8_SOURCE_SHA_MISMATCH")
+    hosts, host_issues = _validate_hosts(document.get("hosts"), label="G8")
+    content_issues.extend(host_issues)
+    receipt = document.get("receipt")
+    if type(receipt) is not dict:
+        content_issues.append("G8_RECEIPT_NOT_OBJECT")
+    elif set(receipt) != G8_ENTRY_FIELDS:
+        content_issues.append("G8_RECEIPT_FIELDS_MISMATCH")
+    all_issues = sorted(set(signature_issues + content_issues))
+    return {
+        "present": True,
+        "signature_valid": signature_valid,
+        "schema_ok": not content_issues,
+        "hosts": hosts,
+        "receipt": receipt,
+        "evidence_dir": Path(path).parent,
+        "signature_issues": sorted(set(signature_issues)),
+        "content_issues": sorted(set(content_issues)),
+        "issues": all_issues,
+        "trusted_signer_key_id": signer_key_id,
     }
 
 
@@ -497,25 +706,32 @@ def _validate_entry(
     entry: object,
     *,
     kind: str,
-    receipts: dict[str, Any],
-    source_sha: str,
+    hosts: dict[str, Any],
+    evidence_dir: Path | None,
+    trusted_signer_key_id: str | None,
     now: datetime,
     max_age_days: int,
+    allowed_fields: frozenset[str] | None = None,
 ) -> tuple[list[str], list[str]]:
     missing: list[str] = []
     invalid: list[str] = []
     if type(entry) is not dict:
         return [], [f"{kind}:ENTRY_NOT_OBJECT"]
+    allowed = allowed_fields or (
+        OWNER_ENTRY_FIELDS if kind == "owner_host" else BASE_ENTRY_FIELDS
+    )
+    if set(entry) != allowed:
+        invalid.append(f"{kind}:ENTRY_FIELDS_MISMATCH")
     expected_class = HOST_CLASS_BY_KIND[kind]
     if entry.get("host_class") != expected_class:
         invalid.append(f"{kind}:HOST_CLASS_MISMATCH")
     host_id = entry.get("host_id")
-    host = receipts.get("hosts", {}).get(host_id)
+    host = hosts.get(host_id)
     if not isinstance(host, dict):
         invalid.append(f"{kind}:HOST_NOT_REGISTERED")
     elif host.get("host_class") != entry.get("host_class"):
         invalid.append(f"{kind}:HOST_REGISTRY_CLASS_MISMATCH")
-    if entry.get("signer_key_id") not in receipts.get("signers", frozenset()):
+    if entry.get("signer_key_id") != trusted_signer_key_id:
         invalid.append(f"{kind}:SIGNER_NOT_TRUSTED")
     if entry.get("observed") is not True:
         invalid.append(f"{kind}:NOT_OBSERVED")
@@ -529,7 +745,6 @@ def _validate_entry(
     if not isinstance(artifact_path, str) or not artifact_path:
         missing.append(f"{kind}:ARTIFACT_PATH_ABSENT")
     elif _SHA64.fullmatch(str(claimed or "")):
-        evidence_dir = receipts.get("evidence_dir")
         try:
             if evidence_dir is None:
                 raise ValueError("no evidence directory")
@@ -597,17 +812,21 @@ def _evaluate_item(
             missing.append(f"{kind}:EVIDENCE_RECEIPTS_ABSENT")
             evidence[kind] = "NOT_TESTED"
             continue
+        if not receipts.get("signature_valid"):
+            missing.append(f"{kind}:RECEIPTS_SIGNATURE_UNTRUSTED")
+            missing.extend(
+                f"{kind}:SIGNATURE:{issue}"
+                for issue in receipts.get("signature_issues", ())
+            )
+            evidence[kind] = "BLOCKED"
+            continue
         if not receipts.get("schema_ok"):
-            invalid.extend(str(issue) for issue in receipts.get("issues", ()))
+            invalid.extend(str(issue) for issue in receipts.get("content_issues", ()))
             evidence[kind] = "FAIL"
             continue
         if type(item_receipt) is not dict:
             missing.append(f"{kind}:ITEM_RECEIPT_ABSENT")
             evidence[kind] = "NOT_TESTED"
-            continue
-        if item_receipt.get("source_sha") != source_sha:
-            invalid.append(f"{kind}:ITEM_SOURCE_SHA_MISMATCH")
-            evidence[kind] = "FAIL"
             continue
         entries = item_receipt.get("evidence")
         if type(entries) is not dict:
@@ -620,7 +839,9 @@ def _evaluate_item(
             evidence[kind] = "NOT_TESTED"
             continue
         entry_missing, entry_invalid = _validate_entry(
-            entry, kind=kind, receipts=receipts, source_sha=source_sha,
+            entry, kind=kind, hosts=receipts.get("hosts", {}),
+            evidence_dir=receipts.get("evidence_dir"),
+            trusted_signer_key_id=receipts.get("trusted_signer_key_id"),
             now=now, max_age_days=max_age_days,
         )
         missing.extend(entry_missing)
@@ -655,52 +876,58 @@ def _evaluate_item(
 
 
 def _evaluate_g8(
-    receipts: dict[str, Any],
+    g8_receipt: dict[str, Any],
     *,
     source_sha: str,
     now: datetime,
     max_age_days: int,
 ) -> dict[str, Any]:
-    reasons: list[str] = []
-    if not receipts.get("present"):
+    if not g8_receipt.get("present"):
         return {
             "status": "NOT_CERTIFIED",
             "certified": False,
             "reasons": ["G8_RECEIPT_ABSENT"],
             "real_host_receipt_supplied": False,
         }
-    if not receipts.get("schema_ok"):
+    if not g8_receipt.get("signature_valid"):
         return {
             "status": "NOT_CERTIFIED",
             "certified": False,
-            "reasons": list(receipts.get("issues", ())),
-            "real_host_receipt_supplied": receipts.get("g8") is not None,
+            "reasons": sorted(
+                f"G8:{issue}" for issue in g8_receipt.get("signature_issues", ())
+            ),
+            "real_host_receipt_supplied": True,
         }
-    g8 = receipts.get("g8")
-    if not isinstance(g8, dict):
+    if not g8_receipt.get("schema_ok"):
         return {
             "status": "NOT_CERTIFIED",
             "certified": False,
-            "reasons": ["G8_REAL_HOST_RECEIPT_ABSENT"],
-            "real_host_receipt_supplied": False,
+            "reasons": sorted(
+                f"G8:{issue}" for issue in g8_receipt.get("content_issues", ())
+            ),
+            "real_host_receipt_supplied": True,
         }
-    if g8.get("schema") != G8_SCHEMA:
-        reasons.append("G8_SCHEMA_MISMATCH")
-    if g8.get("source_sha") != source_sha:
-        reasons.append("G8_SOURCE_SHA_MISMATCH")
-    if g8.get("owner_approved") is not True:
+    reasons: list[str] = []
+    receipt = g8_receipt.get("receipt")
+    if not isinstance(receipt, dict):
+        reasons.append("G8_RECEIPT_NOT_OBJECT")
+        receipt = {}
+    if receipt.get("owner_approved") is not True:
         reasons.append("G8_OWNER_APPROVAL_ABSENT")
-    owner_host_id = g8.get("host_id")
-    remote_host_id = g8.get("remote_host_id")
+    owner_host_id = receipt.get("host_id")
+    remote_host_id = receipt.get("remote_host_id")
     if not isinstance(remote_host_id, str) or remote_host_id == owner_host_id:
         reasons.append("G8_DISTINCT_REMOTE_HOST_ABSENT")
     else:
-        remote = receipts.get("hosts", {}).get(remote_host_id)
+        remote = g8_receipt.get("hosts", {}).get(remote_host_id)
         if not isinstance(remote, dict) or remote.get("host_class") != "REMOTE":
             reasons.append("G8_REMOTE_HOST_NOT_REGISTERED")
     missing, invalid = _validate_entry(
-        g8, kind="owner_host", receipts=receipts, source_sha=source_sha,
+        receipt, kind="owner_host", hosts=g8_receipt.get("hosts", {}),
+        evidence_dir=g8_receipt.get("evidence_dir"),
+        trusted_signer_key_id=g8_receipt.get("trusted_signer_key_id"),
         now=now, max_age_days=max_age_days,
+        allowed_fields=G8_ENTRY_FIELDS,
     )
     reasons.extend(f"G8:{value}" for value in missing)
     reasons.extend(f"G8:{value}" for value in invalid)
@@ -726,6 +953,10 @@ def collect(
     source_sha: str,
     runner: str,
     receipts_path: Path | None = None,
+    g8_receipt_path: Path | None = None,
+    trusted_public_key: Path | None = None,
+    trusted_key_sha256: str | None = None,
+    signer_key_id: str | None = None,
     now: datetime | None = None,
     max_age_days: int = _DEFAULT_MAX_AGE_DAYS,
 ) -> dict[str, Any]:
@@ -737,7 +968,15 @@ def collect(
     if observed_now.tzinfo is None or observed_now.utcoffset() is None:
         raise CoreAcceptanceError("evaluation time must be timezone aware")
     junit = parse_junit(junit_path)
-    receipts = load_receipts(receipts_path, source_sha=source_sha)
+    trust = {
+        "trusted_public_key": trusted_public_key,
+        "trusted_key_sha256": trusted_key_sha256,
+        "signer_key_id": signer_key_id,
+    }
+    receipts = load_receipts(receipts_path, source_sha=source_sha, **trust)
+    g8_receipt = load_g8_receipt(
+        g8_receipt_path, source_sha=source_sha, **trust,
+    )
     items = [
         _evaluate_item(
             spec, junit=junit, receipts=receipts, source_sha=source_sha,
@@ -746,12 +985,18 @@ def collect(
         for spec in INVENTORY
     ]
     g8 = _evaluate_g8(
-        receipts, source_sha=source_sha, now=observed_now,
+        g8_receipt, source_sha=source_sha, now=observed_now,
         max_age_days=max_age_days,
     )
     scoped = [item for item in items if item["release_scope"]]
     all_scoped_pass = all(item["state"] == "PASS" for item in scoped)
     source_only = not receipts.get("present")
+    if source_only:
+        evidence_scope = "SOURCE_ONLY"
+    elif receipts.get("signature_valid"):
+        evidence_scope = "SIGNED_DECLARED_RECEIPTS"
+    else:
+        evidence_scope = "UNTRUSTED_RECEIPTS"
     return {
         "schema": SCHEMA,
         "source_sha": source_sha,
@@ -772,11 +1017,13 @@ def collect(
             "mismatched_source_sha_is_pass": False,
             "mismatched_artifact_digest_is_pass": False,
             "unregistered_host_or_signer_is_pass": False,
+            "self_declared_signers_establish_trust": False,
+            "unsigned_or_forged_receipt_is_pass": False,
             "g8_from_disposable_evidence_is_certified": False,
             "max_age_days": max_age_days,
         },
         "source_only": source_only,
-        "evidence_scope": "SOURCE_ONLY" if source_only else "DECLARED_RECEIPTS",
+        "evidence_scope": evidence_scope,
         "core_release_verdict": "GO" if all_scoped_pass else "NO_GO",
         "core_release_verdict_scope": "NON_G8_IN_SCOPE_ITEMS",
         "release_accepted": bool(all_scoped_pass and g8["certified"]),
@@ -784,8 +1031,10 @@ def collect(
         "acceptance": "NOT_CLAIMED",
         "notes": [
             "PASS is scoped to the exact declared source tests and receipts.",
+            "Receipt trust requires a caller-supplied Ed25519 key, fingerprint and signer ID.",
+            "Self-declared signer and host maps never establish receipt trust.",
             "Source-only evidence never certifies an installed or owner host.",
-            "G8 is a separate verdict and is never inferred from disposable data.",
+            "G8 requires a distinct signed receipt and is never inferred from disposable data.",
             "Authoritative acceptance documents were not modified.",
         ],
         "junit": {
@@ -796,8 +1045,17 @@ def collect(
         },
         "receipts": {
             "present": receipts.get("present"),
+            "signature_valid": receipts.get("signature_valid"),
             "schema_ok": receipts.get("schema_ok"),
+            "signature_issues": receipts.get("signature_issues", []),
+            "content_issues": receipts.get("content_issues", []),
             "issues": receipts.get("issues", []),
+        },
+        "g8_receipt": {
+            "present": g8_receipt.get("present"),
+            "signature_valid": g8_receipt.get("signature_valid"),
+            "schema_ok": g8_receipt.get("schema_ok"),
+            "issues": g8_receipt.get("issues", []),
         },
         "inventory": {
             "item_count": len(items),
@@ -815,11 +1073,38 @@ def _source_test_files() -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        epilog=(
+            "Sign a receipt bundle with: python -m "
+            "tools.aegis_sign_acceptance_receipt --receipt core-receipts.json "
+            "--private-key owner-key.pem --signer-key-id owner-key-1 "
+            "--output core-receipts.signed.json"
+        ),
+    )
     parser.add_argument("--junit", type=Path)
     parser.add_argument("--source-sha")
     parser.add_argument("--runner", default=sys.platform)
-    parser.add_argument("--receipts", type=Path)
+    parser.add_argument(
+        "--receipts", type=Path,
+        help="Signed receipt bundle; requires the three trust arguments.",
+    )
+    parser.add_argument(
+        "--g8-receipt", type=Path,
+        help="Separate signed G8 real-host receipt; requires the trust arguments.",
+    )
+    parser.add_argument(
+        "--trusted-public-key", type=Path,
+        help="PEM Ed25519 public key trusted for receipt signatures.",
+    )
+    parser.add_argument(
+        "--trusted-key-sha256",
+        help="Lowercase SHA-256 of the exact PEM public-key file bytes.",
+    )
+    parser.add_argument(
+        "--signer-key-id",
+        help="Expected signer key ID bound inside every signature envelope.",
+    )
     parser.add_argument("--max-age-days", type=int, default=_DEFAULT_MAX_AGE_DAYS)
     parser.add_argument("--output", type=Path)
     parser.add_argument(
@@ -831,6 +1116,18 @@ def main(argv: list[str] | None = None) -> int:
         for name in _source_test_files():
             print(name)
         return 0
+    if args.receipts or args.g8_receipt:
+        missing = [
+            name for name, value in (
+                ("--trusted-public-key", args.trusted_public_key),
+                ("--trusted-key-sha256", args.trusted_key_sha256),
+                ("--signer-key-id", args.signer_key_id),
+            ) if value is None
+        ]
+        if missing:
+            parser.error(
+                "signed receipts require " + ", ".join(missing)
+            )
     try:
         source_sha = args.source_sha or _git_sha()
         report = collect(
@@ -838,6 +1135,10 @@ def main(argv: list[str] | None = None) -> int:
             source_sha=source_sha,
             runner=args.runner,
             receipts_path=args.receipts,
+            g8_receipt_path=args.g8_receipt,
+            trusted_public_key=args.trusted_public_key,
+            trusted_key_sha256=args.trusted_key_sha256,
+            signer_key_id=args.signer_key_id,
             max_age_days=args.max_age_days,
         )
         payload = json.dumps(report, sort_keys=True, indent=2) + "\n"
