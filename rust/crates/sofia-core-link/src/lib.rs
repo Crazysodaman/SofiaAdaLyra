@@ -1041,6 +1041,68 @@ mod tests {
     }
 
     #[test]
+    fn conversation_send_and_result_match_python_r2_fixtures() {
+        let now = DateTime::parse_from_rfc3339("2026-01-01T00:00:00+00:00")
+            .unwrap()
+            .with_timezone(&Utc);
+        let binding = EnrolledBinding {
+            active: true,
+            local_platform_id: "platform:windows".into(),
+            remote_platform_id: "platform:canonical".into(),
+            remote_core_identity_id: "core:sofia".into(),
+            remote_core_generation: 7,
+            endpoint: Url::parse("https://localhost/v1/core-link").unwrap(),
+            protocol: PROTOCOL.into(),
+            trust_anchor_sha256: "0".repeat(64),
+        };
+        let send = Request::send(
+            &binding,
+            "request:send:1",
+            "send:1",
+            "session:existing",
+            "forbidden",
+            None,
+            now,
+        )
+        .unwrap()
+        .to_value()
+        .unwrap();
+        let expected_send: Value = serde_json::from_str(include_str!(
+            "../../../../contracts/core-link/valid-conversation-send-request.json"
+        ))
+        .unwrap();
+        assert_eq!(send, expected_send);
+
+        let result = Request::result(&binding, "request:result:1", "send:1", now)
+            .unwrap()
+            .to_value()
+            .unwrap();
+        let expected_result: Value = serde_json::from_str(include_str!(
+            "../../../../contracts/core-link/valid-conversation-result-request.json"
+        ))
+        .unwrap();
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn unavailable_and_multi_turn_history_responses_match_python_fixtures() {
+        let unavailable: Value = serde_json::from_str(include_str!(
+            "../../../../contracts/core-link/valid-unavailable-response.json"
+        ))
+        .unwrap();
+        let response = parse_response(&serde_json::to_vec(&unavailable).unwrap()).unwrap();
+        assert_eq!(response.status, "unavailable");
+        assert_eq!(response.request_id, "request:unavailable:1");
+
+        let history = parse_response(include_bytes!(
+            "../../../../contracts/core-link/valid-history-response-multi-turn.json"
+        ))
+        .unwrap();
+        assert_eq!(history.status, "completed");
+        assert_eq!(history.payload["messages"].as_array().unwrap().len(), 2);
+    }
+
+    #[test]
     fn tls_credentials_debug_redacts_private_bytes() {
         let credentials = TlsCredentials {
             ca_pem: b"TEST_CA_MATERIAL".to_vec(),

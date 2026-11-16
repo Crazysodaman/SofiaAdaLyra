@@ -50,10 +50,13 @@ def test_rust_raw_core_link_probe_is_explicitly_opt_in():
         "valid-status-request.json",
         "valid-history-request.json",
         "valid-history-page-2-request.json",
+        "valid-conversation-send-request.json",
+        "valid-conversation-result-request.json",
     ],
 )
 def test_python_accepts_r2_request_fixtures(name: str) -> None:
-    CoreLinkRequest.from_payload(json.loads((FIXTURES / name).read_text(encoding="utf-8")))
+    payload = json.loads((FIXTURES / name).read_text(encoding="utf-8"))
+    assert CoreLinkRequest.from_payload(payload).to_payload() == payload
 
 
 
@@ -68,9 +71,15 @@ def test_page_two_history_cursor_is_accepted_by_python_contract() -> None:
         "message_id": "message:1",
     }
 
-@pytest.mark.parametrize("name", ["valid-status-response.json", "valid-history-response.json"])
+@pytest.mark.parametrize("name", [
+    "valid-status-response.json",
+    "valid-history-response.json",
+    "valid-history-response-multi-turn.json",
+    "valid-unavailable-response.json",
+])
 def test_python_accepts_r2_response_fixtures(name: str) -> None:
-    CoreLinkResponse.from_payload(json.loads((FIXTURES / name).read_text(encoding="utf-8")))
+    payload = json.loads((FIXTURES / name).read_text(encoding="utf-8"))
+    assert CoreLinkResponse.from_payload(payload).to_payload() == payload
 
 
 @pytest.mark.parametrize("name", ["invalid-authority-field.json"])
