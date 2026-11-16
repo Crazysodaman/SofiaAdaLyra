@@ -9,12 +9,23 @@
 #[path = "native_management_windows.rs"]
 pub mod windows;
 
+#[cfg(windows)]
+pub use windows::NativeWindowsMutationTransport as NativeMutationTransport;
+
+#[cfg(target_os = "linux")]
+pub use linux::NativeLinuxMutationTransport as NativeMutationTransport;
+
 #[cfg(target_os = "linux")]
 pub mod linux {
     use crate::control_center::{InstallationState, PermissionState, SafeState};
     use crate::control_center_session::{
         from_verified_denial, DisplayReadSource, DisplaySnapshot, ReadFailure,
     };
+    use crate::management_mutation::{
+        MutationTransport, MutationTransportError, MAX_MUTATION_REQUEST_BYTES,
+        MAX_MUTATION_RESPONSE_BYTES,
+    };
+    use crate::manager_snapshot::{AuthenticatedManagerSnapshotSource, AuthenticatedObservation};
     use chrono::{Duration as ChronoDuration, SecondsFormat, Utc};
     use nix::sys::socket::{getsockopt, sockopt::PeerCredentials};
     use sofia_contracts::library::{
@@ -38,6 +49,13 @@ pub mod linux {
     const MAX_REQUEST: usize = 64 * 1024;
     const IO_TIMEOUT: Duration = Duration::from_secs(2);
     const MAX_GENERATION: u64 = 9_007_199_254_740_991;
+
+    #[derive(Debug)]
+    struct ReadReply {
+        platform_id: String,
+        platform_generation: u64,
+        data: serde_json::Value,
+    }
 
     /// Caller must derive these from an independently publisher-verified,
     /// currently enrolled B1 installed-service profile. Merely constructing
@@ -161,6 +179,27 @@ pub mod linux {
         }
 
         fn status(&mut self) -> Result<DisplaySnapshot, ReadFailure> {
+            let reply = self.observe_reply("platform.status")?;
+            // This sequence counts locally validated unique random requests,
+            // NOT a service-issued status sequence or installation receipt.
+            self.local_sequence = self
+                .local_sequence
+                .checked_add(1)
+                .ok_or(ReadFailure::UnknownGeneration)?;
+            Ok(DisplaySnapshot {
+                platform_id: reply.platform_id,
+                generation: reply.platform_generation,
+                sequence: self.local_sequence,
+                safe: SafeState::Clear,
+                permission: PermissionState::Unknown,
+                installation: InstallationState::Unknown,
+                saved_revision: None,
+                applied_revision: None,
+                removal_receipt_verified: false,
+            })
+        }
+
+        fn observe_reply(&mut self, operation: &str) -> Result<ReadReply, ReadFailure> {
             // The exact native instance and its filesystem inode must agree.
             let inode = verify_endpoint(&self.pins)?;
             if self.verified_endpoint.is_some_and(|old| old != inode) {
@@ -182,7 +221,7 @@ pub mod linux {
                 "request_id": request_id,
                 "target_platform_id": self.pins.platform_id.clone(),
                 "expected_generation": self.pins.generation,
-                "operation": "platform.status",
+                "operation": operation,
                 "created_at": created_at,
                 "deadline": deadline,
             }))
@@ -233,24 +272,10 @@ pub mod linux {
             if response.outcome != "OK" {
                 return Err(ReadFailure::Unverified);
             }
-            // A's canonical parser just required exact status fields,
-            // operator_stop=false, core_started=false and correlation.
-            // This sequence counts locally validated unique random requests,
-            // NOT a service-issued status sequence or installation receipt.
-            self.local_sequence = self
-                .local_sequence
-                .checked_add(1)
-                .ok_or(ReadFailure::UnknownGeneration)?;
-            Ok(DisplaySnapshot {
+            Ok(ReadReply {
                 platform_id: response.platform_id,
-                generation: response.platform_generation,
-                sequence: self.local_sequence,
-                safe: SafeState::Clear,
-                permission: PermissionState::Unknown,
-                installation: InstallationState::Unknown,
-                saved_revision: None,
-                applied_revision: None,
-                removal_receipt_verified: false,
+                platform_generation: response.platform_generation,
+                data: response.data.unwrap_or(serde_json::Value::Null),
             })
         }
     }
@@ -258,6 +283,89 @@ pub mod linux {
     impl DisplayReadSource for NativeLinuxManagementReader {
         fn next(&mut self) -> Result<DisplaySnapshot, ReadFailure> {
             self.status()
+        }
+    }
+
+    impl AuthenticatedManagerSnapshotSource for NativeLinuxManagementReader {
+        fn observe_operation(
+            &mut self,
+            operation: &str,
+        ) -> Result<AuthenticatedObservation, ReadFailure> {
+            let reply = self.observe_reply(operation)?;
+            Ok(AuthenticatedObservation {
+                platform_id: reply.platform_id,
+                platform_generation: reply.platform_generation,
+                data: reply.data,
+            })
+        }
+    }
+
+    /// Native mutation transport over the same pinned AF_UNIX management
+    /// socket. The exact framed request bytes are forwarded and the exact
+    /// bounded reply body is returned. No approval, retry or outcome logic is
+    /// performed here.
+    pub struct NativeLinuxMutationTransport {
+        pins: InstalledNativeServicePins,
+        verified_endpoint: Option<(u64, u64)>,
+    }
+
+    impl NativeLinuxMutationTransport {
+        #[must_use]
+        pub fn new(pins: InstalledNativeServicePins) -> Self {
+            Self {
+                pins,
+                verified_endpoint: None,
+            }
+        }
+    }
+
+    impl MutationTransport for NativeLinuxMutationTransport {
+        fn exchange(&mut self, request_wire: &[u8]) -> Result<Vec<u8>, MutationTransportError> {
+            if request_wire.is_empty()
+                || request_wire.len() > MAX_MUTATION_REQUEST_BYTES
+                || request_wire.contains(&b'\n')
+            {
+                return Err(MutationTransportError::Rejected);
+            }
+            let inode = verify_endpoint(&self.pins).map_err(transport_error)?;
+            if self.verified_endpoint.is_some_and(|prior| prior != inode) {
+                return Err(MutationTransportError::Rejected);
+            }
+            let mut connection =
+                connect_without_waiting(&self.pins.socket_path).map_err(transport_error)?;
+            connection
+                .set_write_timeout(Some(IO_TIMEOUT))
+                .map_err(|_| MutationTransportError::Unavailable)?;
+            verify_os_peer(&connection, &self.pins).map_err(transport_error)?;
+            if verify_endpoint(&self.pins).map_err(transport_error)? != inode {
+                return Err(MutationTransportError::Rejected);
+            }
+            connection
+                .write_all(request_wire)
+                .and_then(|()| connection.write_all(b"\n"))
+                .map_err(|_| MutationTransportError::Offline)?;
+            let body = read_one_bounded(&mut connection, MAX_MUTATION_RESPONSE_BYTES)
+                .map_err(transport_error)?;
+            if verify_endpoint(&self.pins).map_err(transport_error)? != inode {
+                return Err(MutationTransportError::Rejected);
+            }
+            verify_os_peer(&connection, &self.pins).map_err(transport_error)?;
+            self.verified_endpoint = Some(inode);
+            Ok(body)
+        }
+    }
+
+    fn transport_error(failure: ReadFailure) -> MutationTransportError {
+        match failure {
+            ReadFailure::Offline => MutationTransportError::Offline,
+            ReadFailure::Unverified
+            | ReadFailure::Denied
+            | ReadFailure::Revoked
+            | ReadFailure::Stopped => MutationTransportError::Rejected,
+            ReadFailure::Connecting
+            | ReadFailure::Stale
+            | ReadFailure::Restarting
+            | ReadFailure::UnknownGeneration => MutationTransportError::Unavailable,
         }
     }
 
@@ -696,6 +804,13 @@ pub mod linux {
     }
 
     fn read_one(connection: &mut UnixStream) -> Result<Vec<u8>, ReadFailure> {
+        read_one_bounded(connection, MAX_MANAGEMENT_RESPONSE_BYTES)
+    }
+
+    fn read_one_bounded(
+        connection: &mut UnixStream,
+        max_body: usize,
+    ) -> Result<Vec<u8>, ReadFailure> {
         let deadline = Instant::now() + IO_TIMEOUT;
         let mut bytes = Vec::new();
         loop {
@@ -714,7 +829,7 @@ pub mod linux {
                 return Err(ReadFailure::Offline);
             }
             bytes.extend_from_slice(&chunk[..got]);
-            if bytes.len() > MAX_MANAGEMENT_RESPONSE_BYTES + 1 {
+            if bytes.len() > max_body + 1 {
                 return Err(ReadFailure::Unverified);
             }
             if bytes.contains(&b'\n') {
@@ -1387,6 +1502,80 @@ pub mod linux {
             assert_eq!(client.next().err(), Some(ReadFailure::Offline));
             let _ = UnixStream::connect(&original);
             thread.join().unwrap();
+        }
+        #[test]
+        fn native_unix_mutation_transport_preserves_exact_request_and_reply() {
+            use crate::management_mutation::{ManagementMutationRequest, MutationClient};
+            let home = tempfile::tempdir().unwrap();
+            let socket_path = home.path().join("mutation.sock");
+            let listener = UnixListener::bind(&socket_path).unwrap();
+            fs::set_permissions(&socket_path, fs::Permissions::from_mode(0o600)).unwrap();
+            let info = fs::metadata(home.path()).unwrap();
+            let pins = InstalledNativeServicePins::from_externally_verified_installation(
+                socket_path,
+                "platform:alpha".into(),
+                3,
+                info.uid(),
+                info.gid(),
+                None,
+                Some(i32::try_from(std::process::id()).unwrap()),
+            )
+            .unwrap();
+            let handle = thread::spawn(move || {
+                let (mut connection, _) = listener.accept().unwrap();
+                let mut wire = Vec::new();
+                BufReader::new(&connection)
+                    .read_until(b'\n', &mut wire)
+                    .unwrap();
+                let request: serde_json::Value = serde_json::from_slice(&wire).unwrap();
+                assert_eq!(request["schema"], "aegis.platform.management_mutation.v1");
+                assert_eq!(request["request_id"], "req:mutation:unix");
+                assert_eq!(request["correlation_id"], "corr:unix");
+                assert_eq!(request["idempotency_key"], "idem:unix");
+                assert_eq!(request["approval_id"], "approval:owner:unix");
+                let reply = serde_json::json!({
+                    "schema": "aegis.platform.management_mutation-response.v1",
+                    "protocol_version": "1.0",
+                    "request_id": request["request_id"],
+                    "correlation_id": request["correlation_id"],
+                    "idempotency_key": request["idempotency_key"],
+                    "platform_id": request["target_platform_id"],
+                    "operation": request["operation"],
+                    "outcome": "SUCCEEDED",
+                    "receipt_id": "receipt:unix:1",
+                    "current_generation": 3,
+                    "current_revision": 2,
+                    "error_code": serde_json::Value::Null,
+                    "detail": serde_json::Value::Null,
+                    "observed_at": Utc::now().to_rfc3339_opts(SecondsFormat::Micros, true),
+                });
+                connection
+                    .write_all(serde_json::to_string(&reply).unwrap().as_bytes())
+                    .unwrap();
+                connection.write_all(b"\n").unwrap();
+            });
+            let now = Utc::now().fixed_offset();
+            let request = ManagementMutationRequest::new_untrusted(
+                "req:mutation:unix",
+                "corr:unix",
+                "idem:unix",
+                "platform:alpha",
+                "module.install",
+                "host:alpha/module:demo",
+                3,
+                0,
+                (now + ChronoDuration::seconds(30)).to_rfc3339_opts(SecondsFormat::Micros, true),
+                "approval:owner:unix",
+                serde_json::json!({"package_sha256": "a".repeat(64)}),
+            )
+            .unwrap();
+            let mut client = MutationClient::new(NativeLinuxMutationTransport::new(pins));
+            let reply = client
+                .submit_with_clock(&request, now, || Utc::now().fixed_offset())
+                .expect("correlated native reply");
+            assert_eq!(reply.receipt_id.as_deref(), Some("receipt:unix:1"));
+            assert_eq!(reply.current_revision, 2);
+            handle.join().unwrap();
         }
     }
 }

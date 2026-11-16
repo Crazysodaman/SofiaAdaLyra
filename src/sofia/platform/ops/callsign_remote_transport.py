@@ -33,6 +33,7 @@ from sofia.platform.ops.callsign_remote import (
 
 MAX_REQUEST_BYTES = 4096
 MAX_REPLY_BYTES = 8192
+REMOTE_CALLSIGN_READ_PATH = "/v1/callsigns/remote-read"
 _MAX_SEEN_NONCES = 256
 
 _UUID_TEXT = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
@@ -50,6 +51,98 @@ class AuthenticatedRequestTransport(Protocol):
 
     def request(self, body: bytes, *, timeout_seconds: float) -> bytes:
         ...
+
+
+class PinnedJsonTransport(Protocol):
+    """Existing pinned mTLS transport exposing one bounded JSON exchange."""
+
+    def request_json(
+        self, enrollment, method: str, path: str, payload=None,
+    ):
+        ...
+
+
+class PinnedHttpsCallsignReadTransport:
+    """Adapt the existing pinned mTLS HTTPS transport to naming reads.
+
+    This does not create a listener, trust store or TLS primitive. The supplied
+    ``PinnedHttpsRemoteTransport`` performs CA validation, mutual TLS and SPKI
+    pinning against the enrolled node. This adapter only selects the callsign
+    remote-read path, validates the request shape and bounds both directions.
+    """
+
+    def __init__(
+        self,
+        *,
+        transport: PinnedJsonTransport,
+        enrollment,
+        path: str = REMOTE_CALLSIGN_READ_PATH,
+        timeout_seconds: float = 10.0,
+    ) -> None:
+        from sofia.platform.distributed.model import NodeEnrollment
+
+        if not isinstance(enrollment, NodeEnrollment):
+            raise TypeError("exact NodeEnrollment is required")
+        if not callable(getattr(transport, "request_json", None)):
+            raise TypeError("pinned mTLS JSON transport required")
+        if (
+            not isinstance(path, str)
+            or not path.startswith("/")
+            or len(path) > 512
+        ):
+            raise ValueError("bounded absolute callsign read path required")
+        if not isinstance(timeout_seconds, (int, float)) or timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be positive")
+        self._transport = transport
+        self._enrollment = enrollment
+        self._path = path
+        self._timeout = float(timeout_seconds)
+
+    def request(self, body: bytes, *, timeout_seconds: float) -> bytes:
+        if not isinstance(body, (bytes, bytearray)) or not body:
+            raise RemoteCallsignTransportError(
+                "remote naming request must be bounded bytes"
+            )
+        if len(body) > MAX_REQUEST_BYTES:
+            raise RemoteCallsignTransportError(
+                "remote naming request exceeds its size bound"
+            )
+        if (
+            not isinstance(timeout_seconds, (int, float))
+            or timeout_seconds <= 0
+            or timeout_seconds > self._timeout
+        ):
+            raise RemoteCallsignTransportError(
+                "remote naming timeout is outside the pinned transport bound"
+            )
+        try:
+            document = json.loads(bytes(body).decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise RemoteCallsignTransportError(
+                "remote naming request is not valid JSON"
+            ) from exc
+        if type(document) is not dict:
+            raise RemoteCallsignTransportError(
+                "remote naming request must be an object"
+            )
+        reply = self._transport.request_json(
+            self._enrollment, "POST", self._path, document,
+        )
+        if not isinstance(reply, Mapping):
+            raise RemoteCallsignTransportError(
+                "remote naming reply must be a mapping"
+            )
+        try:
+            encoded = _canonical_json(dict(reply))
+        except (TypeError, ValueError) as exc:
+            raise RemoteCallsignTransportError(
+                "remote naming reply is not portable JSON"
+            ) from exc
+        if len(encoded) > MAX_REPLY_BYTES:
+            raise RemoteCallsignTransportError(
+                "remote naming reply exceeds its size bound"
+            )
+        return encoded
 
 
 def _canonical_uuid(value: object, label: str) -> str:
@@ -201,6 +294,9 @@ __all__ = [
     "AuthenticatedRequestTransport",
     "MAX_REPLY_BYTES",
     "MAX_REQUEST_BYTES",
+    "PinnedHttpsCallsignReadTransport",
+    "PinnedJsonTransport",
+    "REMOTE_CALLSIGN_READ_PATH",
     "RemoteCallsignTransportAdapter",
     "RemoteCallsignTransportError",
 ]

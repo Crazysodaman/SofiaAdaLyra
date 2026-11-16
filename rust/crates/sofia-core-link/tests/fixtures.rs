@@ -5,6 +5,10 @@ fn accepts_reviewed_response_fixtures() {
     for raw in [
         include_bytes!("../../../../contracts/core-link/valid-status-response.json").as_slice(),
         include_bytes!("../../../../contracts/core-link/valid-history-response.json").as_slice(),
+        include_bytes!("../../../../contracts/core-link/valid-history-response-multi-turn.json")
+            .as_slice(),
+        include_bytes!("../../../../contracts/core-link/valid-unavailable-response.json")
+            .as_slice(),
     ] {
         parse_response(raw).expect("reviewed response fixture");
     }

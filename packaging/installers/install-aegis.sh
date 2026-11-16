@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Aegis Platform installer shell, Phase UX-1: read-only preflight plus
-# explicitly requested owner-private staging of independently sealed media.
-# This entrypoint never elevates or changes services. Staging is NOT install.
-# Installation still requires fresh owner SAFE and native executor authority.
+# Aegis Platform installer shell, preview-only by default, plus explicitly
+# requested owner-private staging of independently sealed media. The opt-in
+# --wired path delegates lifecycle work to the canonical Python adapter.
+# This entrypoint never elevates or changes services itself. Staging is NOT
+# install. Installation still requires fresh owner SAFE and native executor
+# authority enforced by the adapter, not by shell flags.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd -P)"
@@ -56,9 +58,10 @@ usage() {
     '       install-aegis.sh --verify-seed FILE --trusted-seed-sha256 HEX [--json]' \
     '       install-aegis.sh --verify-publisher DIR --publisher-key PEM --publisher-sha256 HEX --publisher-signer ID [--json]' \
     '       install-aegis.sh --stage-capsule ZIP --capsule-signature RAW64 --publisher-key PEM --publisher-sha256 HEX --publisher-signer ID --staging-destination NEW_PRIVATE_DIR' \
-    '       install-aegis.sh --wired --operation OP [trust and approval options] --json' \
+    '       install-aegis.sh --wired --operation OP [trust and approval options] [--json]' \
     'OP: verify, status, doctor, install, update, repair, rollback, uninstall, reinstall, reconcile' \
-    'Wired mutation is fail-closed and requires independent publisher trust plus owner SAFE approval.'
+    'Wired mutation is fail-closed and requires independent publisher trust plus owner SAFE approval.' \
+    'The bundled Python is discovered inside the verified release root unless --bundled-python is given.'
 }
 
 while (($#)); do
@@ -174,19 +177,102 @@ fi
 
 # Wired mode delegates only to the bundled Python canonical adapter. It never
 # performs a service action or elevation in this shell entrypoint.
+resolve_bundled_python() {
+  # Discovery is limited to the reviewed runtime layout inside the caller's
+  # verified release root. It never searches PATH, an environment variable or a
+  # system interpreter, and it rejects every filesystem redirection.
+  local root="$1" root_real os arch rel candidate actual
+  local found=()
+  if [[ ! -d "$root" || -L "$root" ]]; then
+    printf '%s\n' 'Wired release root is unavailable or redirected' >&2
+    return 2
+  fi
+  root_real="$(realpath -e -- "$root")" || return 2
+  if [[ "$(realpath -ms -- "$root")" != "$root_real" ]]; then
+    printf '%s\n' 'Wired release root contains a symlinked path component' >&2
+    return 2
+  fi
+  os="$(uname -s 2>/dev/null || true)"
+  arch="$(uname -m 2>/dev/null || true)"
+  if [[ "$os" != Linux ]]; then
+    printf '%s\n' 'Wired bundled runtime discovery requires a Linux host' >&2
+    return 2
+  fi
+  case "$arch" in
+    x86_64|amd64) ;;
+    *)
+      printf '%s\n' 'Wired bundled runtime discovery requires x86_64 Linux' >&2
+      return 2
+      ;;
+  esac
+  for rel in runtime/python/python.exe; do
+    if [[ -e "$root_real/$rel" || -L "$root_real/$rel" ]]; then
+      printf '%s\n' 'Bundled runtime layout does not match the host operating system' >&2
+      return 2
+    fi
+  done
+  for rel in runtime/python/bin/python3.12 runtime/python/bin/python3; do
+    candidate="$root_real/$rel"
+    if [[ -e "$candidate" || -L "$candidate" ]]; then
+      if [[ ! -f "$candidate" || -L "$candidate" ]]; then
+        printf '%s\n' 'Bundled Python is not a regular non-symlinked file' >&2
+        return 2
+      fi
+      actual="$(realpath -e -- "$candidate")" || return 2
+      if [[ "$(realpath -ms -- "$candidate")" != "$actual" ]]; then
+        printf '%s\n' 'Bundled Python path contains a symlink or escape' >&2
+        return 2
+      fi
+      case "$actual" in
+        "$root_real"/*) ;;
+        *)
+          printf '%s\n' 'Bundled Python resolves outside the release root' >&2
+          return 2
+          ;;
+      esac
+      if [[ ! -x "$actual" ]]; then
+        printf '%s\n' 'Bundled Python is not executable' >&2
+        return 2
+      fi
+      found+=("$actual")
+    fi
+  done
+  if ((${#found[@]} != 1)); then
+    printf '%s\n' 'Exactly one bundled Python runtime must exist inside the release root' >&2
+    return 2
+  fi
+  printf '%s' "${found[0]}"
+}
+
 if ((WIRED)); then
   if ((CHECK_REQUESTED || SEED_REQUESTED || PUBLISHER_REQUESTED ||
         CAPSULE_STAGE_REQUESTED || DRY_RUN || ! OPERATION_REQUESTED)) ||
-     [[ -z "$WIRED_RELEASE_ROOT" || -z "$BUNDLED_PYTHON" ||
-        ! "$MINIMUM_REVISION" =~ ^[1-9][0-9]*$ ]]; then
-    printf '%s\n' 'Wired installer requires operation, release root, bundled Python and revision floor' >&2
+     [[ -z "$WIRED_RELEASE_ROOT" || ! "$MINIMUM_REVISION" =~ ^[1-9][0-9]*$ ]]; then
+    printf '%s\n' 'Wired installer requires operation, release root, revision floor and a safe bundled Python' >&2
     exit 2
   fi
-  if [[ ! -d "$WIRED_RELEASE_ROOT" || -L "$WIRED_RELEASE_ROOT" ||
-        ! -f "$BUNDLED_PYTHON" || -L "$BUNDLED_PYTHON" ]]; then
-    printf '%s\n' 'Wired release root or bundled Python is unavailable or redirected' >&2
+  if [[ ! -d "$WIRED_RELEASE_ROOT" || -L "$WIRED_RELEASE_ROOT" ]]; then
+    printf '%s\n' 'Wired release root is unavailable or redirected' >&2
     exit 2
   fi
+  if [[ -z "$BUNDLED_PYTHON" ]]; then
+    if ! BUNDLED_PYTHON="$(resolve_bundled_python "$WIRED_RELEASE_ROOT")"; then
+      exit 2
+    fi
+  fi
+  if [[ ! -f "$BUNDLED_PYTHON" || -L "$BUNDLED_PYTHON" ]]; then
+    printf '%s\n' 'Wired bundled Python is unavailable or redirected' >&2
+    exit 2
+  fi
+  bundled_real="$(realpath -e -- "$BUNDLED_PYTHON")" || {
+    printf '%s\n' 'Wired bundled Python path is unavailable' >&2
+    exit 2
+  }
+  if [[ "$(realpath -ms -- "$BUNDLED_PYTHON")" != "$bundled_real" ]]; then
+    printf '%s\n' 'Wired bundled Python path contains a symlink or escape' >&2
+    exit 2
+  fi
+  BUNDLED_PYTHON="$bundled_real"
 elif [[ -n "$WIRED_RELEASE_ROOT" || -n "$BUNDLED_PYTHON" ||
         -n "$EXPECTED_SOURCE_SHA" || -n "$TARGET" || -n "$MINIMUM_REVISION" ||
         -n "$DESTINATION" || -n "$IDENTITY_HOME" || -n "$LOCAL_STATE" ||
@@ -463,7 +549,11 @@ if ((WIRED)); then
   wired_add --previous-destination "$PREVIOUS_DESTINATION"
   wired_add --staging-candidate "$STAGING_CANDIDATE"
   wired_add --expected-parent-manifest-sha256 "$EXPECTED_PARENT_MANIFEST_SHA256"
-  exec "$BUNDLED_PYTHON" -I -m sofia.platform.ops.platform_installer_cli \
+  # Isolation without -I: -E/-s ignore ambient Python configuration and user
+  # site packages, -P keeps the working directory off sys.path, and -B avoids
+  # writing bytecode into a read-only release. The bundled runtime still
+  # resolves its own signed site-packages.
+  exec "$BUNDLED_PYTHON" -E -s -P -B -m sofia.platform.ops.platform_installer_cli \
     "$OPERATION" "${wired_args[@]}"
 fi
 if [[ "$MODE" == capsule_stage ]]; then

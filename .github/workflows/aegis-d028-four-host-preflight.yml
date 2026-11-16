@@ -4,7 +4,11 @@ on:
   pull_request:
     paths:
       - 'tools/aegis_platform_row_preflight.py'
+      - 'tools/aegis_four_host_campaign.py'
+      - 'tools/aegis_acceptance_collector.py'
       - 'test/test_ops_platform_row_preflight.py'
+      - 'test/test_tools_four_host_campaign.py'
+      - 'test/test_tools_acceptance_collector.py'
       - 'test/fixtures/aegis_d028/qa_four_host_topology.json'
       - 'docs/development/PLATFORM_1_0_TEAM_E_D028_DISPOSABLE_TOPOLOGY_2026-11-08.md'
       - '.github/workflows/aegis-d028-four-host-preflight.yml'
@@ -36,16 +40,34 @@ jobs:
         run: python -m pip install -e . pytest
       - name: Run negative tests without external hosts, installers or signing
         shell: bash
-        run: python -m pytest -q test/test_ops_platform_row_preflight.py test/test_package_grouping.py
+        run: python -m pytest -q test/test_ops_platform_row_preflight.py test/test_tools_four_host_campaign.py test/test_package_grouping.py
       - name: Export exact-source 38-row plus LIB-16 four-host PLAN ONLY
         shell: bash
         run: |
           python -m tools.aegis_platform_row_preflight --include-artifact-library --d028-four-host --output d028-four-host-preflight.json
           python -c 'import json; p=json.load(open("d028-four-host-preflight.json",encoding="utf-8")); assert p["row_count"]==38 and len(p["artifact_library"]["scenarios"])==16 and p["d028_four_host"]["scenario_count"]==16; assert not p["release_accepted"] and not p["d028_four_host"]["release_accepted"]; assert all(x["acceptance"]=="NOT_CLAIMED" for x in p["d028_four_host"]["scenarios"])'
+      - name: Exercise the simulated-only campaign harness without host claims
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD)"
+          python -m tools.aegis_four_host_campaign \
+            --source-sha "$sha" --simulate --output d028-campaign-simulation.json
+          python - <<'PY'
+          import json
+          report = json.load(open("d028-campaign-simulation.json", encoding="utf-8"))
+          assert report["mode"] == "SIMULATED"
+          assert report["simulated"] is True
+          assert report["counts"]["PASS"] == 0
+          assert report["release_accepted"] is False
+          assert report["production_authorized"] is False
+          PY
       - name: Preserve source-only plan receipt, never signed installed-host proof
         uses: actions/upload-artifact@v4
         with:
           name: d028-e-four-host-plan-only-${{ matrix.os }}-${{ github.event.pull_request.head.sha || github.sha }}
-          path: d028-four-host-preflight.json
+          path: |
+            d028-four-host-preflight.json
+            d028-campaign-simulation.json
           if-no-files-found: error
           retention-days: 14

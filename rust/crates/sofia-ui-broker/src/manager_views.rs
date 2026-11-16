@@ -9,8 +9,9 @@
 use crate::connection_state::ConnectionState;
 use crate::control_center::{ActionHint, ControlCenterView, LinkState, ProposedAction};
 use crate::platform_status::{ModuleHealth, ModuleLifecycle, ObservationFreshness};
+use std::collections::BTreeMap;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ManagerPage {
     Cores,
     Modules,
@@ -18,6 +19,53 @@ pub enum ManagerPage {
     Security,
     Updates,
     Diagnostics,
+}
+
+impl ManagerPage {
+    pub const ALL: [Self; 6] = [
+        Self::Cores,
+        Self::Modules,
+        Self::Fleet,
+        Self::Security,
+        Self::Updates,
+        Self::Diagnostics,
+    ];
+}
+
+/// Truthful per-page observation state. A page is never assumed observed just
+/// because the surrounding connection is current; a failed read is not an
+/// empty inventory and a denial is not an empty list.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SectionTruth {
+    Observed,
+    NotObserved,
+    Stale,
+    Offline,
+    Revoked,
+    Stop,
+    Denied,
+    Unknown,
+}
+
+impl SectionTruth {
+    #[must_use]
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Observed => "OBSERVED",
+            Self::NotObserved => "NOT_OBSERVED",
+            Self::Stale => "STALE",
+            Self::Offline => "OFFLINE",
+            Self::Revoked => "REVOKED",
+            Self::Stop => "STOP",
+            Self::Denied => "DENIED",
+            Self::Unknown => "UNKNOWN",
+        }
+    }
+
+    #[must_use]
+    pub fn is_current(self) -> bool {
+        self == Self::Observed
+    }
 }
 
 impl ManagerPage {
@@ -195,6 +243,12 @@ impl Default for DiagnosticsObservation {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ManagerSnapshot {
     pub freshness: ObservationFreshness,
+    pub platform_id: Option<String>,
+    pub platform_generation: Option<u64>,
+    /// Current service mutation-receipt revision when separately observed.
+    /// It is NEVER inferred from a display name, settings revision or launch.
+    pub platform_revision: Option<u64>,
+    pub sections: BTreeMap<ManagerPage, SectionTruth>,
     pub cores: Vec<CoreObservation>,
     pub modules: Vec<ModuleView>,
     pub fleet: Vec<FleetPeer>,
@@ -203,10 +257,28 @@ pub struct ManagerSnapshot {
     pub diagnostics: Option<DiagnosticsObservation>,
 }
 
+impl ManagerSnapshot {
+    #[must_use]
+    pub fn section(&self, page: ManagerPage) -> SectionTruth {
+        self.sections
+            .get(&page)
+            .copied()
+            .unwrap_or(SectionTruth::NotObserved)
+    }
+
+    pub fn mark(&mut self, page: ManagerPage, truth: SectionTruth) {
+        self.sections.insert(page, truth);
+    }
+}
+
 impl Default for ManagerSnapshot {
     fn default() -> Self {
         Self {
             freshness: ObservationFreshness::Stale,
+            platform_id: None,
+            platform_generation: None,
+            platform_revision: None,
+            sections: BTreeMap::new(),
             cores: Vec::new(),
             modules: Vec::new(),
             fleet: Vec::new(),
@@ -286,8 +358,16 @@ pub fn mutation_review(
             operation,
         };
     }
+    if is_current_observation(view) && snapshot.is_none() {
+        return MutationReview {
+            state: MutationReviewState::Blocked("MANAGER_SNAPSHOT_NOT_OBSERVED"),
+            operation,
+        };
+    }
     if is_current_observation(view)
-        && snapshot.is_some_and(|value| value.freshness == ObservationFreshness::Stale)
+        && snapshot.is_some_and(|value| {
+            value.freshness == ObservationFreshness::Stale || !value.section(page).is_current()
+        })
     {
         return MutationReview {
             state: MutationReviewState::Blocked("MANAGER_OBSERVATION_STALE"),
@@ -337,19 +417,38 @@ pub fn manager_lines(
         ));
         lines.push("CACHED VALUES: NOT_CURRENT".to_owned());
     } else if let Some(snapshot) = snapshot {
+        lines.push(format!(
+            "SNAPSHOT TARGET: {} / GENERATION: {} / MUTATION REVISION: {}",
+            snapshot.platform_id.as_deref().unwrap_or("UNKNOWN"),
+            snapshot
+                .platform_generation
+                .map_or_else(|| "UNKNOWN".to_owned(), |value| value.to_string()),
+            snapshot
+                .platform_revision
+                .map_or_else(|| "NOT_OBSERVED".to_owned(), |value| value.to_string())
+        ));
         if snapshot.freshness == ObservationFreshness::Stale {
             lines.push(
                 "SNAPSHOT: STALE / CACHED VALUES NOT CURRENT / HEALTH AND TARGETS NOT VERIFIED"
                     .to_owned(),
             );
         }
-        match page {
-            ManagerPage::Cores => render_cores(&mut lines, snapshot),
-            ManagerPage::Modules => render_modules(&mut lines, snapshot),
-            ManagerPage::Fleet => render_fleet(&mut lines, snapshot),
-            ManagerPage::Security => render_security(&mut lines, view, snapshot),
-            ManagerPage::Updates => render_updates(&mut lines, snapshot),
-            ManagerPage::Diagnostics => render_diagnostics(&mut lines, snapshot),
+        let truth = snapshot.section(page);
+        if truth.is_current() {
+            match page {
+                ManagerPage::Cores => render_cores(&mut lines, snapshot),
+                ManagerPage::Modules => render_modules(&mut lines, snapshot),
+                ManagerPage::Fleet => render_fleet(&mut lines, snapshot),
+                ManagerPage::Security => render_security(&mut lines, view, snapshot),
+                ManagerPage::Updates => render_updates(&mut lines, snapshot),
+                ManagerPage::Diagnostics => render_diagnostics(&mut lines, snapshot),
+            }
+        } else {
+            lines.push(format!(
+                "{}: {} / NO_CURRENT_AUTHENTICATED_OBSERVATION / NO_EMPTY_OR_HEALTH_CLAIM",
+                page.heading().to_uppercase(),
+                truth.label()
+            ));
         }
     } else {
         lines.push(
@@ -591,6 +690,14 @@ mod tests {
     fn snapshot() -> ManagerSnapshot {
         ManagerSnapshot {
             freshness: ObservationFreshness::Fresh,
+            platform_id: Some("platform:alpha".into()),
+            platform_generation: Some(9),
+            platform_revision: Some(6),
+            sections: ManagerPage::ALL
+                .iter()
+                .copied()
+                .map(|page| (page, super::SectionTruth::Observed))
+                .collect(),
             cores: vec![CoreObservation {
                 core_id: "core:primary".into(),
                 lifecycle: CoreLifecycle::Active,

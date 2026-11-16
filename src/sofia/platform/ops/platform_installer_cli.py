@@ -35,7 +35,7 @@ from sofia.platform.ops.platform_installer_native_service import (
 )
 from sofia.platform.ops.platform_installer_native_transaction import (
     apply_owner_approved_native_service, native_service_operation_request,
-    reconcile_owner_approved_native_service,
+    native_transaction_state, reconcile_owner_approved_native_service,
 )
 from sofia.platform.ops.platform_release import PlatformReleaseVerifier
 from sofia.platform.ops.platform_release_staging import stage_platform_release
@@ -313,6 +313,10 @@ def _status_payload(inputs: InstallerInputs) -> dict[str, object]:
         "installed_verified": False,
         "history_entries": 0,
         "pending_attempts": 0,
+        "pending_native_attempts": 0,
+        "native_journal_phase": "ABSENT",
+        "native_journal_generation": 0,
+        "native_service_registered": False,
         "active_release_id": None,
         "checkpoint_generation": 0,
         "minimum_accepted_revision": 0,
@@ -328,6 +332,21 @@ def _status_payload(inputs: InstallerInputs) -> dict[str, object]:
     checkpoint = store.checkpoint()
     payload["history_entries"] = len(store.history())
     payload["pending_attempts"] = len(store.pending_attempts())
+    try:
+        journal = native_transaction_state(store)
+    except (OSError, ValueError, TypeError, PermissionError):
+        # An unreadable or inconsistent journal is an unresolved recovery
+        # fence, never a clean status.
+        payload["native_journal_phase"] = "INCONSISTENT"
+        payload["pending_native_attempts"] = 1
+    else:
+        if journal is not None:
+            phase = journal["phase"]
+            payload["native_journal_phase"] = phase
+            payload["native_journal_generation"] = journal["generation"]
+            payload["native_service_registered"] = journal["current"] is not None
+            if phase in ("PENDING", "OUTCOME_UNKNOWN"):
+                payload["pending_native_attempts"] = 1
     if checkpoint is not None:
         payload["checkpoint_generation"] = checkpoint.generation
         payload["minimum_accepted_revision"] = checkpoint.minimum_accepted_revision
@@ -372,7 +391,9 @@ def _command_verify(inputs: InstallerInputs) -> dict[str, object]:
 
 def _command_status(inputs: InstallerInputs) -> dict[str, object]:
     payload = _status_payload(inputs)
-    outcome = "RECONCILIATION_REQUIRED" if payload["pending_attempts"] else "OK"
+    outcome = ("RECONCILIATION_REQUIRED"
+               if payload["pending_attempts"] or payload["pending_native_attempts"]
+               else "OK")
     return _result("status", outcome, **payload)
 
 
@@ -381,7 +402,9 @@ def _command_doctor(inputs: InstallerInputs) -> dict[str, object]:
     release = _verify_release(inputs, floor=floor)
     payload = _status_payload(inputs)
     payload.update(_release_fields(release))
-    outcome = "RECONCILIATION_REQUIRED" if payload["pending_attempts"] else "OK"
+    outcome = ("RECONCILIATION_REQUIRED"
+               if payload["pending_attempts"] or payload["pending_native_attempts"]
+               else "OK")
     return _result("doctor", outcome, **payload)
 
 

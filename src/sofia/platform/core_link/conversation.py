@@ -4,6 +4,7 @@ from __future__ import annotations
 from contextlib import closing
 from datetime import datetime, timezone
 from hashlib import sha256
+import json
 import sqlite3
 from threading import RLock
 from typing import Protocol
@@ -29,6 +30,10 @@ from sofia.sdk import (
 
 class CoreLinkApplication(Protocol):
     def open_channel_conversation(self, *, session_id: str | None = None): ...
+
+
+class CoreLinkServiceUnavailable(RuntimeError):
+    """The canonical conversation service cannot currently serve a request."""
 
 
 class CoreLinkSessionRequestStore:
@@ -98,6 +103,77 @@ class CoreLinkSessionRequestStore:
                 raise RuntimeError("Core Link session claim could not settle")
 
 
+class CoreLinkRequestReplayStore:
+    """Durable bounded request-ID/digest registry shared with canonical state.
+
+    An exact retransmission of the same authenticated logical request remains
+    idempotent. Reusing a request identifier for different content is a replay
+    and is denied before any conversation operation is attempted.
+    """
+
+    MAX_ENTRIES = 4096
+
+    def __init__(self, state_path) -> None:
+        self._guard = CanonicalSQLiteGuard(state_path)
+        with closing(self._connect()) as database, database:
+            database.execute(
+                """CREATE TABLE IF NOT EXISTS core_link_request_replay(
+                client_id TEXT NOT NULL,
+                request_id TEXT NOT NULL,
+                request_digest TEXT NOT NULL,
+                first_seen_at TEXT NOT NULL,
+                PRIMARY KEY(client_id,request_id)
+                )"""
+            )
+            database.execute(
+                "CREATE INDEX IF NOT EXISTS core_link_request_replay_seen "
+                "ON core_link_request_replay(first_seen_at)"
+            )
+
+    def _connect(self) -> sqlite3.Connection:
+        database = self._guard.connect(timeout=10)
+        database.execute("PRAGMA busy_timeout=10000")
+        return database
+
+    def observe(
+        self, *, client_id: str, request_id: str,
+        request_digest: str, now: datetime,
+    ) -> None:
+        with closing(self._connect()) as database:
+            database.execute("BEGIN IMMEDIATE")
+            row = database.execute(
+                """SELECT request_digest FROM core_link_request_replay
+                WHERE client_id=? AND request_id=?""",
+                (client_id, request_id),
+            ).fetchone()
+            if row is not None:
+                if row[0] != request_digest:
+                    database.rollback()
+                    raise PermissionError(
+                        "Core Link request ID was replayed with different content"
+                    )
+                database.commit()
+                return
+            count = int(database.execute(
+                "SELECT COUNT(*) FROM core_link_request_replay"
+            ).fetchone()[0])
+            if count >= self.MAX_ENTRIES:
+                database.execute(
+                    """DELETE FROM core_link_request_replay WHERE rowid IN (
+                    SELECT rowid FROM core_link_request_replay
+                    ORDER BY first_seen_at ASC, rowid ASC LIMIT ?
+                    )""",
+                    (count - self.MAX_ENTRIES + 1,),
+                )
+            database.execute(
+                """INSERT INTO core_link_request_replay(
+                client_id,request_id,request_digest,first_seen_at
+                ) VALUES(?,?,?,?)""",
+                (client_id, request_id, request_digest, now.isoformat()),
+            )
+            database.commit()
+
+
 class CoreLinkConversationGateway:
     """Route authenticated requests into the one canonical application.
 
@@ -137,6 +213,7 @@ class CoreLinkConversationGateway:
         self.clock = clock
         self.max_open_sessions = max_open_sessions
         self.session_requests = CoreLinkSessionRequestStore(access_store.path)
+        self.request_replays = CoreLinkRequestReplayStore(access_store.path)
         self.settings = CanonicalSettingsService(
             access_store.path, live_apply=settings_live_apply,
         )
@@ -160,6 +237,20 @@ class CoreLinkConversationGateway:
             (access.client_id + "\0" + idempotency_key).encode("utf-8")
         ).hexdigest()
         return f"core-link:{digest}"
+
+    @staticmethod
+    def _request_digest(request: CoreLinkRequest) -> str:
+        document = json.dumps({
+            "operation": request.operation,
+            "idempotency_key": request.idempotency_key,
+            "local_platform_id": request.local_platform_id,
+            "remote_platform_id": request.remote_platform_id,
+            "remote_core_identity_id": request.remote_core_identity_id,
+            "remote_core_generation": request.remote_core_generation,
+            "payload": request.payload,
+        }, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+            allow_nan=False)
+        return sha256(document.encode("utf-8")).hexdigest()
 
     def _authenticate(
         self, fingerprint: str, request: CoreLinkRequest,
@@ -206,10 +297,17 @@ class CoreLinkConversationGateway:
             if existing is not None:
                 return existing
             if len(self._services) >= self.max_open_sessions:
-                raise RuntimeError("Core Link session capacity is exhausted")
-            service = self.application.open_channel_conversation(
-                session_id=session_id
-            )
+                raise CoreLinkServiceUnavailable(
+                    "Core Link session capacity is exhausted"
+                )
+            try:
+                service = self.application.open_channel_conversation(
+                    session_id=session_id
+                )
+            except (RuntimeError, ValueError) as exc:
+                raise CoreLinkServiceUnavailable(
+                    "conversation service is unavailable"
+                ) from exc
             try:
                 service.bind_authenticated_principal(access.principal)
             except Exception:
@@ -218,7 +316,9 @@ class CoreLinkConversationGateway:
             actual = service.session_id
             if not isinstance(actual, str) or not actual:
                 service.close()
-                raise RuntimeError("canonical conversation did not produce a session ID")
+                raise CoreLinkServiceUnavailable(
+                    "canonical conversation did not produce a session ID"
+                )
             actual_key = (access.client_id, actual)
             duplicate = self._services.get(actual_key)
             if duplicate is not None:
@@ -246,8 +346,27 @@ class CoreLinkConversationGateway:
     ) -> CoreLinkResponse:
         if not isinstance(request, CoreLinkRequest):
             raise TypeError("typed CoreLinkRequest required")
+        try:
+            return self._dispatch(
+                certificate_public_key_sha256=certificate_public_key_sha256,
+                request=request,
+            )
+        except CoreLinkServiceUnavailable as exc:
+            return CoreLinkResponse(
+                request.request_id, CoreLinkResponseStatus.UNAVAILABLE,
+                {"error": str(exc)}, self.clock(),
+            )
+
+    def _dispatch(
+        self, *, certificate_public_key_sha256: str,
+        request: CoreLinkRequest,
+    ) -> CoreLinkResponse:
         access, now, generation = self._authenticate(
             certificate_public_key_sha256, request,
+        )
+        self.request_replays.observe(
+            client_id=access.client_id, request_id=request.request_id,
+            request_digest=self._request_digest(request), now=now,
         )
         operation = request.operation
         payload = request.payload

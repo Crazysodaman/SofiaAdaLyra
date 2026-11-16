@@ -45,8 +45,9 @@ from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier, ex
 from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.platform.state.artifact_file import read_artifact_file
 from sofia.platform.state.private_file import (
-    assert_no_redirected_components, assert_owner_private_path,
-    ensure_owner_private_directory, restrict_new_owner_private_path,
+    assert_no_redirected_components, assert_not_protected_state_path,
+    assert_owner_private_path, ensure_owner_private_directory,
+    restrict_new_owner_private_path,
 )
 from sofia.platform.verify.python_runtime import materialize_python_runtime
 from sofia.sdk.cognition_json import loads_strict_model_json
@@ -154,8 +155,7 @@ class PlatformInstallationStore:
 
     def __init__(self, state_path):
         self.path = Path(state_path).absolute()
-        if self.path.name == 'sofia.db':
-            raise PermissionError('installation receipts never join canonical Core state')
+        assert_not_protected_state_path(self.path)
         assert_no_redirected_components(self.path, include_leaf=True)
         ensure_owner_private_directory(self.path.parent)
         with closing(sqlite3.connect(self.path)) as db, db:

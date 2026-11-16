@@ -3,6 +3,11 @@ use crate::control_center::{InstallationState, PermissionState, SafeState};
 use crate::control_center_session::{
     from_verified_denial, DisplayReadSource, DisplaySnapshot, ReadFailure,
 };
+use crate::management_mutation::{
+    MutationTransport, MutationTransportError, MAX_MUTATION_REQUEST_BYTES,
+    MAX_MUTATION_RESPONSE_BYTES,
+};
+use crate::manager_snapshot::{AuthenticatedManagerSnapshotSource, AuthenticatedObservation};
 use chrono::{Duration as ChronoDuration, SecondsFormat, Utc};
 use interprocess::os::windows::named_pipe::{pipe_mode, DuplexPipeStream};
 use sofia_contracts::management::{
@@ -20,6 +25,13 @@ use winsafe::{self as w, co};
 const IO_TIMEOUT: Duration = Duration::from_secs(2);
 const MAX_GENERATION: u64 = 9_007_199_254_740_991;
 type Connection = DuplexPipeStream<pipe_mode::Bytes>;
+
+#[derive(Debug)]
+struct ReadReply {
+    platform_id: String,
+    platform_generation: u64,
+    data: serde_json::Value,
+}
 
 /// Exact, externally verified installed service instance. This constructor
 /// validates syntax only; raw JSON, arguments and environment are not trust.
@@ -107,28 +119,36 @@ impl NativeWindowsManagementReader {
     }
 
     fn status(&mut self) -> Result<DisplaySnapshot, ReadFailure> {
-        // CreateFile does not wait for a busy instance. Do not use the dependency's
-        // connect_by_path, whose retry loop waits without an overall deadline.
-        // Identification SQOS permits server-side identity inspection without
-        // permitting the server to impersonate the client for other effects.
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .security_qos_flags(0x0011_0000)
-            .open(&self.pins.pipe_path)
-            .map_err(|_| ReadFailure::Offline)?;
-        let mut pipe =
-            Connection::try_from(OwnedHandle::from(file)).map_err(|_| ReadFailure::Unverified)?;
-        // Always reclaim the handle explicitly, even on failure: PipeStream's
-        // default drop can enqueue a blocking flush. No flush is needed for a
-        // bounded request whose correlated response was consumed.
-        let result = self.exchange(&mut pipe);
-        let handle = OwnedHandle::try_from(pipe).map_err(|_| ReadFailure::Unverified)?;
-        drop(handle);
+        let reply = self.observe_reply("platform.status")?;
+        self.local_sequence = self
+            .local_sequence
+            .checked_add(1)
+            .ok_or(ReadFailure::UnknownGeneration)?;
+        Ok(DisplaySnapshot {
+            platform_id: reply.platform_id,
+            generation: reply.platform_generation,
+            sequence: self.local_sequence,
+            safe: SafeState::Clear,
+            permission: PermissionState::Unknown,
+            installation: InstallationState::Unknown,
+            saved_revision: None,
+            applied_revision: None,
+            removal_receipt_verified: false,
+        })
+    }
+
+    fn observe_reply(&mut self, operation: &str) -> Result<ReadReply, ReadFailure> {
+        let mut pipe = open_connection(&self.pins)?;
+        let result = self.exchange(&mut pipe, operation);
+        release_connection(pipe)?;
         result
     }
 
-    fn exchange(&mut self, pipe: &mut Connection) -> Result<DisplaySnapshot, ReadFailure> {
+    fn exchange(
+        &mut self,
+        pipe: &mut Connection,
+        operation: &str,
+    ) -> Result<ReadReply, ReadFailure> {
         pipe.set_nonblocking(true)
             .map_err(|_| ReadFailure::Unverified)?;
         verify_peer(pipe, &self.pins)?;
@@ -142,7 +162,7 @@ impl NativeWindowsManagementReader {
         let mut raw = serde_json::to_vec(&serde_json::json!({
             "schema": MANAGEMENT_READ_SCHEMA, "protocol": MANAGEMENT_READ_PROTOCOL,
             "request_id": request_id, "target_platform_id": self.pins.platform_id,
-            "expected_generation": self.pins.generation, "operation": "platform.status",
+            "expected_generation": self.pins.generation, "operation": operation,
             "created_at": now.to_rfc3339_opts(SecondsFormat::Micros,true),
             "deadline": (now + ChronoDuration::seconds(5)).to_rfc3339_opts(SecondsFormat::Micros,true),
         })).map_err(|_| ReadFailure::Unverified)?;
@@ -180,21 +200,118 @@ impl NativeWindowsManagementReader {
         if response.outcome != "OK" {
             return Err(ReadFailure::Unverified);
         }
-        self.local_sequence = self
-            .local_sequence
-            .checked_add(1)
-            .ok_or(ReadFailure::UnknownGeneration)?;
-        Ok(DisplaySnapshot {
+        Ok(ReadReply {
             platform_id: response.platform_id,
-            generation: response.platform_generation,
-            sequence: self.local_sequence,
-            safe: SafeState::Clear,
-            permission: PermissionState::Unknown,
-            installation: InstallationState::Unknown,
-            saved_revision: None,
-            applied_revision: None,
-            removal_receipt_verified: false,
+            platform_generation: response.platform_generation,
+            data: response.data.unwrap_or(serde_json::Value::Null),
         })
+    }
+}
+
+impl AuthenticatedManagerSnapshotSource for NativeWindowsManagementReader {
+    fn observe_operation(
+        &mut self,
+        operation: &str,
+    ) -> Result<AuthenticatedObservation, ReadFailure> {
+        let reply = self.observe_reply(operation)?;
+        Ok(AuthenticatedObservation {
+            platform_id: reply.platform_id,
+            platform_generation: reply.platform_generation,
+            data: reply.data,
+        })
+    }
+}
+
+/// Native mutation transport over the same peer-bound named pipe used for
+/// read-only status. It forwards the exact framed request bytes and returns the
+/// exact bounded reply body. It performs no retry, approval or outcome mapping.
+pub struct NativeWindowsMutationTransport {
+    pins: InstalledNativeServicePins,
+}
+
+impl NativeWindowsMutationTransport {
+    #[must_use]
+    pub fn new(pins: InstalledNativeServicePins) -> Self {
+        Self { pins }
+    }
+}
+
+impl MutationTransport for NativeWindowsMutationTransport {
+    fn exchange(&mut self, request_wire: &[u8]) -> Result<Vec<u8>, MutationTransportError> {
+        if request_wire.is_empty()
+            || request_wire.len() > MAX_MUTATION_REQUEST_BYTES
+            || request_wire.contains(&b'\n')
+        {
+            return Err(MutationTransportError::Rejected);
+        }
+        let pipe = open_connection(&self.pins).map_err(transport_error)?;
+        let result = exchange_mutation(&pipe, &self.pins, request_wire);
+        let released = release_connection(pipe).map_err(transport_error);
+        match (result, released) {
+            (Err(error), _) => Err(transport_error(error)),
+            (Ok(body), Ok(())) => Ok(body),
+            (Ok(_), Err(error)) => Err(error),
+        }
+    }
+}
+
+fn open_connection(pins: &InstalledNativeServicePins) -> Result<Connection, ReadFailure> {
+    // CreateFile does not wait for a busy instance. Do not use the dependency's
+    // connect_by_path, whose retry loop waits without an overall deadline.
+    // Identification SQOS permits server-side identity inspection without
+    // permitting the server to impersonate the client for other effects.
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .security_qos_flags(0x0011_0000)
+        .open(&pins.pipe_path)
+        .map_err(|_| ReadFailure::Offline)?;
+    Connection::try_from(OwnedHandle::from(file)).map_err(|_| ReadFailure::Unverified)
+}
+
+fn release_connection(pipe: Connection) -> Result<(), ReadFailure> {
+    // Always reclaim the handle explicitly, even on failure: PipeStream's
+    // default drop can enqueue a blocking flush. No flush is needed for a
+    // bounded request whose correlated response was consumed.
+    let handle = OwnedHandle::try_from(pipe).map_err(|_| ReadFailure::Unverified)?;
+    drop(handle);
+    Ok(())
+}
+
+fn exchange_mutation(
+    pipe: &Connection,
+    pins: &InstalledNativeServicePins,
+    request_wire: &[u8],
+) -> Result<Vec<u8>, ReadFailure> {
+    pipe.set_nonblocking(true)
+        .map_err(|_| ReadFailure::Unverified)?;
+    verify_peer(pipe, pins)?;
+    let deadline = Instant::now() + IO_TIMEOUT;
+    let mut io = File::from(
+        pipe.as_handle()
+            .try_clone_to_owned()
+            .map_err(|_| ReadFailure::Unverified)?,
+    );
+    let mut framed = Vec::with_capacity(request_wire.len() + 1);
+    framed.extend_from_slice(request_wire);
+    framed.push(b'\n');
+    write_bounded(&mut io, &framed, deadline)?;
+    let body = read_framed_bounded(&mut io, deadline, MAX_MUTATION_RESPONSE_BYTES)?;
+    verify_peer(pipe, pins)?;
+    Ok(body)
+}
+
+fn transport_error(failure: ReadFailure) -> MutationTransportError {
+    match failure {
+        ReadFailure::Offline => MutationTransportError::Offline,
+        ReadFailure::Unverified
+        | ReadFailure::Denied
+        | ReadFailure::Revoked
+        | ReadFailure::Stopped => MutationTransportError::Rejected,
+        ReadFailure::Connecting
+        | ReadFailure::Stale
+        | ReadFailure::Restarting
+        | ReadFailure::UnknownGeneration => MutationTransportError::Unavailable,
     }
 }
 impl DisplayReadSource for NativeWindowsManagementReader {
@@ -272,6 +389,14 @@ fn write_bounded(
     Ok(())
 }
 fn read_bounded(pipe: &mut impl Read, deadline: Instant) -> Result<Vec<u8>, ReadFailure> {
+    read_framed_bounded(pipe, deadline, MAX_MANAGEMENT_RESPONSE_BYTES)
+}
+
+fn read_framed_bounded(
+    pipe: &mut impl Read,
+    deadline: Instant,
+    max_body: usize,
+) -> Result<Vec<u8>, ReadFailure> {
     let mut bytes = Vec::new();
     loop {
         if Instant::now() >= deadline {
@@ -293,7 +418,7 @@ fn read_bounded(pipe: &mut impl Read, deadline: Instant) -> Result<Vec<u8>, Read
             }
             Err(_) => return Err(ReadFailure::Offline),
         }
-        if bytes.len() > MAX_MANAGEMENT_RESPONSE_BYTES + 1 {
+        if bytes.len() > max_body + 1 {
             return Err(ReadFailure::Unverified);
         }
         if bytes.contains(&b'\n') {
@@ -428,6 +553,130 @@ mod tests {
             drop(OwnedHandle::try_from(pipe).unwrap());
         });
         (pins, thread)
+    }
+
+    fn mutation_fixture() -> (
+        InstalledNativeServicePins,
+        std::thread::JoinHandle<()>,
+        std::sync::mpsc::Receiver<serde_json::Value>,
+    ) {
+        use interprocess::os::windows::named_pipe::PipeListenerOptions;
+        use std::sync::mpsc::channel;
+        let mut random = [0_u8; 8];
+        getrandom::getrandom(&mut random).unwrap();
+        let name = format!(
+            "aegis-mutation-test-{}-{:x}",
+            std::process::id(),
+            u64::from_le_bytes(random)
+        );
+        let path = format!(r"\\.\pipe\{name}");
+        let listener = PipeListenerOptions::new()
+            .path(path)
+            .create_duplex::<pipe_mode::Bytes>()
+            .unwrap();
+        let process = w::HPROCESS::GetCurrentProcess();
+        let (created, _, _, _) = process.GetProcessTimes().unwrap();
+        let token = w::HACCESSTOKEN::GetCurrentProcessToken();
+        let w::TokenInfo::User(user) = token
+            .GetTokenInformation(co::TOKEN_INFORMATION_CLASS::User)
+            .unwrap()
+        else {
+            panic!("user token required");
+        };
+        let sid = w::ConvertSidToStringSid(user.User.Sid().unwrap()).unwrap();
+        let pins = InstalledNativeServicePins::from_externally_verified_installation(
+            &name,
+            "platform:synthetic".into(),
+            3,
+            std::process::id(),
+            sid,
+            u64::from(created),
+        )
+        .unwrap();
+        let (sender, receiver) = channel();
+        let thread = std::thread::spawn(move || {
+            let pipe = listener.accept().unwrap();
+            pipe.set_nonblocking(true).unwrap();
+            let deadline = Instant::now() + IO_TIMEOUT;
+            let mut io = File::from(pipe.as_handle().try_clone_to_owned().unwrap());
+            if let Some(body) = read_fixture_request(&mut io, deadline) {
+                let request: serde_json::Value = serde_json::from_slice(&body).unwrap();
+                sender.send(request.clone()).unwrap();
+                let response = serde_json::json!({
+                    "schema": "aegis.platform.management_mutation-response.v1",
+                    "protocol_version": "1.0",
+                    "request_id": request["request_id"],
+                    "correlation_id": request["correlation_id"],
+                    "idempotency_key": request["idempotency_key"],
+                    "platform_id": request["target_platform_id"],
+                    "operation": request["operation"],
+                    "outcome": "SUCCEEDED",
+                    "receipt_id": "receipt:native:1",
+                    "current_generation": 3,
+                    "current_revision": 1,
+                    "error_code": serde_json::Value::Null,
+                    "detail": serde_json::Value::Null,
+                    "observed_at": (Utc::now() - ChronoDuration::seconds(1))
+                        .to_rfc3339_opts(SecondsFormat::Micros, true),
+                });
+                let mut bytes = serde_json::to_vec(&response).unwrap();
+                bytes.push(b'\n');
+                write_bounded(&mut io, &bytes, deadline).unwrap();
+                let mut probe = [0_u8; 1];
+                while Instant::now() < deadline {
+                    match io.read(&mut probe) {
+                        Err(error) if temporarily_empty(&error) => {
+                            let _ = pause(deadline);
+                        }
+                        Err(_) | Ok(0) => break,
+                        Ok(_) => {}
+                    }
+                }
+            }
+            drop(OwnedHandle::try_from(pipe).unwrap());
+        });
+        (pins, thread, receiver)
+    }
+
+    #[test]
+    fn native_mutation_transport_preserves_exact_request_and_correlated_reply() {
+        use crate::management_mutation::{ManagementMutationRequest, MutationClient};
+        use chrono::Duration as ChronoDuration;
+        let (pins, thread, receiver) = mutation_fixture();
+        let now = Utc::now().fixed_offset();
+        let request = ManagementMutationRequest::new_untrusted(
+            "req:mutation:9",
+            "corr:9",
+            "idem:9",
+            "platform:synthetic",
+            "module.install",
+            "host:alpha/module:demo",
+            3,
+            0,
+            (now + ChronoDuration::seconds(30)).to_rfc3339_opts(SecondsFormat::Micros, true),
+            "approval:owner:1",
+            serde_json::json!({"package_sha256": "a".repeat(64)}),
+        )
+        .unwrap();
+        let mut client = MutationClient::new(NativeWindowsMutationTransport::new(pins.clone()));
+        let reply = client
+            .submit_with_clock(&request, now, || Utc::now().fixed_offset())
+            .expect("exact correlated reply");
+        assert_eq!(reply.receipt_id.as_deref(), Some("receipt:native:1"));
+        assert_eq!(reply.current_generation, 3);
+        assert_eq!(reply.current_revision, 1);
+        let server_request = receiver.recv().unwrap();
+        assert_eq!(server_request["request_id"], "req:mutation:9");
+        assert_eq!(server_request["correlation_id"], "corr:9");
+        assert_eq!(server_request["idempotency_key"], "idem:9");
+        assert_eq!(server_request["operation"], "module.install");
+        assert_eq!(server_request["approval_id"], "approval:owner:1");
+        thread.join().unwrap();
+        // The same read-only reader stays usable on the same pinned endpoint.
+        let (pins, thread) = native_fixture("OK");
+        let status = NativeWindowsManagementReader::new(pins).next().unwrap();
+        assert_eq!(status.generation, 3);
+        thread.join().unwrap();
     }
 
     #[test]

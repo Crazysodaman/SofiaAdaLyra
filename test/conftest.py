@@ -109,6 +109,11 @@ FILENAME_PACKAGE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("test_core_worker_provider_deadline.py", ("pkg_core", "pkg_run", "pkg_verify")),
     ("test_platform_service_", ("pkg_run", "pkg_safe", "pkg_verify")),
     ("test_rust_platform_", ("pkg_run", "pkg_safe", "pkg_verify")),
+    # Parallel-campaign security regressions span installation, management,
+    # Library and SDK trust boundaries; Core security is Core/SAFE-owned.
+    ("test_aegis_p5_", ("pkg_safe", "pkg_verify", "pkg_integrate")),
+    ("test_aegis_c5_", ("pkg_core", "pkg_safe", "pkg_verify")),
+    ("test_tools_", ("pkg_verify", "pkg_integrate", "pkg_safe")),
     # Creative/ComfyUI tests are DEV tooling with INTEGRATE lifecycle boundaries.
     ("test_comfyui_", ("pkg_dev", "pkg_integrate")),
     # Live2D recovery spans avatar state, creative tooling, and integration.

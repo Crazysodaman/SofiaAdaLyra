@@ -14,10 +14,15 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from sofia.platform.ops.callsign_remote import REMOTE_SCHEMA
 from sofia.platform.ops.callsign_remote_transport import (
     MAX_REPLY_BYTES,
+    PinnedHttpsCallsignReadTransport,
+    REMOTE_CALLSIGN_READ_PATH,
     RemoteCallsignTransportAdapter,
     RemoteCallsignTransportError,
 )
 from sofia.platform.ops.callsigns import SCHEMA
+from sofia.platform.distributed.model import (
+    DistributedNode, NodeEnrollment,
+)
 
 NOW = datetime(2026, 11, 8, 12, 0, tzinfo=timezone.utc)
 AUTH = str(uuid4())
@@ -247,3 +252,138 @@ def test_request_size_and_target_are_bounded():
             "nonce": "a" * 32,
             "extra": "x",
         })
+
+
+class FakePinnedJsonTransport:
+    """Stand-in for PinnedHttpsRemoteTransport's authenticated JSON exchange."""
+
+    def __init__(self, key: Ed25519PrivateKey) -> None:
+        self.key = key
+        self.mode = "ok"
+        self.calls: list[tuple[object, str, str, dict]] = []
+
+    def request_json(self, enrollment, method, path, payload=None):
+        self.calls.append((enrollment, method, path, dict(payload or {})))
+        if self.mode == "offline":
+            raise RuntimeError("pinned mTLS link disconnected")
+        if self.mode == "oversized":
+            return {
+                "schema": REMOTE_SCHEMA,
+                "padding": "x" * (MAX_REPLY_BYTES + 1),
+            }
+        nonce = payload["nonce"]
+        revision = 3 if self.mode == "rollback" else 4
+        return json.loads(
+            _signed_reply(self.key, nonce, revision=revision).decode()
+        )
+
+
+def _enrollment():
+    return NodeEnrollment(
+        DistributedNode(uuid4(), "Artemis"), "a" * 64, NOW, "Sparks",
+    )
+
+
+def _production_transport(key, *, path=REMOTE_CALLSIGN_READ_PATH):
+    pinned = FakePinnedJsonTransport(key)
+    transport = PinnedHttpsCallsignReadTransport(
+        transport=pinned, enrollment=_enrollment(),
+        path=path, timeout_seconds=10.0,
+    )
+    return pinned, transport
+
+
+def _naming_request() -> bytes:
+    return json.dumps({
+        "schema": REMOTE_SCHEMA,
+        "authority_id": AUTH,
+        "platform_id": PLATFORM,
+        "nonce": "a" * 32,
+    }, separators=(",", ":")).encode("utf-8")
+
+
+def test_pinned_mtls_adapter_posts_to_the_remote_read_path():
+    key, der, pin = _fixture()
+    pinned, transport = _production_transport(key)
+    adapter = _adapter(key, der, pin, transport)
+
+    result = adapter.display()
+
+    assert result["status"] == "VERIFIED"
+    assert result["name"] == "Artemis"
+    assert len(pinned.calls) == 1
+    _enrollment_seen, method, path, payload = pinned.calls[0]
+    assert method == "POST"
+    assert path == REMOTE_CALLSIGN_READ_PATH
+    assert payload["schema"] == REMOTE_SCHEMA
+    assert payload["authority_id"] == AUTH
+    assert payload["platform_id"] == PLATFORM
+
+
+def test_pinned_mtls_adapter_reports_cached_then_unconfirmed_on_disconnect():
+    key, der, pin = _fixture()
+    pinned, transport = _production_transport(key)
+    adapter = _adapter(key, der, pin, transport)
+
+    assert adapter.display()["status"] == "VERIFIED"
+    pinned.mode = "offline"
+    assert adapter.display()["status"] == "CACHED"
+    assert adapter.display()["revision"] == 4
+
+    offline_key, offline_der, offline_pin = _fixture()
+    offline_pinned, offline_transport = _production_transport(offline_key)
+    offline_pinned.mode = "offline"
+    offline_adapter = _adapter(
+        offline_key, offline_der, offline_pin, offline_transport,
+    )
+    assert offline_adapter.display()["status"] == "UNCONFIRMED"
+    assert offline_adapter.display()["revision"] is None
+
+
+def test_pinned_mtls_adapter_rejects_rollback_replies():
+    key, der, pin = _fixture()
+    pinned, transport = _production_transport(key)
+    adapter = _adapter(key, der, pin, transport)
+
+    assert adapter.display()["revision"] == 4
+    pinned.mode = "rollback"
+    assert adapter.display()["status"] == "CACHED"
+    assert adapter.display()["revision"] == 4
+
+
+def test_pinned_mtls_adapter_bounds_request_reply_and_timeout():
+    key, _der, _pin = _fixture()
+    pinned, transport = _production_transport(key)
+
+    with pytest.raises(RemoteCallsignTransportError, match="timeout"):
+        transport.request(_naming_request(), timeout_seconds=999)
+    with pytest.raises(RemoteCallsignTransportError, match="JSON"):
+        transport.request(b"not-json", timeout_seconds=10)
+    with pytest.raises(RemoteCallsignTransportError, match="bytes"):
+        transport.request(b"", timeout_seconds=10)
+    with pytest.raises(RemoteCallsignTransportError, match="size bound"):
+        transport.request(
+            b"{" + b"x" * (MAX_REPLY_BYTES + 1) + b"}",
+            timeout_seconds=10,
+        )
+
+    pinned.mode = "oversized"
+    with pytest.raises(RemoteCallsignTransportError, match="size bound"):
+        transport.request(_naming_request(), timeout_seconds=10)
+
+
+def test_pinned_mtls_adapter_requires_exact_enrollment_and_transport():
+    key, _der, _pin = _fixture()
+    pinned = FakePinnedJsonTransport(key)
+    with pytest.raises(TypeError, match="NodeEnrollment"):
+        PinnedHttpsCallsignReadTransport(
+            transport=pinned, enrollment=object(),
+        )
+    with pytest.raises(TypeError, match="JSON transport"):
+        PinnedHttpsCallsignReadTransport(
+            transport=object(), enrollment=_enrollment(),
+        )
+    with pytest.raises(ValueError, match="path"):
+        PinnedHttpsCallsignReadTransport(
+            transport=pinned, enrollment=_enrollment(), path="relative",
+        )
