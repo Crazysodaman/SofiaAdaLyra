@@ -2,7 +2,10 @@
 
 Only the owning supervisor's inherited anonymous pipes are used. This is not
 an external management endpoint or an owner approval/enrollment authority.
-It does not start Cores, load personal state or grant module capabilities.
+It does not load personal state or grant module capabilities. With no
+injected reconciler it also never starts a Core; an explicit Platform-owned
+autostart reconciler may start only approved, enabled Cores through a
+service-owned callback.
 """
 from __future__ import annotations
 
@@ -19,6 +22,9 @@ import sys
 from uuid import uuid4
 
 from sofia.platform.config.roles import PlatformRole, PlatformRoleConfiguration
+from sofia.platform.run.core_autostart import (
+    CoreStartupReconciler, CoreStartupReport, CoreStartupState,
+)
 from sofia.platform.run.lease import LocalRunLeaseStore
 from sofia.platform.run.management_mutation import (
     ManagementMutationDispatcher, operator_stop_mutation_registry,
@@ -103,12 +109,18 @@ class PlatformServiceSession:
 
     def __init__(self, identity_home: Path, state_path: Path, expected_id: str,
                  expected_public_key_sha256: str, *,
-                 installed_signed_catalog=None):
+                 installed_signed_catalog=None,
+                 core_autostart: CoreStartupReconciler | None = None):
         # B1/owner enrollment supplies a separately pinned, read-only profile
         # provider. Stock Core-free installation has none and reports
         # UNAVAILABLE, not a self-signed publisher or synthetic "healthy".
         if installed_signed_catalog is not None and not callable(installed_signed_catalog):
             raise TypeError("canonical installed Library catalog provider required")
+        if (core_autostart is not None
+                and not isinstance(core_autostart, CoreStartupReconciler)):
+            raise TypeError("canonical Core autostart reconciler required")
+        self._core_autostart = core_autostart
+        self._startup_report = None
         self._installed_signed_catalog = installed_signed_catalog
         self.identity_store = InstallationIdentityStore(identity_home)
         self.identity = self.identity_store.load()
@@ -155,6 +167,10 @@ class PlatformServiceSession:
                 raise RuntimeError('Platform service lease unavailable')
             self.lease = result.lease
             self._start_management(state_path, expected_id)
+            # Reconcile only after the management listener is serving. This is
+            # synchronous and bounded: start failures become Core evidence and
+            # never fail the Platform session or claim Platform unhealth.
+            self._reconcile_core_autostart()
         except BaseException:
             self._stop_management()
             if self.lease is not None:
@@ -293,6 +309,65 @@ class PlatformServiceSession:
             name="AegisPlatformManagement", daemon=True,
         )
         self._management_thread.start()
+
+    def _reconcile_core_autostart(self) -> None:
+        """Run the injected reconciler without letting it fail Platform start."""
+        reconciler = self._core_autostart
+        if reconciler is None:
+            return
+        try:
+            report = reconciler.reconcile(
+                expected_generation=self.lease.epoch if self.lease is not None else 0,
+            )
+        except Exception:
+            report = CoreStartupReport(
+                startup_state=CoreStartupState.UNKNOWN,
+                results=(),
+                reconciled_at=datetime.now(timezone.utc),
+                enabled_count=0,
+                active_count=0,
+            )
+        self._startup_report = report
+
+    def startup_status(self) -> dict[str, object]:
+        """Strict non-secret startup projection; zero Cores may be healthy."""
+        with self._status_lock:
+            listener = self._management_listener
+            thread = self._management_thread
+            listening = (
+                listener is not None and thread is not None and thread.is_alive()
+            )
+            reconciler = self._core_autostart
+            report = self._startup_report
+            core_count = 0
+            enabled_count = 0
+            if reconciler is not None:
+                try:
+                    policies = reconciler.store.policies()
+                except Exception:
+                    policies = ()
+                core_count = len(policies)
+                enabled_count = sum(1 for policy in policies if policy.enabled)
+            if reconciler is None:
+                state = CoreStartupState.ZERO_CORE_HEALTHY.value
+                active_count = 0
+                reconciled_at = None
+            elif report is None:
+                state = CoreStartupState.UNKNOWN.value
+                active_count = 0
+                reconciled_at = None
+            else:
+                state = report.startup_state.value
+                active_count = report.active_count
+                reconciled_at = report.reconciled_at.isoformat()
+            return {
+                "core_count": core_count,
+                "active_core_count": active_count,
+                "startup_state": state,
+                "autostart_enabled_count": enabled_count,
+                "autostart_reconciled_at": reconciled_at,
+                "management_listening": listening,
+            }
 
     def _stop_management(self) -> None:
         self._management_stop.set()
