@@ -2,6 +2,7 @@
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 
@@ -12,6 +13,8 @@ from sofia.sdk.platform_management_response import (
 
 ROOT = Path(__file__).resolve().parents[1] / "contracts/platform"
 NOW = datetime(2026, 11, 8, 4, 0, 1, tzinfo=timezone.utc)
+CORE_ONE = str(uuid4())
+CORE_TWO = str(uuid4())
 
 
 def read():
@@ -184,6 +187,130 @@ def test_startup_status_requires_every_reviewed_field():
         built = make_response(request, observed_at=NOW, data=data)
         with pytest.raises((ValueError, PermissionError)):
             parse(built, request=request)
+
+
+def test_startup_status_accepts_reviewed_disabled_state():
+    request = _startup_request()
+    data = _startup_data(request)
+    data.update(
+        core_started=False, core_count=2, active_core_count=0,
+        startup_state="CORES_DISABLED", autostart_enabled_count=0,
+    )
+    built = make_response(request, observed_at=NOW, data=data)
+    result = parse(built, request=request)
+    assert result.outcome == "OK"
+    assert result.data["startup_state"] == "CORES_DISABLED"
+
+
+def _core_request():
+    doc = json.loads((ROOT / "management-read-valid-v1.json").read_text())
+    doc["operation"] = "core.list"
+    return UntrustedManagementRead.parse(
+        json.dumps(doc).encode("utf-8"), now=NOW,
+    )
+
+
+def _core_row(**changes):
+    row = {
+        "core_id": CORE_ONE, "installed": True, "enabled": True,
+        "startup_mode": "on_platform_ready", "observed_state": "RUNNING",
+        "generation": 3, "last_error_code": None,
+    }
+    row.update(changes)
+    return row
+
+
+def _core_data(request, rows=None):
+    return {
+        "platform_id": request.target_platform_id,
+        "generation": request.expected_generation,
+        "operator_stop": False,
+        "cores": [_core_row()] if rows is None else rows,
+    }
+
+
+def test_core_list_accepts_exact_bounded_inventory():
+    request = _core_request()
+    rows = [
+        _core_row(),
+        _core_row(
+            core_id=CORE_TWO, installed=True, enabled=False,
+            startup_mode="manual", observed_state="NOT_OBSERVED",
+            generation=0, last_error_code="OUTCOME_UNKNOWN",
+        ),
+    ]
+    built = make_response(
+        request, observed_at=NOW, data=_core_data(request, rows),
+    )
+    result = parse(built, request=request)
+    assert result.outcome == "OK"
+    assert result.data == _core_data(request, rows)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("platform_id", "platform:other"),
+    ("generation", 4),
+    ("generation", True),
+    ("operator_stop", True),
+    ("cores", {"core_id": CORE_ONE}),
+    ("cores", "not-a-list"),
+])
+def test_core_list_rejects_invalid_envelope(field, value):
+    request = _core_request()
+    data = _core_data(request)
+    data[field] = value
+    built = make_response(request, observed_at=NOW, data=data)
+    with pytest.raises((ValueError, PermissionError)):
+        parse(built, request=request)
+
+
+@pytest.mark.parametrize("row", [
+    _core_row(extra="field"),
+    {key: value for key, value in _core_row().items() if key != "core_id"},
+    _core_row(core_id="not-a-uuid"),
+    _core_row(core_id=CORE_ONE.upper()),
+    _core_row(installed=1),
+    _core_row(enabled="true"),
+    _core_row(startup_mode="automatic"),
+    _core_row(observed_state="HEALTHY"),
+    _core_row(observed_state="running"),
+    _core_row(generation=-1),
+    _core_row(generation=True),
+    _core_row(generation=2**53),
+    _core_row(last_error_code=""),
+    _core_row(last_error_code="/private/path"),
+    _core_row(last_error_code=4),
+])
+def test_core_list_rejects_invalid_inventory_rows(row):
+    request = _core_request()
+    with pytest.raises((ValueError, PermissionError)):
+        built = make_response(
+            request, observed_at=NOW, data=_core_data(request, [row]),
+        )
+        parse(built, request=request)
+
+
+def test_core_list_rejects_duplicate_identity_and_extra_top_level_fields():
+    request = _core_request()
+    duplicate = _core_data(request, [_core_row(), _core_row()])
+    built = make_response(request, observed_at=NOW, data=duplicate)
+    with pytest.raises(PermissionError, match="duplicate"):
+        parse(built, request=request)
+    extra = _core_data(request)
+    extra["internal_path"] = "/private"
+    built = make_response(request, observed_at=NOW, data=extra)
+    with pytest.raises(PermissionError, match="inconsistent"):
+        parse(built, request=request)
+
+
+def test_core_list_is_bounded():
+    request = _core_request()
+    rows = [_core_row(core_id=str(uuid4())) for _ in range(257)]
+    with pytest.raises((ValueError, PermissionError), match="bound"):
+        built = make_response(
+            request, observed_at=NOW, data=_core_data(request, rows),
+        )
+        parse(built, request=request)
 
 
 def test_denial_only_for_exact_typed_code_and_null_data():

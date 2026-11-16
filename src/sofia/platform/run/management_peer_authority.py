@@ -15,7 +15,7 @@ from sofia.platform.config.settings_authority import SettingsOwner
 from sofia.platform.safe.permissions import PermissionStore
 
 CAPABILITY = "platform.management.read"
-_ALLOWED = frozenset({"platform.status", "startup.status"})
+_ALLOWED = frozenset({"platform.status", "startup.status", "core.list"})
 _SCOPE = frozenset({"platform_id", "peer", "operation"})
 
 

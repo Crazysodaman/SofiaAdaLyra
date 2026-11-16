@@ -12,7 +12,48 @@ pytestmark = pytest.mark.skipif(sys.platform != "linux", reason="Linux SO_PEERCR
 
 from sofia.sdk.platform_management import UntrustedManagementRead
 from sofia.sdk.platform_management_response import make_response
-from sofia.sdk.platform_management_client import read_linux_platform_status
+from sofia.sdk.platform_management_client import (
+    read_linux_core_inventory, read_linux_management,
+    read_linux_platform_startup, read_linux_platform_status,
+)
+
+
+def _response_data(req):
+    if req.operation == 'startup.status':
+        return {
+            'platform_id': req.target_platform_id,
+            'generation': req.expected_generation,
+            'operator_stop': False,
+            'core_started': True,
+            'core_count': 1,
+            'active_core_count': 1,
+            'startup_state': 'CORES_RUNNING',
+            'autostart_enabled_count': 1,
+            'autostart_reconciled_at': None,
+            'management_listening': True,
+        }
+    if req.operation == 'core.list':
+        return {
+            'platform_id': req.target_platform_id,
+            'generation': req.expected_generation,
+            'operator_stop': False,
+            'cores': [{
+                'core_id': '00000000-0000-0000-0000-000000000001',
+                'installed': True,
+                'enabled': True,
+                'startup_mode': 'on_platform_ready',
+                'observed_state': 'RUNNING',
+                'generation': req.expected_generation,
+                'last_error_code': None,
+            }],
+        }
+    return {
+        'platform_id': req.target_platform_id,
+        'generation': req.expected_generation,
+        'operator_stop': False,
+        'core_started': False,
+    }
+
 
 @contextmanager
 def synthetic_service(tmp_path, mode='OK'):
@@ -43,8 +84,9 @@ def synthetic_service(tmp_path, mode='OK'):
                 now=datetime.now(timezone.utc)
                 if mode=='STOPPED':body=make_response(req,observed_at=now,denial_code='STOPPED')
                 else:
-                    body=make_response(req,observed_at=now,data=dict(platform_id=req.target_platform_id,generation=req.expected_generation,operator_stop=False,core_started=False))
+                    body=make_response(req,observed_at=now,data=_response_data(req))
                 if mode=='FORGED_GENERATION': body['platform_generation']=8
+                if mode=='FORGED_REQUEST': body['request_id']='req:forged'
                 if mode=='EXTRA_REPLY':connection.sendall(json.dumps(body).encode()+b'\n{}\n');return
                 connection.sendall(json.dumps(body).encode()+b'\n')
         except OSError:pass
@@ -141,3 +183,42 @@ def test_external_group_requires_trusted_live_service_pid_pin(tmp_path):
 def test_native_socket_absent_fails_closed(tmp_path):
     with pytest.raises((PermissionError,FileNotFoundError)):
         query(tmp_path/'does-not-exist'/'mgmt.sock')
+
+
+def _call(reader, path, **changes):
+    kw=dict(socket_path=path,expected_platform_id='platform:alpha',expected_generation=3,installed_service_uid=os.getuid(),installed_service_gid=os.getgid(),installed_service_pid=os.getpid())
+    kw.update(changes)
+    return reader(**kw)
+
+
+def test_live_native_startup_and_core_inventory_reads(tmp_path):
+    with synthetic_service(tmp_path) as (path,observed):
+        startup=_call(read_linux_platform_startup,path)
+        assert startup.outcome=='OK'
+        assert startup.data['startup_state']=='CORES_RUNNING'
+        assert startup.data['core_count']==1
+        inventory=_call(read_linux_core_inventory,path)
+        assert inventory.outcome=='OK'
+        assert inventory.data['cores'][0]['core_id']=='00000000-0000-0000-0000-000000000001'
+        assert [item.operation for item in observed]==[
+            'startup.status','core.list',
+        ]
+
+
+def test_generic_linux_client_rejects_unreviewed_operation_before_connect(tmp_path):
+    with synthetic_service(tmp_path) as (path,observed):
+        with pytest.raises(ValueError,match='unsupported'):
+            _call(read_linux_management,path,operation='module.remove')
+        assert not observed
+
+
+def test_linux_client_rejects_uncorrelated_request_id(tmp_path):
+    with synthetic_service(tmp_path,'FORGED_REQUEST') as (path,_):
+        with pytest.raises(PermissionError,match='uncorrelated'):
+            _call(read_linux_core_inventory,path)
+
+
+def test_linux_client_rejects_pipelined_response(tmp_path):
+    with synthetic_service(tmp_path,'EXTRA_REPLY') as (path,_):
+        with pytest.raises(ValueError,match='pipelined|trailing'):
+            _call(read_linux_platform_startup,path)
