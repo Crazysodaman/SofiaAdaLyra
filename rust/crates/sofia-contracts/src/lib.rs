@@ -22,6 +22,17 @@ use thiserror::Error;
 pub const MAX_MESSAGE_BYTES: usize = 64 * 1024;
 pub const MAX_NESTING_DEPTH: usize = 64;
 pub const SUPPORTED_PROTOCOL: &str = "1.0";
+/// Exact request fields that must be present before protocol negotiation.
+pub const MINIMUM_CRITICAL_FIELDS: &[&str] = &[
+    "authority",
+    "destination",
+    "payload_digest",
+    "payload_type",
+    "protocol",
+    "source",
+];
+/// Additive minor negotiation is opt-in and remains disabled for wire 1.0.
+pub const PROTOCOL_ADDITIVE_MINOR_SUPPORTED: bool = false;
 
 #[derive(Debug, Error)]
 #[error("{code}: {message}")]

@@ -1,0 +1,17 @@
+{
+  "schema": "aegis.sdk.compatibility.v1",
+  "wire_protocol": "1.0",
+  "protocol_major": 1,
+  "protocol_minor": 0,
+  "minimum_critical_fields": [
+    "authority",
+    "destination",
+    "payload_digest",
+    "payload_type",
+    "protocol",
+    "source"
+  ],
+  "additive_minor": false,
+  "compatibility_claim": false,
+  "inventory_only": true
+}
