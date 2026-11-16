@@ -19,6 +19,7 @@ dependencies = [
 
 [project.scripts]
 companion-runtime = "sofia.platform.launcher:main"
+aegis = "sofia.platform.cli:main"
 
 [project.optional-dependencies]
 # External Live2D renderer is opt-in; Tk remains the safe installed fallback.
