@@ -15,7 +15,7 @@ from sofia.platform.config.settings_authority import SettingsOwner
 from sofia.platform.safe.permissions import PermissionStore
 
 CAPABILITY = "platform.management.read"
-_ALLOWED = frozenset({"platform.status"})
+_ALLOWED = frozenset({"platform.status", "startup.status"})
 _SCOPE = frozenset({"platform_id", "peer", "operation"})
 
 
@@ -80,7 +80,7 @@ class CurrentManagementPeerAuthority:
                     or not isinstance(grant.scope, dict)
                     or set(grant.scope) != _SCOPE
                     or grant.scope.get("platform_id") != self._platform_id
-                    or grant.scope.get("operation") != "platform.status"
+                    or grant.scope.get("operation") not in _ALLOWED
                     or not grant.matches(grant.scope, now=moment)):
                 continue
             peer = grant.scope.get("peer")

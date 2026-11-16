@@ -62,15 +62,128 @@ def test_claimed_authority_mismatches_refused(name, value):
         parse(doc)
 
 
-def test_status_never_claims_started_core_or_cleared_stop():
+def test_status_never_claims_cleared_stop_or_forged_identity():
     _, raw = read()
     doc = json.loads(raw)
-    for field, forged in (("core_started", True), ("operator_stop", True),
+    for field, forged in (("operator_stop", True),
                           ("generation", 12), ("platform_id", "platform:other")):
         other = json.loads(raw)
         other["data"][field] = forged
         with pytest.raises((ValueError, PermissionError)):
             parse(other)
+
+
+def test_status_reports_running_core_without_granting_authority():
+    _, raw = read()
+    doc = json.loads(raw)
+    doc["data"]["core_started"] = True
+    result = parse(doc)
+    assert result.outcome == "OK"
+    assert result.data["core_started"] is True
+
+
+def _startup_request():
+    doc = json.loads((ROOT / "management-read-valid-v1.json").read_text())
+    doc["operation"] = "startup.status"
+    return UntrustedManagementRead.parse(
+        json.dumps(doc).encode("utf-8"), now=NOW,
+    )
+
+
+def _startup_data(request):
+    return {
+        "platform_id": request.target_platform_id,
+        "generation": request.expected_generation,
+        "operator_stop": False,
+        "core_started": True,
+        "core_count": 3,
+        "active_core_count": 2,
+        "startup_state": "DEGRADED",
+        "autostart_enabled_count": 2,
+        "autostart_reconciled_at": "2026-11-08T03:59:30Z",
+        "management_listening": True,
+    }
+
+
+def test_startup_status_accepts_exact_bounded_projection():
+    request = _startup_request()
+    built = make_response(
+        request, observed_at=NOW, data=_startup_data(request),
+    )
+    result = parse(built, request=request)
+    assert result.outcome == "OK"
+    assert result.data == _startup_data(request)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("platform_id", "platform:other"),
+    ("generation", 4),
+    ("generation", True),
+    ("operator_stop", True),
+    ("core_started", 1),
+    ("core_count", -1),
+    ("core_count", True),
+    ("active_core_count", 4),
+    ("active_core_count", -1),
+    ("startup_state", "HEALTHY"),
+    ("autostart_enabled_count", -1),
+    ("autostart_enabled_count", 65536),
+    ("autostart_reconciled_at", "not-a-date"),
+    ("autostart_reconciled_at", 4),
+    ("management_listening", 1),
+])
+def test_startup_status_rejects_invalid_fields(field, value):
+    request = _startup_request()
+    data = _startup_data(request)
+    data[field] = value
+    built = make_response(request, observed_at=NOW, data=data)
+    with pytest.raises((ValueError, PermissionError)):
+        parse(built, request=request)
+
+
+@pytest.mark.parametrize("changes", [
+    {"core_count": 0, "active_core_count": 0, "core_started": False,
+     "startup_state": "ZERO_CORE_HEALTHY"},
+    {"core_count": 0, "active_core_count": 1, "core_started": False,
+     "startup_state": "DEGRADED"},
+    {"core_count": 1, "active_core_count": 0, "core_started": False,
+     "startup_state": "CORES_RUNNING"},
+])
+def test_startup_status_rejects_inconsistent_core_counts(changes):
+    request = _startup_request()
+    data = _startup_data(request)
+    data.update(changes)
+    built = make_response(request, observed_at=NOW, data=data)
+    if changes["startup_state"] == "ZERO_CORE_HEALTHY":
+        assert parse(built, request=request).data["startup_state"] == (
+            "ZERO_CORE_HEALTHY"
+        )
+    else:
+        with pytest.raises((ValueError, PermissionError)):
+            parse(built, request=request)
+
+
+@pytest.mark.parametrize("mutation", [
+    {"unexpected": "value"},
+    {"internal_path": "/private"},
+])
+def test_startup_status_rejects_unknown_fields(mutation):
+    request = _startup_request()
+    data = _startup_data(request)
+    data.update(mutation)
+    built = make_response(request, observed_at=NOW, data=data)
+    with pytest.raises((ValueError, PermissionError), match="inconsistent"):
+        parse(built, request=request)
+
+
+def test_startup_status_requires_every_reviewed_field():
+    request = _startup_request()
+    for field in _startup_data(request):
+        data = _startup_data(request)
+        del data[field]
+        built = make_response(request, observed_at=NOW, data=data)
+        with pytest.raises((ValueError, PermissionError)):
+            parse(built, request=request)
 
 
 def test_denial_only_for_exact_typed_code_and_null_data():

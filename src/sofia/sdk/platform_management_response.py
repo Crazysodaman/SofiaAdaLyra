@@ -30,6 +30,16 @@ _OUTER = frozenset({
 _STATUS = frozenset({
     "platform_id", "generation", "operator_stop", "core_started",
 })
+_STARTUP = frozenset({
+    "platform_id", "generation", "operator_stop", "core_started",
+    "core_count", "active_core_count", "startup_state",
+    "autostart_enabled_count", "autostart_reconciled_at",
+    "management_listening",
+})
+_STARTUP_STATES = frozenset({
+    "ZERO_CORE_HEALTHY", "CORES_RUNNING", "DEGRADED", "UNKNOWN",
+})
+_MAX_COUNT = 65535
 _RFC3339 = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$"
 )
@@ -38,6 +48,36 @@ _SENSITIVE = (
     "private_key", "api_key", "owner_proof", "authorization",
 )
 _FORBIDDEN = frozenset({"__proto__", "prototype", "constructor"})
+
+
+def _startup_data(data: Mapping[str, object], expected: UntrustedManagementRead) -> None:
+    if (set(data) != _STARTUP
+            or data["platform_id"] != expected.target_platform_id
+            or type(data["generation"]) is not int
+            or data["generation"] != expected.expected_generation
+            or data["operator_stop"] is not False
+            or type(data["core_started"]) is not bool
+            or type(data["core_count"]) is not int
+            or not 0 <= data["core_count"] <= _MAX_COUNT
+            or type(data["active_core_count"]) is not int
+            or not 0 <= data["active_core_count"] <= data["core_count"]
+            or type(data["startup_state"]) is not str
+            or data["startup_state"] not in _STARTUP_STATES
+            or type(data["autostart_enabled_count"]) is not int
+            or not 0 <= data["autostart_enabled_count"] <= _MAX_COUNT
+            or type(data["management_listening"]) is not bool):
+        raise PermissionError("inconsistent Platform startup status projection")
+    reconciled = data["autostart_reconciled_at"]
+    if reconciled is not None:
+        _timestamp(reconciled)
+    if data["core_count"] == 0 and (
+        data["active_core_count"] != 0 or data["core_started"]
+    ):
+        raise PermissionError("inconsistent zero-core startup status")
+    if data["startup_state"] == "ZERO_CORE_HEALTHY" and data["core_count"] != 0:
+        raise PermissionError("inconsistent zero-core startup state")
+    if data["startup_state"] == "CORES_RUNNING" and data["active_core_count"] == 0:
+        raise PermissionError("inconsistent running-core startup state")
 
 
 def _unique(pairs: list[tuple[str, object]]) -> dict[str, object]:
@@ -163,10 +203,12 @@ class UntrustedManagementResponse:
                 or data["platform_id"] != expected.target_platform_id
                 or type(data["generation"]) is not int
                 or data["generation"] != expected.expected_generation
-                or data["core_started"] is not False
+                or type(data["core_started"]) is not bool
                 or data["operator_stop"] is not False
             ):
                 raise PermissionError("inconsistent Platform status projection")
+            if expected.operation == "startup.status":
+                _startup_data(data, expected)
             code = None
         elif outcome == "DENIED":
             if (data is not None or not isinstance(denial, dict)
