@@ -1,0 +1,193 @@
+# Sofía Core 1.0 acceptance evidence
+
+**Status: NOT ACCEPTED / NO-GO.** This document describes how Core 1.0
+evidence is collected. It is not evidence itself, it does not modify any
+authoritative acceptance text, and it does not claim G8 (#129).
+
+Authoritative requirements remain:
+
+- [`docs/sofia2/CORE_1_0_PLAN.md`](../sofia2/CORE_1_0_PLAN.md) — CORE-01..CORE-40 and B00..B08.
+- [`docs/development/AEGIS_OWNER_ONLY_1_0_GO_LIVE_ACCEPTANCE_2026-11-09.md`](AEGIS_OWNER_ONLY_1_0_GO_LIVE_ACCEPTANCE_2026-11-09.md) — POC-C1..POC-C5 overlay.
+- [`docs/development/AEGIS_OWNER_ONLY_GO_LIVE_ACCEPTANCE_2026-11-09.md`](AEGIS_OWNER_ONLY_GO_LIVE_ACCEPTANCE_2026-11-09.md) — owner-only GO-LIVE overlay.
+- [`docs/development/V18_TASK_STATUS_STANDARD.md`](V18_TASK_STATUS_STANDARD.md) — L1..L5 evidence levels.
+
+## Tool
+
+`tools/aegis_core_acceptance.py` aggregates:
+
+1. an exact-SHA JUnit file from the declared source probes, and
+2. an optional explicit receipt bundle.
+
+It emits `aegis.core.acceptance-report.v1` as JSON. It never edits the
+authoritative documents, never authorizes production, and never infers
+installed/owner-host acceptance from source tests.
+
+## Evidence kinds
+
+| Kind | Meaning |
+| --- | --- |
+| `source_tests` | Declared repository tests actually ran and passed for the exact SHA. |
+| `disposable_process` | An observed disposable process/VM run with negative cases. |
+| `installed_artifact` | A signed/verified installed artifact observed on a registered installed host. |
+| `remote_conversation` | A real remote client/Core Link conversation with negative cases. |
+| `owner_host` | A real owner-controlled host observation with `real_host: true`. |
+
+Each inventory item declares exactly which kinds it needs. `PASS` is emitted
+only when **every** declared kind is present and internally valid.
+
+## States
+
+| State | Rule |
+| --- | --- |
+| `PASS` | Every required kind is present and valid. Source-only PASS is limited to source tests and is never host certification. |
+| `FAIL` | A mapped source test failed, or a receipt is mismatched, stale, future-dated, tampered, unregistered or missing a required negative case. |
+| `BLOCKED` | Some evidence exists but a required kind/entry is absent or incomplete. |
+| `NOT_TESTED` | No usable evidence exists for the item, or the item is the deferred post-Core CORE-34. |
+
+A skipped test is never `PASS`. A missing negative case is never `PASS`.
+Receipts older than `--max-age-days` (default 365) are rejected as stale.
+
+## Receipt schema
+
+Receipts are a single JSON object stored beside an `artifacts/` directory.
+`artifact_path` is relative to that directory; the collector hashes the actual
+bytes and rejects a mismatch.
+
+```json
+{
+  "schema": "aegis.core.acceptance-receipts.v1",
+  "source_sha": "<exact 40-hex SHA>",
+  "signers": ["<trusted signer key id>"],
+  "hosts": {
+    "DISPOSABLE-01": {"host_class": "DISPOSABLE"},
+    "INSTALLED-01": {"host_class": "INSTALLED"},
+    "REMOTE-01": {"host_class": "REMOTE"},
+    "OWNER-01": {"host_class": "OWNER"}
+  },
+  "items": {
+    "CORE-01": {
+      "source_sha": "<exact 40-hex SHA>",
+      "evidence": {
+        "disposable_process": {
+          "host_id": "DISPOSABLE-01",
+          "host_class": "DISPOSABLE",
+          "signer_key_id": "<trusted signer key id>",
+          "artifact_path": "artifacts/CORE-01-disposable.bin",
+          "artifact_sha256": "<64-hex digest of the actual bytes>",
+          "application_sha256": "<64-hex application digest>",
+          "observed": true,
+          "result": "PASS",
+          "witnessed_at": "2026-11-15T00:00:00+00:00",
+          "negative_cases": ["unauthorized-attempt-denied"]
+        }
+      }
+    }
+  }
+}
+```
+
+Validation rejects:
+
+- a top-level or per-item SHA that differs from the exact source SHA,
+- an unregistered signer or host,
+- a host class that does not match the required kind,
+- a missing or unreadable artifact, or a digest mismatch,
+- `observed != true`, `result != "PASS"`, or missing negative cases,
+- a missing/naive/future/stale `witnessed_at`,
+- `owner_host` without `real_host: true`,
+- an `owner_host` entry whose host is not registered as `OWNER`.
+
+## G8 is separate
+
+`g8` is never an inventory item and is never inferred from disposable
+evidence. The report always contains `g8.status` and `g8.certified`, defaulting
+to `NOT_CERTIFIED`. Certification requires a distinct
+`aegis.core.g8-real-host-receipt.v1` object with:
+
+- `real_host: true` and `host_class: "OWNER"`,
+- a registered owner host and a distinct registered `REMOTE` client,
+- a trusted signer, verified artifact bytes, fresh `witnessed_at` and negative cases,
+- `owner_approved: true`.
+
+## Verdict
+
+`core_release_verdict` is `NO_GO` unless every non-G8 in-scope item is `PASS`.
+It becomes `GO` only when all in-scope items are `PASS`; that still does not
+certify G8. `release_accepted` stays `false` unless G8 is also certified.
+`production_authorized` is always `false`.
+
+## Inventory
+
+The inventory contains **55 items**: CORE-01..CORE-40 (CORE-34 is explicitly
+deferred and excluded from the GO scope), B00..B08, G7-A, and POC-C1..POC-C5.
+
+Legend: `S` source tests, `D` disposable process, `I` installed artifact,
+`R` remote conversation, `O` owner host.
+
+| Item | Evidence | Item | Evidence |
+| --- | --- | --- | --- |
+| CORE-01 | S D I R O | CORE-21 | S D |
+| CORE-02 | S D | CORE-22 | S D |
+| CORE-03 | S D | CORE-23 | S D |
+| CORE-04 | S D | CORE-24 | S D |
+| CORE-05 | S D | CORE-25 | S D |
+| CORE-06 | S D | CORE-26 | S D |
+| CORE-07 | S D I | CORE-27 | S D |
+| CORE-08 | S D | CORE-28 | S D |
+| CORE-09 | S D | CORE-29 | S D |
+| CORE-10 | S D | CORE-30 | S D |
+| CORE-11 | S D I | CORE-31 | S D |
+| CORE-12 | S D | CORE-32 | S D |
+| CORE-13 | S D | CORE-33 | S D |
+| CORE-14 | S D | CORE-34 | S (deferred, out of GO scope) |
+| CORE-15 | S D I R | CORE-35 | S D I |
+| CORE-16 | S D I | CORE-36 | S D |
+| CORE-17 | S D | CORE-37 | S D I |
+| CORE-18 | S D | CORE-38 | S D |
+| CORE-19 | S D | CORE-39 | S D |
+| CORE-20 | S D | CORE-40 | S D |
+| B00 | S D | B05 | S D |
+| B01 | S D | B06 | S D |
+| B02 | S D | B07 | S D |
+| B03 | S D | B08 | S D I R O |
+| B04 | S D I | G7-A | S D |
+| POC-C1 | S D I R O | POC-C4 | S D I |
+| POC-C2 | S D I R | POC-C5 | S D I |
+| POC-C3 | S D I | | |
+
+The executable source and exact per-item test mapping live in
+`tools/aegis_core_acceptance.py`; the machine-readable report is authoritative
+for a given run.
+
+## Source-only CI
+
+`.github/workflows/aegis-core-acceptance.yml` runs the declared source probes
+at the exact PR head SHA, then emits `core-acceptance-report.json` labelled
+`SOURCE_ONLY`. That job cannot produce `GO` because every in-scope item
+requires at least one receipt kind it does not supply. Source-only results are
+not installed-host, remote-conversation or owner-host proof.
+
+## Example invocation
+
+```text
+python -m tools.aegis_core_acceptance \
+  --junit core-acceptance-junit.xml \
+  --source-sha <exact-40-hex-sha> \
+  --receipts <evidence-dir>/core-receipts.json \
+  --output core-acceptance-report.json
+```
+
+List the declared source probes:
+
+```text
+python -m tools.aegis_core_acceptance --list-source-tests
+```
+
+## Remaining certification blockers
+
+- No real signed installed-artifact receipt exists for the current Core release.
+- No remote Venus↔Artemis Core Link conversation receipt exists.
+- No owner-host receipt exists for the current release.
+- CORE-34 remains post-Core and out of the Core 1.0 release scope.
+- G8 (#129) remains **NOT CERTIFIED** and is never satisfied by source,
+  disposable, or documentation evidence.
