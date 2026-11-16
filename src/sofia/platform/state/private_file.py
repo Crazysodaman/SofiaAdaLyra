@@ -18,6 +18,19 @@ def _is_redirect(path: Path) -> bool:
     return bool(is_junction is not None and is_junction())
 
 
+def assert_not_protected_state_path(path: Path) -> None:
+    """Refuse a path that names the protected canonical Core SQLite state.
+
+    Windows filesystems are case-insensitive, so the comparison must be too.
+    SQLite sidecars of ``sofia.db`` are equally protected.
+    """
+    name = Path(path).name.lower()
+    if name == "sofia.db" or name.startswith("sofia.db-"):
+        raise PermissionError(
+            "protected canonical Core state is not a Platform-local store"
+        )
+
+
 def assert_no_redirected_components(path: Path, *, include_leaf: bool) -> None:
     """Reject symlink/junction components without resolving away evidence."""
     candidate = Path(path)

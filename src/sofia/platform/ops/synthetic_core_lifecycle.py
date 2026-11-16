@@ -21,6 +21,7 @@ from contextlib import closing, contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
+import os
 import re
 import sqlite3
 from pathlib import Path
@@ -35,6 +36,11 @@ from sofia.platform.ops.component_install import (
     CoreComponentReceipt,
 )
 from sofia.platform.ops.platform_install import InstallAuthority, InstallOutcome
+from sofia.platform.state.private_file import (
+    assert_no_redirected_components, assert_not_protected_state_path,
+    assert_owner_private_path, ensure_owner_private_directory,
+    restrict_new_owner_private_path,
+)
 
 _UUID_TEXT = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 _SHA256 = re.compile(r"[0-9a-f]{64}")
@@ -210,9 +216,9 @@ class SyntheticCoreLifecycleStore:
 
     def __init__(self, state_path: Path | str) -> None:
         self.path = Path(state_path)
-        if self.path.name == "sofia.db":
-            raise ValueError("synthetic Core lifecycle must not use canonical state")
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        assert_not_protected_state_path(self.path)
+        assert_no_redirected_components(self.path, include_leaf=True)
+        ensure_owner_private_directory(self.path.parent)
         with closing(self._connect()) as db, db:
             db.executescript(
                 """
@@ -274,8 +280,14 @@ class SyntheticCoreLifecycleStore:
                 ON ops_synthetic_core_event(owner_id, core_id, sequence);
                 """
             )
+        if os.name == "nt":
+            restrict_new_owner_private_path(self.path, directory=False)
+        else:
+            os.chmod(self.path, 0o600)
+        assert_owner_private_path(self.path, directory=False)
 
     def _connect(self) -> sqlite3.Connection:
+        assert_no_redirected_components(self.path, include_leaf=True)
         db = sqlite3.connect(self.path, timeout=10.0)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA busy_timeout=10000")
