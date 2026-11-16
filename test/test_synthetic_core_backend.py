@@ -365,12 +365,17 @@ def test_detach_preserves_files_and_removal_reports_platform_health(
         )
         sentinel = backend.working_directory / "core-sentinel.bin"
         sentinel.write_bytes(b"detached-evidence")
+        binding = lifecycle.store.binding(OWNER, core_id)
+        component_root = lifecycle.installer.installation_root / (
+            f"core-{binding.version}-{binding.artifact_sha256}"
+        )
 
         detached = lifecycle.detach(
             owner_id=OWNER, core_id=core_id, expected_generation=1
         )
         assert detached.state is SyntheticCoreState.DETACHED
         assert sentinel.read_bytes() == b"detached-evidence"
+        assert component_root.is_dir()
         assert lifecycle.installer.registry.installed(CORE_DISTRIBUTION) is not None
 
         removed = lifecycle.remove(
@@ -379,8 +384,10 @@ def test_detach_preserves_files_and_removal_reports_platform_health(
         assert removed.outcome is SyntheticCoreOutcome.SUCCEEDED
         assert removed.state is SyntheticCoreState.REMOVED
         assert removed.platform_healthy is True
+        assert removed.removal_receipt is not None
         assert sentinel.read_bytes() == b"detached-evidence"
-        assert lifecycle.installer.registry.installed(CORE_DISTRIBUTION) is not None
+        assert not component_root.exists()
+        assert lifecycle.installer.registry.installed(CORE_DISTRIBUTION) is None
         assert lifecycle.store.binding(OWNER, core_id).state is SyntheticCoreState.REMOVED
     finally:
         backend.close()
@@ -416,7 +423,8 @@ def test_platform_health_is_independent_of_core_stop_and_removal(
         assert health() is True
         assert _digest(platform_status) == snapshot
         assert lifecycle.platform_id == PLATFORM
-        assert lifecycle.installer.registry.installed(CORE_DISTRIBUTION) is not None
+        assert removed.removal_receipt is not None
+        assert lifecycle.installer.registry.installed(CORE_DISTRIBUTION) is None
     finally:
         backend.close()
 

@@ -139,6 +139,59 @@ class CoreComponentInstallError(RuntimeError):
     """Raised when a Core component artifact or its authority is rejected."""
 
 
+_ABSENT_COMPONENT_DIGEST = sha256(b"sofia-core-component-absent").hexdigest()
+
+
+def _reject_redirected_component_tree(root: Path) -> None:
+    """Reject symlinks and junctions anywhere inside an owned component root."""
+    stack = [Path(root)]
+    while stack:
+        current = stack.pop()
+        try:
+            entries = list(os.scandir(current))
+        except OSError as error:
+            raise CoreComponentInstallError(
+                "Core component tree is unavailable"
+            ) from error
+        for entry in entries:
+            if entry.is_symlink():
+                raise CoreComponentInstallError(
+                    "Core component tree contains a symbolic link"
+                )
+            is_junction = getattr(entry, "is_junction", None)
+            if is_junction is not None and is_junction():
+                raise CoreComponentInstallError(
+                    "Core component tree contains a junction"
+                )
+            if entry.is_dir(follow_symlinks=False):
+                stack.append(Path(entry.path))
+
+
+def _component_tree_digest(root: Path) -> str:
+    """Return a durable digest of exact component-owned files."""
+    candidate = Path(root)
+    if not candidate.exists():
+        return _ABSENT_COMPONENT_DIGEST
+    if not candidate.is_dir() or candidate.is_symlink():
+        raise CoreComponentInstallError("Core component root is not a directory")
+    _reject_redirected_component_tree(candidate)
+    digest = sha256()
+    for directory, dirnames, filenames in os.walk(candidate, followlinks=False):
+        dirnames.sort()
+        relative_directory = Path(directory).relative_to(candidate)
+        for name in sorted(filenames):
+            path = Path(directory) / name
+            if path.is_symlink() or not path.is_file():
+                raise CoreComponentInstallError(
+                    "Core component tree contains a non-regular file"
+                )
+            relative = relative_directory / name
+            digest.update(relative.as_posix().encode("utf-8"))
+            digest.update(b"\0")
+            digest.update(sha256(path.read_bytes()).digest())
+    return digest.hexdigest()
+
+
 @dataclass(frozen=True, slots=True)
 class CoreComponentArtifact:
     """A reviewed Core component artifact candidate for installation.
@@ -204,6 +257,40 @@ class CoreComponentReceipt:
             self.authority is not InstallAuthority.OPERATOR_APPROVED
             or bool(self.approval_id)
         )
+
+
+@dataclass(frozen=True, slots=True)
+class CoreComponentRemovalReceipt:
+    """Durable evidence that the exact installed Core root was removed."""
+
+    removal_id: str
+    artifact_id: str
+    version: str
+    artifact_sha256: str
+    installation_root: str
+    before_digest: str
+    after_digest: str
+    removed_at: datetime
+    detail: str = ""
+
+    def __post_init__(self) -> None:
+        if _ID.fullmatch(self.removal_id) is None:
+            raise ValueError("removal_id must be canonical")
+        if self.artifact_id != CORE_DISTRIBUTION:
+            raise ValueError("Core removal receipt requires the Core artifact ID")
+        _version(self.version)
+        if _SHA256.fullmatch(self.artifact_sha256) is None:
+            raise ValueError("removal receipt requires artifact SHA-256")
+        if not isinstance(self.installation_root, str) or not (
+            1 <= len(self.installation_root) <= 4096
+        ):
+            raise ValueError("removal receipt requires a bounded installation root")
+        if _SHA256.fullmatch(self.before_digest) is None or _SHA256.fullmatch(
+            self.after_digest
+        ) is None:
+            raise ValueError("removal receipt requires before/after digests")
+        if self.removed_at.tzinfo is None or self.removed_at.utcoffset() is None:
+            raise ValueError("removed_at must be timezone-aware")
 
 
 @dataclass(frozen=True, slots=True)
@@ -281,6 +368,19 @@ class CoreComponentRegistry:
                     started_at TEXT NOT NULL,
                     outcome TEXT,
                     completed_at TEXT,
+                    detail TEXT NOT NULL DEFAULT ''
+                )
+            """)
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS core_component_removal (
+                    removal_id TEXT PRIMARY KEY,
+                    artifact_id TEXT NOT NULL,
+                    version TEXT NOT NULL,
+                    artifact_sha256 TEXT NOT NULL,
+                    installation_root TEXT NOT NULL,
+                    before_digest TEXT NOT NULL,
+                    after_digest TEXT NOT NULL,
+                    removed_at TEXT NOT NULL,
                     detail TEXT NOT NULL DEFAULT ''
                 )
             """)
@@ -510,6 +610,92 @@ class CoreComponentRegistry:
                 (artifact_id,),
             ).fetchall()
         return tuple(self._receipt_from_row(row) for row in rows)
+
+    @staticmethod
+    def _removal_from_row(row: sqlite3.Row) -> CoreComponentRemovalReceipt:
+        return CoreComponentRemovalReceipt(
+            removal_id=row["removal_id"],
+            artifact_id=row["artifact_id"],
+            version=row["version"],
+            artifact_sha256=row["artifact_sha256"],
+            installation_root=row["installation_root"],
+            before_digest=row["before_digest"],
+            after_digest=row["after_digest"],
+            removed_at=datetime.fromisoformat(row["removed_at"]),
+            detail=row["detail"],
+        )
+
+    def record_removal(self, receipt: CoreComponentRemovalReceipt) -> None:
+        """Durably record removal and clear the current installation projection.
+
+        Historical install evidence is never rewritten. Only the single
+        current-receipt projection is cleared, because the exact installed root
+        no longer exists.
+        """
+        if not isinstance(receipt, CoreComponentRemovalReceipt):
+            raise TypeError("CoreComponentRemovalReceipt required")
+        with closing(self._connect()) as db:
+            db.execute("BEGIN IMMEDIATE")
+            try:
+                current = db.execute(
+                    "SELECT * FROM core_component_receipt WHERE artifact_id=?",
+                    (receipt.artifact_id,),
+                ).fetchone()
+                if current is not None and (
+                    current["version"] != receipt.version
+                    or current["artifact_sha256"] != receipt.artifact_sha256
+                ):
+                    raise CoreComponentInstallError(
+                        "current Core receipt does not match the removal target"
+                    )
+                db.execute("""
+                    INSERT INTO core_component_removal(
+                        removal_id, artifact_id, version, artifact_sha256,
+                        installation_root, before_digest, after_digest,
+                        removed_at, detail
+                    ) VALUES(?,?,?,?,?,?,?,?,?)
+                """, (
+                    receipt.removal_id, receipt.artifact_id, receipt.version,
+                    receipt.artifact_sha256, receipt.installation_root,
+                    receipt.before_digest, receipt.after_digest,
+                    receipt.removed_at.astimezone(timezone.utc).isoformat(),
+                    receipt.detail[:2000],
+                ))
+                if current is not None:
+                    db.execute(
+                        "DELETE FROM core_component_receipt "
+                        "WHERE artifact_id=? AND version=? AND artifact_sha256=?",
+                        (
+                            receipt.artifact_id, receipt.version,
+                            receipt.artifact_sha256,
+                        ),
+                    )
+                db.commit()
+            except BaseException:
+                db.rollback()
+                raise
+
+    def removals(
+        self, artifact_id: str = CORE_DISTRIBUTION
+    ) -> tuple[CoreComponentRemovalReceipt, ...]:
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT * FROM core_component_removal "
+                "WHERE artifact_id=? ORDER BY removed_at, removal_id",
+                (artifact_id,),
+            ).fetchall()
+        return tuple(self._removal_from_row(row) for row in rows)
+
+    def latest_removal(
+        self, artifact_id: str = CORE_DISTRIBUTION
+    ) -> CoreComponentRemovalReceipt | None:
+        with closing(self._connect()) as db:
+            row = db.execute(
+                "SELECT * FROM core_component_removal "
+                "WHERE artifact_id=? ORDER BY removed_at DESC, removal_id DESC LIMIT 1",
+                (artifact_id,),
+            ).fetchone()
+        return None if row is None else self._removal_from_row(row)
 
 
 def verify_core_component_content(wheel_path: Path) -> None:
@@ -770,6 +956,157 @@ class CoreComponentInstaller:
                 "previously recorded Core installation is absent or redirected"
             )
         self._verify_installed_bytes(destination, artifact, wheel_path)
+        return receipt
+
+    @staticmethod
+    def _exact_component_destination(
+        root: Path, version: str, artifact_sha256: str
+    ) -> Path:
+        destination = root / f"core-{version}-{artifact_sha256}"
+        if destination.parent != root:
+            raise CoreComponentInstallError(
+                "Core component removal target escapes the installation root"
+            )
+        return destination
+
+    @staticmethod
+    def _verify_installed_identity(root: Path, version: str) -> None:
+        """Confirm the exact root contains the expected installed distribution."""
+        site = root / "Lib/site-packages" if sys.platform == "win32" else next(
+            (root / "lib").glob("python*/site-packages"), None
+        )
+        if site is None:
+            raise CoreComponentInstallError(
+                "installed Core site-packages is missing"
+            )
+        matching = list(site.glob("sofia_core-*.dist-info"))
+        if len(matching) != 1:
+            raise CoreComponentInstallError(
+                "installed Core distribution metadata missing or ambiguous"
+            )
+        try:
+            assert_no_redirected_components(site, include_leaf=True)
+            assert_no_redirected_components(matching[0], include_leaf=True)
+        except PermissionError as error:
+            raise CoreComponentInstallError(
+                "installed Core distribution metadata is redirected"
+            ) from error
+        metadata = PathDistribution(matching[0]).metadata
+        if (
+            metadata.get("Name", "").lower().replace("_", "-")
+            != CORE_DISTRIBUTION
+            or metadata.get("Version") != version
+        ):
+            raise CoreComponentInstallError(
+                "installed Core distribution identity/version mismatch"
+            )
+
+    def installed_component_root(
+        self, version: str, artifact_sha256: str
+    ) -> Path | None:
+        """Return the exact owned component root, or None when it is absent."""
+        _version(version)
+        if _SHA256.fullmatch(artifact_sha256) is None:
+            raise CoreComponentInstallError("removal requires lowercase SHA-256")
+        root = self._checked_installation_root()
+        destination = self._exact_component_destination(
+            root, version, artifact_sha256
+        )
+        try:
+            assert_no_redirected_components(destination, include_leaf=True)
+        except PermissionError as error:
+            raise CoreComponentInstallError(
+                "Core component root is redirected"
+            ) from error
+        if not destination.exists():
+            return None
+        if not destination.is_dir() or destination.is_symlink():
+            raise CoreComponentInstallError(
+                "Core component root is not an owned directory"
+            )
+        _reject_redirected_component_tree(destination)
+        self._verify_installed_identity(destination, version)
+        return destination
+
+    def uninstall_component(
+        self, version: str, artifact_sha256: str
+    ) -> CoreComponentRemovalReceipt:
+        """Remove only the exact registered component root and record evidence.
+
+        Authority belongs to the caller (for example the synthetic lifecycle
+        removal boundary). This method refuses ambiguous evidence: the current
+        registry receipt must match the requested version and digest, and the
+        destination must be the exact non-redirected child of the configured
+        installation root.
+        """
+        import shutil
+
+        _version(version)
+        if _SHA256.fullmatch(artifact_sha256) is None:
+            raise CoreComponentInstallError("removal requires lowercase SHA-256")
+        root = self._checked_installation_root()
+        destination = self._exact_component_destination(
+            root, version, artifact_sha256
+        )
+        try:
+            assert_no_redirected_components(destination, include_leaf=True)
+        except PermissionError as error:
+            raise CoreComponentInstallError(
+                "Core removal target is redirected"
+            ) from error
+        current = self.registry.installed(CORE_DISTRIBUTION)
+        if current is not None and (
+            current.version != version
+            or current.artifact_sha256 != artifact_sha256
+        ):
+            raise CoreComponentInstallError(
+                "current Core receipt does not match the removal target"
+            )
+        if destination.exists():
+            if current is None:
+                raise CoreComponentInstallError(
+                    "installed Core component is not registered"
+                )
+            if not destination.is_dir() or destination.is_symlink():
+                raise CoreComponentInstallError(
+                    "Core component root is not an owned directory"
+                )
+            _reject_redirected_component_tree(destination)
+            self._verify_installed_identity(destination, version)
+            before_digest = _component_tree_digest(destination)
+            # Reject a redirect installed after the first inspection, then
+            # remove only the exact root that was attested above.
+            self._checked_installation_root()
+            try:
+                shutil.rmtree(destination)
+            except OSError as error:
+                raise CoreComponentInstallError(
+                    "Core component removal failed"
+                ) from error
+            self._checked_installation_root()
+        else:
+            before_digest = _component_tree_digest(destination)
+        if destination.exists():
+            raise CoreComponentInstallError(
+                "Core component removal did not remove the exact root"
+            )
+        after_digest = _component_tree_digest(destination)
+        removed_at = datetime.now(timezone.utc)
+        receipt = CoreComponentRemovalReceipt(
+            removal_id=f"core-removal-{uuid4().hex}",
+            artifact_id=CORE_DISTRIBUTION,
+            version=version,
+            artifact_sha256=artifact_sha256,
+            installation_root=str(root),
+            before_digest=before_digest,
+            after_digest=after_digest,
+            removed_at=removed_at,
+            detail=(
+                "exact owned Core component root removed; "
+                "Platform state and identity were not touched"
+            ),
+        )
+        self.registry.record_removal(receipt)
         return receipt
 
     def _stage_verified_install(

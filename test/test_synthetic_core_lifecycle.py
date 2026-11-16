@@ -5,7 +5,12 @@ backend. No real Sofía Core, personal state or production credential is used.
 """
 from __future__ import annotations
 
+from hashlib import sha256
+import os
 from pathlib import Path
+import shutil
+import sqlite3
+import subprocess
 from uuid import uuid4
 
 import pytest
@@ -347,33 +352,153 @@ def test_stop_is_idempotent_with_truthful_outcome(
     assert core_id not in backend.running
 
 
-def test_detach_and_removal_preserve_platform_installation(
+def _installed_destination(lifecycle, binding) -> Path:
+    return lifecycle.installer.installation_root / (
+        f"core-{binding.version}-{binding.artifact_sha256}"
+    )
+
+
+def test_removal_requires_stop_and_deletes_only_owned_component(
     tmp_path, core_wheel, signer, verifier
 ):
     backend = FakeBackend()
     lifecycle = _lifecycle(tmp_path, verifier, backend, platform_healthy=True)
-    core_id, _, _ = _install(lifecycle, core_wheel, signer)
+    core_id, _, receipt = _install(lifecycle, core_wheel, signer)
+    binding = lifecycle.store.binding(OWNER, core_id)
+    component_root = _installed_destination(lifecycle, binding)
+    platform_state = tmp_path / "platform-owned-state.json"
+    platform_state.write_text('{"owner":"platform"}', encoding="utf-8")
+    platform_digest = sha256(platform_state.read_bytes()).hexdigest()
 
+    assert component_root.is_dir()
     with pytest.raises(SyntheticCoreLifecycleConflict):
         lifecycle.remove(owner_id=OWNER, core_id=core_id, expected_generation=0)
 
     lifecycle.start(owner_id=OWNER, core_id=core_id, expected_generation=0)
     with pytest.raises(SyntheticCoreLifecycleConflict):
-        lifecycle.detach(owner_id=OWNER, core_id=core_id, expected_generation=1)
+        lifecycle.remove(owner_id=OWNER, core_id=core_id, expected_generation=1)
     lifecycle.stop(owner_id=OWNER, core_id=core_id, expected_generation=1)
+    assert component_root.is_dir()
 
-    detached = lifecycle.detach(
-        owner_id=OWNER, core_id=core_id, expected_generation=1
-    )
-    assert detached.state is SyntheticCoreState.DETACHED
     removed = lifecycle.remove(
         owner_id=OWNER, core_id=core_id, expected_generation=1
     )
     assert removed.outcome is SyntheticCoreOutcome.SUCCEEDED
     assert removed.state is SyntheticCoreState.REMOVED
     assert removed.platform_healthy is True
-    assert lifecycle.installer.registry.installed(CORE_DISTRIBUTION) is not None
+    assert not component_root.exists()
+    assert lifecycle.installer.registry.installed(CORE_DISTRIBUTION) is None
+    removal = removed.removal_receipt
+    assert removal is not None
+    assert removal.artifact_sha256 == receipt.artifact_sha256
+    assert removal.before_digest != removal.after_digest
+    assert lifecycle.installer.registry.removals() == (removal,)
     assert lifecycle.store.binding(OWNER, core_id).state is SyntheticCoreState.REMOVED
+    assert sha256(platform_state.read_bytes()).hexdigest() == platform_digest
+
+    again = lifecycle.remove(
+        owner_id=OWNER, core_id=core_id, expected_generation=1
+    )
+    assert again.outcome is SyntheticCoreOutcome.ALREADY_REMOVED
+
+
+def test_removal_after_detach_preserves_unrelated_core_runtime_files(
+    tmp_path, core_wheel, signer, verifier
+):
+    backend = FakeBackend()
+    lifecycle = _lifecycle(tmp_path, verifier, backend)
+    core_id, _, _ = _install(lifecycle, core_wheel, signer)
+    binding = lifecycle.store.binding(OWNER, core_id)
+    component_root = _installed_destination(lifecycle, binding)
+
+    lifecycle.start(owner_id=OWNER, core_id=core_id, expected_generation=0)
+    lifecycle.stop(owner_id=OWNER, core_id=core_id, expected_generation=1)
+    detached = lifecycle.detach(
+        owner_id=OWNER, core_id=core_id, expected_generation=1
+    )
+    assert detached.state is SyntheticCoreState.DETACHED
+    assert component_root.is_dir()
+    assert lifecycle.installer.registry.installed(CORE_DISTRIBUTION) is not None
+
+    removed = lifecycle.remove(
+        owner_id=OWNER, core_id=core_id, expected_generation=1
+    )
+    assert removed.outcome is SyntheticCoreOutcome.SUCCEEDED
+    assert removed.state is SyntheticCoreState.REMOVED
+    assert not component_root.exists()
+    assert lifecycle.installer.registry.installed(CORE_DISTRIBUTION) is None
+
+
+def _redirected_root(destination: Path, target: Path) -> None:
+    if os.name == "nt":
+        subprocess.run(
+            ["cmd", "/c", "mklink", "/J", str(destination), str(target)],
+            check=True, capture_output=True, text=True,
+        )
+        return
+    destination.symlink_to(target, target_is_directory=True)
+
+
+def test_removal_refuses_redirected_component_root_and_reports_retention(
+    tmp_path, core_wheel, signer, verifier
+):
+    backend = FakeBackend()
+    lifecycle = _lifecycle(tmp_path, verifier, backend)
+    core_id, _, _ = _install(lifecycle, core_wheel, signer)
+    binding = lifecycle.store.binding(OWNER, core_id)
+    component_root = _installed_destination(lifecycle, binding)
+    lifecycle.start(owner_id=OWNER, core_id=core_id, expected_generation=0)
+    lifecycle.stop(owner_id=OWNER, core_id=core_id, expected_generation=1)
+
+    foreign = tmp_path / "foreign-component-root"
+    foreign.mkdir()
+    sentinel = foreign / "must-not-be-deleted.bin"
+    sentinel.write_bytes(b"platform-independent-evidence")
+    shutil.rmtree(component_root)
+    try:
+        _redirected_root(component_root, foreign)
+    except (OSError, subprocess.CalledProcessError, NotImplementedError) as error:
+        pytest.skip(f"host cannot create a redirect: {error}")
+
+    retained = lifecycle.remove(
+        owner_id=OWNER, core_id=core_id, expected_generation=1
+    )
+    assert retained.outcome is SyntheticCoreOutcome.COMPONENT_RETAINED
+    assert retained.state is SyntheticCoreState.STOPPED
+    assert retained.removal_receipt is None
+    assert sentinel.read_bytes() == b"platform-independent-evidence"
+    assert lifecycle.store.binding(OWNER, core_id).state is SyntheticCoreState.STOPPED
+    assert lifecycle.installer.registry.installed(CORE_DISTRIBUTION) is not None
+
+
+def test_install_binding_failure_rolls_back_fresh_component(
+    tmp_path, core_wheel, signer, verifier, monkeypatch
+):
+    lifecycle = _lifecycle(tmp_path, verifier, FakeBackend())
+    artifact = _artifact(core_wheel, signer)
+    core_id, lineage_id = str(uuid4()), str(uuid4())
+
+    def fail_binding(_binding):
+        raise sqlite3.IntegrityError("simulated binding insert failure")
+
+    monkeypatch.setattr(lifecycle, "_persist_install_binding", fail_binding)
+    with pytest.raises(SyntheticCoreLifecycleConflict, match="rolled back"):
+        lifecycle.install(
+            owner_id=OWNER,
+            core_id=core_id,
+            lineage_id=lineage_id,
+            artifact=artifact,
+            wheel_path=core_wheel,
+            authority=InstallAuthority.STANDING_POLICY,
+        )
+
+    assert lifecycle.store.binding(OWNER, core_id) is None
+    assert lifecycle.installer.registry.installed(CORE_DISTRIBUTION) is None
+    assert not (
+        lifecycle.installer.installation_root
+        / f"core-{artifact.version}-{artifact.sha256}"
+    ).exists()
+    assert len(lifecycle.installer.registry.removals()) == 1
 
 
 def test_crash_after_start_is_reconciled_without_a_second_writer(
