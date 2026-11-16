@@ -22,6 +22,7 @@ import json
 from pathlib import Path
 import re
 import sqlite3
+from threading import Thread
 from typing import Callable, Protocol
 
 from sofia.platform.state.canonical_sqlite import CanonicalSQLiteGuard
@@ -32,7 +33,17 @@ _UUID_TEXT = re.compile(
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$")
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 
-DEFAULT_POLICY_FRESHNESS_SECONDS = 900
+# Durable operator intent is not an authentication proof. Policy age never
+# revokes it; only a current owner authorization check can. Reject policy
+# timestamps that are meaningfully in the future (clock rollback), allowing a
+# small skew window for ordinary time synchronization.
+MAX_POLICY_CLOCK_SKEW_SECONDS = 5.0
+
+# A reviewable, bounded per-Core start budget. A hung service-owned callback
+# must not block Platform startup indefinitely.
+DEFAULT_START_TIMEOUT_SECONDS = 10.0
+MIN_START_TIMEOUT_SECONDS = 0.01
+MAX_START_TIMEOUT_SECONDS = 60.0
 
 
 class CoreAutostartError(RuntimeError):
@@ -51,10 +62,20 @@ class CoreAutostartOutcome(str, Enum):
     STOPPED = "STOPPED"
 
 
+class CoreObservation(str, Enum):
+    """Fresh service-owned process observation for one Core generation."""
+
+    RUNNING = "RUNNING"
+    STOPPED = "STOPPED"
+    UNKNOWN = "UNKNOWN"
+
+
 class CoreStartupState(str, Enum):
-    """Platform-level summary; zero enabled Cores is a valid healthy state."""
+    """Platform-level summary; zero installed Cores is a valid healthy state."""
 
     ZERO_CORE_HEALTHY = "ZERO_CORE_HEALTHY"
+    CORES_DISABLED = "CORES_DISABLED"
+    CORES_RUNNING = "CORES_RUNNING"
     HEALTHY = "HEALTHY"
     DEGRADED = "DEGRADED"
     UNKNOWN = "UNKNOWN"
@@ -81,6 +102,8 @@ class CoreAutostartApprovalVerifier(Protocol):
 
 
 StartCoreCallback = Callable[[str, int, str], object]
+ObserveCoreCallback = Callable[[str, int], object]
+InstalledCoreIdsCallback = Callable[[], object]
 
 
 def _utc(value: object) -> datetime:
@@ -189,10 +212,15 @@ class CoreStartupReport:
     reconciled_at: datetime
     enabled_count: int
     active_count: int
+    core_count: int = 0
 
     @property
     def zero_core_healthy(self) -> bool:
         return self.startup_state is CoreStartupState.ZERO_CORE_HEALTHY
+
+    @property
+    def cores_disabled(self) -> bool:
+        return self.startup_state is CoreStartupState.CORES_DISABLED
 
 
 class CoreAutostartPolicyStore:
@@ -417,50 +445,121 @@ def _normalized_outcome(value: object) -> CoreAutostartOutcome:
     return CoreAutostartOutcome.OUTCOME_UNKNOWN
 
 
-class CoreStartupReconciler:
-    """Start enabled, fresh, authorized Cores at most once per generation.
+def _normalized_observation(value: object) -> CoreObservation:
+    if isinstance(value, CoreObservation):
+        return value
+    text = str(getattr(value, "value", value)).strip().upper()
+    if text in {"RUNNING", "STARTED", "ALIVE", "ACTIVE"}:
+        return CoreObservation.RUNNING
+    if text in {"STOPPED", "STOP", "EXITED", "DEAD", "NOT_RUNNING"}:
+        return CoreObservation.STOPPED
+    return CoreObservation.UNKNOWN
 
-    All failures are contained here and become FAILED/OUTCOME_UNKNOWN evidence.
-    The Platform service remains healthy with zero enabled Cores and after any
-    bounded Core start failure.
+
+_START_TIMEOUT = object()
+
+
+class CoreStartupReconciler:
+    """Observe installed Cores, then start currently authorized enabled Cores.
+
+    Policy age is not an authorization gate: durable operator intent survives
+    a reboot. A small future timestamp tolerance fences clock rollback only.
+    Every start is preceded by a fresh service-owned process observation and a
+    current owner authorization check. A cached STARTED row is never counted
+    active unless the fresh observation is RUNNING. Slow or hung callbacks are
+    bounded per Core, recorded as OUTCOME_UNKNOWN, and never take Platform
+    startup down.
     """
 
     def __init__(
         self, *,
         store: CoreAutostartPolicyStore,
         start_core: StartCoreCallback,
+        observe_core: ObserveCoreCallback,
+        installed_core_ids: InstalledCoreIdsCallback,
         is_stopped: Callable[[], bool],
-        freshness_seconds: int = DEFAULT_POLICY_FRESHNESS_SECONDS,
-        is_authorized: Callable[[CoreAutostartPolicy], bool] | None = None,
+        is_authorized: Callable[[CoreAutostartPolicy], bool],
+        start_timeout_seconds: float = DEFAULT_START_TIMEOUT_SECONDS,
         clock: Callable[[], datetime] | None = None,
     ) -> None:
         if not isinstance(store, CoreAutostartPolicyStore):
             raise TypeError("CoreAutostartPolicyStore required")
         if not callable(start_core):
             raise TypeError("service-owned start_core callback required")
+        if not callable(observe_core):
+            raise TypeError("service-owned observe_core callback required")
+        if not callable(installed_core_ids):
+            raise TypeError("service-owned installed_core_ids callback required")
         if not callable(is_stopped):
             raise TypeError("STOP observation callback required")
+        if not callable(is_authorized):
+            raise TypeError("current owner authorization callback required")
         if (
-            type(freshness_seconds) is not int
-            or freshness_seconds < 1
-            or freshness_seconds > 86_400
+            type(start_timeout_seconds) not in (int, float)
+            or type(start_timeout_seconds) is bool
+            or not MIN_START_TIMEOUT_SECONDS
+            <= float(start_timeout_seconds)
+            <= MAX_START_TIMEOUT_SECONDS
         ):
-            raise ValueError("freshness_seconds must be an integer in 1..86400")
-        if is_authorized is not None and not callable(is_authorized):
-            raise TypeError("is_authorized must be callable")
+            raise ValueError("start_timeout_seconds must be bounded")
+        if clock is not None and not callable(clock):
+            raise TypeError("clock must be callable")
         self.store = store
         self._start_core = start_core
+        self._observe_core = observe_core
+        self._installed_core_ids = installed_core_ids
         self._is_stopped = is_stopped
-        self._freshness_seconds = freshness_seconds
-        self._is_authorized = is_authorized or (lambda _policy: True)
+        self._is_authorized = is_authorized
+        self._start_timeout_seconds = float(start_timeout_seconds)
         self._clock = clock or (lambda: datetime.now(timezone.utc))
 
     def _now(self) -> datetime:
         return _utc(self._clock())
 
-    def _is_fresh(self, policy: CoreAutostartPolicy, now: datetime) -> bool:
-        age = (now - policy.updated_at).total_seconds()
-        return -5.0 <= age <= self._freshness_seconds
+    def _installed_ids(self) -> frozenset[str]:
+        raw = self._installed_core_ids()
+        if isinstance(raw, (str, bytes)) or not hasattr(raw, "__iter__"):
+            raise TypeError("installed Core inventory must be iterable")
+        return frozenset(_core_id(core) for core in raw)
+
+    def installed_ids(self) -> tuple[str, ...]:
+        """Fresh installed-Core inventory snapshot for service projections."""
+        return tuple(sorted(self._installed_ids()))
+
+    def _observe(
+        self, core_id: str, generation: int,
+    ) -> CoreObservation:
+        try:
+            return _normalized_observation(
+                self._observe_core(core_id, generation)
+            )
+        except Exception:
+            return CoreObservation.UNKNOWN
+
+    def _start_bounded(
+        self, core_id: str, generation: int, approval_ref: str,
+    ) -> object:
+        outcome: dict[str, object] = {}
+
+        def invoke() -> None:
+            try:
+                outcome["raw"] = self._start_core(
+                    core_id, generation, approval_ref,
+                )
+            except BaseException as exc:  # contained as evidence below
+                outcome["error"] = exc
+
+        worker = Thread(
+            target=invoke, name="AegisCoreStart", daemon=True,
+        )
+        worker.start()
+        worker.join(self._start_timeout_seconds)
+        if worker.is_alive():
+            return _START_TIMEOUT
+        error = outcome.get("error")
+        if error is not None:
+            raise error
+        return outcome.get("raw")
 
     def _record(
         self, core_id: str, outcome: CoreAutostartOutcome, now: datetime,
@@ -479,39 +578,87 @@ class CoreStartupReconciler:
     def reconcile(
         self, *, expected_generation: int = 0,
     ) -> CoreStartupReport:
-        """Reconcile enabled policies; never raise out of Platform startup."""
+        """Reconcile installed/enabled policies; never raise out of startup."""
         if type(expected_generation) is not int or expected_generation < 0:
             expected_generation = 0
         try:
             now = self._now()
-            policies = self.store.policies()
+        except Exception:
+            now = datetime.now(timezone.utc)
+            return CoreStartupReport(
+                startup_state=CoreStartupState.UNKNOWN,
+                results=(),
+                reconciled_at=now,
+                enabled_count=0,
+                active_count=0,
+                core_count=0,
+            )
+        try:
+            installed = self._installed_ids()
         except Exception:
             return CoreStartupReport(
                 startup_state=CoreStartupState.UNKNOWN,
                 results=(),
-                reconciled_at=datetime.now(timezone.utc),
+                reconciled_at=now,
                 enabled_count=0,
                 active_count=0,
+                core_count=0,
             )
-        enabled = tuple(policy for policy in policies if policy.enabled)
-        results: list[CoreReconciliationResult] = []
-        active = 0
-        failures = 0
-        unknowns = 0
-        try:
-            stopped = self._is_stopped() is True
-        except Exception:
-            stopped = True
-        if not enabled:
+        core_count = len(installed)
+        if core_count == 0:
             return CoreStartupReport(
                 startup_state=CoreStartupState.ZERO_CORE_HEALTHY,
                 results=(),
                 reconciled_at=now,
                 enabled_count=0,
                 active_count=0,
+                core_count=0,
             )
-        for policy in enabled:
-            if stopped:
+        try:
+            policies = self.store.policies()
+        except Exception:
+            return CoreStartupReport(
+                startup_state=CoreStartupState.UNKNOWN,
+                results=(),
+                reconciled_at=now,
+                enabled_count=0,
+                active_count=0,
+                core_count=core_count,
+            )
+        enabled = tuple(
+            policy for policy in policies
+            if policy.enabled and policy.core_id in installed
+        )
+        orphaned = tuple(
+            policy for policy in policies
+            if policy.enabled and policy.core_id not in installed
+        )
+        results: list[CoreReconciliationResult] = []
+        active = 0
+        failures = 0
+        unknowns = 0
+        for policy in orphaned:
+            failures += 1
+            results.append(CoreReconciliationResult(
+                core_id=policy.core_id, outcome=None, started=False,
+                reason="enabled policy Core is not installed",
+                error_code="NOT_INSTALLED",
+            ))
+        if not enabled and not orphaned:
+            return CoreStartupReport(
+                startup_state=CoreStartupState.CORES_DISABLED,
+                results=(),
+                reconciled_at=now,
+                enabled_count=0,
+                active_count=0,
+                core_count=core_count,
+            )
+        try:
+            stopped = self._is_stopped() is True
+        except Exception:
+            stopped = True
+        if stopped:
+            for policy in enabled:
                 self._record(
                     policy.core_id, CoreAutostartOutcome.STOPPED, now,
                     error_code="OPERATOR_STOP",
@@ -523,7 +670,19 @@ class CoreStartupReconciler:
                     reason="operator STOP",
                     error_code="OPERATOR_STOP",
                 ))
-                continue
+            if unknowns:
+                state = CoreStartupState.UNKNOWN
+            else:
+                state = CoreStartupState.DEGRADED
+            return CoreStartupReport(
+                startup_state=state,
+                results=tuple(results),
+                reconciled_at=now,
+                enabled_count=len(enabled),
+                active_count=0,
+                core_count=core_count,
+            )
+        for policy in enabled:
             try:
                 authorized = self._is_authorized(policy) is True
             except Exception:
@@ -531,32 +690,81 @@ class CoreStartupReconciler:
             if not authorized:
                 results.append(CoreReconciliationResult(
                     core_id=policy.core_id, outcome=None, started=False,
-                    reason="approval revoked", error_code="REVOKED",
+                    reason="current owner authorization denied",
+                    error_code="REVOKED",
                 ))
                 continue
-            if not self._is_fresh(policy, now):
+            age = (now - policy.updated_at).total_seconds()
+            if age < -MAX_POLICY_CLOCK_SKEW_SECONDS:
                 results.append(CoreReconciliationResult(
                     core_id=policy.core_id, outcome=None, started=False,
-                    reason="policy stale", error_code="STALE_POLICY",
+                    reason="policy timestamp is in the future",
+                    error_code="CLOCK_ROLLBACK",
                 ))
                 continue
-            if (
-                policy.last_outcome is CoreAutostartOutcome.STARTED
-                and policy.last_started_generation == expected_generation
-            ):
-                active += 1
-                results.append(CoreReconciliationResult(
-                    core_id=policy.core_id,
-                    outcome=CoreAutostartOutcome.STARTED,
-                    started=False,
-                    reason="already started for this generation",
-                ))
-                continue
+            same_generation = (
+                policy.last_started_generation == expected_generation
+            )
+            prior_attempt = policy.last_outcome in {
+                CoreAutostartOutcome.STARTED,
+                CoreAutostartOutcome.OUTCOME_UNKNOWN,
+            }
+            if prior_attempt:
+                observation = self._observe(
+                    policy.core_id, expected_generation,
+                )
+                if observation is CoreObservation.RUNNING:
+                    active += 1
+                    if (policy.last_outcome is not CoreAutostartOutcome.STARTED
+                            or not same_generation):
+                        self._record(
+                            policy.core_id, CoreAutostartOutcome.STARTED, now,
+                            started_generation=expected_generation,
+                        )
+                    results.append(CoreReconciliationResult(
+                        core_id=policy.core_id,
+                        outcome=CoreAutostartOutcome.STARTED,
+                        started=False,
+                        reason="fresh process observation is RUNNING",
+                    ))
+                    continue
+                if observation is CoreObservation.UNKNOWN:
+                    unknowns += 1
+                    self._record(
+                        policy.core_id,
+                        CoreAutostartOutcome.OUTCOME_UNKNOWN, now,
+                        error_code="OBSERVE_UNKNOWN",
+                    )
+                    results.append(CoreReconciliationResult(
+                        core_id=policy.core_id,
+                        outcome=CoreAutostartOutcome.OUTCOME_UNKNOWN,
+                        started=False,
+                        reason="fresh process observation is UNKNOWN",
+                        error_code="OBSERVE_UNKNOWN",
+                    ))
+                    continue
+                # A definitive STOPPED observation for this same generation
+                # is a crash/zombie: record it truthfully and never reuse the
+                # cached STARTED row as active. A stale prior generation is
+                # eligible for a fresh, bounded start below.
+                if same_generation:
+                    self._record(
+                        policy.core_id, CoreAutostartOutcome.STOPPED, now,
+                        error_code="NOT_RUNNING",
+                    )
+                    results.append(CoreReconciliationResult(
+                        core_id=policy.core_id,
+                        outcome=CoreAutostartOutcome.STOPPED,
+                        started=False,
+                        reason="cached STARTED generation is not running",
+                        error_code="NOT_RUNNING",
+                    ))
+                    continue
             approval_ref = (
                 f"core-autostart:{policy.core_id}:{policy.approved_revision}"
             )
             try:
-                raw = self._start_core(
+                raw = self._start_bounded(
                     policy.core_id, expected_generation, approval_ref,
                 )
             except Exception as exc:
@@ -569,6 +777,20 @@ class CoreStartupReconciler:
                 results.append(CoreReconciliationResult(
                     core_id=policy.core_id, outcome=outcome, started=False,
                     reason="start raised", error_code=error_code,
+                ))
+                continue
+            if raw is _START_TIMEOUT:
+                unknowns += 1
+                self._record(
+                    policy.core_id, CoreAutostartOutcome.OUTCOME_UNKNOWN, now,
+                    error_code="START_TIMEOUT",
+                )
+                results.append(CoreReconciliationResult(
+                    core_id=policy.core_id,
+                    outcome=CoreAutostartOutcome.OUTCOME_UNKNOWN,
+                    started=False,
+                    reason="start exceeded the bounded per-Core timeout",
+                    error_code="START_TIMEOUT",
                 ))
                 continue
             outcome = _normalized_outcome(raw)
@@ -591,6 +813,17 @@ class CoreStartupReconciler:
                     core_id=policy.core_id, outcome=outcome, started=False,
                     reason="start outcome unknown", error_code="OUTCOME_UNKNOWN",
                 ))
+            elif outcome is CoreAutostartOutcome.STOPPED:
+                self._record(
+                    policy.core_id, CoreAutostartOutcome.STOPPED, now,
+                    error_code="START_STOPPED",
+                )
+                results.append(CoreReconciliationResult(
+                    core_id=policy.core_id,
+                    outcome=CoreAutostartOutcome.STOPPED,
+                    started=False, reason="start reported stopped",
+                    error_code="START_STOPPED",
+                ))
             else:
                 failures += 1
                 error_code = outcome.value
@@ -606,16 +839,15 @@ class CoreStartupReconciler:
                 ))
         if unknowns:
             state = CoreStartupState.UNKNOWN
-        elif failures:
+        elif failures or not enabled or active != len(enabled):
             state = CoreStartupState.DEGRADED
-        elif active == len(enabled):
-            state = CoreStartupState.HEALTHY
         else:
-            state = CoreStartupState.DEGRADED
+            state = CoreStartupState.CORES_RUNNING
         return CoreStartupReport(
             startup_state=state,
             results=tuple(results),
             reconciled_at=now,
             enabled_count=len(enabled),
             active_count=active,
+            core_count=core_count,
         )

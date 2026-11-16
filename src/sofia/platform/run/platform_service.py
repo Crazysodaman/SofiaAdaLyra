@@ -327,6 +327,7 @@ class PlatformServiceSession:
                 reconciled_at=datetime.now(timezone.utc),
                 enabled_count=0,
                 active_count=0,
+                core_count=0,
             )
         self._startup_report = report
 
@@ -343,12 +344,26 @@ class PlatformServiceSession:
             core_count = 0
             enabled_count = 0
             if reconciler is not None:
+                # Core inventory is installation, not autostart policy. A
+                # disabled or policy-free installed Core still counts.
                 try:
-                    policies = reconciler.store.policies()
+                    installed = frozenset(reconciler.installed_ids())
                 except Exception:
-                    policies = ()
-                core_count = len(policies)
-                enabled_count = sum(1 for policy in policies if policy.enabled)
+                    installed = None
+                if installed is None:
+                    if report is not None:
+                        core_count = report.core_count
+                        enabled_count = report.enabled_count
+                else:
+                    core_count = len(installed)
+                    try:
+                        policies = reconciler.store.policies()
+                    except Exception:
+                        policies = ()
+                    enabled_count = sum(
+                        1 for policy in policies
+                        if policy.enabled and policy.core_id in installed
+                    )
             if reconciler is None:
                 state = CoreStartupState.ZERO_CORE_HEALTHY.value
                 active_count = 0

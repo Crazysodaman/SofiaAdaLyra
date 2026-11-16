@@ -1,6 +1,7 @@
 """Platform-owned per-Core autostart policy and startup reconciliation."""
 from datetime import datetime, timedelta, timezone
 import sqlite3
+import time
 from uuid import uuid4
 
 import pytest
@@ -53,17 +54,44 @@ def enable(store, core_id, *, enabled=True, revision=1, ref="approval:one",
     )
 
 
-def test_zero_policies_is_zero_core_healthy_without_start_callback(tmp_path):
+def make_reconciler(
+    store, start_core, *, installed=(), observe=None,
+    is_stopped=lambda: False,
+    is_authorized=lambda _policy: True,
+    clock=lambda: NOW,
+    start_timeout_seconds=10.0,
+):
+    return CoreStartupReconciler(
+        store=store,
+        start_core=start_core,
+        observe_core=(
+            observe if observe is not None
+            else lambda _core, _generation: "STOPPED"
+        ),
+        installed_core_ids=lambda: tuple(installed),
+        is_stopped=is_stopped,
+        is_authorized=is_authorized,
+        start_timeout_seconds=start_timeout_seconds,
+        clock=clock,
+    )
+
+
+def mark_started(store, core_id, generation):
+    store.record_outcome(
+        core_id=core_id, outcome=CoreAutostartOutcome.STARTED,
+        now=NOW, started_generation=generation,
+    )
+
+
+def test_zero_installed_cores_is_zero_core_healthy_without_start(tmp_path):
     store, _approvals, _state = policy_store(tmp_path)
     started = []
-    reconciler = CoreStartupReconciler(
-        store=store,
-        start_core=lambda *args: started.append(args),
-        is_stopped=lambda: False,
-        clock=lambda: NOW,
+    reconciler = make_reconciler(
+        store, lambda *args: started.append(args), installed=(),
     )
     report = reconciler.reconcile(expected_generation=4)
     assert report.startup_state is CoreStartupState.ZERO_CORE_HEALTHY
+    assert report.core_count == 0
     assert report.enabled_count == 0
     assert report.active_count == 0
     assert report.zero_core_healthy is True
@@ -84,12 +112,12 @@ def test_approved_enabled_core_starts_once_and_records_started(tmp_path):
         calls.append((core, generation, approval_ref))
         return "STARTED"
 
-    reconciler = CoreStartupReconciler(
-        store=store, start_core=start_core, is_stopped=lambda: False,
-        clock=lambda: NOW,
+    reconciler = make_reconciler(
+        store, start_core, installed=(core_id,),
     )
     report = reconciler.reconcile(expected_generation=7)
-    assert report.startup_state is CoreStartupState.HEALTHY
+    assert report.startup_state is CoreStartupState.CORES_RUNNING
+    assert report.core_count == 1
     assert report.enabled_count == 1
     assert report.active_count == 1
     assert calls == [(core_id, 7, f"core-autostart:{core_id}:1")]
@@ -100,19 +128,20 @@ def test_approved_enabled_core_starts_once_and_records_started(tmp_path):
     assert persisted.last_error_code is None
 
 
-def test_disabled_policy_is_never_started(tmp_path):
+def test_disabled_installed_policy_is_never_started(tmp_path):
     store, _approvals, _state = policy_store(tmp_path)
     core_id = str(uuid4())
     enable(store, core_id, enabled=False)
     started = []
-    reconciler = CoreStartupReconciler(
-        store=store,
-        start_core=lambda *args: started.append(args),
-        is_stopped=lambda: False,
-        clock=lambda: NOW,
+    reconciler = make_reconciler(
+        store, lambda *args: started.append(args), installed=(core_id,),
     )
     report = reconciler.reconcile(expected_generation=1)
-    assert report.startup_state is CoreStartupState.ZERO_CORE_HEALTHY
+    assert report.startup_state is CoreStartupState.CORES_DISABLED
+    assert report.cores_disabled is True
+    assert report.core_count == 1
+    assert report.enabled_count == 0
+    assert report.active_count == 0
     assert started == []
     persisted = store.policy(core_id)
     assert persisted.enabled is False
@@ -144,11 +173,9 @@ def test_operator_stop_marks_stopped_and_starts_nothing(tmp_path):
     core_id = str(uuid4())
     enable(store, core_id)
     started = []
-    reconciler = CoreStartupReconciler(
-        store=store,
-        start_core=lambda *args: started.append(args),
+    reconciler = make_reconciler(
+        store, lambda *args: started.append(args), installed=(core_id,),
         is_stopped=lambda: True,
-        clock=lambda: NOW,
     )
     report = reconciler.reconcile(expected_generation=2)
     assert report.startup_state is CoreStartupState.DEGRADED
@@ -159,43 +186,223 @@ def test_operator_stop_marks_stopped_and_starts_nothing(tmp_path):
     assert persisted.last_error_code == "OPERATOR_STOP"
 
 
-def test_revoked_and_stale_policies_are_not_started(tmp_path):
+@pytest.mark.parametrize(
+    "age", [timedelta(minutes=10), timedelta(days=1)],
+)
+def test_durable_approved_policy_stays_eligible_across_reboot(tmp_path, age):
+    """A minutes- or day-old approved autostart is durable operator intent."""
+    store, _approvals, _state = policy_store(tmp_path)
+    core_id = str(uuid4())
+    enable(store, core_id, now=NOW - age)
+    calls = []
+
+    def start_core(core, generation, approval_ref):
+        calls.append((core, generation, approval_ref))
+        return "STARTED"
+
+    reconciler = make_reconciler(
+        store, start_core, installed=(core_id,),
+    )
+    report = reconciler.reconcile(expected_generation=11)
+    assert report.startup_state is CoreStartupState.CORES_RUNNING
+    assert report.active_count == 1
+    assert calls == [(core_id, 11, f"core-autostart:{core_id}:1")]
+
+
+def test_future_policy_timestamp_is_refused_as_clock_rollback(tmp_path):
+    store, _approvals, _state = policy_store(tmp_path)
+    core_id = str(uuid4())
+    enable(store, core_id, now=NOW + timedelta(hours=1))
+    started = []
+    reconciler = make_reconciler(
+        store, lambda *args: started.append(args), installed=(core_id,),
+    )
+    report = reconciler.reconcile(expected_generation=1)
+    assert report.startup_state is CoreStartupState.DEGRADED
+    assert report.active_count == 0
+    assert report.results[0].error_code == "CLOCK_ROLLBACK"
+    assert started == []
+    assert (
+        store.policy(core_id).last_outcome
+        is CoreAutostartOutcome.NOT_STARTED
+    )
+
+
+def test_revoked_authorization_is_rechecked_before_each_start(tmp_path):
     store, _approvals, _state = policy_store(tmp_path)
     core_id = str(uuid4())
     enable(store, core_id)
     started = []
-    revoked = CoreStartupReconciler(
-        store=store,
-        start_core=lambda *args: started.append(args),
-        is_stopped=lambda: False,
+    reconciler = make_reconciler(
+        store, lambda *args: started.append(args), installed=(core_id,),
         is_authorized=lambda _policy: False,
-        clock=lambda: NOW,
     )
-    report = revoked.reconcile(expected_generation=1)
+    report = reconciler.reconcile(expected_generation=1)
     assert report.startup_state is CoreStartupState.DEGRADED
+    assert report.results[0].error_code == "REVOKED"
     assert started == []
     assert store.policy(core_id).last_outcome is CoreAutostartOutcome.NOT_STARTED
 
-    stale_store, _stale_approvals, _state = policy_store(tmp_path / "stale")
-    stale_core = str(uuid4())
-    enable(
-        stale_store, stale_core,
-        now=NOW - timedelta(seconds=901),
+
+def test_cached_started_is_active_only_when_freshly_observed_running(tmp_path):
+    store, _approvals, _state = policy_store(tmp_path)
+    core_id = str(uuid4())
+    enable(store, core_id)
+    mark_started(store, core_id, 3)
+    started = []
+    observed = []
+
+    def observe(core, generation):
+        observed.append((core, generation))
+        return "RUNNING"
+
+    reconciler = make_reconciler(
+        store, lambda *args: started.append(args), installed=(core_id,),
+        observe=observe,
     )
-    stale = CoreStartupReconciler(
-        store=stale_store,
-        start_core=lambda *args: started.append(args),
-        is_stopped=lambda: False,
-        freshness_seconds=900,
-        clock=lambda: NOW,
-    )
-    stale_report = stale.reconcile(expected_generation=1)
-    assert stale_report.startup_state is CoreStartupState.DEGRADED
+    report = reconciler.reconcile(expected_generation=3)
+    assert report.startup_state is CoreStartupState.CORES_RUNNING
+    assert report.active_count == 1
     assert started == []
-    assert (
-        stale_store.policy(stale_core).last_outcome
-        is CoreAutostartOutcome.NOT_STARTED
+    assert observed == [(core_id, 3)]
+    assert report.results[0].started is False
+
+
+def test_crash_with_cached_started_is_truthfully_stopped_not_active(tmp_path):
+    store, _approvals, _state = policy_store(tmp_path)
+    core_id = str(uuid4())
+    enable(store, core_id)
+    mark_started(store, core_id, 3)
+    started = []
+    reconciler = make_reconciler(
+        store, lambda *args: started.append(args), installed=(core_id,),
+        observe=lambda _core, _generation: "STOPPED",
     )
+    report = reconciler.reconcile(expected_generation=3)
+    assert report.startup_state is CoreStartupState.DEGRADED
+    assert report.active_count == 0
+    assert started == []
+    persisted = store.policy(core_id)
+    assert persisted.last_outcome is CoreAutostartOutcome.STOPPED
+    assert persisted.last_error_code == "NOT_RUNNING"
+
+
+def test_pid_reuse_or_zombie_unknown_is_not_counted_active(tmp_path):
+    store, _approvals, _state = policy_store(tmp_path)
+    core_id = str(uuid4())
+    enable(store, core_id)
+    mark_started(store, core_id, 3)
+    started = []
+    reconciler = make_reconciler(
+        store, lambda *args: started.append(args), installed=(core_id,),
+        observe=lambda _core, _generation: "UNKNOWN",
+    )
+    report = reconciler.reconcile(expected_generation=3)
+    assert report.startup_state is CoreStartupState.UNKNOWN
+    assert report.active_count == 0
+    assert started == []
+    persisted = store.policy(core_id)
+    assert persisted.last_outcome is CoreAutostartOutcome.OUTCOME_UNKNOWN
+    assert persisted.last_error_code == "OBSERVE_UNKNOWN"
+
+
+def test_stale_generation_is_not_active_and_is_started_afresh(tmp_path):
+    store, _approvals, _state = policy_store(tmp_path)
+    core_id = str(uuid4())
+    enable(store, core_id)
+    mark_started(store, core_id, 2)
+    started = []
+    observed = []
+
+    def observe(core, generation):
+        observed.append((core, generation))
+        return "STOPPED"
+
+    def start_core(core, generation, approval_ref):
+        started.append((core, generation, approval_ref))
+        return "STARTED"
+
+    reconciler = make_reconciler(
+        store, start_core, installed=(core_id,), observe=observe,
+    )
+    report = reconciler.reconcile(expected_generation=9)
+    assert report.startup_state is CoreStartupState.CORES_RUNNING
+    assert report.active_count == 1
+    assert observed == [(core_id, 9)]
+    assert len(started) == 1
+    assert store.policy(core_id).last_started_generation == 9
+
+
+def test_restart_after_observed_crash_starts_once_more(tmp_path):
+    store, _approvals, _state = policy_store(tmp_path)
+    core_id = str(uuid4())
+    enable(store, core_id)
+    mark_started(store, core_id, 3)
+    started = []
+
+    def start_core(core, generation, approval_ref):
+        started.append((core, generation, approval_ref))
+        return "STARTED"
+
+    reconciler = make_reconciler(
+        store, start_core, installed=(core_id,),
+        observe=lambda _core, _generation: "STOPPED",
+    )
+    crashed = reconciler.reconcile(expected_generation=3)
+    assert crashed.active_count == 0
+    assert started == []
+    assert store.policy(core_id).last_outcome is CoreAutostartOutcome.STOPPED
+
+    restarted = reconciler.reconcile(expected_generation=3)
+    assert restarted.startup_state is CoreStartupState.CORES_RUNNING
+    assert restarted.active_count == 1
+    assert len(started) == 1
+
+
+def test_installed_core_without_policy_is_cores_disabled(tmp_path):
+    store, _approvals, _state = policy_store(tmp_path)
+    core_id = str(uuid4())
+    started = []
+    reconciler = make_reconciler(
+        store, lambda *args: started.append(args), installed=(core_id,),
+    )
+    report = reconciler.reconcile(expected_generation=1)
+    assert report.startup_state is CoreStartupState.CORES_DISABLED
+    assert report.core_count == 1
+    assert report.enabled_count == 0
+    assert report.active_count == 0
+    assert started == []
+
+
+def test_installed_count_is_inventory_not_policy_count(tmp_path):
+    store, _approvals, _state = policy_store(tmp_path)
+    enabled_core = str(uuid4())
+    disabled_core = str(uuid4())
+    enable(store, enabled_core, ref="approval:enabled")
+    enable(store, disabled_core, enabled=False, ref="approval:disabled")
+    installed = [enabled_core, disabled_core, str(uuid4())]
+    reconciler = make_reconciler(
+        store, lambda *_args: "STARTED", installed=installed,
+    )
+    report = reconciler.reconcile(expected_generation=1)
+    assert report.startup_state is CoreStartupState.CORES_RUNNING
+    assert report.core_count == 3
+    assert report.enabled_count == 1
+    assert report.active_count == 1
+
+
+def test_zero_installed_cores_stays_healthy_even_with_policy_rows(tmp_path):
+    store, _approvals, _state = policy_store(tmp_path)
+    core_id = str(uuid4())
+    enable(store, core_id)
+    started = []
+    reconciler = make_reconciler(
+        store, lambda *args: started.append(args), installed=(),
+    )
+    report = reconciler.reconcile(expected_generation=1)
+    assert report.startup_state is CoreStartupState.ZERO_CORE_HEALTHY
+    assert report.core_count == 0
+    assert started == []
 
 
 def test_start_failure_becomes_failed_and_never_raises(tmp_path):
@@ -206,12 +413,13 @@ def test_start_failure_becomes_failed_and_never_raises(tmp_path):
     def start_core(_core, _generation, _ref):
         raise RuntimeError("backend unavailable")
 
-    reconciler = CoreStartupReconciler(
-        store=store, start_core=start_core, is_stopped=lambda: False,
-        clock=lambda: NOW,
+    reconciler = make_reconciler(
+        store, start_core, installed=(core_id,),
     )
     report = reconciler.reconcile(expected_generation=1)
     assert report.startup_state is CoreStartupState.DEGRADED
+    assert report.core_count == 1
+    assert report.active_count == 0
     assert report.results[0].started is False
     persisted = store.policy(core_id)
     assert persisted.last_outcome is CoreAutostartOutcome.FAILED
@@ -222,17 +430,75 @@ def test_unknown_start_outcome_becomes_outcome_unknown(tmp_path):
     store, _approvals, _state = policy_store(tmp_path)
     core_id = str(uuid4())
     enable(store, core_id)
-    reconciler = CoreStartupReconciler(
-        store=store,
-        start_core=lambda *_args: "OUTCOME_UNKNOWN",
-        is_stopped=lambda: False,
-        clock=lambda: NOW,
+    reconciler = make_reconciler(
+        store, lambda *_args: "OUTCOME_UNKNOWN", installed=(core_id,),
     )
     report = reconciler.reconcile(expected_generation=1)
     assert report.startup_state is CoreStartupState.UNKNOWN
+    assert report.active_count == 0
     persisted = store.policy(core_id)
     assert persisted.last_outcome is CoreAutostartOutcome.OUTCOME_UNKNOWN
     assert persisted.last_error_code == "OUTCOME_UNKNOWN"
+
+
+def test_slow_start_is_bounded_and_recorded_unknown(tmp_path):
+    store, _approvals, _state = policy_store(tmp_path)
+    core_id = str(uuid4())
+    enable(store, core_id)
+
+    def start_core(_core, _generation, _ref):
+        time.sleep(1.0)
+        return "STARTED"
+
+    reconciler = make_reconciler(
+        store, start_core, installed=(core_id,),
+        start_timeout_seconds=0.05,
+    )
+    began = time.monotonic()
+    report = reconciler.reconcile(expected_generation=1)
+    elapsed = time.monotonic() - began
+    assert elapsed < 0.5
+    assert report.startup_state is CoreStartupState.UNKNOWN
+    assert report.active_count == 0
+    assert report.results[0].error_code == "START_TIMEOUT"
+    persisted = store.policy(core_id)
+    assert persisted.last_outcome is CoreAutostartOutcome.OUTCOME_UNKNOWN
+    assert persisted.last_error_code == "START_TIMEOUT"
+
+
+def test_required_service_callbacks_are_mandatory(tmp_path):
+    store, _approvals, _state = policy_store(tmp_path)
+    common = dict(
+        store=store,
+        start_core=lambda *_args: "STARTED",
+        observe_core=lambda *_args: "RUNNING",
+        installed_core_ids=lambda: (),
+        is_stopped=lambda: False,
+        is_authorized=lambda _policy: True,
+    )
+    for missing in (
+        "start_core", "observe_core", "installed_core_ids",
+        "is_stopped", "is_authorized",
+    ):
+        broken = dict(common)
+        broken[missing] = None
+        with pytest.raises(TypeError):
+            CoreStartupReconciler(**broken)
+
+
+def test_enabled_policy_for_uninstalled_core_is_never_started(tmp_path):
+    store, _approvals, _state = policy_store(tmp_path)
+    installed_core = str(uuid4())
+    forged_core = str(uuid4())
+    enable(store, forged_core)
+    started = []
+    reconciler = make_reconciler(
+        store, lambda *args: started.append(args), installed=(installed_core,),
+    )
+    report = reconciler.reconcile(expected_generation=1)
+    assert report.startup_state is CoreStartupState.DEGRADED
+    assert report.results[0].error_code == "NOT_INSTALLED"
+    assert started == []
 
 
 def test_restart_reconciliation_is_idempotent_per_generation(tmp_path):
@@ -245,21 +511,20 @@ def test_restart_reconciliation_is_idempotent_per_generation(tmp_path):
         calls.append((core, generation, ref))
         return CoreAutostartOutcome.STARTED
 
-    first = CoreStartupReconciler(
-        store=store, start_core=start_core, is_stopped=lambda: False,
-        clock=lambda: NOW,
+    first = make_reconciler(
+        store, start_core, installed=(core_id,),
     )
     assert first.reconcile(expected_generation=9).active_count == 1
-    second = CoreStartupReconciler(
-        store=store, start_core=start_core, is_stopped=lambda: False,
-        clock=lambda: NOW,
+    second = make_reconciler(
+        store, start_core, installed=(core_id,),
+        observe=lambda _core, _generation: "RUNNING",
     )
     restarted = second.reconcile(expected_generation=9)
-    assert restarted.startup_state is CoreStartupState.HEALTHY
+    assert restarted.startup_state is CoreStartupState.CORES_RUNNING
     assert restarted.active_count == 1
     assert len(calls) == 1
     assert restarted.results[0].started is False
-    assert "already started" in restarted.results[0].reason
+    assert "RUNNING" in restarted.results[0].reason
 
 
 def test_duplicate_and_stale_writers_are_denied(tmp_path):
