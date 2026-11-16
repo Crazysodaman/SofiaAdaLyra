@@ -14,6 +14,7 @@ from sofia.core.security.boundary import (
     CorePrincipalRole,
     CoreProtectedResource,
     CoreSecurityBoundary,
+    PrincipalVerifier,
     assert_protected_core_path,
 )
 from sofia.core.security.protected import (
@@ -31,6 +32,7 @@ __all__ = [
     "CorePrincipalRole",
     "CoreProtectedResource",
     "CoreSecurityBoundary",
+    "PrincipalVerifier",
     "ProtectedCoreState",
     "ProtectedCoreStateError",
     "ProtectedIdentityView",
