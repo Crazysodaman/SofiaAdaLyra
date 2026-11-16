@@ -1005,3 +1005,26 @@ def test_core_link_revoked_during_http_processing_never_delivers_response(
         assert after is None
     else:
         assert after.state is CoreLinkBindingState.OFFLINE
+
+def test_json_response_write_survives_client_disconnect():
+    """A timed-out client closing the TLS stream must not raise in the server."""
+    import ssl
+    from sofia.platform.core_link.transport import _write_json
+
+    class ReplyStream:
+        def write(self, _body):
+            raise ssl.SSLError("bad length")
+
+    class Handler:
+        wfile = ReplyStream()
+
+        def send_response(self, _status):
+            return None
+
+        def send_header(self, _name, _value):
+            return None
+
+        def end_headers(self):
+            return None
+
+    _write_json(Handler(), 500, {"error": "Core Link request failed"})

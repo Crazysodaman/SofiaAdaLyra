@@ -94,6 +94,29 @@ class CoreLinkServerConfiguration:
             raise ValueError("socket_timeout_seconds must be in (0, 300]")
 
 
+def _write_json(handler, status: int, payload: object) -> None:
+    """Best-effort response write; a disconnected client is not a server fault.
+
+    A timeout/cancel can close the TLS stream while the handler is publishing
+    an error response.  ``ssl.SSLError``/``BrokenPipeError`` are ``OSError``;
+    surfacing them from the request thread only adds a misleading traceback and
+    cannot change the already-decided request outcome.
+    """
+    body = json.dumps(
+        payload, sort_keys=True, separators=(",", ":"),
+        ensure_ascii=False, allow_nan=False,
+    ).encode("utf-8")
+    try:
+        handler.send_response(status)
+        handler.send_header("Content-Type", "application/json")
+        handler.send_header("Content-Length", str(len(body)))
+        handler.send_header("Cache-Control", "no-store")
+        handler.end_headers()
+        handler.wfile.write(body)
+    except OSError:
+        return
+
+
 class CoreLinkServer:
     """Bounded mTLS HTTP adapter around the canonical conversation gateway."""
 
@@ -119,16 +142,7 @@ class CoreLinkServer:
                 return
 
             def _json(self, status: int, payload: object) -> None:
-                body = json.dumps(
-                    payload, sort_keys=True, separators=(",", ":"),
-                    ensure_ascii=False, allow_nan=False,
-                ).encode("utf-8")
-                self.send_response(status)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Content-Length", str(len(body)))
-                self.send_header("Cache-Control", "no-store")
-                self.end_headers()
-                self.wfile.write(body)
+                _write_json(self, status, payload)
 
             def _fingerprint(self) -> str:
                 certificate = self.connection.getpeercert(binary_form=True)
