@@ -367,22 +367,22 @@ class ManagementMutationDispatcher:
 
             # Approval consumption is a write. Re-fence immediately before the
             # effect so a generation transition cannot authorize a stale effect.
+            # Failure to re-read canonical state is itself a fence: never
+            # execute an effect whose current STOP/generation is unobservable.
             try:
                 current_after_consume = self._status()
                 after_platform, after_generation = self._current(
                     current_after_consume
                 )
+                state_changed = (
+                    after_platform != platform_id
+                    or after_generation != generation
+                    or current_after_consume.get("operator_stop") is True
+                )
             except (PermissionError, RuntimeError):
                 after_platform, after_generation = platform_id, generation
-                current_after_consume = None
-            if (
-                after_platform != platform_id
-                or after_generation != generation
-                or (
-                    current_after_consume is not None
-                    and current_after_consume.get("operator_stop") is True
-                )
-            ):
+                state_changed = True
+            if state_changed:
                 receipt = self._receipts.record(
                     idempotency_key=request.idempotency_key,
                     request_fingerprint=fingerprint,
@@ -392,7 +392,7 @@ class ManagementMutationDispatcher:
                     target_platform_id=request.target_platform_id,
                     operation=request.operation,
                     operation_scope=request.operation_scope,
-                    outcome="FAILED",
+                    outcome="DENIED",
                     current_generation=after_generation,
                     error_code="STATE_CHANGED",
                     detail="Platform state changed before mutation execution",

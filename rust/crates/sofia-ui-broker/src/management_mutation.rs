@@ -692,6 +692,44 @@ mod tests {
     }
 
     #[test]
+    fn current_protocol_is_accepted_and_unknown_major_or_minor_is_refused() {
+        let request = valid_request();
+        let raw = request.encode(now()).expect("current protocol encodes");
+        assert!(ManagementMutationRequest::parse(&raw, now()).is_ok());
+
+        for protocol in ["1", "1.0.0", "1.1", "2.0", "0.9", "", " 1.0"] {
+            let mut value = serde_json::to_value(&request).expect("request value");
+            value["protocol_version"] = serde_json::json!(protocol);
+            assert!(
+                ManagementMutationRequest::parse(value.to_string().as_bytes(), now()).is_err(),
+                "protocol {protocol} must be refused"
+            );
+        }
+    }
+
+    #[test]
+    fn reply_protocol_is_exact_and_unknown_versions_are_refused() {
+        let request = valid_request();
+        for protocol in ["1", "1.0.0", "1.1", "2.0"] {
+            let mut value = valid_reply_value(&request);
+            value["protocol_version"] = serde_json::json!(protocol);
+            assert!(
+                ManagementMutationReply::parse(
+                    value.to_string().as_bytes(),
+                    &request,
+                    now()
+                )
+                .is_err(),
+                "reply protocol {protocol} must be refused"
+            );
+        }
+        let value = valid_reply_value(&request);
+        assert!(
+            ManagementMutationReply::parse(value.to_string().as_bytes(), &request, now()).is_ok()
+        );
+    }
+
+    #[test]
     fn unknown_duplicate_and_authority_fields_are_denied() {
         let request = valid_request();
         let mut value = serde_json::to_value(&request).expect("request value");
