@@ -1,0 +1,232 @@
+name: Aegis release automation and acceptance collector
+
+on:
+  pull_request:
+    paths:
+      - 'tools/build_aegis_release.py'
+      - 'tools/aegis_four_host_campaign.py'
+      - 'tools/aegis_acceptance_collector.py'
+      - 'tools/aegis_platform_row_preflight.py'
+      - 'test/test_tools_build_aegis_release.py'
+      - 'test/test_tools_four_host_campaign.py'
+      - 'test/test_tools_acceptance_collector.py'
+      - 'test/test_ops_platform_row_preflight.py'
+      - 'test/test_platform_release_verifier.py'
+      - 'test/test_ops_platform_release_staging.py'
+      - 'test/test_ops_platform_installer_bundle.py'
+      - 'src/sofia/platform/dev/release*.py'
+      - 'src/sofia/platform/ops/platform_release*.py'
+      - 'src/sofia/platform/ops/platform_installer_bundle.py'
+      - 'src/sofia/platform/verify/component_artifacts.py'
+      - 'src/sofia/platform/verify/python_runtime.py'
+      - 'packaging/components.toml'
+      - 'docs/development/PLATFORM_1_0_ACCEPTANCE.md'
+      - '.github/workflows/aegis-release-automation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Release tools and collector (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout exact reviewed source, not PR synthetic merge
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Assert exact source SHA before any evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          actual="$(git rev-parse HEAD)"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "Wrong checked-out source SHA" >&2
+            exit 1
+          fi
+
+      - name: Install test-only sources
+        shell: bash
+        run: python -m pip install -e . pytest
+
+      - name: Run release tools, campaign and collector source tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q \
+            --junitxml=release-automation-junit.xml \
+            test/test_tools_build_aegis_release.py \
+            test/test_tools_four_host_campaign.py \
+            test/test_tools_acceptance_collector.py \
+            test/test_ops_platform_row_preflight.py \
+            test/test_platform_release_verifier.py \
+            test/test_ops_platform_release_staging.py \
+            test/test_ops_platform_installer_bundle.py
+
+      - name: Exercise the simulated-only four-host harness without signing keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD)"
+          python -m tools.aegis_four_host_campaign \
+            --source-sha "$sha" --simulate --output four-host-simulation.json
+          python - <<'PY'
+          import json
+          report = json.load(open("four-host-simulation.json", encoding="utf-8"))
+          assert report["mode"] == "SIMULATED"
+          assert report["simulated"] is True
+          assert report["counts"]["PASS"] == 0
+          assert report["release_accepted"] is False
+          assert report["production_authorized"] is False
+          PY
+
+      - name: Run the acceptance collector without signing keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD)"
+          python -m tools.aegis_acceptance_collector \
+            --junit release-automation-junit.xml \
+            --source-sha "$sha" --output acceptance-collector.json
+          python - <<'PY'
+          import json
+          report = json.load(open("acceptance-collector.json", encoding="utf-8"))
+          assert report["release_verdict"] == "NO_GO"
+          assert report["release_accepted"] is False
+          assert report["production_authorized"] is False
+          assert report["authoritative_status_unchanged"] is True
+          assert report["platform"]["row_count"] == 38
+          assert report["artifact_library"]["scenario_count"] == 16
+          assert report["artifact_library"]["counts"]["PASS"] == 0
+          PY
+
+      - name: Prove the authoritative acceptance text was not modified
+        shell: bash
+        run: git diff --exit-code -- docs/development/PLATFORM_1_0_ACCEPTANCE.md
+
+      - name: Preserve source-only evidence, never installed-host proof
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-automation-windows-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            release-automation-junit.xml
+            four-host-simulation.json
+            acceptance-collector.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  debian12:
+    name: Release tools and collector (Debian 12)
+    runs-on: ubuntu-24.04
+    container: python:3.12-slim-bookworm
+    timeout-minutes: 60
+    steps:
+      - name: Prepare disposable Debian 12 test container
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git build-essential
+          python -m venv /tmp/aegis-release-gate
+          echo /tmp/aegis-release-gate/bin >> "$GITHUB_PATH"
+
+      - name: Checkout exact reviewed source, not PR synthetic merge
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Assert exact source SHA before any evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          actual="$(git rev-parse HEAD)"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "Wrong checked-out source SHA" >&2
+            exit 1
+          fi
+
+      - name: Install test-only sources
+        shell: bash
+        run: python -m pip install -e . pytest
+
+      - name: Run release tools, campaign and collector source tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q \
+            --junitxml=release-automation-junit.xml \
+            test/test_tools_build_aegis_release.py \
+            test/test_tools_four_host_campaign.py \
+            test/test_tools_acceptance_collector.py \
+            test/test_ops_platform_row_preflight.py \
+            test/test_platform_release_verifier.py \
+            test/test_ops_platform_release_staging.py \
+            test/test_ops_platform_installer_bundle.py
+
+      - name: Exercise the simulated-only four-host harness without signing keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD)"
+          python -m tools.aegis_four_host_campaign \
+            --source-sha "$sha" --simulate --output four-host-simulation.json
+          python - <<'PY'
+          import json
+          report = json.load(open("four-host-simulation.json", encoding="utf-8"))
+          assert report["mode"] == "SIMULATED"
+          assert report["simulated"] is True
+          assert report["counts"]["PASS"] == 0
+          assert report["release_accepted"] is False
+          assert report["production_authorized"] is False
+          PY
+
+      - name: Run the acceptance collector without signing keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD)"
+          python -m tools.aegis_acceptance_collector \
+            --junit release-automation-junit.xml \
+            --source-sha "$sha" --output acceptance-collector.json
+          python - <<'PY'
+          import json
+          report = json.load(open("acceptance-collector.json", encoding="utf-8"))
+          assert report["release_verdict"] == "NO_GO"
+          assert report["release_accepted"] is False
+          assert report["production_authorized"] is False
+          assert report["authoritative_status_unchanged"] is True
+          assert report["platform"]["row_count"] == 38
+          assert report["artifact_library"]["scenario_count"] == 16
+          assert report["artifact_library"]["counts"]["PASS"] == 0
+          PY
+
+      - name: Prove the authoritative acceptance text was not modified
+        shell: bash
+        run: git diff --exit-code -- docs/development/PLATFORM_1_0_ACCEPTANCE.md
+
+      - name: Preserve source-only evidence, never installed-host proof
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-automation-debian-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            release-automation-junit.xml
+            four-host-simulation.json
+            acceptance-collector.json
+          if-no-files-found: warn
+          retention-days: 14
