@@ -144,6 +144,9 @@ FILENAME_PACKAGE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("test_optional_release_packages.py", ("pkg_run", "pkg_safe", "pkg_verify")),
     # Installer output is a UI surface and a per-user security boundary.
     ("test_platform_ui_launchers.py", ("pkg_ui", "pkg_safe")),
+    # The public aegis client is a RUN/SAFE management boundary, not a
+    # second Platform service or Core entrypoint.
+    ("test_aegis_cli.py", ("pkg_run", "pkg_safe", "pkg_verify")),
     ("test_v18_change_guard.py", ("pkg_verify", "pkg_dev")),
     ("test_v18_five_stage_audit.py", ("pkg_verify",)),
     ("test_v18_direct_code_audit.py", ("pkg_verify",)),
