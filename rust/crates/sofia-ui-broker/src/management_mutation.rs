@@ -714,12 +714,8 @@ mod tests {
             let mut value = valid_reply_value(&request);
             value["protocol_version"] = serde_json::json!(protocol);
             assert!(
-                ManagementMutationReply::parse(
-                    value.to_string().as_bytes(),
-                    &request,
-                    now()
-                )
-                .is_err(),
+                ManagementMutationReply::parse(value.to_string().as_bytes(), &request, now())
+                    .is_err(),
                 "reply protocol {protocol} must be refused"
             );
         }
