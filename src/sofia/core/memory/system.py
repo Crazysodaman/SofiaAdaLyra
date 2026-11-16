@@ -11,6 +11,19 @@ from sofia.core.personality.influence import ContinuityInfluence
 from sofia.core.social.model import AudienceKind, PrincipalContext
 
 
+def _audience_allows(
+    candidate_audience_id: str | None,
+    principal: PrincipalContext,
+) -> bool:
+    """An unscoped owner memory is private, never implicitly guest-readable."""
+    if candidate_audience_id == principal.audience_id:
+        return True
+    return (
+        candidate_audience_id is None
+        and principal.audience_kind is AudienceKind.PRIVATE
+    )
+
+
 class MemorySystem:
     """
     Coordinates Sofía's persistent memory operations.
@@ -28,6 +41,7 @@ class MemorySystem:
         association_store=None,
         ranking_service=None,
         eligibility_policy: ReviewedMemoryEligibilityV1 | None = None,
+        principal_registry=None,
     ) -> None:
         if (
             not isinstance(
@@ -72,6 +86,13 @@ class MemorySystem:
         if eligibility_policy is not None:
             eligibility_policy.assert_same_canonical_state(candidate_store.database_path)
         self._eligibility_policy = eligibility_policy
+        if principal_registry is not None:
+            from sofia.core.memory.audience import ActivePrincipalRegistry
+            if not isinstance(principal_registry, ActivePrincipalRegistry):
+                raise TypeError(
+                    "principal_registry must be an ActivePrincipalRegistry"
+                )
+        self._principal_registry = principal_registry
 
     @property
     def candidate_store(
@@ -132,6 +153,18 @@ class MemorySystem:
         if limit < 1:
             raise ValueError(
                 "MemorySystem limit must be greater than zero."
+            )
+
+        if principal is not None and self._principal_registry is not None:
+            self._principal_registry.require_active(principal)
+
+        if principal is not None and (
+            principal.audience_kind is AudienceKind.SYSTEM
+        ):
+            # Core/system operation is not a person audience and therefore
+            # carries no memory-recall right.
+            raise PermissionError(
+                "system audience cannot recall person-scoped memory"
             )
 
         # Unbound requests fail closed rather than spanning principals.
@@ -196,6 +229,7 @@ class MemorySystem:
             ),
             principal_id=principal.principal_id,
             audience_id=principal.audience_id,
+            audience_kind=principal.audience_kind.value,
             influence=influence,
             association_store=self._association_store,
             eligibility_policy=self._eligibility_policy,
@@ -227,7 +261,7 @@ class MemorySystem:
             # at the last point before it enters the model context.
             if (
                 candidate.principal_id != principal.principal_id
-                or candidate.audience_id not in (None, principal.audience_id)
+                or not _audience_allows(candidate.audience_id, principal)
                 or not candidate_store.is_recall_eligible(candidate.candidate_id)
             ):
                 continue
@@ -241,7 +275,7 @@ class MemorySystem:
                 current is None
                 or current != candidate
                 or current.principal_id != principal.principal_id
-                or current.audience_id not in (None, principal.audience_id)
+                or not _audience_allows(current.audience_id, principal)
                 or candidate_store.status(current.candidate_id)
                 is not CandidateStatus.PROMOTED
                 or not candidate_store.is_recall_eligible(current.candidate_id)
