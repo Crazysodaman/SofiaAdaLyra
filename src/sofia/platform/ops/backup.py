@@ -834,7 +834,7 @@ class BackupEngine:
         ):
             raise BackupError("restore generation does not match the expected generation")
         from sofia.core.memory.access import (
-            MemoryWriterConflict, assert_no_live_writer,
+            MemoryWriterConflict, MemoryWriterLease, assert_no_live_writer,
         )
         try:
             assert_no_live_writer(target_state_path)
@@ -1060,9 +1060,12 @@ class BackupEngine:
 
             # The target must remain writer-free through the whole staged
             # verification. A writer that appeared while decrypting cannot be
-            # merged with or silently replaced by this restore.
+            # merged with or silently replaced by this restore. Acquire and
+            # hold the canonical writer lease across publication so no writer
+            # can start between this final check and the restored state becoming
+            # visible.
             try:
-                assert_no_live_writer(target_state_path)
+                restore_writer = MemoryWriterLease(target_state_path)
             except MemoryWriterConflict as exc:
                 raise BackupError(
                     "restore target acquired a live canonical writer before publication"
@@ -1072,7 +1075,7 @@ class BackupEngine:
             # append and the final file-by-file restore publication. Without
             # it, a deletion can arrive after the last freshness read while
             # older plaintext is still being published to the restored home.
-            with deletion_ledger._exclusive():
+            with restore_writer, deletion_ledger._exclusive():
                 # The external journal might have gained an operator-approved
                 # deletion while an old multi-gigabyte snapshot was decrypting.
                 # Fail closed rather than publishing a snapshot with stale
@@ -1100,13 +1103,6 @@ class BackupEngine:
                             "protected state replacement authorization was "
                             f"revoked or refused before publication: {exc}"
                         ) from exc
-                try:
-                    assert_no_live_writer(target_state_path)
-                except MemoryWriterConflict as exc:
-                    raise BackupError(
-                        "restore target acquired a live canonical writer during "
-                        "staged verification"
-                    ) from exc
                 published_directories: set[Path] = set()
                 published_any = False
                 try:
