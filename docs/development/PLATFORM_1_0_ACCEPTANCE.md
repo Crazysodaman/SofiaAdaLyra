@@ -423,3 +423,29 @@ Core subprocess control is proven on this Windows host but not installed as a
 service. Core memory/backup changes are disposable-state only. All 38 Platform
 rows and LIB-01..16 keep their prior state; Core acceptance reports PASS 0,
 BLOCKED 54, NOT TESTED 1 (deferred CORE-34), G8 NOT CERTIFIED.
+
+## Post-QA hardening checkpoint
+
+An independent read-only QA pass over `55fa79c4..feaa6300` found no P0, but did
+find four issues that were fixed before the final verdict:
+
+- Acceptance tools could PASS/GO from unsigned JSON. They now require an
+  Ed25519-signed receipt envelope and a caller-supplied trusted key/fingerprint
+  for Core evidence, and the canonical `PlatformReleaseVerifier` for Platform
+  evidence. Unsigned evidence now yields BLOCKED/NO_GO. Fix: `e9abfe3b`.
+- `CoreSecurityBoundary` trusted a directly constructed owner principal. It now
+  requires a service-owned `verify_principal` callback on every protected
+  access and immediately before the effect; forged principals are denied.
+  Fix: `cfc57917`.
+- The canonical memory writer lease was acquired on every store construction,
+  which could break multi-process settings/readers. The lease is now lazy and
+  only acquired for mutations; read-only stores cannot mutate; restore holds
+  the writer lease across publication. Fix: `7d8e31a8`.
+- Synthetic Core `remove()` was metadata-only. It now performs verified
+  component uninstall with exact-root/link checks, before/after digests,
+  binding-failure rollback and a truthful `COMPONENT_RETAINED` outcome.
+  Fix: `a6075ae9`.
+
+Focused post-fix verification: 212 passed, 6 skipped. These fixes do not
+change any acceptance row or LIB scenario state and still do not constitute
+installed-host or signed-release certification.
