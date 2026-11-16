@@ -197,6 +197,7 @@ class PlatformServiceSession:
             read_settings=lambda _scopes: (_ for _ in ()).throw(
                 PermissionError("Platform-local settings reader not approved")
             ),
+            read_startup=self.startup_status,
             enrolled_denial_responses=True,
         )
         # Same verified local OS peer path, distinct owner enrollment.
