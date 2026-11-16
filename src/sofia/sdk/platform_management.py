@@ -18,8 +18,8 @@ _MAX_BYTES = 64 * 1024
 _RFC3339 = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$")
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$")
 _READ_OPERATIONS = frozenset({
-    "platform.status", "core.list", "module.list", "fleet.list",
-    "settings.inspect", "security.status", "updates.status",
+    "platform.status", "startup.status", "core.list", "module.list",
+    "fleet.list", "settings.inspect", "security.status", "updates.status",
     "diagnostics.summary", "jobs.list",
 })
 _FIELDS = frozenset({
