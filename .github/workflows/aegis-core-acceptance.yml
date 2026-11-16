@@ -1,0 +1,219 @@
+name: Aegis Core 1.0 source-only acceptance evidence
+
+# This gate emits conservative, exact-SHA Core 1.0 evidence. It never certifies
+# an installed artifact, remote conversation, owner host or G8. A source-only
+# run can only confirm that declared source probes passed; it cannot produce a
+# GO verdict because every in-scope item requires at least one receipt kind
+# that this job does not supply.
+
+on:
+  pull_request:
+    paths:
+      - 'tools/aegis_core_acceptance.py'
+      - 'tools/aegis_platform_row_preflight.py'
+      - 'test/test_tools_core_acceptance.py'
+      - 'docs/sofia2/CORE_1_0_PLAN.md'
+      - 'docs/development/AEGIS_OWNER_ONLY_1_0_GO_LIVE_ACCEPTANCE_2026-11-09.md'
+      - 'docs/development/AEGIS_OWNER_ONLY_GO_LIVE_ACCEPTANCE_2026-11-09.md'
+      - 'docs/development/CORE_1_0_ACCEPTANCE.md'
+      - '.github/workflows/aegis-core-acceptance.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Core 1.0 source-only acceptance (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout exact reviewed source, not PR synthetic merge
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Assert exact source SHA before any evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          actual="$(git rev-parse HEAD)"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "Wrong checked-out source SHA" >&2
+            exit 1
+          fi
+
+      - name: Install test-only sources
+        shell: bash
+        run: python -m pip install -e . pytest
+
+      - name: Run declared Core source probes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(python -m tools.aegis_core_acceptance --list-source-tests)
+          python -m pytest -q --junitxml=core-acceptance-junit.xml "${files[@]/#/test/}"
+
+      - name: Emit source-only Core acceptance report
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD)"
+          python -m tools.aegis_core_acceptance \
+            --junit core-acceptance-junit.xml \
+            --source-sha "$sha" \
+            --runner "windows-latest" \
+            --output core-acceptance-report.json
+
+      - name: Assert the report is conservative and source-only
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+
+          from tools.aegis_core_acceptance import INVENTORY
+
+          report = json.load(open("core-acceptance-report.json", encoding="utf-8"))
+          assert report["acceptance"] == "NOT_CLAIMED"
+          assert report["authoritative_status_unchanged"] is True
+          assert report["production_authorized"] is False
+          assert report["source_only"] is True
+          assert report["evidence_scope"] == "SOURCE_ONLY"
+          assert report["receipts"]["present"] is False
+          assert report["core_release_verdict"] == "NO_GO"
+          assert report["release_accepted"] is False
+          assert report["g8"]["status"] == "NOT_CERTIFIED"
+          assert report["g8"]["certified"] is False
+          assert report["inventory"]["item_count"] == len(INVENTORY) == 55
+          assert all(
+              item["state"] in {"PASS", "FAIL", "BLOCKED", "NOT_TESTED"}
+              for item in report["inventory"]["items"]
+          )
+          assert all(
+              item["acceptance"] == "NOT_CLAIMED"
+              for item in report["inventory"]["items"]
+          )
+          print(json.dumps(report["inventory"]["counts"], sort_keys=True))
+          PY
+
+      - name: Preserve source-only evidence, never installed-host proof
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: core-acceptance-source-only-windows-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            core-acceptance-junit.xml
+            core-acceptance-report.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  debian12:
+    name: Core 1.0 source-only acceptance (Debian 12)
+    runs-on: ubuntu-24.04
+    container: python:3.12-slim-bookworm
+    timeout-minutes: 90
+    steps:
+      - name: Prepare disposable Debian 12 test container
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git build-essential
+          python -m venv /tmp/aegis-core-acceptance
+          echo /tmp/aegis-core-acceptance/bin >> "$GITHUB_PATH"
+
+      - name: Checkout exact reviewed source, not PR synthetic merge
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Assert exact source SHA before any evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          actual="$(git rev-parse HEAD)"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "Wrong checked-out source SHA" >&2
+            exit 1
+          fi
+
+      - name: Install test-only sources
+        shell: bash
+        run: python -m pip install -e . pytest
+
+      - name: Run declared Core source probes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(python -m tools.aegis_core_acceptance --list-source-tests)
+          python -m pytest -q --junitxml=core-acceptance-junit.xml "${files[@]/#/test/}"
+
+      - name: Emit source-only Core acceptance report
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD)"
+          python -m tools.aegis_core_acceptance \
+            --junit core-acceptance-junit.xml \
+            --source-sha "$sha" \
+            --runner "debian12-container" \
+            --output core-acceptance-report.json
+
+      - name: Assert the report is conservative and source-only
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+
+          from tools.aegis_core_acceptance import INVENTORY
+
+          report = json.load(open("core-acceptance-report.json", encoding="utf-8"))
+          assert report["acceptance"] == "NOT_CLAIMED"
+          assert report["authoritative_status_unchanged"] is True
+          assert report["production_authorized"] is False
+          assert report["source_only"] is True
+          assert report["evidence_scope"] == "SOURCE_ONLY"
+          assert report["receipts"]["present"] is False
+          assert report["core_release_verdict"] == "NO_GO"
+          assert report["release_accepted"] is False
+          assert report["g8"]["status"] == "NOT_CERTIFIED"
+          assert report["g8"]["certified"] is False
+          assert report["inventory"]["item_count"] == len(INVENTORY) == 55
+          assert all(
+              item["state"] in {"PASS", "FAIL", "BLOCKED", "NOT_TESTED"}
+              for item in report["inventory"]["items"]
+          )
+          assert all(
+              item["acceptance"] == "NOT_CLAIMED"
+              for item in report["inventory"]["items"]
+          )
+          print(json.dumps(report["inventory"]["counts"], sort_keys=True))
+          PY
+
+      - name: Preserve source-only evidence, never installed-host proof
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: core-acceptance-source-only-debian-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            core-acceptance-junit.xml
+            core-acceptance-report.json
+          if-no-files-found: warn
+          retention-days: 14
