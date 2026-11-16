@@ -191,3 +191,21 @@ python -m tools.aegis_core_acceptance --list-source-tests
 - CORE-34 remains post-Core and out of the Core 1.0 release scope.
 - G8 (#129) remains **NOT CERTIFIED** and is never satisfied by source,
   disposable, or documentation evidence.
+
+## Parallel campaign checkpoint 2026-11-15
+
+Core workers in this campaign committed C1 `3955739`, C2 `8e35cab`,
+C3 `76fe17a`, C4 `81e49e4`, C5 `725a8a3` and C6 `681ec2d`, integrated through
+`aegis/platform-core-integration` into main `2a04d7fc`.
+
+Verified on the merged source: a real subprocess synthetic Core backend
+(start/observe/stop/crash/restart with one-writer fencing), bounded provider
+failover and multi-turn context, canonical memory/audience/backup hardening,
+remote conversation idempotency and Rust/Python Core Link fixtures, and
+protected Core state/principal boundaries. Cross-domain focused run: 237
+passed, 8 skipped; Rust workspace tests and strict Clippy passed.
+
+These are disposable/source results. No signed installed Core, real
+Artemis/Venus conversation, owner-host receipt or G8 certification exists.
+This checkpoint changes no CORE per-row state and does not raise the
+source-only verdict (PASS 0, BLOCKED 54, NOT TESTED 1, G8 NOT CERTIFIED).

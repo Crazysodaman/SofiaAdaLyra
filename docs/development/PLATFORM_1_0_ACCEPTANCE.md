@@ -385,3 +385,41 @@ Library replica support is API-level and still requires a service-owned TLS
 primary client. No signed Platform release artifact was produced. Therefore
 every acceptance row and every LIB scenario keeps its prior state, and no PASS
 is claimed.
+
+## Platform + Core parallel campaign checkpoint 2026-11-15
+
+Baseline `55fa79c4`. The host had only about 3.5 GiB free RAM on 8 logical
+CPUs, so the campaign used **three waves of four concurrent workers** instead
+of launching twelve heavy workers at once. Every writing worker had an isolated
+worktree and branch; only the coordinator merged.
+
+| Wave | Workers / commits | Delivered |
+| --- | --- | --- |
+| 1 | P1 `6258128`, P2 `5dcc8de`, P3 `f5387c4`, P4 `49766fb` | Installer bundled-runtime discovery and executable wired lifecycle; canonical module/fleet mutation backends plus pinned remote naming transport; service-owned Library primary/replica adapters with loopback mTLS tests; live native mutation transport, manager snapshots, action preview and TUI/GUI views |
+| 2 | P5 `0393d8d`, P6 `767b91d`, C1 `3955739`, C2 `8e35cab` | Security regressions and fail-open/fence fixes; offline release assembler, four-host evidence harness and 38-row/LIB collector; supervised synthetic Core subprocess backend; bounded Ollama/provider failover and multi-turn context/continuity |
+| 3 | C3 `76fe17a`, C4 `81e49e4`, C5 `725a8a3`, C6 `681ec2d` | Canonical memory access/audience/legacy quarantine/backup; remote conversation idempotency and Rust/Python Core Link parity; protected Core state and principal boundaries; CORE-01..40/B00..B08/G7-A acceptance collector that reports NO_GO |
+
+Integration refs: `aegis/platform-core-integration`, merged to main as
+`2a04d7fcdbf10355cfa30ce1ae8e3d0eaa5c8f27`. The module campaign branch was
+never read, written or merged by this campaign.
+
+**Verification on the merged main:**
+
+- Platform-only CI selection: 411 passed, 15 skipped (twice: campaign branch
+  and merged main).
+- Wave 1 focused: 146 passed, 35 skipped; UI Rust 109 + 16 passed.
+- Wave 2 focused: 103 passed; UI Rust 109 + 16 passed after rustfmt.
+- Wave 3/cross-domain focused: 237 passed, 8 skipped.
+- Rust workspace: fmt check, strict Clippy and all tests passed; TUI binary
+  built.
+- Package ownership and evidence tooling: passed.
+
+**Limitations that still block PASS:** no production signing key, no signed
+installed Platform release, no elevated Windows SCM/Debian systemd proof, no
+real four-host topology, and no real Artemis/Venus Core conversation. Module
+`stage/activate/rollback` mutations intentionally deny because the wire cannot
+yet supply a freshly verified package and live adapter registrations. Synthetic
+Core subprocess control is proven on this Windows host but not installed as a
+service. Core memory/backup changes are disposable-state only. All 38 Platform
+rows and LIB-01..16 keep their prior state; Core acceptance reports PASS 0,
+BLOCKED 54, NOT TESTED 1 (deferred CORE-34), G8 NOT CERTIFIED.
