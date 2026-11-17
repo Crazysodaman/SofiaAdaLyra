@@ -1,27 +1,47 @@
 #!/usr/bin/env bash
-# Aegis Platform installer shell, preview-only by default, plus explicitly
-# requested owner-private staging of independently sealed media. The opt-in
-# --wired path delegates lifecycle work to the canonical Python adapter.
-# This entrypoint never elevates or changes services itself. Staging is NOT
-# install. Installation still requires fresh owner SAFE and native executor
-# authority enforced by the adapter, not by shell flags.
+# Aegis Platform one-step installer shell entrypoint.
+#
+# Default execution starts the real guided installation through the bundled
+# runtime Python and the canonical guided orchestrator. This shell only:
+#
+#   - locates the adjacent signed release bundle and bundled runtime,
+#   - requires the independently provisioned installer trust anchor
+#     (installer/trusted-publisher.pem and installer/trust.json),
+#   - re-executes itself through sudo when OS privilege is required,
+#   - forwards --check, --operation, --json and --no-color.
+#
+# Signature, publisher, revocation, SAFE/STOP, owner approval and lifecycle
+# semantics remain mandatory in the orchestrator. This entrypoint never accepts
+# a manual approval id, Python path or service command, never adds an
+# authorization bypass and never changes a service itself.
+#
+# Safe read-only --verify-seed / --verify-publisher and inert signed-media
+# staging modes remain available; they are not the default installer.
 set -euo pipefail
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd -P)"
-# Support both repository development layout and a future reviewed bundle root.
+SCRIPT_ARGS=("$@")
+SCRIPT_PATH="$(cd -- "$(dirname -- "$0")" && pwd -P)/$(basename -- "$0")"
+SCRIPT_DIR="$(cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd -P)"
 if [[ -f "$SCRIPT_DIR/contracts/ui/aegis-theme-v1.json" ]]; then
   ROOT="$SCRIPT_DIR"
 else
   ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd -P)"
 fi
 THEME="$ROOT/contracts/ui/aegis-theme-v1.json"
-MODE=menu
+
+MODE=guided
 PLAIN=0
 JSON_MODE=0
-DRY_RUN=0
 CHECK_REQUESTED=0
 OPERATION_REQUESTED=0
+DRY_RUN=0
 OPERATION=none
+BUNDLE_ROOT_OVERRIDE=''
+BUNDLE_ROOT=''
+RESOLVED_BUNDLE_ROOT=''
+RESOLVED_TRUST_DIR=''
+RESOLVED_PYTHON=''
+LAST_ERROR=''
 SEED_ARCHIVE=''
 SEED_SHA256=''
 SEED_REQUESTED=0
@@ -34,39 +54,57 @@ CAPSULE_STAGE_REQUESTED=0
 CAPSULE_ARCHIVE=''
 CAPSULE_SIGNATURE=''
 CAPSULE_DESTINATION=''
-WIRED=0
-WIRED_RELEASE_ROOT=''
-BUNDLED_PYTHON=''
-EXPECTED_SOURCE_SHA=''
-TARGET=''
-MINIMUM_REVISION=''
-DESTINATION=''
-IDENTITY_HOME=''
-LOCAL_STATE=''
-LOCAL_INSTALLATION_STATE=''
-SAFE_STATE=''
-APPROVAL_ID=''
-CODE_APPROVAL_ID=''
-PREVIOUS_DESTINATION=''
-STAGING_CANDIDATE=''
-EXPECTED_PARENT_MANIFEST_SHA256=''
 
 usage() {
-  printf '%s\n' 'Aegis installer (PREVIEW ONLY; signed offline staging available)' \
-    'Usage: install-aegis.sh [--check] [--no-color|--plain|--line-mode] [--json]' \
-    '       install-aegis.sh --operation OP [--json] [--dry-run]' \
+  printf '%s\n' 'Aegis Platform one-step installer' \
+    'Usage: install-aegis.sh                 # guided install through UAC-equivalent sudo' \
+    '       install-aegis.sh --check [--json] [--no-color]' \
+    '       install-aegis.sh --operation OP [--json] [--no-color]' \
     '       install-aegis.sh --verify-seed FILE --trusted-seed-sha256 HEX [--json]' \
     '       install-aegis.sh --verify-publisher DIR --publisher-key PEM --publisher-sha256 HEX --publisher-signer ID [--json]' \
     '       install-aegis.sh --stage-capsule ZIP --capsule-signature RAW64 --publisher-key PEM --publisher-sha256 HEX --publisher-signer ID --staging-destination NEW_PRIVATE_DIR' \
-    '       install-aegis.sh --wired --operation OP [trust and approval options] [--json]' \
-    'OP: verify, status, doctor, install, update, repair, rollback, uninstall, reinstall, reconcile' \
-    'Wired mutation is fail-closed and requires independent publisher trust plus owner SAFE approval.' \
-    'The bundled Python is discovered inside the verified release root unless --bundled-python is given.'
+    'OP: verify, status, doctor, install, update, repair, rollback, uninstall, reinstall, reconcile, purge' \
+    'The release bundle, trust anchor and bundled Python are discovered relative to this script.' \
+    'No manual hash, approval id, Python path or service command is accepted for guided installation.'
+}
+
+json_escape() {
+  local value="$1"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  value="${value//$'\n'/\\n}"
+  value="${value//$'\r'/\\r}"
+  value="${value//$'\t'/\\t}"
+  printf '%s' "$value"
+}
+
+guided_failure() {
+  local message="$1"
+  if ((JSON_MODE)); then
+    printf '{"schema":"aegis.installer.guided-launcher.v1","result":"BLOCKED","message":"%s","executed":false,"owner_approved":false,"core_activated":false}\n' \
+      "$(json_escape "$message")"
+  else
+    printf 'AEGIS SETUP BLOCKED: %s\n' "$message" >&2
+  fi
 }
 
 while (($#)); do
   case "$1" in
     --check) MODE=check; CHECK_REQUESTED=1; shift ;;
+    --dry-run) DRY_RUN=1; shift ;;
+    --operation)
+      if ((OPERATION_REQUESTED)); then printf '%s\n' 'Operation specified twice' >&2; exit 2; fi
+      OPERATION_REQUESTED=1
+      if (($# < 2)); then printf '%s\n' 'Missing operation' >&2; exit 2; fi
+      OPERATION="$2"
+      case "$OPERATION" in
+        verify|status|doctor|install|update|repair|rollback|uninstall|reinstall|reconcile|purge) ;;
+        *) printf '%s\n' 'Unknown operation' >&2; exit 2 ;;
+      esac
+      MODE=operation; shift 2 ;;
+    --bundle-root)
+      if [[ -n "$BUNDLE_ROOT_OVERRIDE" ]] || (($# < 2)); then printf '%s\n' 'Invalid bundle root' >&2; exit 2; fi
+      BUNDLE_ROOT_OVERRIDE="$2"; shift 2 ;;
     --verify-publisher)
       if ((PUBLISHER_REQUESTED)) || (($# < 2)); then printf '%s\n' 'Invalid publisher request' >&2; exit 2; fi
       PUBLISHER_REQUESTED=1; MODE=publisher; RELEASE_ROOT="$2"; shift 2 ;;
@@ -97,68 +135,24 @@ while (($#)); do
     --help|-h) MODE=help; shift ;;
     --no-color|--plain|--line-mode) PLAIN=1; shift ;;
     --json) JSON_MODE=1; shift ;;
-    --dry-run) DRY_RUN=1; shift ;;
-    --wired) WIRED=1; shift ;;
-    --release-root)
-      if [[ -n "$WIRED_RELEASE_ROOT" ]] || (($# < 2)); then printf '%s\n' 'Invalid wired release root' >&2; exit 2; fi
-      WIRED_RELEASE_ROOT="$2"; shift 2 ;;
-    --bundled-python)
-      if [[ -n "$BUNDLED_PYTHON" ]] || (($# < 2)); then printf '%s\n' 'Invalid bundled Python' >&2; exit 2; fi
-      BUNDLED_PYTHON="$2"; shift 2 ;;
-    --expected-source-sha)
-      if [[ -n "$EXPECTED_SOURCE_SHA" ]] || (($# < 2)); then printf '%s\n' 'Invalid expected source SHA' >&2; exit 2; fi
-      EXPECTED_SOURCE_SHA="$2"; shift 2 ;;
-    --target)
-      if [[ -n "$TARGET" ]] || (($# < 2)); then printf '%s\n' 'Invalid release target' >&2; exit 2; fi
-      TARGET="$2"; shift 2 ;;
-    --minimum-revision)
-      if [[ -n "$MINIMUM_REVISION" ]] || (($# < 2)); then printf '%s\n' 'Invalid revision floor' >&2; exit 2; fi
-      MINIMUM_REVISION="$2"; shift 2 ;;
-    --destination)
-      if [[ -n "$DESTINATION" ]] || (($# < 2)); then printf '%s\n' 'Invalid destination' >&2; exit 2; fi
-      DESTINATION="$2"; shift 2 ;;
-    --identity-home)
-      if [[ -n "$IDENTITY_HOME" ]] || (($# < 2)); then printf '%s\n' 'Invalid identity home' >&2; exit 2; fi
-      IDENTITY_HOME="$2"; shift 2 ;;
-    --local-state)
-      if [[ -n "$LOCAL_STATE" ]] || (($# < 2)); then printf '%s\n' 'Invalid local state' >&2; exit 2; fi
-      LOCAL_STATE="$2"; shift 2 ;;
-    --local-installation-state)
-      if [[ -n "$LOCAL_INSTALLATION_STATE" ]] || (($# < 2)); then printf '%s\n' 'Invalid local installation state' >&2; exit 2; fi
-      LOCAL_INSTALLATION_STATE="$2"; shift 2 ;;
-    --safe-state)
-      if [[ -n "$SAFE_STATE" ]] || (($# < 2)); then printf '%s\n' 'Invalid canonical SAFE state' >&2; exit 2; fi
-      SAFE_STATE="$2"; shift 2 ;;
-    --approval-id)
-      if [[ -n "$APPROVAL_ID" ]] || (($# < 2)); then printf '%s\n' 'Invalid owner approval' >&2; exit 2; fi
-      APPROVAL_ID="$2"; shift 2 ;;
-    --code-approval-id)
-      if [[ -n "$CODE_APPROVAL_ID" ]] || (($# < 2)); then printf '%s\n' 'Invalid code owner approval' >&2; exit 2; fi
-      CODE_APPROVAL_ID="$2"; shift 2 ;;
-    --previous-destination)
-      if [[ -n "$PREVIOUS_DESTINATION" ]] || (($# < 2)); then printf '%s\n' 'Invalid previous destination' >&2; exit 2; fi
-      PREVIOUS_DESTINATION="$2"; shift 2 ;;
-    --staging-candidate)
-      if [[ -n "$STAGING_CANDIDATE" ]] || (($# < 2)); then printf '%s\n' 'Invalid staging candidate' >&2; exit 2; fi
-      STAGING_CANDIDATE="$2"; shift 2 ;;
-    --expected-parent-manifest-sha256)
-      if [[ -n "$EXPECTED_PARENT_MANIFEST_SHA256" ]] || (($# < 2)); then printf '%s\n' 'Invalid expected parent manifest' >&2; exit 2; fi
-      EXPECTED_PARENT_MANIFEST_SHA256="$2"; shift 2 ;;
-    --operation)
-      if ((OPERATION_REQUESTED)); then printf '%s\n' 'Operation specified twice' >&2; exit 2; fi
-      OPERATION_REQUESTED=1
-      if (($# < 2)); then printf '%s\n' 'Missing operation' >&2; exit 2; fi
-      OPERATION="$2"
-      case "$OPERATION" in
-        verify|status|doctor|install|update|repair|rollback|uninstall|reinstall|reconcile|purge) ;;
-        *) printf '%s\n' 'Unknown operation' >&2; exit 2 ;;
-      esac
-      MODE=operation; shift 2 ;;
     *) printf 'Unknown option: %s\n' "$1" >&2; exit 2 ;;
   esac
 done
 
-if (( (CHECK_REQUESTED && OPERATION_REQUESTED) || (SEED_REQUESTED && (CHECK_REQUESTED || OPERATION_REQUESTED || DRY_RUN)) )); then
+if ((DRY_RUN)) && [[ "$MODE" == guided ]]; then
+  if ((OPERATION_REQUESTED)); then
+    printf '%s\n' '--dry-run cannot be combined with --operation' >&2
+    exit 2
+  fi
+  CHECK_REQUESTED=1
+  MODE=check
+fi
+
+if ((CHECK_REQUESTED && OPERATION_REQUESTED)); then
+  printf '%s\n' '--check cannot be combined with --operation' >&2
+  exit 2
+fi
+if ((SEED_REQUESTED && (CHECK_REQUESTED || OPERATION_REQUESTED || DRY_RUN))); then
   printf '%s\n' 'Ambiguous operation or seed flags' >&2
   exit 2
 fi
@@ -166,125 +160,17 @@ if [[ -n "$SEED_SHA256" && "$SEED_REQUESTED" -eq 0 ]]; then
   printf '%s\n' '--trusted-seed-sha256 requires --verify-seed' >&2; exit 2
 fi
 if ((PUBLISHER_REQUESTED && (CHECK_REQUESTED || OPERATION_REQUESTED || SEED_REQUESTED || DRY_RUN))); then
-  printf '%s\n' 'Publisher signature check cannot authorize a protected operation' >&2; exit 2
-fi
-if (( !PUBLISHER_REQUESTED && !CAPSULE_STAGE_REQUESTED && !WIRED )) && [[ -n "$PUBLISHER_KEY" || -n "$PUBLISHER_FINGERPRINT" || -n "$PUBLISHER_SIGNER" ]]; then
-  printf '%s\n' 'Publisher trust flags require --verify-publisher or --wired' >&2; exit 2
-fi
-if ((PUBLISHER_REQUESTED)) && [[ -n "$SEED_SHA256" ]]; then
-  printf '%s\n' 'Publisher mode cannot be mixed with seed mode' >&2; exit 2
-fi
-
-# Wired mode delegates only to the bundled Python canonical adapter. It never
-# performs a service action or elevation in this shell entrypoint.
-resolve_bundled_python() {
-  # Discovery is limited to the reviewed runtime layout inside the caller's
-  # verified release root. It never searches PATH, an environment variable or a
-  # system interpreter, and it rejects every filesystem redirection.
-  local root="$1" root_real os arch rel candidate actual
-  local found=()
-  if [[ ! -d "$root" || -L "$root" ]]; then
-    printf '%s\n' 'Wired release root is unavailable or redirected' >&2
-    return 2
-  fi
-  root_real="$(realpath -e -- "$root")" || return 2
-  if [[ "$(realpath -ms -- "$root")" != "$root_real" ]]; then
-    printf '%s\n' 'Wired release root contains a symlinked path component' >&2
-    return 2
-  fi
-  os="$(uname -s 2>/dev/null || true)"
-  arch="$(uname -m 2>/dev/null || true)"
-  if [[ "$os" != Linux ]]; then
-    printf '%s\n' 'Wired bundled runtime discovery requires a Linux host' >&2
-    return 2
-  fi
-  case "$arch" in
-    x86_64|amd64) ;;
-    *)
-      printf '%s\n' 'Wired bundled runtime discovery requires x86_64 Linux' >&2
-      return 2
-      ;;
-  esac
-  for rel in runtime/python/python.exe; do
-    if [[ -e "$root_real/$rel" || -L "$root_real/$rel" ]]; then
-      printf '%s\n' 'Bundled runtime layout does not match the host operating system' >&2
-      return 2
-    fi
-  done
-  for rel in runtime/python/bin/python3.12 runtime/python/bin/python3; do
-    candidate="$root_real/$rel"
-    if [[ -e "$candidate" || -L "$candidate" ]]; then
-      if [[ ! -f "$candidate" || -L "$candidate" ]]; then
-        printf '%s\n' 'Bundled Python is not a regular non-symlinked file' >&2
-        return 2
-      fi
-      actual="$(realpath -e -- "$candidate")" || return 2
-      if [[ "$(realpath -ms -- "$candidate")" != "$actual" ]]; then
-        printf '%s\n' 'Bundled Python path contains a symlink or escape' >&2
-        return 2
-      fi
-      case "$actual" in
-        "$root_real"/*) ;;
-        *)
-          printf '%s\n' 'Bundled Python resolves outside the release root' >&2
-          return 2
-          ;;
-      esac
-      if [[ ! -x "$actual" ]]; then
-        printf '%s\n' 'Bundled Python is not executable' >&2
-        return 2
-      fi
-      found+=("$actual")
-    fi
-  done
-  if ((${#found[@]} != 1)); then
-    printf '%s\n' 'Exactly one bundled Python runtime must exist inside the release root' >&2
-    return 2
-  fi
-  printf '%s' "${found[0]}"
-}
-
-if ((WIRED)); then
-  if ((CHECK_REQUESTED || SEED_REQUESTED || PUBLISHER_REQUESTED ||
-        CAPSULE_STAGE_REQUESTED || DRY_RUN || ! OPERATION_REQUESTED)) ||
-     [[ -z "$WIRED_RELEASE_ROOT" || ! "$MINIMUM_REVISION" =~ ^[1-9][0-9]*$ ]]; then
-    printf '%s\n' 'Wired installer requires operation, release root, revision floor and a safe bundled Python' >&2
-    exit 2
-  fi
-  if [[ ! -d "$WIRED_RELEASE_ROOT" || -L "$WIRED_RELEASE_ROOT" ]]; then
-    printf '%s\n' 'Wired release root is unavailable or redirected' >&2
-    exit 2
-  fi
-  if [[ -z "$BUNDLED_PYTHON" ]]; then
-    if ! BUNDLED_PYTHON="$(resolve_bundled_python "$WIRED_RELEASE_ROOT")"; then
-      exit 2
-    fi
-  fi
-  if [[ ! -f "$BUNDLED_PYTHON" || -L "$BUNDLED_PYTHON" ]]; then
-    printf '%s\n' 'Wired bundled Python is unavailable or redirected' >&2
-    exit 2
-  fi
-  bundled_real="$(realpath -e -- "$BUNDLED_PYTHON")" || {
-    printf '%s\n' 'Wired bundled Python path is unavailable' >&2
-    exit 2
-  }
-  if [[ "$(realpath -ms -- "$BUNDLED_PYTHON")" != "$bundled_real" ]]; then
-    printf '%s\n' 'Wired bundled Python path contains a symlink or escape' >&2
-    exit 2
-  fi
-  BUNDLED_PYTHON="$bundled_real"
-elif [[ -n "$WIRED_RELEASE_ROOT" || -n "$BUNDLED_PYTHON" ||
-        -n "$EXPECTED_SOURCE_SHA" || -n "$TARGET" || -n "$MINIMUM_REVISION" ||
-        -n "$DESTINATION" || -n "$IDENTITY_HOME" || -n "$LOCAL_STATE" ||
-        -n "$LOCAL_INSTALLATION_STATE" || -n "$SAFE_STATE" || -n "$APPROVAL_ID" ||
-        -n "$CODE_APPROVAL_ID" || -n "$PREVIOUS_DESTINATION" ||
-        -n "$STAGING_CANDIDATE" || -n "$EXPECTED_PARENT_MANIFEST_SHA256" ]]; then
-  printf '%s\n' 'Wired trust and approval inputs require --wired' >&2
+  printf '%s\n' 'Publisher signature check cannot authorize a protected operation' >&2
   exit 2
 fi
-
-# Explicit verified-media staging is NOT a service installation. Keep it
-# incompatible with all other installer modes, operation names, and previews.
+if (( !PUBLISHER_REQUESTED && !CAPSULE_STAGE_REQUESTED )) && [[ -n "$PUBLISHER_KEY" || -n "$PUBLISHER_FINGERPRINT" || -n "$PUBLISHER_SIGNER" ]]; then
+  printf '%s\n' 'Publisher trust flags require --verify-publisher or --stage-capsule' >&2
+  exit 2
+fi
+if ((PUBLISHER_REQUESTED)) && [[ -n "$SEED_SHA256" ]]; then
+  printf '%s\n' 'Publisher mode cannot be mixed with seed mode' >&2
+  exit 2
+fi
 if ((CAPSULE_STAGE_REQUESTED)); then
   if ((PUBLISHER_REQUESTED || SEED_REQUESTED || CHECK_REQUESTED ||
         OPERATION_REQUESTED || DRY_RUN)) ||
@@ -300,7 +186,195 @@ elif [[ -n "$CAPSULE_SIGNATURE" || -n "$CAPSULE_DESTINATION" ]]; then
   exit 2
 fi
 
-# Presentation manifest is never evaluated or sourced as executable code.
+resolve_bundle_root() {
+  RESOLVED_BUNDLE_ROOT=''
+  LAST_ERROR=''
+  local explicit="$1" candidate real parent
+  if [[ -n "$explicit" ]]; then
+    if [[ ! -d "$explicit" || -L "$explicit" ]]; then
+      LAST_ERROR='Installer release root is unavailable or redirected.'
+      return 2
+    fi
+    real="$(realpath -e -- "$explicit")" || {
+      LAST_ERROR='Installer release root path is unavailable.'
+      return 2
+    }
+    if [[ "$(realpath -ms -- "$explicit")" != "$real" ]]; then
+      LAST_ERROR='Installer release root contains a symbolic link or escape.'
+      return 2
+    fi
+    if [[ ! -f "$real/release-manifest.json" || -L "$real/release-manifest.json" ]]; then
+      LAST_ERROR='Installer release root does not contain release-manifest.json.'
+      return 2
+    fi
+    RESOLVED_BUNDLE_ROOT="$real"
+    return 0
+  fi
+  parent="$(dirname -- "$SCRIPT_DIR")"
+  for candidate in "$SCRIPT_DIR" "$SCRIPT_DIR/release" "$SCRIPT_DIR/bundle" \
+      "$parent" "$parent/release" "$parent/bundle"; do
+    if [[ -f "$candidate/release-manifest.json" && ! -L "$candidate/release-manifest.json" ]]; then
+      real="$(realpath -e -- "$candidate")" || {
+        LAST_ERROR='Installer release root path is unavailable.'
+        return 2
+      }
+      if [[ "$(realpath -ms -- "$candidate")" != "$real" ]]; then
+        LAST_ERROR='Installer release root contains a symbolic link or escape.'
+        return 2
+      fi
+      RESOLVED_BUNDLE_ROOT="$real"
+      return 0
+    fi
+  done
+  LAST_ERROR='Aegis release bundle not found. Expected release-manifest.json next to the installer, in its parent directory, or in ./release or ./bundle. Re-download the complete signed setup media.'
+  return 2
+}
+
+resolve_trust_directory() {
+  RESOLVED_TRUST_DIR=''
+  LAST_ERROR=''
+  local root="$1" candidate real
+  for candidate in "$root/installer" "$SCRIPT_DIR" "$SCRIPT_DIR/installer"; do
+    if [[ -f "$candidate/trusted-publisher.pem" && ! -L "$candidate/trusted-publisher.pem" &&
+          -f "$candidate/trust.json" && ! -L "$candidate/trust.json" ]]; then
+      real="$(realpath -e -- "$candidate")" || {
+        LAST_ERROR='Installer trust anchor path is unavailable.'
+        return 2
+      }
+      if [[ "$(realpath -ms -- "$candidate")" != "$real" ]]; then
+        LAST_ERROR='Installer trust anchor contains a symbolic link or escape.'
+        return 2
+      fi
+      RESOLVED_TRUST_DIR="$real"
+      return 0
+    fi
+  done
+  LAST_ERROR='Independent installer trust anchor missing. Provision installer/trusted-publisher.pem and installer/trust.json out of band before running setup. Do not derive publisher trust from the release bundle or its signature.'
+  return 2
+}
+
+assert_trust_anchor() {
+  local root="$1" directory file actual size maximum name
+  resolve_trust_directory "$root" || return 2
+  directory="$RESOLVED_TRUST_DIR"
+  for file in "$directory/trusted-publisher.pem" "$directory/trust.json"; do
+    name="$(basename -- "$file")"
+    if [[ ! -f "$file" || -L "$file" ]]; then
+      LAST_ERROR='Installer trust anchor is not an ordinary file: '"$name"
+      return 2
+    fi
+    actual="$(realpath -e -- "$file")" || {
+      LAST_ERROR='Installer trust anchor path is unavailable: '"$name"
+      return 2
+    }
+    if [[ "$(realpath -ms -- "$file")" != "$actual" ]]; then
+      LAST_ERROR='Installer trust anchor contains a symbolic link or escape: '"$name"
+      return 2
+    fi
+    size="$(stat -c '%s' -- "$actual")" || {
+      LAST_ERROR='Installer trust anchor cannot be measured: '"$name"
+      return 2
+    }
+    case "$name" in
+      trusted-publisher.pem) maximum=16384 ;;
+      trust.json) maximum=65536 ;;
+      *) LAST_ERROR='Unexpected installer trust anchor file.'; return 2 ;;
+    esac
+    if [[ ! "$size" =~ ^[0-9]+$ ]] || ((size < 1 || size > maximum)); then
+      LAST_ERROR='Installer trust anchor is empty or outside bounded size: '"$name"
+      return 2
+    fi
+  done
+  return 0
+}
+
+resolve_bundled_python() {
+  RESOLVED_PYTHON=''
+  LAST_ERROR=''
+  local root="$1" root_real os arch rel candidate actual
+  local found=()
+  if [[ ! -d "$root" || -L "$root" ]]; then
+    LAST_ERROR='Bundled runtime release root is unavailable or redirected.'
+    return 2
+  fi
+  root_real="$(realpath -e -- "$root")" || {
+    LAST_ERROR='Bundled runtime release root is unavailable.'
+    return 2
+  }
+  if [[ "$(realpath -ms -- "$root")" != "$root_real" ]]; then
+    LAST_ERROR='Bundled runtime release root contains a symlinked path component.'
+    return 2
+  fi
+  os="$(uname -s 2>/dev/null || true)"
+  arch="$(uname -m 2>/dev/null || true)"
+  if [[ "$os" != Linux ]]; then
+    LAST_ERROR='Bundled Debian runtime discovery requires a Linux host.'
+    return 2
+  fi
+  case "$arch" in
+    x86_64|amd64) ;;
+    *)
+      LAST_ERROR='Bundled Debian runtime discovery requires x86_64 Linux.'
+      return 2
+      ;;
+  esac
+  for rel in runtime/python/python.exe; do
+    if [[ -e "$root_real/$rel" || -L "$root_real/$rel" ]]; then
+      LAST_ERROR='Bundled runtime layout does not match the host operating system.'
+      return 2
+    fi
+  done
+  for rel in runtime/python/bin/python3.12 runtime/python/bin/python3; do
+    candidate="$root_real/$rel"
+    if [[ -e "$candidate" || -L "$candidate" ]]; then
+      if [[ ! -f "$candidate" || -L "$candidate" ]]; then
+        LAST_ERROR='Bundled Python is not a regular non-symlinked file.'
+        return 2
+      fi
+      actual="$(realpath -e -- "$candidate")" || {
+        LAST_ERROR='Bundled Python path is unavailable.'
+        return 2
+      }
+      if [[ "$(realpath -ms -- "$candidate")" != "$actual" ]]; then
+        LAST_ERROR='Bundled Python path contains a symlink or escape.'
+        return 2
+      fi
+      case "$actual" in
+        "$root_real"/*) ;;
+        *)
+          LAST_ERROR='Bundled Python resolves outside the release root.'
+          return 2
+          ;;
+      esac
+      if [[ ! -x "$actual" ]]; then
+        LAST_ERROR='Bundled Python is not executable.'
+        return 2
+      fi
+      found+=("$actual")
+    fi
+  done
+  if ((${#found[@]} != 1)); then
+    LAST_ERROR='Exactly one bundled Python runtime must exist inside the release root.'
+    return 2
+  fi
+  RESOLVED_PYTHON="${found[0]}"
+  return 0
+}
+
+requires_elevation() {
+  if ((CHECK_REQUESTED)); then return 1; fi
+  case "$MODE" in
+    guided) return 0 ;;
+    operation)
+      case "$OPERATION" in
+        verify|status|doctor) return 1 ;;
+        *) return 0 ;;
+      esac
+      ;;
+    *) return 1 ;;
+  esac
+}
+
 theme_hex() {
   local key="$1" value=''
   [[ -f "$THEME" ]] || return 1
@@ -311,7 +385,6 @@ theme_hex() {
 
 use_color=0
 narrow=0
-# No ANSI in noninteractive output. Use the single canonical theme manifest.
 if [[ "$PLAIN" -eq 0 && "$JSON_MODE" -eq 0 && -t 0 && -t 1 && ! -v NO_COLOR &&
       "$(printenv TERM || printf dumb)" != dumb ]]; then
   if [[ "$(printenv COLORTERM || true)" =~ (truecolor|24bit) ]]; then
@@ -321,7 +394,6 @@ if [[ "$PLAIN" -eq 0 && "$JSON_MODE" -eq 0 && -t 0 && -t 1 && ! -v NO_COLOR &&
   else
     use_color=1
   fi
-  # Narrow SSH/serial windows use monochrome instead of clipped color art.
   width="$(tput cols 2>/dev/null || printf 80)"
   if [[ "$width" =~ ^[0-9]{1,4}$ ]] && ((width < 64)); then use_color=0; narrow=1; fi
 fi
@@ -351,37 +423,25 @@ paint() {
   esac
 }
 
-preflight() {
-  local os_name='UNKNOWN' arch='UNKNOWN'
-  if [[ -r /etc/os-release ]]; then
-    os_name="$(sed -n 's/^PRETTY_NAME=//p' /etc/os-release | head -n1 | tr -d '"')"
-  fi
-  arch="$(uname -m 2>/dev/null || printf UNKNOWN)"
-  printf '%s\n' 'AEGIS PLATFORM INSTALLER PREFLIGHT' \
-    'MODE=PREVIEW_ONLY' 'SIGNED_RELEASE=NOT_VERIFIED' \
-    'SERVICE_STATE=NOT_OBSERVED' \
-    "OS=$os_name" "ARCH=$arch" \
-    'INSTALL_AUTHORITY=NOT_CONNECTED' \
-    'RESULT=NO_CHANGES_MADE'
-}
-
-# Stable, machine-readable, deliberately untrusted preview result.
-json_result() {
-  local result="$1"
-  printf '{"schema":"aegis.installer.preflight.v1","mode":"PREVIEW_ONLY","operation":"%s","signed_release":"NOT_VERIFIED","service_state":"NOT_OBSERVED","authority":"NOT_CONNECTED","executed":false,"owner_approved":false,"core_activated":false,"result":"%s"}\n' "$OPERATION" "$result"
-}
-blocked() {
-  if [[ "$JSON_MODE" -eq 1 ]]; then json_result BLOCKED
+show_guided_banner() {
+  if ((JSON_MODE)); then return; fi
+  if [[ "$narrow" -eq 1 ]]; then
+    printf '%s\n' 'AEGIS GUIDED PLATFORM INSTALLER' "RELEASE_BUNDLE=$BUNDLE_ROOT"
   else
-    printf '%s\n' 'MODE=PREVIEW_ONLY' "REQUESTED_OPERATION=$OPERATION" \
-      'SIGNED_RELEASE=NOT_VERIFIED' 'INSTALL_AUTHORITY=NOT_CONNECTED' \
-      'RESULT=BLOCKED' 'BLOCKED: no signed native OS executor or fresh SAFE/STOP owner authority.'
+    paint primary 'AEGIS GUIDED PLATFORM INSTALLER'
+    printf '\n'
+    paint accent "RELEASE_BUNDLE=$BUNDLE_ROOT"
+    printf '\n'
   fi
-  return 3
-}
-readonly_preview() {
-  if [[ "$JSON_MODE" -eq 1 ]]; then json_result NO_CHANGES_MADE
-  else preflight
+  if ((CHECK_REQUESTED)); then
+    paint warning 'MODE=CHECK (read-only preview)'
+    printf '\n'
+  elif [[ "$OPERATION" != none ]]; then
+    paint accent "MODE=OPERATION $OPERATION"
+    printf '\n'
+  else
+    paint accent 'MODE=INSTALL'
+    printf '\n'
   fi
 }
 
@@ -396,7 +456,6 @@ verify_seed_bytes() {
   if [[ ! -f "$SEED_ARCHIVE" || -L "$SEED_ARCHIVE" ]]; then
     printf '%s\n' 'Seed must be an existing ordinary file' >&2; return 3
   fi
-  # Debian 12 coreutils realpath rejects symlink/junction-like path components.
   local original actual size observed
   original="$(realpath -ms -- "$SEED_ARCHIVE")" || return 3
   actual="$(realpath -e -- "$SEED_ARCHIVE")" || return 3
@@ -478,12 +537,7 @@ verify_publisher_manifest() {
     printf '%s\n' 'Publisher key differs from independent trust anchor' >&2
     return 3
   }
-  # Canonical signature envelope: exact two keys, one line, no trailing bytes
-  # beyond permitted line ending. Unknown/duplicate JSON fields fail closed.
   envelope="$(cat -- "$envelope_file")" || return 3
-  # Command substitution strips trailing newlines and Bash discards NULs.
-  # Compare ORIGINAL byte size to prevent a noncanonical envelope being
-  # transformed into an apparently valid signer/signature claim.
   local observed_envelope_bytes
   observed_envelope_bytes="$(printf '%s' "$envelope" | wc -c)" || return 3
   [[ "$observed_envelope_bytes" -eq "$envelope_size" ]] || {
@@ -498,13 +552,10 @@ verify_publisher_manifest() {
   signature="${BASH_REMATCH[1]}"
   signer="${BASH_REMATCH[2]}"
   [[ "$signer" == "$PUBLISHER_SIGNER" ]] || return 3
-  # Existing canonical PlatformReleaseManifest.digest is:
-  # SHA256('aegis.platform.release.v1' + NUL + manifest canonical JSON).
   digest="$( { printf 'aegis.platform.release.v1\0'; cat -- "$manifest"; } | sha256sum)" || return 3
   digest="$(printf '%s' "$digest" | cut -c1-64)"
   work="$(mktemp -d)" || return 3
   chmod 700 -- "$work"
-  # Owner-private temporary public signature/digest only; never owner secrets.
   if printf '%s' "$signature" | base64 -d >"$work/signature.bin" 2>/dev/null &&
      printf '%s' "$digest" >"$work/digest-ascii.txt" &&
      openssl pkeyutl -verify -pubin -inkey "$key_real" -rawin \
@@ -526,36 +577,55 @@ verify_publisher_manifest() {
   fi
   return 0
 }
+
+run_guided() {
+  if ! resolve_bundle_root "$BUNDLE_ROOT_OVERRIDE"; then
+    guided_failure "$LAST_ERROR"
+    exit 2
+  fi
+  BUNDLE_ROOT="$RESOLVED_BUNDLE_ROOT"
+  if ! assert_trust_anchor "$BUNDLE_ROOT"; then
+    guided_failure "$LAST_ERROR"
+    exit 2
+  fi
+  if ! resolve_bundled_python "$BUNDLE_ROOT"; then
+    guided_failure "$LAST_ERROR"
+    exit 2
+  fi
+
+  if requires_elevation; then
+    if [[ "$(id -u)" -ne 0 ]]; then
+      if ! command -v sudo >/dev/null 2>&1; then
+        guided_failure 'Administrator privilege is required and sudo is unavailable. Run setup from an administrator account with the approved OS privilege mechanism.'
+        exit 2
+      fi
+      # Approved OS mechanism: re-exec this exact script through sudo with the
+      # caller's arguments unchanged. The orchestrator still owns SAFE/STOP and
+      # owner approval; sudo is not installation authority.
+      exec sudo -- "$SCRIPT_PATH" "${SCRIPT_ARGS[@]}"
+    fi
+  fi
+
+  show_guided_banner
+  local -a guided_args=(--bundle-root "$BUNDLE_ROOT")
+  if ((CHECK_REQUESTED)); then guided_args+=(--check); fi
+  if [[ "$OPERATION" != none ]]; then guided_args+=(--operation "$OPERATION"); fi
+  if ((JSON_MODE)); then guided_args+=(--json); fi
+  if ((PLAIN)) || [[ -n "${NO_COLOR:-}" ]]; then guided_args+=(--no-color); fi
+
+  set +e
+  "$RESOLVED_PYTHON" -E -s -P -B -m sofia.platform.ops.platform_installer_guided "${guided_args[@]}"
+  local status=$?
+  set -e
+  if ((status != 0)) && ((JSON_MODE == 0)); then
+    printf 'AEGIS SETUP FAILED: the guided installer exited with code %s. Review the message above; setup did not retry or hide a failed step.\n' "$status" >&2
+  fi
+  exit "$status"
+}
+
 if [[ "$MODE" == help ]]; then usage; exit 0; fi
-if ((WIRED)); then
-  wired_args=(--release-root "$WIRED_RELEASE_ROOT" --json)
-  wired_add() {
-    local name="$1" value="$2"
-    if [[ -n "$value" ]]; then wired_args+=("$name" "$value"); fi
-  }
-  wired_add --publisher-key "$PUBLISHER_KEY"
-  wired_add --publisher-key-sha256 "$PUBLISHER_FINGERPRINT"
-  wired_add --publisher-signer "$PUBLISHER_SIGNER"
-  wired_add --expected-source-sha "$EXPECTED_SOURCE_SHA"
-  wired_add --target "$TARGET"
-  wired_add --minimum-revision "$MINIMUM_REVISION"
-  wired_add --destination "$DESTINATION"
-  wired_add --identity-home "$IDENTITY_HOME"
-  wired_add --local-state "$LOCAL_STATE"
-  wired_add --local-installation-state "$LOCAL_INSTALLATION_STATE"
-  wired_add --safe-state "$SAFE_STATE"
-  wired_add --approval-id "$APPROVAL_ID"
-  wired_add --code-approval-id "$CODE_APPROVAL_ID"
-  wired_add --previous-destination "$PREVIOUS_DESTINATION"
-  wired_add --staging-candidate "$STAGING_CANDIDATE"
-  wired_add --expected-parent-manifest-sha256 "$EXPECTED_PARENT_MANIFEST_SHA256"
-  # Isolation without -I: -E/-s ignore ambient Python configuration and user
-  # site packages, -P keeps the working directory off sys.path, and -B avoids
-  # writing bytecode into a read-only release. The bundled runtime still
-  # resolves its own signed site-packages.
-  exec "$BUNDLED_PYTHON" -E -s -P -B -m sofia.platform.ops.platform_installer_cli \
-    "$OPERATION" "${wired_args[@]}"
-fi
+if [[ "$MODE" == seed ]]; then verify_seed_bytes; exit $?; fi
+if [[ "$MODE" == publisher ]]; then verify_publisher_manifest; exit $?; fi
 if [[ "$MODE" == capsule_stage ]]; then
   # Inert, owner-private disk staging only. No escalation, SAFE bypass,
   # service registration, release installation, Core or Fleet enrollment.
@@ -565,60 +635,4 @@ if [[ "$MODE" == capsule_stage ]]; then
     --publisher-signer "$PUBLISHER_SIGNER" --destination "$CAPSULE_DESTINATION"
   exit $?
 fi
-if [[ "$MODE" == publisher ]]; then verify_publisher_manifest; exit $?; fi
-if [[ "$MODE" == seed ]]; then verify_seed_bytes; exit $?; fi
-if [[ "$MODE" == check ]]; then readonly_preview; exit 0; fi
-if [[ "$MODE" == operation ]]; then
-  case "$OPERATION" in
-    status|doctor) readonly_preview; exit 0 ;;
-    *) blocked; exit 3 ;;
-  esac
-fi
-if [[ "$JSON_MODE" -eq 1 || "$DRY_RUN" -eq 1 ]]; then
-  printf '%s\n' '--json/--dry-run require --check or --operation' >&2
-  exit 2
-fi
-if [[ ! -t 0 || ! -t 1 ]]; then
-  printf '%s\n' 'Interactive setup requires a terminal. Use --check for read-only preflight.' >&2
-  exit 2
-fi
-
-while :; do
-  if [[ "$narrow" -eq 1 ]]; then
-    printf '%s\n' 'AEGIS PLATFORM INSTALLER' 'PREVIEW ONLY / NO INSTALL AUTHORITY'
-  else
-    paint primary '+------------------------------------------------------------+'
-    printf '\n'
-    paint primary '|                AEGIS PLATFORM INSTALLER                    |'
-    printf '\n'
-    paint warning '|        PREVIEW ONLY / NO INSTALL AUTHORITY                 |'
-    printf '\n'
-    paint primary '+------------------------------------------------------------+'
-    printf '\n'
-  fi
-  paint accent '[1]'; printf ' Install Platform (blocked)\n'
-  paint accent '[2]'; printf ' Update Platform (blocked)\n'
-  paint accent '[3]'; printf ' Repair Platform (blocked)\n'
-  paint accent '[4]'; printf ' Uninstall Platform (blocked)\n'
-  paint accent '[5]'; printf ' Diagnostics (read-only)\n'
-  paint accent '[6]'; printf ' Rollback (blocked)\n'
-  paint accent '[7]'; printf ' Status (unverified)\n'
-  paint accent '[0]'; printf ' Exit\n'
-  printf '%s\n' '[?] Help | [B] Back | [C] Cancel'
-  printf 'Select [0-7]: '
-  if ! IFS= read -r choice; then exit 0; fi
-  case "$choice" in
-    0|b|B|c|C) exit 0 ;;
-    5|7) preflight ;;
-    1|2|3|4|6)
-      case "$choice" in
-        1) OPERATION=install ;; 2) OPERATION=update ;;
-        3) OPERATION=repair ;; 4) OPERATION=uninstall ;;
-        6) OPERATION=rollback ;;
-      esac
-      blocked || : ;;
-    '?') usage ;;
-    *) printf '%s\n' 'Invalid selection; no operation performed.' ;;
-  esac
-  printf '\n'
-done
+run_guided

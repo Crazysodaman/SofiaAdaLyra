@@ -1,9 +1,23 @@
 #Requires -Version 5.1
 <#
-Aegis Platform installer, preview-only by default.
-The opt-in -Wired path delegates to the canonical Python installer adapter and
-still requires independent publisher trust plus one-use SAFE owner approvals.
-This script never elevates, changes a service or infers signed artifact trust.
+Aegis Platform one-step installer.
+
+Default invocation performs the real guided installation through the bundled
+Python runtime and the canonical guided orchestrator. The launcher only:
+
+  - locates the adjacent signed release bundle and its bundled runtime,
+  - requires the independently provisioned installer trust anchor
+    (installer/trusted-publisher.pem and installer/trust.json),
+  - elevates once through the approved Windows UAC mechanism when required,
+  - forwards -Check, -Operation, -Json and -NoColor to the orchestrator.
+
+Signature, publisher, revocation, SAFE/STOP, owner approval and lifecycle
+semantics remain mandatory in the orchestrator. This launcher never accepts a
+manual hash, approval id, Python path or service command, never disables
+execution policy/anti-malware, and never performs a service action itself.
+
+Safe read-only -VerifySeed / -VerifyPublisherBootstrap paths remain available
+for independent offline media checks; they are not the default installer.
 #>
 [CmdletBinding()]
 param(
@@ -12,86 +26,52 @@ param(
     [switch]$LineMode,
     [switch]$Json,
     [switch]$DryRun,
+    [string]$BundleRoot,
+    [ValidateSet('verify','status','doctor','install','update','repair','rollback','uninstall','reinstall','reconcile','purge')]
+    [string]$Operation,
     [string]$VerifySeed,
     [string]$TrustedSeedSha256,
     [string]$VerifyPublisherBootstrap,
     [string]$TrustedPublisherThumbprint,
-    [string]$TrustedBootstrapSha256,
-    [ValidateSet('verify','status','doctor','install','update','repair','rollback','uninstall','reinstall','reconcile','purge')]
-    [string]$Operation,
-    [switch]$Wired,
-    [string]$ReleaseRoot,
-    [string]$BundledPython,
-    [string]$PublisherKey,
-    [string]$PublisherKeySha256,
-    [string]$PublisherSigner,
-    [string]$ExpectedSourceSha,
-    [string]$Target,
-    [int]$MinimumRevision,
-    [string]$Destination,
-    [string]$IdentityHome,
-    [string]$LocalState,
-    [string]$LocalInstallationState,
-    [string]$SafeState,
-    [string]$ApprovalId,
-    [string]$CodeApprovalId,
-    [string]$PreviousDestination,
-    [string]$StagingCandidate,
-    [string]$ExpectedParentManifestSha256
+    [string]$TrustedBootstrapSha256
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+if ($DryRun) { $Check = $true }
 if ($Check -and $Operation) {
     [Console]::Error.WriteLine('-Check cannot be combined with -Operation.')
     exit 2
 }
-
-if (($VerifySeed -and ($Check -or $Operation -or $DryRun -or $VerifyPublisherBootstrap -or $Wired)) -or
+if (($VerifySeed -and ($Check -or $Operation -or $VerifyPublisherBootstrap -or
+        -not [string]::IsNullOrWhiteSpace($BundleRoot))) -or
     ((-not [string]::IsNullOrEmpty($TrustedSeedSha256)) -and -not $VerifySeed) -or
-    ($VerifyPublisherBootstrap -and ($Check -or $Operation -or $DryRun -or $Wired)) -or
+    ($VerifyPublisherBootstrap -and ($Check -or $Operation -or
+        -not [string]::IsNullOrWhiteSpace($BundleRoot))) -or
     ((-not [string]::IsNullOrEmpty($TrustedPublisherThumbprint) -or
-      -not [string]::IsNullOrEmpty($TrustedBootstrapSha256)) -and -not $VerifyPublisherBootstrap)) {
+      -not [string]::IsNullOrEmpty($TrustedBootstrapSha256)) -and
+      -not $VerifyPublisherBootstrap)) {
     [Console]::Error.WriteLine('Conflicting or incomplete protected verifier arguments.')
     exit 2
 }
 
-$wiredInputs = @(
-    $ReleaseRoot, $BundledPython, $PublisherKey, $PublisherKeySha256,
-    $PublisherSigner, $ExpectedSourceSha, $Target, $Destination,
-    $IdentityHome, $LocalState, $SafeState, $ApprovalId, $CodeApprovalId,
-    $PreviousDestination, $StagingCandidate, $LocalInstallationState,
-    $ExpectedParentManifestSha256
-)
-if ($Wired) {
-    if ($Check -or $VerifySeed -or $VerifyPublisherBootstrap -or $DryRun -or
-        [string]::IsNullOrWhiteSpace($Operation) -or
-        [string]::IsNullOrWhiteSpace($ReleaseRoot) -or $MinimumRevision -lt 1) {
-        [Console]::Error.WriteLine('Wired installer requires operation, release root, revision floor and a safe bundled Python.')
-        exit 2
-    }
-} elseif (@($wiredInputs | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count -gt 0 -or
-          $MinimumRevision -ne 0) {
-    [Console]::Error.WriteLine('Wired trust and approval inputs require -Wired.')
-    exit 2
+$script:repoRoot = $PSScriptRoot
+if (-not (Test-Path -LiteralPath (Join-Path $script:repoRoot 'contracts\ui\aegis-theme-v1.json') -PathType Leaf)) {
+    $script:repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 }
-
-$repoRoot = $PSScriptRoot
-if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'contracts\ui\aegis-theme-v1.json') -PathType Leaf)) {
-    $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
-}
-$themePath = Join-Path $repoRoot 'contracts\ui\aegis-theme-v1.json'
-$useColor = (-not $NoColor) -and (-not $LineMode) -and (-not $Json) -and (-not (Test-Path Env:NO_COLOR)) -and
-    ($Host.Name -eq 'ConsoleHost')
-$theme = $null
-if (Test-Path -LiteralPath $themePath -PathType Leaf) {
+$script:themePath = Join-Path $script:repoRoot 'contracts\ui\aegis-theme-v1.json'
+$script:useColor = (-not $NoColor) -and (-not $LineMode) -and (-not $Json) -and
+    (-not (Test-Path Env:NO_COLOR)) -and ($Host.Name -eq 'ConsoleHost')
+$script:theme = $null
+if (Test-Path -LiteralPath $script:themePath -PathType Leaf) {
     try {
-        $document = Get-Content -LiteralPath $themePath -Encoding UTF8 -Raw |
+        $document = Get-Content -LiteralPath $script:themePath -Encoding UTF8 -Raw |
             ConvertFrom-Json -ErrorAction Stop
         if ($document.schema -eq 'aegis.ui.theme.v1') {
-            $theme = $document.tokens
+            $script:theme = $document.tokens
         }
     } catch {
-        $theme = $null
+        $script:theme = $null
     }
 }
 
@@ -128,51 +108,47 @@ function Write-AegisText {
     }
 }
 
-function Show-AegisPreflight {
-    Write-Output 'AEGIS PLATFORM INSTALLER PREFLIGHT'
-    Write-Output 'MODE=PREVIEW_ONLY'
-    if ($Operation) { Write-Output ('REQUESTED_OPERATION=' + $Operation) }
-    else { Write-Output 'REQUESTED_OPERATION=none' }
-    Write-Output 'SIGNED_RELEASE=NOT_VERIFIED'
-    Write-Output 'SERVICE_STATE=NOT_OBSERVED'
-    Write-Output ('OS_PLATFORM=' + [Environment]::OSVersion.Platform)
-    Write-Output ('OS_VERSION=' + [Environment]::OSVersion.Version)
-    Write-Output ('ARCH_64BIT=' + [Environment]::Is64BitOperatingSystem)
-    Write-Output 'INSTALL_AUTHORITY=NOT_CONNECTED'
-    Write-Output 'CORE_ACTIVATED=FALSE'
-    Write-Output 'RESULT=NO_CHANGES_MADE'
-}
-
-function Write-AegisResult {
-    param([ValidateSet('BLOCKED','NO_CHANGES_MADE')][string]$Result)
-    $requested = 'none'
-    if ($Operation) { $requested = $Operation }
+function Write-AegisFailure {
+    param([string]$Message)
     if ($Json) {
         $record = [ordered]@{
-            schema = 'aegis.installer.preflight.v1'
-            mode = 'PREVIEW_ONLY'
-            operation = $requested
-            signed_release = 'NOT_VERIFIED'
-            service_state = 'NOT_OBSERVED'
-            authority = 'NOT_CONNECTED'
+            schema = 'aegis.installer.guided-launcher.v1'
+            result = 'BLOCKED'
+            message = $Message
             executed = $false
             owner_approved = $false
             core_activated = $false
-            result = $Result
         }
         Write-Output (ConvertTo-Json -InputObject $record -Compress)
         return
     }
-    if ($Result -eq 'NO_CHANGES_MADE') {
-        Show-AegisPreflight
-        return
+    [Console]::Error.WriteLine('AEGIS SETUP BLOCKED: ' + $Message)
+}
+
+function Assert-AegisLocalPath {
+    param([string]$Path, [switch]$Directory)
+    if ([string]::IsNullOrWhiteSpace($Path)) { throw 'Local installer path required.' }
+    $absolute = [IO.Path]::GetFullPath($Path)
+    if ($absolute.StartsWith('\\')) { throw 'Network/UNC paths are not allowed for installer media.' }
+    # A redirected parent can silently relocate an otherwise ordinary leaf.
+    # Walk to the volume root so junctions/reparse points fail closed.
+    $cursor = $absolute
+    while ($cursor) {
+        $node = Get-Item -LiteralPath $cursor -Force -ErrorAction Stop
+        if (($node.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw 'Installer media path contains a symbolic link, junction or reparse point.'
+        }
+        $parent = [IO.Directory]::GetParent($cursor)
+        if ($null -eq $parent) { break }
+        $cursor = $parent.FullName
     }
-    Write-Output 'MODE=PREVIEW_ONLY'
-    Write-Output ('REQUESTED_OPERATION=' + $requested)
-    Write-Output 'SIGNED_RELEASE=NOT_VERIFIED'
-    Write-Output 'INSTALL_AUTHORITY=NOT_CONNECTED'
-    Write-Output 'RESULT=BLOCKED'
-    Write-Output 'BLOCKED: signed OS executor and current SAFE/STOP owner approval not connected.'
+    $item = Get-Item -LiteralPath $absolute -Force -ErrorAction Stop
+    if ($Directory -and -not $item.PSIsContainer) { throw 'Installer release root is not a directory.' }
+    if (-not $Directory -and $item.PSIsContainer) { throw 'Installer file path is a directory.' }
+    if (-not $Directory -and -not ($item -is [IO.FileInfo])) {
+        throw 'Installer file path is not a regular file.'
+    }
+    return $absolute
 }
 
 function Assert-AegisPinnedLocalFile {
@@ -205,8 +181,7 @@ function Assert-AegisPinnedLocalFile {
 function Get-AegisPinnedFileSha256 {
     param([IO.FileInfo]$File, [long]$MaxBytes, [string]$AllowedExtension)
     # Stock .NET streaming works in Windows PowerShell 5.1 even when the
-    # Utility module (and Get-FileHash cmdlet) cannot be autoloaded. Keep
-    # writes/deletes excluded while reading, and recheck the bounded path.
+    # Utility module (and Get-FileHash cmdlet) cannot be autoloaded.
     $stream = $null
     $algorithm = $null
     try {
@@ -351,38 +326,70 @@ function Test-AegisPublisherSignedBootstrap {
     }
 }
 
-function Assert-AegisWiredLocalPath {
-    param([string]$Path, [switch]$Directory)
-    if ([string]::IsNullOrWhiteSpace($Path)) { throw 'Local wired path required' }
-    $absolute = [IO.Path]::GetFullPath($Path)
-    if ($absolute.StartsWith('\\')) { throw 'Network/UNC wired path refused' }
-    # A redirected parent can silently relocate an otherwise ordinary leaf.
-    # Walk to the volume root so junctions/reparse points fail closed.
-    $cursor = $absolute
-    while ($cursor) {
-        $node = Get-Item -LiteralPath $cursor -Force -ErrorAction Stop
-        if (($node.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
-            throw 'Wired path contains a reparse point'
+function Resolve-AegisBundleRoot {
+    param([string]$Explicit)
+    if (-not [string]::IsNullOrWhiteSpace($Explicit)) {
+        return Assert-AegisLocalPath -Path $Explicit -Directory
+    }
+    $scriptDir = [IO.Path]::GetFullPath($PSScriptRoot)
+    $candidates = New-Object 'System.Collections.Generic.List[string]'
+    $candidates.Add($scriptDir)
+    $candidates.Add((Join-Path $scriptDir 'release'))
+    $candidates.Add((Join-Path $scriptDir 'bundle'))
+    $parent = [IO.Directory]::GetParent($scriptDir)
+    if ($null -ne $parent) {
+        $candidates.Add($parent.FullName)
+        $candidates.Add((Join-Path $parent.FullName 'release'))
+        $candidates.Add((Join-Path $parent.FullName 'bundle'))
+    }
+    foreach ($candidate in $candidates) {
+        $manifest = Join-Path $candidate 'release-manifest.json'
+        if (Test-Path -LiteralPath $manifest -PathType Leaf) {
+            return Assert-AegisLocalPath -Path $candidate -Directory
         }
-        $parent = [IO.Directory]::GetParent($cursor)
-        if ($null -eq $parent) { break }
-        $cursor = $parent.FullName
     }
-    $item = Get-Item -LiteralPath $absolute -Force -ErrorAction Stop
-    if ($Directory -and -not $item.PSIsContainer) { throw 'Wired release root is not a directory' }
-    if (-not $Directory -and $item.PSIsContainer) { throw 'Wired Python path is a directory' }
-    if (-not $Directory -and -not ($item -is [IO.FileInfo])) {
-        throw 'Wired Python path is not a regular file'
+    throw ('Aegis release bundle not found. Expected release-manifest.json next to the ' +
+        'installer, in its parent directory, or in ./release or ./bundle. Re-download the ' +
+        'complete signed setup media; do not assemble or extract individual files.')
+}
+
+function Resolve-AegisTrustDirectory {
+    param([string]$Root)
+    $candidates = New-Object 'System.Collections.Generic.List[string]'
+    $candidates.Add((Join-Path $Root 'installer'))
+    if (-not [string]::IsNullOrWhiteSpace($PSScriptRoot)) {
+        $candidates.Add([IO.Path]::GetFullPath($PSScriptRoot))
+        $candidates.Add([IO.Path]::GetFullPath((Join-Path $PSScriptRoot 'installer')))
     }
-    return $absolute
+    foreach ($candidate in $candidates) {
+        $pem = Join-Path $candidate 'trusted-publisher.pem'
+        $policy = Join-Path $candidate 'trust.json'
+        if ((Test-Path -LiteralPath $pem -PathType Leaf) -and
+            (Test-Path -LiteralPath $policy -PathType Leaf)) {
+            return Assert-AegisLocalPath -Path $candidate -Directory
+        }
+    }
+    throw ('Independent installer trust anchor missing. Provision installer/trusted-publisher.pem ' +
+        'and installer/trust.json out of band before running setup. Do not derive publisher trust ' +
+        'from the release bundle or its signature.')
+}
+
+function Assert-AegisTrustAnchor {
+    param([string]$BundleRoot)
+    $directory = Resolve-AegisTrustDirectory -Root $BundleRoot
+    $null = Assert-AegisPinnedLocalFile -Path (Join-Path $directory 'trusted-publisher.pem') `
+        -MaxBytes 16384 -AllowedExtension '.pem'
+    $null = Assert-AegisPinnedLocalFile -Path (Join-Path $directory 'trust.json') `
+        -MaxBytes 65536 -AllowedExtension '.json'
+    return $directory
 }
 
 function Resolve-AegisBundledPython {
     param([string]$Root)
-    # The caller supplies the verified release root. Discovery is deliberately
-    # limited to the reviewed runtime layout for the observed host; there is no
-    # search path, environment lookup or fallback to a system interpreter.
-    $rootPath = Assert-AegisWiredLocalPath -Path $Root -Directory
+    # Discovery is limited to the reviewed runtime layout inside the release
+    # root. There is no PATH search, environment lookup or system interpreter
+    # fallback, and every filesystem redirection fails closed.
+    $rootPath = Assert-AegisLocalPath -Path $Root -Directory
     $windows = [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
     if ($windows) {
         $relative = @('runtime\python\python.exe')
@@ -422,7 +429,7 @@ function Resolve-AegisBundledPython {
             $present = $false
         }
         if (-not $present) { continue }
-        $checked = Assert-AegisWiredLocalPath -Path $candidate
+        $checked = Assert-AegisLocalPath -Path $candidate
         if (-not $checked.StartsWith($prefix, $comparison)) {
             throw 'Bundled runtime resolves outside the release root'
         }
@@ -434,132 +441,142 @@ function Resolve-AegisBundledPython {
     return $found[0]
 }
 
-function Invoke-AegisWiredInstaller {
-    $release = Assert-AegisWiredLocalPath -Path $ReleaseRoot -Directory
-    $python = Assert-AegisWiredLocalPath -Path $BundledPython
-    $arguments = New-Object 'System.Collections.Generic.List[string]'
+function Test-AegisElevated {
+    if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { return $false }
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+function Test-AegisNeedsElevation {
+    if ($Check) { return $false }
+    if ($Operation -in @('verify','status','doctor')) { return $false }
+    return $true
+}
+
+function ConvertTo-AegisQuotedArgument {
+    param([string]$Value)
+    if ($Value -match '["\r\n]') {
+        throw 'Installer path contains an unsupported quote or line break.'
+    }
+    return '"' + $Value + '"'
+}
+
+function Invoke-AegisElevatedRelaunch {
+    param([string]$Root)
+    if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
+        throw 'Elevation through UAC is only available on Windows. Run the platform installer as an administrator.'
+    }
+    $hostPath = $null
+    try { $hostPath = (Get-Process -Id $PID).Path } catch { $hostPath = $null }
+    if ([string]::IsNullOrWhiteSpace($hostPath)) {
+        $candidate = Join-Path $PSHOME 'powershell.exe'
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) { $hostPath = $candidate }
+    }
+    if ([string]::IsNullOrWhiteSpace($hostPath)) {
+        throw 'Unable to locate the current PowerShell host for an approved UAC relaunch.'
+    }
+    $parts = New-Object 'System.Collections.Generic.List[string]'
+    $parts.Add('-NoProfile')
+    $parts.Add('-File')
+    $parts.Add((ConvertTo-AegisQuotedArgument -Value $PSCommandPath))
+    $parts.Add('-BundleRoot')
+    $parts.Add((ConvertTo-AegisQuotedArgument -Value $Root))
+    if ($Operation) {
+        $parts.Add('-Operation')
+        $parts.Add($Operation)
+    }
+    if ($Check) { $parts.Add('-Check') }
+    if ($Json) { $parts.Add('-Json') }
+    if ($NoColor) { $parts.Add('-NoColor') }
+    if ($LineMode) { $parts.Add('-LineMode') }
+    $argumentLine = $parts -join ' '
+    try {
+        $process = Start-Process -FilePath $hostPath -Verb RunAs -ArgumentList $argumentLine `
+            -Wait -PassThru -ErrorAction Stop
+    } catch {
+        throw ('Administrator approval was not granted or the elevated installer could not start. ' +
+            'Approve the Windows UAC prompt and run setup again.')
+    }
+    if ($null -eq $process) {
+        throw 'Elevated installer did not return a process result.'
+    }
+    exit $process.ExitCode
+}
+
+function Show-AegisGuidedBanner {
+    param([string]$Root)
+    if ($Json) { return }
+    Write-AegisText 'AEGIS GUIDED PLATFORM INSTALLER' primary
+    Write-AegisText ('RELEASE_BUNDLE=' + $Root) text_main
+    if ($Check) {
+        Write-AegisText 'MODE=CHECK (read-only preview)' accent
+    } elseif ($Operation) {
+        Write-AegisText ('MODE=OPERATION ' + $Operation) accent
+    } else {
+        Write-AegisText 'MODE=INSTALL' accent
+    }
+}
+
+function Invoke-AegisGuidedInstaller {
+    param([string]$Root, [string]$Python)
     # Isolation without -I: -E/-s ignore ambient Python configuration and user
     # site packages, -P keeps the working directory off sys.path, and -B avoids
     # writing bytecode into a read-only release. The bundled runtime still
     # resolves its own signed site-packages.
-    foreach ($value in @('-E', '-s', '-P', '-B', '-m', 'sofia.platform.ops.platform_installer_cli', $Operation, '--json')) {
+    $arguments = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($value in @('-E', '-s', '-P', '-B', '-m',
+            'sofia.platform.ops.platform_installer_guided', '--bundle-root', $Root)) {
         $arguments.Add($value)
     }
-    $options = @(
-        @('--release-root', $release),
-        @('--publisher-key', $PublisherKey),
-        @('--publisher-key-sha256', $PublisherKeySha256),
-        @('--publisher-signer', $PublisherSigner),
-        @('--expected-source-sha', $ExpectedSourceSha),
-        @('--target', $Target),
-        @('--minimum-revision', $(if ($MinimumRevision -gt 0) { [string]$MinimumRevision } else { '' })),
-        @('--destination', $Destination),
-        @('--identity-home', $IdentityHome),
-        @('--local-state', $LocalState),
-        @('--safe-state', $SafeState),
-        @('--local-installation-state', $LocalInstallationState),
-        @('--approval-id', $ApprovalId),
-        @('--code-approval-id', $CodeApprovalId),
-        @('--previous-destination', $PreviousDestination),
-        @('--staging-candidate', $StagingCandidate),
-        @('--expected-parent-manifest-sha256', $ExpectedParentManifestSha256)
-    )
-    foreach ($option in $options) {
-        if (-not [string]::IsNullOrWhiteSpace($option[1])) {
-            $arguments.Add($option[0])
-            $arguments.Add($option[1])
-        }
+    if ($Check) { $arguments.Add('--check') }
+    if ($Operation) {
+        $arguments.Add('--operation')
+        $arguments.Add($Operation)
     }
-    & $python @arguments
-    if (Test-Path Variable:LASTEXITCODE) { exit $LASTEXITCODE }
-    exit 0
+    if ($Json) { $arguments.Add('--json') }
+    if ($NoColor -or $LineMode -or (Test-Path Env:NO_COLOR)) {
+        $arguments.Add('--no-color')
+    }
+    & $Python @arguments
+    $exitCode = 0
+    if (Test-Path Variable:LASTEXITCODE) { $exitCode = $LASTEXITCODE }
+    if ($exitCode -ne 0 -and -not $Json) {
+        [Console]::Error.WriteLine(
+            'AEGIS SETUP FAILED: the guided installer exited with code ' + $exitCode +
+            '. Review the message above; setup did not retry or hide a failed step.')
+    }
+    exit $exitCode
 }
 
-if ($Wired) {
-    try {
-        if ([string]::IsNullOrWhiteSpace($BundledPython)) {
-            $BundledPython = Resolve-AegisBundledPython -Root $ReleaseRoot
-        } else {
-            $BundledPython = Assert-AegisWiredLocalPath -Path $BundledPython
-        }
-        Invoke-AegisWiredInstaller
-    } catch {
-        [Console]::Error.WriteLine('Wired bundled runtime is missing, ambiguous, redirected or unsafe.')
-        exit 2
-    }
-}
 if ($VerifySeed) {
     Test-AegisOfflineSeedHash -Path $VerifySeed -ExternalSha256 $TrustedSeedSha256
     exit 3
 }
 if ($VerifyPublisherBootstrap) {
-    Test-AegisPublisherSignedBootstrap -Path $VerifyPublisherBootstrap -PublisherThumbprint $TrustedPublisherThumbprint -IndependentSha256 $TrustedBootstrapSha256
+    Test-AegisPublisherSignedBootstrap -Path $VerifyPublisherBootstrap `
+        -PublisherThumbprint $TrustedPublisherThumbprint `
+        -IndependentSha256 $TrustedBootstrapSha256
     exit 3
-}
-if ($Check) {
-    Write-AegisResult NO_CHANGES_MADE
-    exit 0
-}
-if ($Operation) {
-    if ($Operation -in @('status','doctor')) {
-        Write-AegisResult NO_CHANGES_MADE
-        exit 0
-    }
-    Write-AegisResult BLOCKED
-    exit 3
-}
-if ($Json -or $DryRun) {
-    [Console]::Error.WriteLine('-Json and -DryRun require -Check or -Operation.')
-    exit 2
 }
 
 try {
-    if ([Console]::IsInputRedirected -or [Console]::IsOutputRedirected) {
-        [Console]::Error.WriteLine(
-            'Interactive installer requires a console; use -Check for preflight.'
-        )
-        exit 2
-    }
+    $resolvedRoot = Resolve-AegisBundleRoot -Explicit $BundleRoot
+    $null = Assert-AegisTrustAnchor -BundleRoot $resolvedRoot
+    $resolvedPython = Resolve-AegisBundledPython -Root $resolvedRoot
 } catch {
-    [Console]::Error.WriteLine(
-        'No interactive console available; use -Check for preflight.'
-    )
+    Write-AegisFailure -Message $_.Exception.Message
     exit 2
 }
 
-$narrow = $false
-try { $narrow = ([Console]::WindowWidth -lt 64) } catch { $narrow = $false }
-while ($true) {
-    if ($narrow) {
-        Write-AegisText 'AEGIS PLATFORM INSTALLER' primary
-        Write-AegisText 'PREVIEW ONLY / NO INSTALL AUTHORITY' warning
-    } else {
-        Write-AegisText '+------------------------------------------------------------+' primary
-        Write-AegisText '|                 AEGIS PLATFORM INSTALLER                   |' primary
-        Write-AegisText '|           PREVIEW ONLY / NO INSTALL AUTHORITY              |' warning
-        Write-AegisText '+------------------------------------------------------------+' primary
-    }
-    Write-AegisText '[1] Install Platform (blocked)' accent
-    Write-AegisText '[2] Update Platform (blocked)' accent
-    Write-AegisText '[3] Repair Platform (blocked)' accent
-    Write-AegisText '[4] Uninstall Platform (blocked)' accent
-    Write-AegisText '[5] Diagnostics (read-only)' accent
-    Write-AegisText '[6] Rollback (blocked)' accent
-    Write-AegisText '[7] Status (unverified)' accent
-    Write-AegisText '[0] Exit' accent
-    Write-Host '[?] Help | [B] Back | [C] Cancel'
-    $choice = Read-Host 'Select [0-7]'
-    switch ($choice) {
-        { $_ -in '0','B','b','C','c' } { exit 0 }
-        { $_ -in '5','7' } { Show-AegisPreflight; break }
-        { $_ -in '1','2','3','4','6' } {
-            Write-AegisText 'BLOCKED: signed release, native executor and SAFE/STOP approval not connected.' warning
-            break
-        }
-        '?' {
-            Write-Host 'Choose 5 or 7 for read-only checks. Lifecycle changes require a certified signed installer.'
-            break
-        }
-        default { Write-Host 'Invalid selection; no operation performed.' }
+if ((Test-AegisNeedsElevation) -and -not (Test-AegisElevated)) {
+    try {
+        Invoke-AegisElevatedRelaunch -Root $resolvedRoot
+    } catch {
+        Write-AegisFailure -Message $_.Exception.Message
+        exit 2
     }
 }
+
+Show-AegisGuidedBanner -Root $resolvedRoot
+Invoke-AegisGuidedInstaller -Root $resolvedRoot -Python $resolvedPython
