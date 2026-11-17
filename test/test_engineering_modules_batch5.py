@@ -194,7 +194,7 @@ def test_leg_stale_does_not_issue_solution():
     (print_regs,'plan',printing), (gaia_regs,'plan',leg),
 ])
 def test_capability_registration_inert_and_identity_checked(registrations,param_key,input_builder):
-    ((cap,handler),)=registrations()
+    cap, handler = registrations()[0]
     assert isinstance(cap,Capability) and callable(handler)
     with pytest.raises(ValueError):
         handler(CapabilityRequest(Capability(cap.name,'forged'),{param_key:input_builder()},None,'test'))
