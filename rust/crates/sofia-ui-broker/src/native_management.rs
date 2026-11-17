@@ -10,10 +10,112 @@
 pub mod windows;
 
 #[cfg(windows)]
+pub use windows::NativeWindowsManagementReader as NativeManagementReader;
+#[cfg(windows)]
 pub use windows::NativeWindowsMutationTransport as NativeMutationTransport;
 
 #[cfg(target_os = "linux")]
+pub use linux::NativeLinuxManagementReader as NativeManagementReader;
+#[cfg(target_os = "linux")]
 pub use linux::NativeLinuxMutationTransport as NativeMutationTransport;
+
+use crate::control_center_session::ReadFailure;
+
+/// Open one live read-only client over the exact operator-supplied native
+/// endpoint. OS peer identity is pinned from the live channel itself; the
+/// caller-supplied Platform ID and generation remain only expected request
+/// values. The Platform still authenticates the client and enforces current
+/// owner enrollment, SAFE/STOP and generation. No discovery, retry, daemon or
+/// second protocol is performed here.
+///
+/// # Errors
+/// Missing endpoints, unverifiable OS peers and invalid expectations fail
+/// closed. The caller must display DENIED/UNKNOWN rather than inferred health.
+#[cfg(windows)]
+pub fn open_live_management_reader(
+    endpoint: &str,
+    platform_id: &str,
+    generation: u64,
+) -> Result<NativeManagementReader, ReadFailure> {
+    windows::InstalledNativeServicePins::from_observed_endpoint(
+        endpoint,
+        platform_id.to_owned(),
+        generation,
+    )
+    .map(NativeManagementReader::new)
+}
+
+/// Derive one exact endpoint identity and compose the independent status and
+/// manager-snapshot readers from the same pins. This avoids re-probing an
+/// already observed native endpoint.
+///
+/// # Errors
+/// The exact endpoint identity, expectations or peer verification must fail
+/// closed before either reader is returned.
+#[cfg(windows)]
+pub fn open_live_management_readers(
+    endpoint: &str,
+    platform_id: &str,
+    generation: u64,
+) -> Result<(NativeManagementReader, NativeManagementReader), ReadFailure> {
+    let pins = windows::InstalledNativeServicePins::from_observed_endpoint(
+        endpoint,
+        platform_id.to_owned(),
+        generation,
+    )?;
+    Ok((
+        NativeManagementReader::new(pins.clone()),
+        NativeManagementReader::new(pins),
+    ))
+}
+
+/// Open one live read-only client over the exact operator-supplied native
+/// endpoint. OS peer identity is pinned from the live channel itself; the
+/// caller-supplied Platform ID and generation remain only expected request
+/// values. The Platform still authenticates the client and enforces current
+/// owner enrollment, SAFE/STOP and generation. No discovery, retry, daemon or
+/// second protocol is performed here.
+///
+/// # Errors
+/// Missing endpoints, unverifiable OS peers and invalid expectations fail
+/// closed. The caller must display DENIED/UNKNOWN rather than inferred health.
+#[cfg(target_os = "linux")]
+pub fn open_live_management_reader(
+    endpoint: &str,
+    platform_id: &str,
+    generation: u64,
+) -> Result<NativeManagementReader, ReadFailure> {
+    linux::InstalledNativeServicePins::from_observed_endpoint(
+        endpoint,
+        platform_id.to_owned(),
+        generation,
+    )
+    .map(NativeManagementReader::new)
+}
+
+/// Derive one exact endpoint identity and compose the independent status and
+/// manager-snapshot readers from the same pins. This avoids re-probing an
+/// already observed native endpoint.
+///
+/// # Errors
+/// The exact endpoint identity, expectations or peer verification must fail
+/// closed before either reader is returned.
+#[cfg(target_os = "linux")]
+pub fn open_live_management_readers(
+    endpoint: &str,
+    platform_id: &str,
+    generation: u64,
+) -> Result<(NativeManagementReader, NativeManagementReader), ReadFailure> {
+    let pins = linux::InstalledNativeServicePins::from_observed_endpoint(
+        endpoint,
+        platform_id.to_owned(),
+        generation,
+    )?;
+    Ok((
+        NativeManagementReader::new(pins.clone()),
+        NativeManagementReader::new(pins),
+    ))
+}
 
 #[cfg(target_os = "linux")]
 pub mod linux {
@@ -116,6 +218,83 @@ pub mod linux {
                 service_pid,
             })
         }
+
+        /// Pin the exact live Unix socket selected by an operator-supplied
+        /// endpoint. UID/GID/PID are observed from the socket metadata and
+        /// OS peer credentials, never accepted from a flag or environment.
+        /// Platform still enforces current owner enrollment, SAFE/STOP and
+        /// generation on every request.
+        ///
+        /// # Errors
+        /// Symlinked, world-accessible, replaced or unverifiable socket
+        /// identities fail closed without discovery or fallback.
+        #[allow(clippy::similar_names)] // UID, GID and PID are distinct OS identity pins.
+        pub fn from_observed_endpoint(
+            endpoint: &str,
+            platform_id: String,
+            generation: u64,
+        ) -> Result<Self, ReadFailure> {
+            let socket_path = PathBuf::from(endpoint);
+            let path_bytes = socket_path.as_os_str().as_bytes();
+            if !socket_path.is_absolute()
+                || path_bytes.len() > MAX_SOCK_PATH
+                || path_bytes.contains(&0)
+                || !valid_platform_id(&platform_id)
+                || generation == 0
+                || generation > MAX_GENERATION
+            {
+                return Err(ReadFailure::Unverified);
+            }
+            no_symlinks(&socket_path)?;
+            let parent = socket_path.parent().ok_or(ReadFailure::Unverified)?;
+            let dir = fs::symlink_metadata(parent).map_err(|_| ReadFailure::Offline)?;
+            let leaf = fs::symlink_metadata(&socket_path).map_err(|_| ReadFailure::Offline)?;
+            let dir_mode = dir.permissions().mode() & 0o777;
+            let socket_mode = leaf.permissions().mode() & 0o777;
+            if !dir.is_dir()
+                || !leaf.file_type().is_socket()
+                || dir.uid() != leaf.uid()
+                || dir.gid() != leaf.gid()
+            {
+                return Err(ReadFailure::Unverified);
+            }
+            let connection = connect_without_waiting(&socket_path)?;
+            let credentials =
+                getsockopt(&connection, PeerCredentials).map_err(|_| ReadFailure::Unverified)?;
+            if credentials.pid() <= 0 || credentials.uid() != leaf.uid() {
+                return Err(ReadFailure::Unverified);
+            }
+            let socket_group_gid = match (dir_mode, socket_mode) {
+                (0o700, 0o600) => {
+                    if credentials.gid() != dir.gid() {
+                        return Err(ReadFailure::Unverified);
+                    }
+                    None
+                }
+                (0o750, 0o660) => Some(dir.gid()),
+                _ => return Err(ReadFailure::Unverified),
+            };
+            Self::from_externally_verified_installation(
+                socket_path,
+                platform_id,
+                generation,
+                credentials.uid(),
+                credentials.gid(),
+                socket_group_gid,
+                Some(credentials.pid()),
+            )
+        }
+    }
+
+    fn valid_platform_id(platform_id: &str) -> bool {
+        let bytes = platform_id.as_bytes();
+        !bytes.is_empty()
+            && bytes.len() <= 160
+            && bytes[0].is_ascii_alphanumeric()
+            && bytes.iter().all(|byte| {
+                byte.is_ascii_alphanumeric()
+                    || matches!(*byte, b'.' | b'_' | b'-' | b':' | b'@' | b'/')
+            })
     }
 
     /// One installer-authority result. The revision is durable publication

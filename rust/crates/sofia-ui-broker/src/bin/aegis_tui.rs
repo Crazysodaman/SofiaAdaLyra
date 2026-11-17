@@ -10,18 +10,225 @@ use sofia_ui_broker::connection_state::{ConnectionState, ConnectionStateModel};
 use sofia_ui_broker::control_center::{
     ActionHint, ControlCenterView, LinkState, ProposedAction, SafeState,
 };
-use sofia_ui_broker::control_center_session::{DisplayReadSource, DisplaySession, OfflineReader};
+use sofia_ui_broker::control_center_session::{
+    DisplayReadSource, DisplaySession, OfflineReader, ReadFailure,
+};
 use sofia_ui_broker::management_mutation::{MutationClient, MutationTransport};
 use sofia_ui_broker::manager_snapshot::{
     read_manager_snapshot, AuthenticatedManagerSnapshotSource,
 };
-use sofia_ui_broker::manager_views::{self, ManagerPage, ManagerSnapshot};
+use sofia_ui_broker::manager_views::{self, ManagerPage, ManagerSnapshot, StartupState};
+use sofia_ui_broker::native_management;
 use std::env;
 use std::fmt::Write as _;
 use std::io::{self, IsTerminal, Write};
 use std::process::ExitCode;
 
 const THEME: &str = include_str!("../../../../../contracts/ui/aegis-theme-v1.json");
+const ENV_ENDPOINT: &str = "AEGIS_MANAGEMENT_ENDPOINT";
+const ENV_PLATFORM_ID: &str = "AEGIS_EXPECTED_PLATFORM_ID";
+const ENV_GENERATION: &str = "AEGIS_EXPECTED_GENERATION";
+
+#[allow(clippy::struct_excessive_bools)]
+#[derive(Debug, Default, PartialEq, Eq)]
+struct CliOptions {
+    plain: bool,
+    status: bool,
+    status_json: bool,
+    library_status: bool,
+    library_json: bool,
+    help: bool,
+    endpoint: Option<String>,
+    platform_id: Option<String>,
+    generation: Option<u64>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum CliError {
+    Unknown(String),
+    MissingValue(String),
+    InvalidGeneration(String),
+}
+
+impl std::fmt::Display for CliError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Unknown(option) => write!(formatter, "Unknown option: {option}. Use --help."),
+            Self::MissingValue(option) => write!(formatter, "Missing value for {option}."),
+            Self::InvalidGeneration(value) => {
+                write!(formatter, "Invalid expected generation: {value}.")
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct LiveTarget {
+    endpoint: String,
+    platform_id: String,
+    generation: u64,
+}
+
+impl CliOptions {
+    fn parse(args: &[String]) -> Result<Self, CliError> {
+        let mut options = Self::default();
+        let mut index = 0;
+        while index < args.len() {
+            let argument = args[index].as_str();
+            if let Some(value) = argument.strip_prefix("--management-endpoint=") {
+                options.endpoint = Some(value.to_owned());
+            } else if let Some(value) = argument.strip_prefix("--expected-platform-id=") {
+                options.platform_id = Some(value.to_owned());
+            } else if let Some(value) = argument.strip_prefix("--expected-generation=") {
+                options.generation = Some(parse_generation(value)?);
+            } else {
+                match argument {
+                    "--plain" => options.plain = true,
+                    "--status" => options.status = true,
+                    "--status-json" => options.status_json = true,
+                    "--library-status" => options.library_status = true,
+                    "--library-json" => options.library_json = true,
+                    "--help" | "-h" => options.help = true,
+                    "--management-endpoint" => {
+                        options.endpoint =
+                            Some(option_value(args, &mut index, "--management-endpoint")?);
+                    }
+                    "--expected-platform-id" => {
+                        options.platform_id =
+                            Some(option_value(args, &mut index, "--expected-platform-id")?);
+                    }
+                    "--expected-generation" => {
+                        options.generation = Some(parse_generation(&option_value(
+                            args,
+                            &mut index,
+                            "--expected-generation",
+                        )?)?);
+                    }
+                    _ => return Err(CliError::Unknown(argument.to_owned())),
+                }
+            }
+            index += 1;
+        }
+        Ok(options)
+    }
+
+    fn from_process(args: &[String]) -> Result<Self, CliError> {
+        let mut options = Self::parse(args)?;
+        if options.endpoint.is_none() {
+            options.endpoint = environment(ENV_ENDPOINT);
+        }
+        if options.platform_id.is_none() {
+            options.platform_id = environment(ENV_PLATFORM_ID);
+        }
+        if options.generation.is_none() {
+            if let Some(value) = environment(ENV_GENERATION) {
+                options.generation = Some(parse_generation(&value)?);
+            }
+        }
+        Ok(options)
+    }
+
+    fn live_target(&self) -> Result<Option<LiveTarget>, ()> {
+        match (&self.endpoint, &self.platform_id, self.generation) {
+            (None, None, None) => Ok(None),
+            (Some(endpoint), Some(platform_id), Some(generation))
+                if !endpoint.trim().is_empty()
+                    && valid_platform_id(platform_id)
+                    && generation > 0 =>
+            {
+                Ok(Some(LiveTarget {
+                    endpoint: endpoint.clone(),
+                    platform_id: platform_id.clone(),
+                    generation,
+                }))
+            }
+            _ => Err(()),
+        }
+    }
+}
+
+fn option_value(args: &[String], index: &mut usize, name: &str) -> Result<String, CliError> {
+    *index += 1;
+    args.get(*index)
+        .cloned()
+        .ok_or_else(|| CliError::MissingValue(name.to_owned()))
+}
+
+fn environment(name: &str) -> Option<String> {
+    env::var(name).ok().filter(|value| !value.trim().is_empty())
+}
+
+fn parse_generation(value: &str) -> Result<u64, CliError> {
+    value
+        .parse::<u64>()
+        .map_err(|_| CliError::InvalidGeneration(value.to_owned()))
+}
+
+fn valid_platform_id(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    !bytes.is_empty()
+        && bytes.len() <= 160
+        && bytes[0].is_ascii_alphanumeric()
+        && bytes.iter().all(|byte| {
+            byte.is_ascii_alphanumeric() || matches!(*byte, b'.' | b'_' | b'-' | b':' | b'@' | b'/')
+        })
+}
+
+struct FailureReader(ReadFailure);
+
+impl DisplayReadSource for FailureReader {
+    fn next(
+        &mut self,
+    ) -> Result<sofia_ui_broker::control_center_session::DisplaySnapshot, ReadFailure> {
+        Err(self.0)
+    }
+}
+
+/// With an explicitly configured endpoint, an unreachable or mismatched
+/// native channel is UNVERIFIED/UNKNOWN rather than an implicit offline
+/// fallback. After one genuine observation, later loss remains OFFLINE.
+struct ConfiguredStatusReader<R> {
+    inner: R,
+    observed: bool,
+}
+
+impl<R: DisplayReadSource> DisplayReadSource for ConfiguredStatusReader<R> {
+    fn next(
+        &mut self,
+    ) -> Result<sofia_ui_broker::control_center_session::DisplaySnapshot, ReadFailure> {
+        match self.inner.next() {
+            Ok(snapshot) => {
+                self.observed = true;
+                Ok(snapshot)
+            }
+            Err(ReadFailure::Offline) if !self.observed => Err(ReadFailure::Unverified),
+            Err(failure) => Err(failure),
+        }
+    }
+}
+
+struct ConfiguredSnapshotReader<R> {
+    inner: R,
+    observed: bool,
+}
+
+impl<R: AuthenticatedManagerSnapshotSource> AuthenticatedManagerSnapshotSource
+    for ConfiguredSnapshotReader<R>
+{
+    fn observe_operation(
+        &mut self,
+        operation: &str,
+    ) -> Result<sofia_ui_broker::manager_snapshot::AuthenticatedObservation, ReadFailure> {
+        match self.inner.observe_operation(operation) {
+            Ok(observation) => {
+                self.observed = true;
+                Ok(observation)
+            }
+            Err(ReadFailure::Offline) if !self.observed => Err(ReadFailure::Unverified),
+            Err(failure) => Err(failure),
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Page {
@@ -410,8 +617,13 @@ fn render_page_with_snapshot(
         "VALUES: UNAVAILABLE (not disconnected, removed, healthy or zero)".into()
     };
     let manager = manager_section(page, state, snapshot);
+    let startup = if page == Page::Platform {
+        manager_views::startup_lines(snapshot).join("\n")
+    } else {
+        String::new()
+    };
     format!(
-        "{}\nCONNECTION: {}\nSERVICE: {} / SOURCE: {}\nSETTINGS: {}\nINSTALLATION: {}\n{}\n{}\n{}\n{}\n{}\n{}",
+        "{}\nCONNECTION: {}\nSERVICE: {} / SOURCE: {}\nSETTINGS: {}\nINSTALLATION: {}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
         paint(page.heading(), "primary", colors),
         ConnectionState::from_view(state).label(),
         state.service_label(),
@@ -422,6 +634,7 @@ fn render_page_with_snapshot(
         permission,
         action_request_line(page, state),
         "No writes, approvals, downloads, installation, state files or service changes.",
+        startup,
         manager,
         library
     )
@@ -470,9 +683,16 @@ fn status_line(view: &ControlCenterView) -> String {
     )
 }
 
-fn status_json(view: &ControlCenterView) -> Value {
+fn status_json(view: &ControlCenterView, snapshot: Option<&ManagerSnapshot>) -> Value {
     let current = current_status(view);
     let operator_stop = if current { Some(false) } else { None };
+    // Startup and Core counts come only from the current authenticated
+    // startup.status projection. Never infer them from a launch or a name.
+    let startup = if current {
+        snapshot.and_then(|snapshot| snapshot.startup.as_ref())
+    } else {
+        None
+    };
     serde_json::json!({
         "schema": "aegis.ui.platform.status-display.v1",
         "status": status_name(view),
@@ -481,9 +701,13 @@ fn status_json(view: &ControlCenterView) -> Value {
         "platform_generation": if current { view.platform_generation } else { None },
         "safe": view.safe_label(),
         "operator_stop": operator_stop,
-        // Team A v1 strict OK requires core_started=false.
-        // Never show that value for an unverified observation or denial.
-        "core_started": if current { Some(false) } else { None },
+        "core_started": startup.map(|startup| startup.core_started),
+        "startup_state": startup.map(|startup| startup.startup_state.label()),
+        "core_count": startup.map(|startup| startup.core_count),
+        "active_core_count": startup.map(|startup| startup.active_core_count),
+        "cores_disabled": startup
+            .map(|startup| startup.startup_state == StartupState::CoresDisabled),
+        "management_listening": startup.map(|startup| startup.management_listening),
         "permission": view.permission_label(),
         "installation": view.installation_label(),
         "actions_enabled": false
@@ -498,53 +722,62 @@ fn status_exit(view: &ControlCenterView) -> ExitCode {
     }
 }
 
-// Native Linux status implements the SAME reader. Only an independently
-// B1-verified installed profile may activate it, never untrusted CLI flags.
+// Native Linux status implements the SAME reader. Composition is explicit:
+// endpoint/config flags select the live native reader, otherwise OfflineReader.
 fn run_with_source(source: &mut impl DisplayReadSource) -> io::Result<ExitCode> {
-    run_with_sources(source, None, None)
+    let args: Vec<String> = env::args().skip(1).collect();
+    let options = match CliOptions::from_process(&args) {
+        Ok(options) => options,
+        Err(error) => {
+            eprintln!("{error}");
+            return Ok(ExitCode::from(2));
+        }
+    };
+    run_with_sources(source, None, None, &args, &options)
 }
 
 fn run_with_sources(
     source: &mut impl DisplayReadSource,
-    snapshot_source: Option<&mut dyn AuthenticatedManagerSnapshotSource>,
+    mut snapshot_source: Option<&mut dyn AuthenticatedManagerSnapshotSource>,
     mutation_transport: Option<&mut dyn MutationTransport>,
+    args: &[String],
+    options: &CliOptions,
 ) -> io::Result<ExitCode> {
-    let args: Vec<String> = env::args().skip(1).collect();
     let mut session = DisplaySession::default();
-    if args.iter().any(|arg| arg == "--help" || arg == "-h") {
+    if options.help {
         const HELP: &str = concat!(
             "aegis-tui [--plain | --help | --status | --status-json",
-            " | --library-status | --library-json]"
+            " | --library-status | --library-json",
+            " | --management-endpoint <native> --expected-platform-id <id>",
+            " --expected-generation <n>]"
         );
         println!("{HELP}");
-        println!("This shell is read-only unless an authenticated snapshot/mutation channel is composed.");
+        println!("Endpoint and expected identity may also come from {ENV_ENDPOINT}, {ENV_PLATFORM_ID} and {ENV_GENERATION}.");
+        println!("Without an endpoint this shell is explicitly read-only and OFFLINE.");
+        println!("With an endpoint it reads the existing authenticated native management channel; no retry, discovery or second protocol.");
         println!("Protected manager actions are previews requiring a caller-supplied owner approval and a service receipt.");
         println!("Preview: p; attach approval: 'a <approval-id>'; submit: s.");
         println!("Keyboard: 1-15 select, j/k next/previous, Enter open, r refresh, q exit.");
+        println!("Closing this shell never stops Platform, a Core or any service.");
         return Ok(ExitCode::SUCCESS);
     }
-    if args.len() > 1
-        || args.first().is_some_and(|arg| {
-            arg != "--plain"
-                && arg != "--status"
-                && arg != "--status-json"
-                && arg != "--library-status"
-                && arg != "--library-json"
-        })
-    {
-        eprintln!("Unknown option. Use --help.");
-        return Ok(ExitCode::from(2));
-    }
+    let status_snapshot = if options.status || options.status_json {
+        snapshot_source
+            .as_mut()
+            .map(|source| read_manager_snapshot(&mut **source))
+    } else {
+        None
+    };
     let _ = session.refresh(source, std::time::Instant::now());
-    if args.first().is_some_and(|arg| arg == "--status") {
+    if options.status {
         println!("{}", status_line(session.view()));
         return Ok(status_exit(session.view()));
     }
-    if args.first().is_some_and(|arg| arg == "--status-json") {
-        println!("{}", status_json(session.view()));
+    if options.status_json {
+        println!("{}", status_json(session.view(), status_snapshot.as_ref()));
         return Ok(status_exit(session.view()));
     }
-    if args.first().is_some_and(|arg| arg == "--library-json") {
+    if options.library_json {
         // UI-only OFFLINE status, not Team A's management/library wire schema.
         // Null means NOT OBSERVED. Closing this tool never affects Platform.
         let offline = serde_json::json!({
@@ -565,7 +798,7 @@ fn run_with_sources(
         println!("{offline}");
         return Ok(ExitCode::from(3));
     }
-    if args.first().is_some_and(|arg| arg == "--library-status") {
+    if options.library_status {
         let status = concat!(
             "library=UNAVAILABLE source=UNVERIFIED catalog=UNKNOWN ",
             "cache=UNKNOWN installed=UNKNOWN active=UNKNOWN ",
@@ -575,7 +808,7 @@ fn run_with_sources(
         println!("{status}");
         return Ok(ExitCode::from(3));
     }
-    let colors = runtime_color_mode(&args);
+    let colors = runtime_color_mode(args);
     if !io::stdin().is_terminal() {
         print!("{}", render_menu(ColorMode::Plain, session.view()));
         println!("\nInteractive input requires a terminal; no operation performed.");
@@ -798,9 +1031,60 @@ fn run_interactive(
 }
 
 fn run() -> io::Result<ExitCode> {
-    // No B1-signed external service pins or approved external operator
-    // entitlement are installed in this build. Fail closed by default.
-    run_with_source(&mut OfflineReader)
+    let args: Vec<String> = env::args().skip(1).collect();
+    let options = match CliOptions::from_process(&args) {
+        Ok(options) => options,
+        Err(error) => {
+            eprintln!("{error}");
+            return Ok(ExitCode::from(2));
+        }
+    };
+    let Ok(target) = options.live_target() else {
+        // A partial or malformed live configuration is a denial, never a
+        // reason to fall back to fabricated offline health.
+        return run_with_sources(
+            &mut FailureReader(ReadFailure::Denied),
+            None,
+            None,
+            &args,
+            &options,
+        );
+    };
+    let Some(target) = target else {
+        // No endpoint supplied: retain explicit NOT_OBSERVED/offline behavior.
+        return run_with_source(&mut OfflineReader);
+    };
+    match native_management::open_live_management_readers(
+        &target.endpoint,
+        &target.platform_id,
+        target.generation,
+    ) {
+        Err(ReadFailure::Offline) => run_with_sources(
+            &mut FailureReader(ReadFailure::Unverified),
+            None,
+            None,
+            &args,
+            &options,
+        ),
+        Err(failure) => run_with_sources(&mut FailureReader(failure), None, None, &args, &options),
+        Ok((status_reader, snapshot_reader)) => {
+            let mut status_reader = ConfiguredStatusReader {
+                inner: status_reader,
+                observed: false,
+            };
+            let mut snapshot_reader = ConfiguredSnapshotReader {
+                inner: snapshot_reader,
+                observed: false,
+            };
+            run_with_sources(
+                &mut status_reader,
+                Some(&mut snapshot_reader),
+                None,
+                &args,
+                &options,
+            )
+        }
+    }
 }
 
 fn main() -> ExitCode {
@@ -818,7 +1102,7 @@ mod tests {
     use super::{
         action_request_line, choose_color_mode, navigate, paint, render_menu, render_page,
         render_page_with_snapshot, rgb, select_page, status_exit, status_json, status_line,
-        ColorMode, Navigation, Page, PAGES,
+        valid_platform_id, CliError, CliOptions, ColorMode, Navigation, Page, PAGES,
     };
     use sofia_ui_broker::control_center::{
         ControlCenterView, InstallationState, LinkState, PermissionState, SafeState,
@@ -886,7 +1170,12 @@ mod tests {
             lifecycle: CoreLifecycle::Active,
             health: ManagedHealth::VerifiedHealthy,
             generation: 3,
-            source_digest: "a".repeat(64),
+            source_digest: Some("a".repeat(64)),
+            installed: None,
+            enabled: None,
+            startup_mode: None,
+            observed_state: None,
+            last_error_code: None,
         });
         let text = render_page_with_snapshot(Page::Cores, ColorMode::Plain, &view, Some(&snapshot));
         assert!(text.contains("CORE core:primary"));
@@ -1093,7 +1382,7 @@ mod tests {
         let view = ControlCenterView::offline();
         let text = status_line(&view);
         assert!(text.starts_with("status=UNAVAILABLE source=UNVERIFIED"));
-        let data = status_json(&view);
+        let data = status_json(&view, None);
         assert_eq!(data["schema"], "aegis.ui.platform.status-display.v1");
         assert_eq!(data["platform_generation"], serde_json::Value::Null);
         assert_eq!(data["operator_stop"], serde_json::Value::Null);
@@ -1139,24 +1428,42 @@ mod tests {
 
     #[test]
     fn only_service_observed_generation_can_make_status_cli_success() {
+        use sofia_ui_broker::manager_views::ManagerSnapshot;
         let mut view = ControlCenterView::offline();
         view.link = LinkState::Observed;
         assert_eq!(status_exit(&view), std::process::ExitCode::from(3));
         view.platform_generation = Some(8);
         view.safe = SafeState::StopActive;
         assert_eq!(status_exit(&view), std::process::ExitCode::from(3));
-        let denied = status_json(&view);
+        let denied = status_json(&view, None);
         assert_eq!(denied["status"], "STOP_ACTIVE");
         assert_eq!(denied["source"], "UNVERIFIED");
         assert_eq!(denied["platform_generation"], serde_json::Value::Null);
         view.safe = SafeState::Clear;
         assert_eq!(status_exit(&view), std::process::ExitCode::SUCCESS);
-        let data = status_json(&view);
+        let mut snapshot = ManagerSnapshot {
+            platform_id: Some("platform:alpha".into()),
+            platform_generation: Some(8),
+            ..ManagerSnapshot::default()
+        };
+        snapshot.startup = Some(sofia_ui_broker::manager_views::StartupObservation {
+            core_started: false,
+            core_count: 0,
+            active_core_count: 0,
+            startup_state: sofia_ui_broker::manager_views::StartupState::ZeroCoreHealthy,
+            autostart_enabled_count: 0,
+            autostart_reconciled_at: None,
+            management_listening: true,
+        });
+        let data = status_json(&view, Some(&snapshot));
         assert_eq!(data["status"], "OBSERVED");
         assert_eq!(data["source"], "SERVICE_OBSERVED");
         assert_eq!(data["platform_generation"], 8);
         assert_eq!(data["operator_stop"], false);
         assert_eq!(data["core_started"], false);
+        assert_eq!(data["startup_state"], "ZERO_CORE_HEALTHY");
+        assert_eq!(data["core_count"], 0);
+        assert_eq!(data["management_listening"], true);
         assert_eq!(data["actions_enabled"], false);
     }
 
@@ -1172,13 +1479,122 @@ mod tests {
             let mut view = ControlCenterView::offline();
             view.platform_generation = Some(9); // cached, NOT CURRENT
             view.link = link;
-            let data = status_json(&view);
+            let data = status_json(&view, None);
             assert_eq!(data["status"], expected);
             assert_eq!(data["platform_generation"], serde_json::Value::Null);
             assert_eq!(data["operator_stop"], serde_json::Value::Null);
             assert_eq!(data["actions_enabled"], false);
             assert_eq!(status_exit(&view), std::process::ExitCode::from(3));
         }
+    }
+
+    #[test]
+    fn live_startup_flags_require_exact_endpoint_identity_tuple() {
+        let args = [
+            "--plain",
+            "--status-json",
+            "--management-endpoint",
+            r"\\.\pipe\aegis-test",
+            "--expected-platform-id",
+            "platform:alpha",
+            "--expected-generation",
+            "7",
+        ]
+        .map(str::to_owned);
+        let options = CliOptions::parse(&args).expect("reviewed flags");
+        assert!(options.plain);
+        assert!(options.status_json);
+        assert_eq!(
+            options.live_target().unwrap(),
+            Some(super::LiveTarget {
+                endpoint: r"\\.\pipe\aegis-test".into(),
+                platform_id: "platform:alpha".into(),
+                generation: 7,
+            })
+        );
+        let equals = ["--management-endpoint=/tmp/aegis.sock".to_owned()];
+        assert_eq!(
+            CliOptions::parse(&equals).unwrap().endpoint.as_deref(),
+            Some("/tmp/aegis.sock")
+        );
+        assert_eq!(
+            CliOptions::parse(&["--management-endpoint".to_owned()]).unwrap_err(),
+            CliError::MissingValue("--management-endpoint".into())
+        );
+        assert!(matches!(
+            CliOptions::parse(&["--expected-generation".into(), "nope".into()]),
+            Err(CliError::InvalidGeneration(_))
+        ));
+        assert!(matches!(
+            CliOptions::parse(&["--install".into()]),
+            Err(CliError::Unknown(_))
+        ));
+        let partial = [
+            "--management-endpoint".to_owned(),
+            "endpoint".to_owned(),
+            "--expected-platform-id".to_owned(),
+            "platform:alpha".to_owned(),
+        ];
+        assert!(CliOptions::parse(&partial).unwrap().live_target().is_err());
+        assert!(valid_platform_id("platform:alpha"));
+        assert!(!valid_platform_id("../bad"));
+    }
+
+    #[test]
+    fn startup_core_inventory_renders_disabled_cores_without_health_claims() {
+        use sofia_ui_broker::manager_views::{
+            CoreLifecycle, CoreObservation, ManagedHealth, ManagerPage, ManagerSnapshot,
+            SectionTruth, StartupObservation, StartupState,
+        };
+        use sofia_ui_broker::platform_status::ObservationFreshness;
+        let mut view = ControlCenterView::offline();
+        view.link = LinkState::Observed;
+        view.safe = SafeState::Clear;
+        view.permission = PermissionState::MayRequest;
+        view.platform_generation = Some(4);
+        let mut snapshot = ManagerSnapshot {
+            freshness: ObservationFreshness::Fresh,
+            platform_id: Some("platform:alpha".into()),
+            platform_generation: Some(4),
+            startup: Some(StartupObservation {
+                core_started: false,
+                core_count: 1,
+                active_core_count: 0,
+                startup_state: StartupState::CoresDisabled,
+                autostart_enabled_count: 0,
+                autostart_reconciled_at: None,
+                management_listening: true,
+            }),
+            ..ManagerSnapshot::default()
+        };
+        snapshot.mark(ManagerPage::Cores, SectionTruth::Observed);
+        snapshot.cores.push(CoreObservation {
+            core_id: "01234567-89ab-cdef-0123-456789abcdef".into(),
+            lifecycle: CoreLifecycle::Disabled,
+            health: ManagedHealth::Unknown,
+            generation: 0,
+            source_digest: None,
+            installed: Some(true),
+            enabled: Some(false),
+            startup_mode: Some("manual".into()),
+            observed_state: Some("STOPPED".into()),
+            last_error_code: Some("OPERATOR_STOP".into()),
+        });
+        let platform =
+            render_page_with_snapshot(Page::Platform, ColorMode::Plain, &view, Some(&snapshot));
+        assert!(platform.contains("STARTUP: state=CORES_DISABLED"));
+        assert!(platform.contains("core_started=NO"));
+        assert!(platform.contains("active_core_count=0"));
+        let cores =
+            render_page_with_snapshot(Page::Cores, ColorMode::Plain, &view, Some(&snapshot));
+        assert!(cores.contains("STARTUP: state=CORES_DISABLED"));
+        assert!(cores.contains("lifecycle=DISABLED"));
+        assert!(cores.contains("health=UNKNOWN"));
+        assert!(cores.contains("installed=YES"));
+        assert!(cores.contains("enabled=NO"));
+        assert!(cores.contains("observed_state=STOPPED"));
+        assert!(cores.contains("last_error_code=OPERATOR_STOP"));
+        assert!(!cores.contains("VERIFIED_HEALTHY"));
     }
 
     #[test]

@@ -154,11 +154,15 @@ def test_c006_receipt_evidence_is_not_issuer_or_installer_authority():
 def test_c007_status_cli_is_sourced_from_display_and_denials_fail_closed():
     source = TUI.read_text(encoding="utf-8")
     assert "--status-json" in source
+    assert "--management-endpoint" in source
+    assert "--expected-platform-id" in source
+    assert "--expected-generation" in source
     assert "status_line(session.view())" in source
-    assert "status_json(session.view())" in source
+    assert "status_json(session.view(), status_snapshot.as_ref())" in source
     assert "status_exit(session.view())" in source
     assert '"platform_generation": if current { view.platform_generation } else { None }' in source
-    assert '"core_started": if current { Some(false) } else { None }' in source
+    assert '"core_started": startup.map(|startup| startup.core_started)' in source
+    assert '"startup_state": startup.map(|startup| startup.startup_state.label())' in source
     assert '"actions_enabled": false' in source
     assert "fn denied_stop_revoked_and_stale_status_never_expose_generation()" in source
     assert "run_with_source(&mut OfflineReader" in source

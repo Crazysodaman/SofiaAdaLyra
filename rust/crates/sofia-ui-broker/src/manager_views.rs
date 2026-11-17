@@ -10,6 +10,7 @@ use crate::connection_state::ConnectionState;
 use crate::control_center::{ActionHint, ControlCenterView, LinkState, ProposedAction};
 use crate::platform_status::{ModuleHealth, ModuleLifecycle, ObservationFreshness};
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ManagerPage {
@@ -87,6 +88,7 @@ pub enum CoreLifecycle {
     Installed,
     Active,
     Paused,
+    Disabled,
     Unavailable,
 }
 
@@ -97,6 +99,7 @@ impl CoreLifecycle {
             Self::Installed => "INSTALLED",
             Self::Active => "ACTIVE",
             Self::Paused => "PAUSED",
+            Self::Disabled => "DISABLED",
             Self::Unavailable => "UNAVAILABLE",
         }
     }
@@ -126,7 +129,49 @@ pub struct CoreObservation {
     pub lifecycle: CoreLifecycle,
     pub health: ManagedHealth,
     pub generation: u64,
-    pub source_digest: String,
+    /// Present only for the legacy verified-health Core inventory projection.
+    pub source_digest: Option<String>,
+    /// Platform startup Core inventory fields. Absent means `NOT_OBSERVED`.
+    pub installed: Option<bool>,
+    pub enabled: Option<bool>,
+    pub startup_mode: Option<String>,
+    pub observed_state: Option<String>,
+    pub last_error_code: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StartupState {
+    ZeroCoreHealthy,
+    CoresRunning,
+    CoresDisabled,
+    Degraded,
+    Unknown,
+}
+
+impl StartupState {
+    #[must_use]
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::ZeroCoreHealthy => "ZERO_CORE_HEALTHY",
+            Self::CoresRunning => "CORES_RUNNING",
+            Self::CoresDisabled => "CORES_DISABLED",
+            Self::Degraded => "DEGRADED",
+            Self::Unknown => "UNKNOWN",
+        }
+    }
+}
+
+/// Reviewed Platform startup projection. This is a display observation, not a
+/// Core health or lifecycle receipt.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StartupObservation {
+    pub core_started: bool,
+    pub core_count: u64,
+    pub active_core_count: u64,
+    pub startup_state: StartupState,
+    pub autostart_enabled_count: u64,
+    pub autostart_reconciled_at: Option<String>,
+    pub management_listening: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -248,6 +293,7 @@ pub struct ManagerSnapshot {
     /// Current service mutation-receipt revision when separately observed.
     /// It is NEVER inferred from a display name, settings revision or launch.
     pub platform_revision: Option<u64>,
+    pub startup: Option<StartupObservation>,
     pub sections: BTreeMap<ManagerPage, SectionTruth>,
     pub cores: Vec<CoreObservation>,
     pub modules: Vec<ModuleView>,
@@ -278,6 +324,7 @@ impl Default for ManagerSnapshot {
             platform_id: None,
             platform_generation: None,
             platform_revision: None,
+            startup: None,
             sections: BTreeMap::new(),
             cores: Vec::new(),
             modules: Vec::new(),
@@ -390,6 +437,31 @@ pub fn mutation_review(
     }
 }
 
+/// Render the reviewed Platform startup projection without claiming Core
+/// health. Absent observations remain explicitly `NOT_OBSERVED`.
+#[must_use]
+pub fn startup_lines(snapshot: Option<&ManagerSnapshot>) -> Vec<String> {
+    let Some(startup) = snapshot.and_then(|snapshot| snapshot.startup.as_ref()) else {
+        return vec![
+            "STARTUP: NOT_OBSERVED / NO_CURRENT_AUTHENTICATED_STARTUP_PROJECTION".to_owned(),
+        ];
+    };
+    vec![format!(
+        "STARTUP: state={} core_started={} core_count={} active_core_count={} autostart_enabled={} management_listening={} reconciled_at={}",
+        startup.startup_state.label(),
+        if startup.core_started { "YES" } else { "NO" },
+        startup.core_count,
+        startup.active_core_count,
+        startup.autostart_enabled_count,
+        if startup.management_listening {
+            "YES"
+        } else {
+            "NO"
+        },
+        startup.autostart_reconciled_at.as_deref().unwrap_or("NEVER")
+    )]
+}
+
 /// Render bounded, ASCII-safe manager observations. No ANSI escapes are
 /// emitted here; terminal color is applied only by an interactive renderer.
 #[must_use]
@@ -417,6 +489,7 @@ pub fn manager_lines(
         ));
         lines.push("CACHED VALUES: NOT_CURRENT".to_owned());
     } else if let Some(snapshot) = snapshot {
+        lines.extend(startup_lines(Some(snapshot)));
         lines.push(format!(
             "SNAPSHOT TARGET: {} / GENERATION: {} / MUTATION REVISION: {}",
             snapshot.platform_id.as_deref().unwrap_or("UNKNOWN"),
@@ -467,8 +540,8 @@ fn render_cores(lines: &mut Vec<String>, snapshot: &ManagerSnapshot) {
     }
     lines.push(format!("CORES: {} OBSERVED", snapshot.cores.len()));
     for core in &snapshot.cores {
-        lines.push(format!(
-            "CORE {} lifecycle={} health={} generation={} source_digest={}",
+        let mut line = format!(
+            "CORE {} lifecycle={} health={} generation={}",
             core.core_id,
             core.lifecycle.label(),
             if snapshot.freshness == ObservationFreshness::Stale {
@@ -477,8 +550,26 @@ fn render_cores(lines: &mut Vec<String>, snapshot: &ManagerSnapshot) {
                 core.health.label()
             },
             core.generation,
-            core.source_digest
-        ));
+        );
+        if let Some(digest) = &core.source_digest {
+            let _ = write!(line, " source_digest={digest}");
+        }
+        if let Some(installed) = core.installed {
+            let _ = write!(line, " installed={}", if installed { "YES" } else { "NO" });
+        }
+        if let Some(enabled) = core.enabled {
+            let _ = write!(line, " enabled={}", if enabled { "YES" } else { "NO" });
+        }
+        if let Some(mode) = &core.startup_mode {
+            let _ = write!(line, " startup_mode={mode}");
+        }
+        if let Some(state) = &core.observed_state {
+            let _ = write!(line, " observed_state={state}");
+        }
+        if let Some(code) = &core.last_error_code {
+            let _ = write!(line, " last_error_code={code}");
+        }
+        lines.push(line);
     }
     lines.push("CORE TARGET IDENTITY IS REQUIRED; A NICKNAME IS NOT AUTHORITY".to_owned());
 }
@@ -693,6 +784,15 @@ mod tests {
             platform_id: Some("platform:alpha".into()),
             platform_generation: Some(9),
             platform_revision: Some(6),
+            startup: Some(super::StartupObservation {
+                core_started: true,
+                core_count: 1,
+                active_core_count: 1,
+                startup_state: super::StartupState::CoresRunning,
+                autostart_enabled_count: 1,
+                autostart_reconciled_at: Some("2026-11-08T04:00:00Z".into()),
+                management_listening: true,
+            }),
             sections: ManagerPage::ALL
                 .iter()
                 .copied()
@@ -703,7 +803,12 @@ mod tests {
                 lifecycle: CoreLifecycle::Active,
                 health: ManagedHealth::VerifiedHealthy,
                 generation: 3,
-                source_digest: "a".repeat(64),
+                source_digest: Some("a".repeat(64)),
+                installed: None,
+                enabled: None,
+                startup_mode: None,
+                observed_state: None,
+                last_error_code: None,
             }],
             modules: vec![super::ModuleView {
                 module_id: "module:demo".into(),

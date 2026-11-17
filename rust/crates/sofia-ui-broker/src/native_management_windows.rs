@@ -23,6 +23,8 @@ use std::time::{Duration, Instant};
 use winsafe::{self as w, co};
 
 const IO_TIMEOUT: Duration = Duration::from_secs(2);
+const CONNECT_WAIT: Duration = Duration::from_secs(5);
+const ERROR_PIPE_BUSY: i32 = 231;
 const MAX_GENERATION: u64 = 9_007_199_254_740_991;
 type Connection = DuplexPipeStream<pipe_mode::Bytes>;
 
@@ -61,18 +63,8 @@ impl InstalledNativeServicePins {
         service_sid: String,
         service_creation_time: u64,
     ) -> Result<Self, ReadFailure> {
-        let id = platform_id.as_bytes();
-        if pipe_name.is_empty()
-            || pipe_name.len() > 120
-            || !pipe_name
-                .bytes()
-                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'.' | b'-'))
-            || id.is_empty()
-            || id.len() > 160
-            || !id[0].is_ascii_alphanumeric()
-            || !id.iter().all(|b| {
-                b.is_ascii_alphanumeric() || matches!(b, b'_' | b'.' | b'-' | b':' | b'@' | b'/')
-            })
+        if !valid_pipe_name(pipe_name)
+            || !valid_platform_id(&platform_id)
             || generation == 0
             || generation > MAX_GENERATION
             || service_pid == 0
@@ -90,6 +82,92 @@ impl InstalledNativeServicePins {
             service_creation_time,
         })
     }
+
+    /// Pin the exact live local pipe instance selected by an operator-supplied
+    /// endpoint. OS process identity is observed directly from the connected
+    /// pipe; it is never accepted from a flag, environment variable or JSON.
+    /// The Platform still independently authenticates the client and enforces
+    /// owner enrollment, SAFE/STOP and generation.
+    ///
+    /// # Errors
+    /// Missing, remote, replaced or unverifiable pipe identities fail closed.
+    #[allow(clippy::similar_names)] // PID and SID are separate exact OS identity pins.
+    pub fn from_observed_endpoint(
+        endpoint: &str,
+        platform_id: String,
+        generation: u64,
+    ) -> Result<Self, ReadFailure> {
+        let pipe_name = endpoint.strip_prefix(r"\\.\pipe\").unwrap_or(endpoint);
+        if !valid_pipe_name(pipe_name)
+            || !valid_platform_id(&platform_id)
+            || generation == 0
+            || generation > MAX_GENERATION
+        {
+            return Err(ReadFailure::Unverified);
+        }
+        let pipe_path = format!(r"\\.\pipe\{pipe_name}");
+        let pipe = open_pipe(&pipe_path)?;
+        if !pipe.is_client() {
+            let _ = release_connection(pipe);
+            return Err(ReadFailure::Unverified);
+        }
+        let service_pid = match pipe.server_process_id() {
+            Ok(pid) if pid > 0 => pid,
+            _ => {
+                let _ = release_connection(pipe);
+                return Err(ReadFailure::Unverified);
+            }
+        };
+        let process =
+            w::HPROCESS::OpenProcess(co::PROCESS::QUERY_LIMITED_INFORMATION, false, service_pid)
+                .map_err(|_| ReadFailure::Unverified)?;
+        let (created, exited, _, _) = process
+            .GetProcessTimes()
+            .map_err(|_| ReadFailure::Unverified)?;
+        if u64::from(exited) != 0 || u64::from(created) == 0 {
+            let _ = release_connection(pipe);
+            return Err(ReadFailure::Unverified);
+        }
+        let token = process
+            .OpenProcessToken(co::TOKEN::QUERY)
+            .map_err(|_| ReadFailure::Unverified)?;
+        let w::TokenInfo::User(user) = token
+            .GetTokenInformation(co::TOKEN_INFORMATION_CLASS::User)
+            .map_err(|_| ReadFailure::Unverified)?
+        else {
+            let _ = release_connection(pipe);
+            return Err(ReadFailure::Unverified);
+        };
+        let sid = w::ConvertSidToStringSid(user.User.Sid().ok_or(ReadFailure::Unverified)?)
+            .map_err(|_| ReadFailure::Unverified)?;
+        release_connection(pipe)?;
+        Self::from_externally_verified_installation(
+            pipe_name,
+            platform_id,
+            generation,
+            service_pid,
+            sid,
+            u64::from(created),
+        )
+    }
+}
+
+fn valid_pipe_name(pipe_name: &str) -> bool {
+    !pipe_name.is_empty()
+        && pipe_name.len() <= 120
+        && pipe_name
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'.' | b'-'))
+}
+
+fn valid_platform_id(platform_id: &str) -> bool {
+    let id = platform_id.as_bytes();
+    !id.is_empty()
+        && id.len() <= 160
+        && id[0].is_ascii_alphanumeric()
+        && id.iter().all(|b| {
+            b.is_ascii_alphanumeric() || matches!(b, b'_' | b'.' | b'-' | b':' | b'@' | b'/')
+        })
 }
 
 fn valid_sid(sid: &str) -> bool {
@@ -256,17 +334,36 @@ impl MutationTransport for NativeWindowsMutationTransport {
 }
 
 fn open_connection(pins: &InstalledNativeServicePins) -> Result<Connection, ReadFailure> {
+    open_pipe(&pins.pipe_path)
+}
+
+fn open_pipe(pipe_path: &str) -> Result<Connection, ReadFailure> {
     // CreateFile does not wait for a busy instance. Do not use the dependency's
     // connect_by_path, whose retry loop waits without an overall deadline.
     // Identification SQOS permits server-side identity inspection without
     // permitting the server to impersonate the client for other effects.
-    let file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .security_qos_flags(0x0011_0000)
-        .open(&pins.pipe_path)
-        .map_err(|_| ReadFailure::Offline)?;
-    Connection::try_from(OwnedHandle::from(file)).map_err(|_| ReadFailure::Unverified)
+    // A bounded busy retry is connection acquisition only: NO request bytes
+    // exist yet and no ambiguous management request is ever retried.
+    let deadline = Instant::now() + CONNECT_WAIT;
+    loop {
+        match OpenOptions::new()
+            .read(true)
+            .write(true)
+            .security_qos_flags(0x0011_0000)
+            .open(pipe_path)
+        {
+            Ok(file) => {
+                return Connection::try_from(OwnedHandle::from(file))
+                    .map_err(|_| ReadFailure::Unverified);
+            }
+            Err(error)
+                if error.raw_os_error() == Some(ERROR_PIPE_BUSY) && Instant::now() < deadline =>
+            {
+                std::thread::sleep(Duration::from_millis(2));
+            }
+            Err(_) => return Err(ReadFailure::Offline),
+        }
+    }
 }
 
 fn release_connection(pipe: Connection) -> Result<(), ReadFailure> {
@@ -553,6 +650,98 @@ mod tests {
             drop(OwnedHandle::try_from(pipe).unwrap());
         });
         (pins, thread)
+    }
+
+    fn native_pin_fixture() -> (String, std::thread::JoinHandle<()>) {
+        use interprocess::os::windows::named_pipe::PipeListenerOptions;
+        let mut random = [0_u8; 8];
+        getrandom::getrandom(&mut random).unwrap();
+        let name = format!(
+            "aegis-endpoint-test-{}-{:x}",
+            std::process::id(),
+            u64::from_le_bytes(random)
+        );
+        let path = format!(r"\\.\pipe\{name}");
+        let listener = PipeListenerOptions::new()
+            .path(path)
+            .create_duplex::<pipe_mode::Bytes>()
+            .unwrap();
+        let thread = std::thread::spawn(move || {
+            if let Ok(pipe) = listener.accept() {
+                pipe.set_nonblocking(true).unwrap();
+                std::thread::sleep(Duration::from_millis(100));
+                drop(OwnedHandle::try_from(pipe).unwrap());
+            }
+        });
+        (name, thread)
+    }
+
+    #[test]
+    fn live_endpoint_pins_the_exact_observed_pipe_process_identity() {
+        let (name, thread) = native_pin_fixture();
+        let pins = InstalledNativeServicePins::from_observed_endpoint(
+            &name,
+            "platform:synthetic".into(),
+            3,
+        )
+        .expect("live endpoint pins exact pipe identity");
+        let process = w::HPROCESS::GetCurrentProcess();
+        let (created, exited, _, _) = process.GetProcessTimes().unwrap();
+        let token = w::HACCESSTOKEN::GetCurrentProcessToken();
+        let w::TokenInfo::User(user) = token
+            .GetTokenInformation(co::TOKEN_INFORMATION_CLASS::User)
+            .unwrap()
+        else {
+            panic!("user token required");
+        };
+        let sid = w::ConvertSidToStringSid(user.User.Sid().unwrap()).unwrap();
+        assert_eq!(pins.pipe_path, format!(r"\\.\pipe\{name}"));
+        assert_eq!(pins.platform_id, "platform:synthetic");
+        assert_eq!(pins.generation, 3);
+        assert_eq!(pins.service_pid, std::process::id());
+        assert_eq!(pins.service_sid, sid);
+        assert_eq!(pins.service_creation_time, u64::from(created));
+        assert_eq!(u64::from(exited), 0);
+        thread.join().unwrap();
+    }
+
+    #[test]
+    fn wrong_and_missing_live_endpoints_never_yield_live_status() {
+        for endpoint in [
+            r"\\server\pipe\aegis",
+            r"aegis\child",
+            "",
+            "pipe:alias",
+            "../escape",
+        ] {
+            assert!(
+                crate::native_management::open_live_management_reader(
+                    endpoint,
+                    "platform:synthetic",
+                    3
+                )
+                .is_err(),
+                "{endpoint}"
+            );
+        }
+        assert!(crate::native_management::open_live_management_reader(
+            "aegis-definitely-missing-endpoint",
+            "platform:synthetic",
+            3
+        )
+        .is_err());
+        assert!(crate::native_management::open_live_management_reader(
+            "aegis-definitely-missing-endpoint",
+            "../bad",
+            3
+        )
+        .is_err());
+        assert!(crate::native_management::open_live_management_reader(
+            "aegis-definitely-missing-endpoint",
+            "platform:synthetic",
+            0
+        )
+        .is_err());
     }
 
     fn mutation_fixture() -> (
