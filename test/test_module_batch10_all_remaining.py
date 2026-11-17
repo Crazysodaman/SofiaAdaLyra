@@ -69,10 +69,11 @@ def test_item_unknown_fields_and_duplicates_rejected(pkg):
 
 @pytest.mark.parametrize('pkg',list(SNAPSHOTS))
 def test_registered_capability_with_real_request_fields(pkg):
-    module=importlib.import_module(MODULES[pkg])
-    capability,handler=next(entry for entry in module.capability_registrations()
-                            if entry[0].name==module.CAPABILITY_ID)
-    assert isinstance(capability, Capability) and capability.name==module.CAPABILITY_ID
+    module=importlib.import_module(MODULES[pkg]); registrations=module.capability_registrations()
+    assert registrations and all(isinstance(cap, Capability) for cap,_ in registrations)
+    assert len({cap.name for cap,_ in registrations})==len(registrations)
+    capability,handler=next((cap,fn) for cap,fn in registrations if cap.name==module.CAPABILITY_ID)
+    assert capability.name==module.CAPABILITY_ID
     snap={'source_ref':'source:review','observed_at':datetime.now(timezone.utc).isoformat(),
           'items':deepcopy(SNAPSHOTS[pkg])}
     request=CapabilityRequest(capability=capability,parameters={'snapshot':snap},requested_scope=None,rationale='safe offline test')
