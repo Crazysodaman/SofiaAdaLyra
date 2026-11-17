@@ -959,7 +959,7 @@ def test_installed_bin_location_precedes_path(
         (["service", "start", "--approval-id", "x", "--json"],
          "OWNER_APPROVAL_REQUIRED"),
         (["core", "autostart", "core-id", "on", "--approval-id", "x",
-          "--json"], "MANAGEMENT_APPROVAL_REQUIRED"),
+          "--json"], "MANAGEMENT_REVISION_REQUIRED"),
         (["module", "start", "module-id", "--approval-id", "x", "--json"],
          "MANAGEMENT_APPROVAL_REQUIRED"),
         (["chat", "hello", "--approval-id", "x", "--json"],
@@ -981,3 +981,286 @@ def test_pyproject_declares_the_public_aegis_entrypoint():
     root = Path(__file__).resolve().parents[1]
     document = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
     assert document["project"]["scripts"]["aegis"] == "sofia.platform.cli:main"
+
+
+CORE_ID = "22222222-2222-2222-2222-222222222222"
+
+
+def _mutation_response(
+    *, platform_id: str, generation: int,
+    operation: str = "core.autostart.enable",
+    outcome: str = "SUCCEEDED",
+    error_code: str | None = None,
+    current_revision: int = 1,
+):
+    return SimpleNamespace(
+        request_id="request:test",
+        correlation_id="correlation:test",
+        idempotency_key="idempotency:test",
+        platform_id=platform_id,
+        operation=operation,
+        outcome=outcome,
+        receipt_id="mutreceipt:test",
+        current_generation=generation,
+        current_revision=current_revision,
+        error_code=error_code,
+        detail=None,
+        observed_at="2026-11-16T00:00:00.000000Z",
+    )
+
+
+def _autostart_argv(*extra: str) -> list[str]:
+    return [
+        "core", "autostart", CORE_ID, "on",
+        "--approval-id", "approval:one-use",
+        "--expected-revision", "1",
+        *extra,
+        "--json",
+    ]
+
+
+def test_core_autostart_uses_authenticated_mutation_client(
+    monkeypatch, capsys,
+):
+    platform_id, generation, pipe_name = _pin_windows_management(monkeypatch)
+    observed = {}
+
+    def fake_mutation(**kwargs):
+        observed.update(kwargs)
+        return _mutation_response(
+            platform_id=platform_id, generation=generation,
+            operation=kwargs["operation"],
+        )
+
+    import sofia.sdk.platform_management_mutation_client as mutation_client
+    monkeypatch.setattr(
+        mutation_client, "mutate_windows_management", fake_mutation,
+    )
+    monkeypatch.setattr(
+        cli, "_core_bindings",
+        lambda *args, **kwargs: pytest.fail(
+            "autostart must not read direct Core state"
+        ),
+    )
+    monkeypatch.setattr(
+        cli.sqlite3, "connect",
+        lambda *args, **kwargs: pytest.fail(
+            "autostart must not open local SQLite"
+        ),
+    )
+
+    assert cli.main(_autostart_argv()) == 0
+
+    payload = _json_output(capsys)
+    assert payload["schema"] == "aegis.platform.cli.core-autostart.v1"
+    assert payload["ok"] is True
+    assert payload["outcome"] == "SUCCEEDED"
+    assert payload["executed"] is True
+    assert payload["authority_granted"] is False
+    assert payload["receipt_id"] == "mutreceipt:test"
+    assert payload["current_revision"] == 1
+    assert observed == {
+        "pipe_name": pipe_name,
+        "expected_platform_id": platform_id,
+        "expected_generation": generation,
+        "operation": "core.autostart.enable",
+        "core_id": CORE_ID,
+        "expected_policy_revision": 1,
+        "enabled": True,
+        "approval_id": "approval:one-use",
+        "expected_mutation_revision": 0,
+    }
+
+
+def test_core_autostart_off_uses_disable_operation(monkeypatch, capsys):
+    platform_id, generation, _ = _pin_windows_management(monkeypatch)
+    observed = {}
+
+    def fake_mutation(**kwargs):
+        observed.update(kwargs)
+        return _mutation_response(
+            platform_id=platform_id, generation=generation,
+            operation=kwargs["operation"],
+        )
+
+    import sofia.sdk.platform_management_mutation_client as mutation_client
+    monkeypatch.setattr(
+        mutation_client, "mutate_windows_management", fake_mutation,
+    )
+
+    assert cli.main([
+        "core", "autostart", CORE_ID, "off",
+        "--approval-id", "approval:one-use",
+        "--expected-revision", "2",
+        "--expected-mutation-revision", "1",
+        "--json",
+    ]) == 0
+
+    payload = _json_output(capsys)
+    assert payload["operation"] == "core.autostart.disable"
+    assert observed["operation"] == "core.autostart.disable"
+    assert observed["enabled"] is False
+    assert observed["expected_policy_revision"] == 2
+    assert observed["expected_mutation_revision"] == 1
+
+
+def test_core_autostart_requires_caller_supplied_approval(
+    monkeypatch, capsys,
+):
+    _pin_windows_management(monkeypatch)
+
+    import sofia.sdk.platform_management_mutation_client as mutation_client
+    monkeypatch.setattr(
+        mutation_client, "mutate_windows_management",
+        lambda **kwargs: pytest.fail("approval-free autostart must not connect"),
+    )
+
+    assert cli.main([
+        "core", "autostart", CORE_ID, "on",
+        "--expected-revision", "1", "--json",
+    ]) == 3
+
+    payload = _json_output(capsys)
+    assert payload["code"] == "MANAGEMENT_APPROVAL_REQUIRED"
+    assert payload["executed"] is False
+    assert payload["authority_granted"] is False
+
+
+def test_core_autostart_requires_exact_revision_and_transport(
+    monkeypatch, capsys,
+):
+    _pin_windows_management(monkeypatch)
+
+    assert cli.main([
+        "core", "autostart", CORE_ID, "on",
+        "--approval-id", "approval:one-use", "--json",
+    ]) == 3
+    assert _json_output(capsys)["code"] == "MANAGEMENT_REVISION_REQUIRED"
+
+    for key in (
+        "AEGIS_PLATFORM_MANAGEMENT_ENDPOINT",
+        "AEGIS_PLATFORM_EXPECTED_ID",
+        "AEGIS_PLATFORM_EXPECTED_GENERATION",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+    assert cli.main(_autostart_argv()) == 3
+    missing = _json_output(capsys)
+    assert missing["code"] == "AUTHENTICATED_MANAGEMENT_NOT_CONFIGURED"
+    assert missing["executed"] is False
+
+
+@pytest.mark.parametrize(
+    ("outcome", "error_code", "exit_code"),
+    [
+        ("DENIED", "STALE_REVISION", 3),
+        ("DENIED", "STOPPED", 3),
+        ("FAILED", "HANDLER_FAILED", 3),
+        ("OUTCOME_UNKNOWN", "HANDLER_FAILED_UNKNOWN", 4),
+    ],
+)
+def test_core_autostart_reports_typed_outcomes(
+    outcome, error_code, exit_code, monkeypatch, capsys,
+):
+    platform_id, generation, _ = _pin_windows_management(monkeypatch)
+    calls = []
+
+    def fake_mutation(**kwargs):
+        calls.append(kwargs)
+        return _mutation_response(
+            platform_id=platform_id, generation=generation,
+            operation=kwargs["operation"], outcome=outcome,
+            error_code=error_code,
+            current_revision=0 if outcome in {"DENIED", "FAILED"} else 1,
+        )
+
+    import sofia.sdk.platform_management_mutation_client as mutation_client
+    monkeypatch.setattr(
+        mutation_client, "mutate_windows_management", fake_mutation,
+    )
+
+    assert cli.main(_autostart_argv()) == exit_code
+
+    payload = _json_output(capsys)
+    assert payload["outcome"] == outcome
+    assert payload["error_code"] == error_code
+    assert payload["executed"] is (True if outcome == "SUCCEEDED" else (
+        None if outcome == "OUTCOME_UNKNOWN" else False
+    ))
+    assert payload["authority_granted"] is False
+    assert len(calls) == 1
+
+
+def test_core_autostart_ambiguous_transport_is_outcome_unknown_without_retry(
+    monkeypatch, capsys,
+):
+    _pin_windows_management(monkeypatch)
+    calls = []
+
+    import sofia.sdk.platform_management_mutation_client as mutation_client
+
+    def ambiguous(**kwargs):
+        calls.append(kwargs)
+        try:
+            raise ValueError("malformed response")
+        except ValueError as error:
+            raise mutation_client.ManagementMutationAmbiguous(
+                "unknown outcome"
+            ) from error
+
+    monkeypatch.setattr(
+        mutation_client, "mutate_windows_management", ambiguous,
+    )
+
+    assert cli.main(_autostart_argv()) == 4
+
+    payload = _json_output(capsys)
+    assert payload["state"] == "OUTCOME_UNKNOWN"
+    assert payload["outcome"] == "OUTCOME_UNKNOWN"
+    assert payload["executed"] is None
+    assert payload["retryable"] is False
+    assert payload["detail"] == "ValueError"
+    assert len(calls) == 1
+
+
+def test_core_autostart_wrong_platform_pin_never_reaches_client(
+    monkeypatch, capsys,
+):
+    _pin_windows_management(
+        monkeypatch, endpoint="\\\\.\\pipe\\AegisPlatform-aaaaaaaa-1",
+    )
+
+    import sofia.sdk.platform_management_mutation_client as mutation_client
+    monkeypatch.setattr(
+        mutation_client, "mutate_windows_management",
+        lambda **kwargs: pytest.fail("mismatched pin must not reach the client"),
+    )
+
+    assert cli.main(_autostart_argv()) == 3
+
+    payload = _json_output(capsys)
+    assert payload["code"] == "MANAGEMENT_ENDPOINT_PIN_MISMATCH"
+    assert payload["executed"] is False
+
+
+def test_core_start_and_stop_are_explicitly_unsupported(
+    monkeypatch, capsys,
+):
+    for operation in ("start", "stop"):
+        assert cli.main([
+            "core", operation, CORE_ID,
+            "--approval-id", "approval:one-use", "--json",
+        ]) == 3
+        payload = _json_output(capsys)
+        assert payload["code"] == "UNSUPPORTED_OPERATION"
+        assert payload["executed"] is False
+
+
+def test_core_autostart_state_must_be_on_or_off(capsys):
+    with pytest.raises(SystemExit) as exited:
+        cli.main([
+            "core", "autostart", CORE_ID, "maybe",
+            "--approval-id", "approval:one-use",
+            "--expected-revision", "1", "--json",
+        ])
+    assert exited.value.code == 2

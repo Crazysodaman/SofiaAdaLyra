@@ -8,8 +8,14 @@ Read-only local configuration and already-durable Platform evidence may be
 displayed.  Live ``status``, ``startup`` and ``core list`` reads use the
 existing authenticated Platform management clients only when an exact
 endpoint and identity/generation pin is configured.  Without those pins the
-management observation is ``NOT_OBSERVED``.  Every mutation is refused before
-any transport or native service API is touched.
+management observation is ``NOT_OBSERVED``.
+
+``core autostart`` is the only currently wired mutation. It requires exact
+endpoint/identity/generation pins and a caller-supplied one-use SAFE approval.
+It sends one strict management-mutation request through the existing native
+socket/pipe and never falls back to direct SQLite mutation. Other Core,
+service and module mutations are still refused before any transport or native
+service API is touched.
 
 Pins and their environment equivalents
 --------------------------------------
@@ -50,10 +56,12 @@ CLI_SCHEMA = "aegis.platform.cli"
 EXIT_OK = 0
 EXIT_USAGE = 2
 EXIT_REFUSED = 3
+EXIT_OUTCOME_UNKNOWN = 4
 NOT_OBSERVED = "NOT_OBSERVED"
 
 OWNER_APPROVAL_REQUIRED = "OWNER_APPROVAL_REQUIRED"
 MANAGEMENT_APPROVAL_REQUIRED = "MANAGEMENT_APPROVAL_REQUIRED"
+MANAGEMENT_REVISION_REQUIRED = "MANAGEMENT_REVISION_REQUIRED"
 AUTHENTICATED_CORE_BINDING_REQUIRED = "AUTHENTICATED_CORE_BINDING_REQUIRED"
 AEGIS_GUI_NOT_AVAILABLE = "AEGIS_GUI_NOT_AVAILABLE"
 AEGIS_TUI_NOT_AVAILABLE = "AEGIS_TUI_NOT_AVAILABLE"
@@ -464,6 +472,257 @@ def _management_observation(
         observation["outcome"] = "DENIED"
         observation["denial_code"] = response.denial_code
     return observation
+
+
+def _management_mutation_response(
+    configuration: dict[str, object], *,
+    operation: str,
+    core_id: str,
+    expected_policy_revision: int,
+    enabled: bool,
+    approval_id: str,
+    expected_mutation_revision: int,
+):
+    """Call the reviewed native client for one Core autostart mutation."""
+    endpoint = str(configuration["endpoint"])
+    platform_id = str(configuration["platform_id"])
+    generation = int(configuration["generation"])
+    if sys.platform == "win32":
+        from sofia.sdk.platform_management_mutation_client import (
+            mutate_windows_management,
+        )
+        from sofia.sdk.platform_management_windows_client import (
+            windows_management_pipe_name,
+        )
+        try:
+            expected_name = windows_management_pipe_name(
+                platform_id=platform_id, generation=generation,
+            )
+        except ValueError as exc:
+            raise ManagementPinRejected(
+                "MANAGEMENT_PLATFORM_ID_PIN_INVALID"
+            ) from exc
+        pipe_name = _normalized_windows_pipe_name(endpoint)
+        if pipe_name != expected_name:
+            raise ManagementPinRejected("MANAGEMENT_ENDPOINT_PIN_MISMATCH")
+        return mutate_windows_management(
+            pipe_name=pipe_name,
+            expected_platform_id=platform_id,
+            expected_generation=generation,
+            operation=operation,
+            core_id=core_id,
+            expected_policy_revision=expected_policy_revision,
+            enabled=enabled,
+            approval_id=approval_id,
+            expected_mutation_revision=expected_mutation_revision,
+        )
+    if sys.platform.startswith("linux"):
+        from sofia.sdk.platform_management_mutation_client import (
+            mutate_linux_management,
+        )
+        path = Path(endpoint)
+        if not path.is_absolute():
+            raise ManagementPinRejected("MANAGEMENT_ENDPOINT_PIN_MISMATCH")
+        uid = _required_environment_int(
+            _SERVICE_UID_ENVS, code="MANAGEMENT_SERVICE_UID_PIN_NOT_CONFIGURED",
+        )
+        gid = _required_environment_int(
+            _SERVICE_GID_ENVS, code="MANAGEMENT_SERVICE_GID_PIN_NOT_CONFIGURED",
+        )
+        pid = _optional_environment_int(
+            _SERVICE_PID_ENVS, code="MANAGEMENT_SERVICE_PID_PIN_INVALID",
+        )
+        if pid == 0:
+            raise ManagementPinRejected("MANAGEMENT_SERVICE_PID_PIN_INVALID")
+        group_gid = _optional_environment_int(
+            _SOCKET_GROUP_GID_ENVS,
+            code="MANAGEMENT_SOCKET_GROUP_GID_PIN_INVALID",
+        )
+        return mutate_linux_management(
+            socket_path=path,
+            expected_platform_id=platform_id,
+            expected_generation=generation,
+            operation=operation,
+            core_id=core_id,
+            expected_policy_revision=expected_policy_revision,
+            enabled=enabled,
+            approval_id=approval_id,
+            expected_mutation_revision=expected_mutation_revision,
+            installed_service_uid=uid,
+            installed_service_gid=gid,
+            installed_service_pid=pid,
+            installed_socket_group_gid=group_gid,
+        )
+    raise ManagementPinRejected("MANAGEMENT_MUTATION_UNSUPPORTED_PLATFORM")
+
+
+def _core_autostart_result(
+    response, *, core_id: str,
+) -> dict[str, object]:
+    outcome = response.outcome
+    if outcome == "SUCCEEDED":
+        executed: bool | None = True
+    elif outcome == "OUTCOME_UNKNOWN":
+        executed = None
+    else:
+        executed = False
+    return {
+        "schema": f"{CLI_SCHEMA}.core-autostart.v1",
+        "ok": outcome == "SUCCEEDED",
+        "command": "core autostart",
+        "core_id": _redact_text(core_id),
+        "operation": response.operation,
+        "platform_id": response.platform_id,
+        "generation": response.current_generation,
+        "request_id": response.request_id,
+        "correlation_id": response.correlation_id,
+        "idempotency_key": response.idempotency_key,
+        "outcome": outcome,
+        "receipt_id": response.receipt_id,
+        "current_generation": response.current_generation,
+        "current_revision": response.current_revision,
+        "error_code": response.error_code,
+        "detail": response.detail,
+        "observed_at": response.observed_at,
+        "executed": executed,
+        "authority_granted": False,
+    }
+
+
+def _core_autostart_ambiguous(
+    *, core_id: str, operation: str, detail: str,
+) -> dict[str, object]:
+    return {
+        "schema": f"{CLI_SCHEMA}.core-autostart.v1",
+        "ok": False,
+        "command": "core autostart",
+        "core_id": _redact_text(core_id),
+        "operation": operation,
+        "state": "OUTCOME_UNKNOWN",
+        "outcome": "OUTCOME_UNKNOWN",
+        "executed": None,
+        "authority_granted": False,
+        "retryable": False,
+        "detail": detail,
+        "message": (
+            "the request may have reached the Platform service; do not resend "
+            "with a new approval"
+        ),
+    }
+
+
+def _emit_core_autostart(args: argparse.Namespace, *, as_json: bool) -> int:
+    command = "core autostart"
+    core_id = getattr(args, "core_id", None)
+    state = getattr(args, "state", None)
+    approval_id = getattr(args, "approval_id", None)
+    revision = getattr(args, "expected_revision", None)
+    if not core_id:
+        return _refuse(
+            "CORE_ID_REQUIRED", "an exact Core identity is required",
+            command=command, as_json=as_json,
+        )
+    if state not in {"on", "off"}:
+        return _refuse(
+            "AUTOSTART_STATE_REQUIRED", "autostart state must be 'on' or 'off'",
+            command=command, as_json=as_json,
+        )
+    if not approval_id:
+        return _refuse(
+            MANAGEMENT_APPROVAL_REQUIRED,
+            "Core autostart requires a caller-supplied one-use SAFE owner "
+            "approval ID; no approval is minted by this client",
+            command=command,
+            as_json=as_json,
+        )
+    if revision is None:
+        return _refuse(
+            MANAGEMENT_REVISION_REQUIRED,
+            "Core autostart requires --expected-revision with the exact next "
+            "Core autostart policy revision",
+            command=command,
+            as_json=as_json,
+        )
+    if type(revision) is not int or revision < 1:
+        return _refuse(
+            "MANAGEMENT_REVISION_INVALID",
+            "--expected-revision must be a positive integer",
+            command=command,
+            as_json=as_json,
+        )
+    mutation_revision = getattr(args, "expected_mutation_revision", None)
+    if mutation_revision is None:
+        mutation_revision = revision - 1
+    if type(mutation_revision) is not int or mutation_revision < 0:
+        return _refuse(
+            "MANAGEMENT_MUTATION_REVISION_INVALID",
+            "--expected-mutation-revision must be a non-negative integer",
+            command=command,
+            as_json=as_json,
+        )
+    configuration = _management_configuration(args)
+    if configuration.get("state") != "CONFIGURED":
+        return _refuse(
+            str(configuration.get("reason")),
+            "an exact authenticated management endpoint and identity/generation "
+            "pin are required; no direct state mutation is attempted",
+            command=command,
+            as_json=as_json,
+        )
+    operation = (
+        "core.autostart.enable" if state == "on" else "core.autostart.disable"
+    )
+    try:
+        response = _management_mutation_response(
+            configuration,
+            operation=operation,
+            core_id=core_id,
+            expected_policy_revision=revision,
+            enabled=state == "on",
+            approval_id=approval_id,
+            expected_mutation_revision=mutation_revision,
+        )
+    except ManagementPinRejected as exc:
+        return _refuse(
+            str(exc),
+            "the configured management endpoint or identity/generation pin "
+            "does not match the reviewed installed-service pin",
+            command=command,
+            as_json=as_json,
+        )
+    except Exception as exc:
+        from sofia.sdk.platform_management_mutation_client import (
+            ManagementMutationAmbiguous,
+        )
+        if isinstance(exc, ManagementMutationAmbiguous):
+            cause = exc.__cause__
+            detail = type(cause if cause is not None else exc).__name__
+            _emit(
+                _core_autostart_ambiguous(
+                    core_id=core_id, operation=operation, detail=detail,
+                ),
+                as_json=as_json,
+            )
+            return EXIT_OUTCOME_UNKNOWN
+        if isinstance(exc, ValueError):
+            code = "INVALID_MUTATION_REQUEST"
+            message = _redact_text(str(exc))
+        elif isinstance(exc, TimeoutError):
+            code = "MANAGEMENT_MUTATION_TIMEOUT"
+            message = "the management mutation deadline was exceeded"
+        else:
+            code = "MANAGEMENT_MUTATION_UNAVAILABLE"
+            message = "the authenticated management transport is unavailable"
+        return _refuse(
+            code, message, command=command, as_json=as_json,
+        )
+    payload = _core_autostart_result(response, core_id=core_id)
+    _emit(payload, as_json=as_json)
+    if response.outcome == "SUCCEEDED":
+        return EXIT_OK
+    if response.outcome == "OUTCOME_UNKNOWN":
+        return EXIT_OUTCOME_UNKNOWN
+    return EXIT_REFUSED
 
 
 def _state_path() -> Path | None:
@@ -1100,10 +1359,34 @@ def _build_parser() -> argparse.ArgumentParser:
     core_status.add_argument("core_id", nargs="?")
     core_status.add_argument("--json", action="store_true")
     for operation in sorted(_CORE_MUTATIONS):
-        mutation = core_sub.add_parser(operation, help=f"refuse {operation} without management approval")
+        if operation == "autostart":
+            help_text = (
+                "set owner-approved Core autostart through authenticated "
+                "Platform management"
+            )
+        elif operation in {"start", "stop"}:
+            help_text = (
+                f"refuse {operation}: no authenticated Core lifecycle "
+                "operation exists"
+            )
+        else:
+            help_text = f"refuse {operation} without management approval"
+        mutation = core_sub.add_parser(operation, help=help_text)
         mutation.add_argument("core_id", nargs="?")
         if operation == "autostart":
-            mutation.add_argument("state", nargs="?")
+            mutation.add_argument("state", nargs="?", choices=("on", "off"))
+            mutation.add_argument(
+                "--expected-revision", type=int,
+                help="exact next Core autostart policy revision",
+            )
+            mutation.add_argument(
+                "--expected-mutation-revision", type=int,
+                help=(
+                    "exact current Platform management mutation revision; "
+                    "defaults to --expected-revision minus one"
+                ),
+            )
+            _add_management_arguments(mutation)
         mutation.add_argument("--approval-id")
         mutation.add_argument("--json", action="store_true")
 
@@ -1212,6 +1495,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                 as_json=as_json,
             )
             return EXIT_OK
+        if args.core_command == "autostart":
+            return _emit_core_autostart(args, as_json=as_json)
+        if args.core_command in {"start", "stop"}:
+            if getattr(args, "approval_id", None):
+                return _refuse(
+                    "UNSUPPORTED_OPERATION",
+                    "no authenticated Platform management operation exists "
+                    "for Core lifecycle start/stop; only owner-approved "
+                    "autostart desired state is supported",
+                    command=f"core {args.core_command}",
+                    as_json=as_json,
+                )
         return _refuse(
             MANAGEMENT_APPROVAL_REQUIRED,
             "Core lifecycle changes require authenticated Platform management approval",
