@@ -131,15 +131,12 @@ def test_all_negative_release_trust_and_dependency_cases_are_denied(report):
         assert item["history_entries"] == 0
 
 
-def test_lifecycle_reports_the_repair_contract_blocker_without_fabricating_pass(report):
+def test_lifecycle_completes_repair_after_update(report):
     scenario = _scenario(report, "default_guided_lifecycle")
-    assert scenario["pass"] is False
+    assert scenario["pass"] is True
     assert "error" not in scenario
     observed = scenario["observed"]
-    assert observed["failures"]
-    failure = observed["failures"][0]
-    assert failure["operation"] == "repair_after_update"
-    assert failure["outcome"] == "DENIED"
+    assert observed["failures"] == []
 
     successful = _successful_commands(report)
     assert successful["install"]["outcome"] == "INSTALLED"
@@ -151,12 +148,11 @@ def test_lifecycle_reports_the_repair_contract_blocker_without_fabricating_pass(
     assert successful["status"]["outcome"] == "OK"
     assert successful["repair"]["outcome"] == "REPAIRED"
     assert observed["pre_update_repair"] == "REPAIRED"
-    denied_repair = [
+    repaired = [
         item for item in report["commands"]
-        if item["command"] == "repair" and item["outcome"] == "DENIED"
+        if item["command"] == "repair" and item["outcome"] == "REPAIRED"
     ]
-    assert len(denied_repair) == 1
-    assert denied_repair[0]["attempts"][-1]["required_approval"] is None
+    assert len(repaired) == 2
     assert observed["durable_revision_floor"] == 5
     assert observed["identity_preserved"] is True
     assert observed["protected_state_preserved"] is True
@@ -169,16 +165,17 @@ def test_lifecycle_reports_the_repair_contract_blocker_without_fabricating_pass(
 def test_lifecycle_has_no_duplicate_service_launcher_or_writer(report):
     observed = _scenario(report, "default_guided_lifecycle")["observed"]
     effects = observed["effects"]
-    assert len(effects) == 6
+    assert len(effects) == 7
     assert [item["process_state"] for item in effects] == [
-        "RUNNING", "RUNNING", "RUNNING", "RUNNING", "REMOVED", "RUNNING",
+        "RUNNING", "RUNNING", "RUNNING", "RUNNING", "RUNNING",
+        "REMOVED", "RUNNING",
     ]
     assert observed["effect_count"] == len(effects)
     assert observed["operator_launchers_after_uninstall"] == 0
 
 
-def test_report_marks_overall_pass_false_for_the_unresolved_repair_blocker(report):
-    assert report["pass"] is False
+def test_report_marks_simulated_lifecycle_pass_without_host_certification(report):
+    assert report["pass"] is True
     assert report["scenario_count"] == 6
     assert report["command_count"] >= 10
     assert report["installed_host_verified"] is False

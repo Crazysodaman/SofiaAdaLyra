@@ -789,11 +789,32 @@ def _command_rollback(inputs: InstallerInputs, backend=None) -> dict[str, object
     )
 
 
+def _installed_parent_manifest_sha256(destination: Path) -> str | None:
+    """Read the signed predecessor from already-verified installed bytes."""
+    path = destination / "release-manifest.json"
+    info = path.stat(follow_symlinks=False)
+    if not 1 <= info.st_size <= 131_072:
+        raise PlatformInstallationDenied("installed release manifest outside bound")
+    try:
+        payload = json.loads(
+            read_artifact_file(path, info.st_size, include_data=True)[1].decode("utf-8")
+        )
+    except (OSError, UnicodeError, ValueError) as error:
+        raise PlatformInstallationDenied(
+            "installed signed release manifest is unavailable"
+        ) from error
+    parent = payload.get("parent_manifest_sha256")
+    if parent is not None and (
+        not isinstance(parent, str) or _HEX64.fullmatch(parent) is None
+    ):
+        raise PlatformInstallationDenied("installed release predecessor is invalid")
+    return parent
+
+
 def _verify_installed_release(inputs: InstallerInputs, *, operation: str,
                               floor: int) -> tuple[
                                   SignedInstallerRelease, PlatformInstallationStore,
                                   PlatformReleaseVerifier, Path, Path, Path, Path]:
-    release = _verify_release(inputs, floor=floor)
     store = _store(inputs, create=True)
     if store.pending_attempts():
         raise PlatformInstallationDenied("unreconciled B1 attempt blocks maintenance")
@@ -805,6 +826,13 @@ def _verify_installed_release(inputs: InstallerInputs, *, operation: str,
     verified = verify_installed(
         destination, store=store, verifier=verifier,
         minimum_revision=max(1, int(row["revision"])),
+    )
+    # The installed signed manifest establishes the exact predecessor. Media
+    # verification must bind to it instead of assuming a parentless release;
+    # otherwise repair/reinstall after an approved update is impossible.
+    release = _verify_release(
+        inputs, floor=floor,
+        expected_parent=_installed_parent_manifest_sha256(destination),
     )
     if (verified["release_id"] != release.release_id
             or verified["manifest_sha256"] != release.manifest_sha256):

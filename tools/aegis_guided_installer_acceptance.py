@@ -859,11 +859,7 @@ def _scenario_lifecycle(accept: Accept, work: Path) -> dict[str, object]:
             "operation": "repair_after_update",
             "outcome": repaired["outcome"],
             "required_approval": repaired.get("required_approval"),
-            "reason": (
-                "production platform_installer_cli did not forward the trusted "
-                "predecessor digest from _verify_installed_release, so a signed "
-                "child release could not be re-verified for repair"
-            ),
+            "reason": "repair after update did not complete",
         })
     else:
         _require(len(backend.effects) == effect_count + 1,
@@ -936,7 +932,7 @@ def _scenario_lifecycle(accept: Accept, work: Path) -> dict[str, object]:
              "native service is not registered after reinstall")
     _require(journal["phase"] == "SERVICE_OBSERVED", "native journal phase differs")
     _require(sum(1 for item in backend.effects
-                 if item["process_state"] == "RUNNING") == 5,
+                 if item["process_state"] == "RUNNING") == 6,
              "unexpected running-service effect count")
 
     launcher_names = sorted(
