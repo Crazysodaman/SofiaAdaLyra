@@ -132,6 +132,9 @@ FILENAME_PACKAGE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("test_sdk_compatibility.py", (
         "pkg_verify", "pkg_integrate", "pkg_safe",
     )),
+    ("test_sdk_runtime_facade.py", (
+        "pkg_verify", "pkg_integrate", "pkg_safe",
+    )),
     ("test_generic_cognition_providers.py", ("pkg_core", "pkg_integrate", "pkg_net")),
     ("test_generic_core_worker_isolation.py", ("pkg_core", "pkg_run", "pkg_integrate")),
     ("test_signed_core_definitions.py", ("pkg_core", "pkg_integrate", "pkg_safe")),
