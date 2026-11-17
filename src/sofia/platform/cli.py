@@ -1,13 +1,37 @@
-"""Public ``aegis`` management client.
+"""Public ``aegis`` installed application client.
 
 This is deliberately a *client* surface, not a startup owner.  It never
 constructs a Core, opens the Platform service process lock, queries protected
 Core state, mutates an OS service, or fabricates live management health.
 
 Read-only local configuration and already-durable Platform evidence may be
-displayed.  Anything that requires the authenticated Platform management
-transport reports ``NOT_OBSERVED`` until a real client is configured.  Every
-mutation is refused before any transport or native service API is touched.
+displayed.  Live ``status``, ``startup`` and ``core list`` reads use the
+existing authenticated Platform management clients only when an exact
+endpoint and identity/generation pin is configured.  Without those pins the
+management observation is ``NOT_OBSERVED``.  Every mutation is refused before
+any transport or native service API is touched.
+
+Pins and their environment equivalents
+--------------------------------------
+The same value can be supplied as a flag where listed, or through the first
+non-empty environment variable in each tuple.  Flags are shown on ``--help``.
+
+* endpoint: ``--endpoint`` or ``AEGIS_PLATFORM_SERVICE_ENDPOINT``,
+  ``AEGIS_PLATFORM_MANAGEMENT_ENDPOINT``, ``AEGIS_PLATFORM_ENDPOINT``,
+  ``SOFIA_PLATFORM_SERVICE_ENDPOINT``, ``SOFIA_PLATFORM_MANAGEMENT_ENDPOINT``.
+* expected Platform identity: ``--expected-platform-id`` or
+  ``AEGIS_PLATFORM_EXPECTED_ID`` / ``AEGIS_PLATFORM_ID``.
+* expected RUN generation: ``--expected-generation`` or
+  ``AEGIS_PLATFORM_EXPECTED_GENERATION`` / ``AEGIS_PLATFORM_GENERATION``.
+* Linux installed service OS identity (never a CLI flag): pinned by
+  ``AEGIS_PLATFORM_SERVICE_UID`` / ``AEGIS_PLATFORM_SERVICE_GID`` and the
+  optional ``AEGIS_PLATFORM_SERVICE_PID`` / ``AEGIS_PLATFORM_SOCKET_GROUP_GID``.
+
+An endpoint is not a credential and a CLI ``--approval-id`` is not authority.
+Windows requires the exact canonical ``AegisPlatform-<uuid>-<generation>``
+pipe name; arbitrary paths are rejected.  Linux requires an absolute socket
+path whose inode owner/mode matches the installed-service pins.  In both cases
+the service owns peer authentication and current owner/STOP admission.
 """
 from __future__ import annotations
 
@@ -55,6 +79,18 @@ _AUTOSTART_POLICY_ENVS = (
     "AEGIS_PLATFORM_AUTOSTART_POLICY_DB",
     "SOFIA_PLATFORM_AUTOSTART_POLICY_DB",
 )
+_EXPECTED_PLATFORM_ID_ENVS = (
+    "AEGIS_PLATFORM_EXPECTED_ID",
+    "AEGIS_PLATFORM_ID",
+)
+_EXPECTED_GENERATION_ENVS = (
+    "AEGIS_PLATFORM_EXPECTED_GENERATION",
+    "AEGIS_PLATFORM_GENERATION",
+)
+_SERVICE_UID_ENVS = ("AEGIS_PLATFORM_SERVICE_UID",)
+_SERVICE_GID_ENVS = ("AEGIS_PLATFORM_SERVICE_GID",)
+_SERVICE_PID_ENVS = ("AEGIS_PLATFORM_SERVICE_PID",)
+_SOCKET_GROUP_GID_ENVS = ("AEGIS_PLATFORM_SOCKET_GROUP_GID",)
 _AUTOSTART_MODULES = (
     "sofia.platform.run.autostart_policy",
     "sofia.platform.run.autostart",
@@ -74,19 +110,19 @@ _MAX_TEXT = 200
 _MAX_DIAGNOSTIC_BYTES = 16_384
 
 _GUI_EXECUTABLES = (
-    "aegis-control-center",
     "aegis-control-center.exe",
-    "sofia-desktop",
+    "aegis-control-center",
     "sofia-desktop.exe",
+    "sofia-desktop",
 )
 _TUI_EXECUTABLES = (
-    "aegis-tui",
-    "aegis-tui.exe",
-    "aegis_tui",
     "aegis_tui.exe",
+    "aegis-tui",
+    "aegis_tui",
+    "aegis-tui.exe",
 )
 
-_CORE_MUTATIONS = frozenset({"start", "stop", "detach", "remove"})
+_CORE_MUTATIONS = frozenset({"start", "stop", "autostart", "detach", "remove"})
 _MODULE_MUTATIONS = frozenset({
     "start", "stop", "restart", "enable", "disable", "install", "remove",
     "uninstall", "update", "reinstall", "block", "unblock",
@@ -216,6 +252,218 @@ def _service_endpoint_payload(*, redact_value: bool = False) -> dict[str, object
                 "endpoint": "<configured>" if redact_value else _redact_text(value),
             }
     return {"state": "NOT_CONFIGURED"}
+
+
+def _first_environment(names: Sequence[str]) -> tuple[str, str] | None:
+    for name in names:
+        value = os.environ.get(name, "").strip()
+        if value:
+            return name, value
+    return None
+
+
+class ManagementPinRejected(PermissionError):
+    """An explicitly configured management pin is not trusted."""
+
+
+def _management_configuration(args: argparse.Namespace) -> dict[str, object]:
+    """Resolve explicit endpoint/identity/generation pins; no discovery."""
+    endpoint_flag = getattr(args, "endpoint", None)
+    endpoint_source: str | None = None
+    endpoint = str(endpoint_flag).strip() if endpoint_flag else ""
+    if endpoint:
+        endpoint_source = "--endpoint"
+    else:
+        found = _first_environment(_SERVICE_ENDPOINT_ENVS)
+        if found is not None:
+            endpoint_source, endpoint = found
+    if not endpoint:
+        return _not_observed("AUTHENTICATED_MANAGEMENT_NOT_CONFIGURED")
+
+    platform_flag = getattr(args, "expected_platform_id", None)
+    platform_source: str | None = None
+    platform_id = str(platform_flag).strip() if platform_flag else ""
+    if platform_id:
+        platform_source = "--expected-platform-id"
+    else:
+        found = _first_environment(_EXPECTED_PLATFORM_ID_ENVS)
+        if found is not None:
+            platform_source, platform_id = found
+    if not platform_id:
+        return _not_observed("MANAGEMENT_PLATFORM_ID_PIN_NOT_CONFIGURED")
+    if platform_source is None or platform_id.upper() in {"OWNER", "ANY"}:
+        return _not_observed("MANAGEMENT_PLATFORM_ID_PIN_INVALID")
+
+    generation_flag = getattr(args, "expected_generation", None)
+    generation_source: str | None = None
+    generation_raw: object = generation_flag
+    if generation_raw is not None:
+        generation_source = "--expected-generation"
+    else:
+        found = _first_environment(_EXPECTED_GENERATION_ENVS)
+        if found is not None:
+            generation_source, generation_raw = found
+    if generation_raw is None or generation_raw == "":
+        return _not_observed("MANAGEMENT_GENERATION_PIN_NOT_CONFIGURED")
+    try:
+        if isinstance(generation_raw, bool):
+            raise ValueError
+        generation = int(generation_raw)
+    except (TypeError, ValueError):
+        return _not_observed("MANAGEMENT_GENERATION_PIN_INVALID")
+    if generation <= 0:
+        return _not_observed("MANAGEMENT_GENERATION_PIN_INVALID")
+    if sys.platform.startswith("linux"):
+        if _first_environment(_SERVICE_UID_ENVS) is None:
+            return _not_observed("MANAGEMENT_SERVICE_UID_PIN_NOT_CONFIGURED")
+        if _first_environment(_SERVICE_GID_ENVS) is None:
+            return _not_observed("MANAGEMENT_SERVICE_GID_PIN_NOT_CONFIGURED")
+    return {
+        "state": "CONFIGURED",
+        "endpoint": endpoint,
+        "endpoint_source": endpoint_source,
+        "platform_id": platform_id,
+        "platform_id_source": platform_source,
+        "generation": generation,
+        "generation_source": generation_source,
+    }
+
+
+def _normalized_windows_pipe_name(endpoint: str) -> str:
+    value = endpoint.strip()
+    lowered = value.lower()
+    for prefix in (
+        "pipe:\\\\.\\pipe\\",
+        "\\\\.\\pipe\\",
+        "pipe:",
+    ):
+        if lowered.startswith(prefix):
+            value = value[len(prefix):]
+            lowered = value.lower()
+    value = value.strip("\\/")
+    if (not value or "/" in value or "\\" in value or ":" in value
+            or any(char < " " for char in value)):
+        raise ManagementPinRejected("MANAGEMENT_ENDPOINT_PIN_MISMATCH")
+    return value
+
+
+def _optional_environment_int(names: Sequence[str], *, code: str) -> int | None:
+    found = _first_environment(names)
+    if found is None:
+        return None
+    try:
+        value = int(found[1])
+    except ValueError as exc:
+        raise ManagementPinRejected(code) from exc
+    if value < 0:
+        raise ManagementPinRejected(code)
+    return value
+
+
+def _required_environment_int(names: Sequence[str], *, code: str) -> int:
+    value = _optional_environment_int(names, code=code)
+    if value is None:
+        raise ManagementPinRejected(code)
+    return value
+
+
+def _management_response(
+    configuration: dict[str, object], operation: str,
+):
+    """Call the reviewed native client for one supported read operation."""
+    endpoint = str(configuration["endpoint"])
+    platform_id = str(configuration["platform_id"])
+    generation = int(configuration["generation"])
+    if sys.platform == "win32":
+        from sofia.sdk.platform_management_windows_client import (
+            read_windows_management, windows_management_pipe_name,
+        )
+        try:
+            expected_name = windows_management_pipe_name(
+                platform_id=platform_id, generation=generation,
+            )
+        except ValueError as exc:
+            raise ManagementPinRejected("MANAGEMENT_PLATFORM_ID_PIN_INVALID") from exc
+        pipe_name = _normalized_windows_pipe_name(endpoint)
+        if pipe_name != expected_name:
+            raise ManagementPinRejected("MANAGEMENT_ENDPOINT_PIN_MISMATCH")
+        return read_windows_management(
+            pipe_name=pipe_name,
+            expected_platform_id=platform_id,
+            expected_generation=generation,
+            operation=operation,
+        )
+    if sys.platform.startswith("linux"):
+        from sofia.sdk.platform_management_client import read_linux_management
+        path = Path(endpoint)
+        if not path.is_absolute():
+            raise ManagementPinRejected("MANAGEMENT_ENDPOINT_PIN_MISMATCH")
+        uid = _required_environment_int(
+            _SERVICE_UID_ENVS, code="MANAGEMENT_SERVICE_UID_PIN_NOT_CONFIGURED",
+        )
+        gid = _required_environment_int(
+            _SERVICE_GID_ENVS, code="MANAGEMENT_SERVICE_GID_PIN_NOT_CONFIGURED",
+        )
+        pid = _optional_environment_int(
+            _SERVICE_PID_ENVS, code="MANAGEMENT_SERVICE_PID_PIN_INVALID",
+        )
+        if pid == 0:
+            raise ManagementPinRejected("MANAGEMENT_SERVICE_PID_PIN_INVALID")
+        group_gid = _optional_environment_int(
+            _SOCKET_GROUP_GID_ENVS,
+            code="MANAGEMENT_SOCKET_GROUP_GID_PIN_INVALID",
+        )
+        return read_linux_management(
+            socket_path=path,
+            expected_platform_id=platform_id,
+            expected_generation=generation,
+            operation=operation,
+            installed_service_uid=uid,
+            installed_service_gid=gid,
+            installed_service_pid=pid,
+            installed_socket_group_gid=group_gid,
+        )
+    return None
+
+
+def _management_observation(
+    args: argparse.Namespace, operation: str,
+) -> dict[str, object]:
+    configuration = _management_configuration(args)
+    if configuration.get("state") != "CONFIGURED":
+        return configuration
+    try:
+        response = _management_response(configuration, operation)
+    except ManagementPinRejected:
+        raise
+    except Exception as exc:
+        return _not_observed(
+            "MANAGEMENT_OBSERVATION_UNAVAILABLE",
+            operation=operation,
+            detail=type(exc).__name__,
+        )
+    if response is None:
+        return _not_observed(
+            "MANAGEMENT_OBSERVATION_UNSUPPORTED_PLATFORM", operation=operation,
+        )
+    observation: dict[str, object] = {
+        "authority": "AUTHENTICATED_PLATFORM_MANAGEMENT",
+        "operation": operation,
+        "platform_id": response.platform_id,
+        "generation": response.generation,
+        "observed_at": response.observed_at,
+        "source": configuration["endpoint_source"],
+        "executed": False,
+    }
+    if response.outcome == "OK":
+        observation["state"] = "OBSERVED"
+        observation["outcome"] = "OK"
+        observation["data"] = dict(response.data or {})
+    else:
+        observation["state"] = "DENIED"
+        observation["outcome"] = "DENIED"
+        observation["denial_code"] = response.denial_code
+    return observation
 
 
 def _state_path() -> Path | None:
@@ -552,7 +800,7 @@ def _zero_core_payload() -> dict[str, object]:
     }
 
 
-def _startup_payload() -> dict[str, object]:
+def _startup_payload(management: dict[str, object] | None = None) -> dict[str, object]:
     identity = _identity_payload()
     state_path = _state_path()
     reconciliation = _reconciliation_summary()
@@ -568,11 +816,15 @@ def _startup_payload() -> dict[str, object]:
         "zero_core": _zero_core_payload(),
         "autostart_policy": _autostart_policy_summary(),
         "reconciliation": reconciliation,
+        "management": (
+            management if management is not None
+            else _not_observed("AUTHENTICATED_MANAGEMENT_NOT_CONFIGURED")
+        ),
         "blockers": blockers,
     }
 
 
-def _status_payload() -> dict[str, object]:
+def _status_payload(management: dict[str, object] | None = None) -> dict[str, object]:
     role_configuration = _roles_payload()
     configured_roles = role_configuration.get("roles")
     return {
@@ -585,10 +837,10 @@ def _status_payload() -> dict[str, object]:
         "zero_core": _zero_core_payload(),
         "platform_identity": _identity_payload(),
         "service_endpoint": _service_endpoint_payload(),
-        "management": {
-            "state": NOT_OBSERVED,
-            "reason": "AUTHENTICATED_MANAGEMENT_CLIENT_NOT_IMPLEMENTED",
-        },
+        "management": (
+            management if management is not None
+            else _not_observed("AUTHENTICATED_MANAGEMENT_NOT_CONFIGURED")
+        ),
     }
 
 
@@ -636,7 +888,7 @@ def _diagnostics_payload() -> dict[str, object]:
         "service_endpoint": _service_endpoint_payload(redact_value=True),
         "management": {
             "state": NOT_OBSERVED,
-            "reason": "AUTHENTICATED_MANAGEMENT_CLIENT_NOT_IMPLEMENTED",
+            "reason": "AUTHENTICATED_MANAGEMENT_NOT_CONFIGURED",
         },
         "service": {
             "state": service.get("state", NOT_OBSERVED),
@@ -668,7 +920,7 @@ def _diagnostics_payload() -> dict[str, object]:
             "reason": "DIAGNOSTIC_SUMMARY_EXCEEDS_BOUND",
             "management": {
                 "state": NOT_OBSERVED,
-                "reason": "AUTHENTICATED_MANAGEMENT_CLIENT_NOT_IMPLEMENTED",
+                "reason": "AUTHENTICATED_MANAGEMENT_NOT_CONFIGURED",
             },
             "redaction": {
                 "secrets_included": False,
@@ -678,7 +930,54 @@ def _diagnostics_payload() -> dict[str, object]:
     return payload
 
 
+def _package_version() -> str:
+    try:
+        from importlib.metadata import version
+        return version("sofia-ada-lyra")
+    except Exception:
+        return "0.1.0"
+
+
+def _installed_executable_directories() -> list[Path]:
+    """Installed locations are searched before PATH, in a fixed order."""
+    directories: list[Path] = []
+
+    def add(path: Path | None) -> None:
+        if path is None:
+            return
+        try:
+            resolved = path.expanduser()
+        except (OSError, RuntimeError, ValueError):
+            return
+        if resolved not in directories:
+            directories.append(resolved)
+
+    for executable in (sys.executable, sys.argv[0] if sys.argv else ""):
+        if executable:
+            try:
+                add(Path(executable).resolve().parent)
+            except (OSError, RuntimeError, ValueError):
+                add(Path(executable).parent)
+    if sys.platform == "win32":
+        for name in ("ProgramFiles", "PROGRAMFILES", "LOCALAPPDATA", "LocalAppData"):
+            root = os.environ.get(name, "").strip()
+            if root:
+                add(Path(root) / "Aegis" / "bin")
+    else:
+        add(Path("/opt/aegis/bin"))
+        add(Path("/usr/local/bin"))
+    return directories
+
+
 def _find_executable(names: Sequence[str]) -> str | None:
+    for directory in _installed_executable_directories():
+        for name in names:
+            candidate = directory / name
+            try:
+                if candidate.is_file():
+                    return str(candidate)
+            except OSError:
+                continue
     for name in names:
         found = shutil.which(name)
         if found:
@@ -693,7 +992,8 @@ def _launch_packaged(
     if executable is None:
         return _refuse(
             missing_code,
-            f"packaged {command} executable is not installed or on PATH",
+            f"packaged {command} executable was not found in installed "
+            "locations or on PATH",
             command=command,
             as_json=as_json,
         )
@@ -718,27 +1018,69 @@ def _launch_packaged(
     return EXIT_OK
 
 
+def _add_management_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--endpoint",
+        help=(
+            "pinned management endpoint; also AEGIS_PLATFORM_SERVICE_ENDPOINT, "
+            "AEGIS_PLATFORM_MANAGEMENT_ENDPOINT or AEGIS_PLATFORM_ENDPOINT"
+        ),
+    )
+    parser.add_argument(
+        "--expected-platform-id",
+        help=(
+            "exact expected Platform identity; also AEGIS_PLATFORM_EXPECTED_ID "
+            "or AEGIS_PLATFORM_ID"
+        ),
+    )
+    parser.add_argument(
+        "--expected-generation", type=int,
+        help=(
+            "exact expected Platform RUN generation; also "
+            "AEGIS_PLATFORM_EXPECTED_GENERATION or AEGIS_PLATFORM_GENERATION"
+        ),
+    )
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="aegis",
         description=(
-            "Read-only local Platform client. Mutations require the "
-            "authenticated Platform management authority."
+            "Installed Aegis Platform client. Runs the TUI by default. "
+            "Reads are local or authenticated management observations; "
+            "mutations require the authenticated Platform management "
+            "or OS-service authority."
         ),
+    )
+    parser.add_argument(
+        "--version", action="store_true",
+        help="print the installed package version and exit",
     )
     parser.add_argument(
         "--json", action="store_true", dest="global_json",
         help="emit machine-readable JSON after the subcommand",
     )
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers = parser.add_subparsers(dest="command", required=False)
 
-    status = subparsers.add_parser("status", help="show local Platform status")
+    status = subparsers.add_parser("status", help="show local and live Platform status")
     status.add_argument("--json", action="store_true")
+    _add_management_arguments(status)
 
     startup = subparsers.add_parser(
         "startup", help="show startup diagnostics without starting anything",
     )
     startup.add_argument("--json", action="store_true")
+    _add_management_arguments(startup)
+
+    doctor = subparsers.add_parser(
+        "doctor", help="read-only startup diagnostic alias",
+    )
+    doctor.add_argument(
+        "--startup", action="store_true",
+        help="show the read-only startup diagnostic (default)",
+    )
+    doctor.add_argument("--json", action="store_true")
+    _add_management_arguments(doctor)
 
     service = subparsers.add_parser("service", help="observe the OS service")
     service_sub = service.add_subparsers(dest="service_command", required=True)
@@ -746,18 +1088,23 @@ def _build_parser() -> argparse.ArgumentParser:
     service_status.add_argument("--json", action="store_true")
     for operation in ("start", "stop", "restart"):
         mutation = service_sub.add_parser(operation, help=f"refuse {operation} without owner approval")
+        mutation.add_argument("--approval-id")
         mutation.add_argument("--json", action="store_true")
 
     core = subparsers.add_parser("core", help="observe synthetic Core bindings")
     core_sub = core.add_subparsers(dest="core_command", required=True)
     core_list = core_sub.add_parser("list", help="list durable Core bindings")
     core_list.add_argument("--json", action="store_true")
+    _add_management_arguments(core_list)
     core_status = core_sub.add_parser("status", help="read one durable Core binding")
     core_status.add_argument("core_id", nargs="?")
     core_status.add_argument("--json", action="store_true")
     for operation in sorted(_CORE_MUTATIONS):
         mutation = core_sub.add_parser(operation, help=f"refuse {operation} without management approval")
         mutation.add_argument("core_id", nargs="?")
+        if operation == "autostart":
+            mutation.add_argument("state", nargs="?")
+        mutation.add_argument("--approval-id")
         mutation.add_argument("--json", action="store_true")
 
     module = subparsers.add_parser("module", help="observe canonical module records")
@@ -770,10 +1117,12 @@ def _build_parser() -> argparse.ArgumentParser:
     for operation in sorted(_MODULE_MUTATIONS):
         mutation = module_sub.add_parser(operation, help=f"refuse {operation} without management approval")
         mutation.add_argument("module_id", nargs="?")
+        mutation.add_argument("--approval-id")
         mutation.add_argument("--json", action="store_true")
 
     chat = subparsers.add_parser("chat", help="refuse chat without a real Core Link")
     chat.add_argument("message", nargs="?")
+    chat.add_argument("--approval-id")
     chat.add_argument("--json", action="store_true")
 
     diagnostics = subparsers.add_parser(
@@ -792,17 +1141,49 @@ def _as_json(args: argparse.Namespace) -> bool:
     return bool(getattr(args, "json", False) or getattr(args, "global_json", False))
 
 
+def _emit_management_read(
+    command: str, operation: str, args: argparse.Namespace,
+    builder, as_json: bool,
+) -> int:
+    try:
+        management = _management_observation(args, operation)
+    except ManagementPinRejected as exc:
+        return _refuse(
+            str(exc),
+            "the configured management endpoint, identity or generation pin "
+            "does not match the reviewed installed-service pin",
+            command=command,
+            as_json=as_json,
+        )
+    _emit(builder(management), as_json=as_json)
+    return EXIT_OK
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
     as_json = _as_json(args)
 
+    if args.version:
+        print(_package_version())
+        return EXIT_OK
+    if args.command in (None, "tui"):
+        return _launch_packaged(
+            _TUI_EXECUTABLES, command="tui",
+            missing_code=AEGIS_TUI_NOT_AVAILABLE, as_json=as_json,
+        )
     if args.command == "status":
-        _emit(_status_payload(), as_json=as_json)
-        return EXIT_OK
+        return _emit_management_read(
+            "status", "platform.status", args, _status_payload, as_json,
+        )
     if args.command == "startup":
-        _emit(_startup_payload(), as_json=as_json)
-        return EXIT_OK
+        return _emit_management_read(
+            "startup", "startup.status", args, _startup_payload, as_json,
+        )
+    if args.command == "doctor":
+        return _emit_management_read(
+            "doctor", "startup.status", args, _startup_payload, as_json,
+        )
     if args.command == "diagnostics":
         _emit(_diagnostics_payload(), as_json=as_json)
         return EXIT_OK
@@ -818,8 +1199,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     if args.command == "core":
         if args.core_command == "list":
-            _emit(_core_bindings(), as_json=as_json)
-            return EXIT_OK
+            def core_list_payload(management: dict[str, object]) -> dict[str, object]:
+                payload = _core_bindings()
+                payload["management"] = management
+                return payload
+            return _emit_management_read(
+                "core list", "core.list", args, core_list_payload, as_json,
+            )
         if args.core_command == "status":
             _emit(
                 _core_bindings(getattr(args, "core_id", None)),
@@ -860,11 +1246,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _launch_packaged(
             _GUI_EXECUTABLES, command="gui",
             missing_code=AEGIS_GUI_NOT_AVAILABLE, as_json=as_json,
-        )
-    if args.command == "tui":
-        return _launch_packaged(
-            _TUI_EXECUTABLES, command="tui",
-            missing_code=AEGIS_TUI_NOT_AVAILABLE, as_json=as_json,
         )
     parser.error("unhandled aegis command")
     return EXIT_USAGE

@@ -21,7 +21,9 @@ _ENVIRONMENT_KEYS = (
     "AEGIS_PLATFORM_IDENTITY_HOME",
     "AEGIS_PLATFORM_SERVICE_ENDPOINT",
     "AEGIS_PLATFORM_MANAGEMENT_ENDPOINT",
+    "AEGIS_PLATFORM_ENDPOINT",
     "SOFIA_PLATFORM_SERVICE_ENDPOINT",
+    "SOFIA_PLATFORM_MANAGEMENT_ENDPOINT",
     "AEGIS_PLATFORM_LOCAL_STATE",
     "AEGIS_LOCAL_STATE",
     "AEGIS_PLATFORM_STATE_PATH",
@@ -31,6 +33,14 @@ _ENVIRONMENT_KEYS = (
     "AEGIS_PLATFORM_SERVICE_COMMAND",
     "AEGIS_PLATFORM_SERVICE_UNIT_SHA256",
     "AEGIS_PLATFORM_SERVICE_UNIT_PATH",
+    "AEGIS_PLATFORM_EXPECTED_ID",
+    "AEGIS_PLATFORM_ID",
+    "AEGIS_PLATFORM_EXPECTED_GENERATION",
+    "AEGIS_PLATFORM_GENERATION",
+    "AEGIS_PLATFORM_SERVICE_UID",
+    "AEGIS_PLATFORM_SERVICE_GID",
+    "AEGIS_PLATFORM_SERVICE_PID",
+    "AEGIS_PLATFORM_SOCKET_GROUP_GID",
     "SOFIA_CORE_LINK_BINDING_STORE",
 )
 
@@ -105,7 +115,7 @@ def test_status_json_reports_local_role_and_unobserved_management(monkeypatch, c
     assert payload["service_endpoint"] == {"state": "NOT_CONFIGURED"}
     assert payload["management"] == {
         "state": "NOT_OBSERVED",
-        "reason": "AUTHENTICATED_MANAGEMENT_CLIENT_NOT_IMPLEMENTED",
+        "reason": "AUTHENTICATED_MANAGEMENT_NOT_CONFIGURED",
     }
 
 
@@ -261,6 +271,10 @@ def test_absent_read_states_are_truthful_and_do_not_create_files(
     assert core == {
         "state": "NOT_OBSERVED",
         "reason": "PLATFORM_LOCAL_STATE_ABSENT",
+        "management": {
+            "state": "NOT_OBSERVED",
+            "reason": "AUTHENTICATED_MANAGEMENT_NOT_CONFIGURED",
+        },
     }
 
     assert cli.main(["module", "list", "--json"]) == 0
@@ -342,6 +356,10 @@ def test_core_list_refuses_protected_core_database(monkeypatch, tmp_path, capsys
     assert payload == {
         "state": "NOT_OBSERVED",
         "reason": "PROTECTED_CORE_STATE_PATH",
+        "management": {
+            "state": "NOT_OBSERVED",
+            "reason": "AUTHENTICATED_MANAGEMENT_NOT_CONFIGURED",
+        },
     }
 
 
@@ -442,6 +460,7 @@ def test_service_status_uses_reviewed_read_only_observation_when_pinned(
 def test_gui_and_tui_absent_paths_exit_three_without_spawning(
     command, code, monkeypatch, capsys,
 ):
+    monkeypatch.setattr(cli, "_installed_executable_directories", lambda: [])
     monkeypatch.setattr(cli.shutil, "which", lambda name: None)
     monkeypatch.setattr(
         cli.subprocess, "Popen",
@@ -457,6 +476,8 @@ def test_gui_and_tui_absent_paths_exit_three_without_spawning(
 
 def test_gui_and_tui_launch_only_when_explicitly_invoked(monkeypatch, capsys):
     calls = []
+    monkeypatch.setattr(cli.sys, "platform", "win32")
+    monkeypatch.setattr(cli, "_installed_executable_directories", lambda: [])
     monkeypatch.setattr(
         cli.shutil, "which",
         lambda name: f"C:/packaged/{name}",
@@ -473,12 +494,12 @@ def test_gui_and_tui_launch_only_when_explicitly_invoked(monkeypatch, capsys):
     assert cli.main(["gui", "--json"]) == 0
     gui = _json_output(capsys)
     assert gui["state"] == "LAUNCHED"
-    assert calls[0][0] == ["C:/packaged/aegis-control-center"]
+    assert calls[0][0] == ["C:/packaged/aegis-control-center.exe"]
 
     assert cli.main(["tui", "--json"]) == 0
     tui = _json_output(capsys)
     assert tui["state"] == "LAUNCHED"
-    assert calls[1][0] == ["C:/packaged/aegis-tui"]
+    assert calls[1][0] == ["C:/packaged/aegis_tui.exe"]
 
 
 def test_chat_fails_closed_without_authenticated_core_binding(capsys):
@@ -563,6 +584,397 @@ def test_startup_reports_truthful_reconciliation_outcome(
         "unresolved_operations": 1,
     }
     assert "RECONCILIATION_REQUIRED" in payload["blockers"]
+
+
+def test_bare_invocation_opens_the_tui(monkeypatch, capsys):
+    calls = []
+    monkeypatch.setattr(cli.sys, "platform", "win32")
+    monkeypatch.setattr(cli, "_installed_executable_directories", lambda: [])
+    monkeypatch.setattr(
+        cli.shutil, "which", lambda name: f"C:/packaged/{name}",
+    )
+    monkeypatch.setattr(
+        cli.subprocess, "Popen",
+        lambda argv, **kwargs: calls.append((argv, kwargs)),
+    )
+
+    assert cli.main([]) == 0
+
+    assert calls == [(["C:/packaged/aegis_tui.exe"], {"close_fds": True})]
+
+
+def test_bare_invocation_without_tui_exits_three(monkeypatch, capsys):
+    monkeypatch.setattr(cli, "_installed_executable_directories", lambda: [])
+    monkeypatch.setattr(cli.shutil, "which", lambda name: None)
+    monkeypatch.setattr(
+        cli.subprocess, "Popen",
+        lambda *args, **kwargs: pytest.fail("absent TUI must not be spawned"),
+    )
+
+    assert cli.main([]) == 3
+
+    captured = capsys.readouterr()
+    assert "AEGIS_TUI_NOT_AVAILABLE" in captured.err
+
+
+def test_version_and_help_are_available(capsys):
+    assert cli.main(["--version"]) == 0
+    assert capsys.readouterr().out.strip() == cli._package_version()
+
+    with pytest.raises(SystemExit) as exited:
+        cli.main(["--help"])
+    assert exited.value.code == 0
+    help_text = capsys.readouterr().out
+    assert "usage: aegis" in help_text
+    assert "doctor" in help_text
+
+
+def test_doctor_startup_is_a_read_only_alias(monkeypatch, tmp_path, capsys):
+    missing = tmp_path / "platform.db"
+    monkeypatch.setenv("AEGIS_PLATFORM_LOCAL_STATE", str(missing))
+
+    assert cli.main(["doctor", "--startup", "--json"]) == 0
+
+    payload = _json_output(capsys)
+    assert payload["schema"] == "aegis.platform.cli.startup.v1"
+    assert payload["zero_core"]["core_required"] is False
+    assert payload["management"]["state"] == "NOT_OBSERVED"
+    assert not missing.exists()
+
+
+def _management_response(**overrides):
+    response = {
+        "platform_id": "11111111-1111-1111-1111-111111111111",
+        "generation": 3,
+        "observed_at": "2026-11-16T00:00:00.000000Z",
+        "outcome": "OK",
+        "data": {
+            "platform_id": "11111111-1111-1111-1111-111111111111",
+            "generation": 3,
+            "operator_stop": False,
+            "core_started": False,
+        },
+        "denial_code": None,
+    }
+    response.update(overrides)
+    return SimpleNamespace(**response)
+
+
+def _pin_windows_management(
+    monkeypatch, *, endpoint=None, platform_id=None, generation=None,
+):
+    monkeypatch.setattr(cli.sys, "platform", "win32")
+    from sofia.sdk.platform_management_windows_client import (
+        windows_management_pipe_name,
+    )
+    platform_id = platform_id or "11111111-1111-1111-1111-111111111111"
+    generation = generation or 3
+    pipe_name = windows_management_pipe_name(
+        platform_id=platform_id, generation=generation,
+    )
+    monkeypatch.setenv(
+        "AEGIS_PLATFORM_MANAGEMENT_ENDPOINT", endpoint or pipe_name,
+    )
+    monkeypatch.setenv("AEGIS_PLATFORM_EXPECTED_ID", platform_id)
+    monkeypatch.setenv("AEGIS_PLATFORM_EXPECTED_GENERATION", str(generation))
+    return platform_id, generation, pipe_name
+
+
+def test_status_uses_live_windows_client_when_pinned(monkeypatch, capsys):
+    platform_id, generation, pipe_name = _pin_windows_management(monkeypatch)
+    observed = {}
+
+    def fake_read(**kwargs):
+        observed.update(kwargs)
+        return _management_response(
+            platform_id=platform_id, generation=generation,
+        )
+
+    import sofia.sdk.platform_management_windows_client as windows_client
+    monkeypatch.setattr(
+        windows_client, "read_windows_management", fake_read,
+    )
+
+    assert cli.main(["status", "--json"]) == 0
+
+    payload = _json_output(capsys)
+    assert payload["management"]["state"] == "OBSERVED"
+    assert payload["management"]["authority"] == "AUTHENTICATED_PLATFORM_MANAGEMENT"
+    assert payload["management"]["data"]["core_started"] is False
+    assert observed == {
+        "pipe_name": pipe_name,
+        "expected_platform_id": platform_id,
+        "expected_generation": generation,
+        "operation": "platform.status",
+    }
+
+
+def test_status_accepts_management_pin_flags(monkeypatch, capsys):
+    monkeypatch.setattr(cli.sys, "platform", "win32")
+    from sofia.sdk.platform_management_windows_client import (
+        windows_management_pipe_name,
+    )
+    platform_id = "11111111-1111-1111-1111-111111111111"
+    generation = 3
+    pipe_name = windows_management_pipe_name(
+        platform_id=platform_id, generation=generation,
+    )
+    observed = {}
+
+    import sofia.sdk.platform_management_windows_client as windows_client
+    def fake_read(**kwargs):
+        observed.update(kwargs)
+        return _management_response(
+            platform_id=platform_id, generation=generation,
+        )
+
+    monkeypatch.setattr(
+        windows_client, "read_windows_management", fake_read,
+    )
+
+    assert cli.main([
+        "status", "--json",
+        "--endpoint", "\\\\.\\pipe\\" + pipe_name,
+        "--expected-platform-id", platform_id,
+        "--expected-generation", str(generation),
+    ]) == 0
+
+    payload = _json_output(capsys)
+    assert payload["management"]["state"] == "OBSERVED"
+    assert observed["pipe_name"] == pipe_name
+
+
+def test_startup_and_core_list_use_live_windows_client(monkeypatch, capsys):
+    platform_id, generation, _ = _pin_windows_management(monkeypatch)
+    operations = []
+
+    def fake_read(**kwargs):
+        operations.append(kwargs["operation"])
+        if kwargs["operation"] == "startup.status":
+            return _management_response(
+                platform_id=platform_id, generation=generation,
+                data={
+                    "platform_id": platform_id,
+                    "generation": generation,
+                    "operator_stop": False,
+                    "core_started": False,
+                    "core_count": 0,
+                    "active_core_count": 0,
+                    "startup_state": "ZERO_CORE_HEALTHY",
+                    "autostart_enabled_count": 0,
+                    "autostart_reconciled_at": None,
+                    "management_listening": True,
+                },
+            )
+        return _management_response(
+            platform_id=platform_id, generation=generation,
+            data={
+                "platform_id": platform_id,
+                "generation": generation,
+                "operator_stop": False,
+                "cores": [],
+            },
+        )
+
+    import sofia.sdk.platform_management_windows_client as windows_client
+    monkeypatch.setattr(
+        windows_client, "read_windows_management", fake_read,
+    )
+
+    assert cli.main(["startup", "--json"]) == 0
+    startup = _json_output(capsys)
+    assert startup["management"]["state"] == "OBSERVED"
+    assert startup["management"]["data"]["startup_state"] == "ZERO_CORE_HEALTHY"
+
+    assert cli.main(["core", "list", "--json"]) == 0
+    core = _json_output(capsys)
+    assert core["management"]["state"] == "OBSERVED"
+    assert core["management"]["data"]["cores"] == []
+    assert operations == ["startup.status", "core.list"]
+
+
+def test_live_management_denial_is_reported_not_converted_to_success(
+    monkeypatch, capsys,
+):
+    platform_id, generation, _ = _pin_windows_management(monkeypatch)
+
+    import sofia.sdk.platform_management_windows_client as windows_client
+    monkeypatch.setattr(
+        windows_client, "read_windows_management",
+        lambda **kwargs: _management_response(
+            platform_id=platform_id, generation=generation,
+            outcome="DENIED", data=None, denial_code="STOPPED",
+        ),
+    )
+
+    assert cli.main(["status", "--json"]) == 0
+
+    payload = _json_output(capsys)
+    assert payload["management"]["state"] == "DENIED"
+    assert payload["management"]["denial_code"] == "STOPPED"
+    assert "data" not in payload["management"]
+
+
+def test_live_management_unavailable_is_not_observed(monkeypatch, capsys):
+    _pin_windows_management(monkeypatch)
+
+    import sofia.sdk.platform_management_windows_client as windows_client
+    def unavailable(**kwargs):
+        raise PermissionError("pipe unavailable")
+
+    monkeypatch.setattr(
+        windows_client, "read_windows_management", unavailable,
+    )
+
+    assert cli.main(["status", "--json"]) == 0
+
+    payload = _json_output(capsys)
+    assert payload["management"]["state"] == "NOT_OBSERVED"
+    assert payload["management"]["reason"] == "MANAGEMENT_OBSERVATION_UNAVAILABLE"
+    assert payload["management"]["detail"] == "PermissionError"
+
+
+def test_windows_endpoint_pin_rejects_arbitrary_path(monkeypatch, capsys):
+    _pin_windows_management(
+        monkeypatch, endpoint="\\\\.\\pipe\\AegisPlatform-aaaaaaaa-1",
+    )
+
+    import sofia.sdk.platform_management_windows_client as windows_client
+    monkeypatch.setattr(
+        windows_client, "read_windows_management",
+        lambda **kwargs: pytest.fail("mismatched pin must not reach the client"),
+    )
+
+    assert cli.main(["status", "--json"]) == 3
+
+    payload = _json_output(capsys)
+    assert payload["code"] == "MANAGEMENT_ENDPOINT_PIN_MISMATCH"
+    assert payload["executed"] is False
+
+
+def test_linux_live_management_uses_installed_service_identity_pins(
+    monkeypatch, capsys, tmp_path,
+):
+    monkeypatch.setattr(cli.sys, "platform", "linux")
+    socket_path = tmp_path / "run" / "mgmt-3.sock"
+    monkeypatch.setenv("AEGIS_PLATFORM_MANAGEMENT_ENDPOINT", str(socket_path))
+    monkeypatch.setenv("AEGIS_PLATFORM_EXPECTED_ID", "platform:alpha")
+    monkeypatch.setenv("AEGIS_PLATFORM_EXPECTED_GENERATION", "3")
+    monkeypatch.setenv("AEGIS_PLATFORM_SERVICE_UID", "1000")
+    monkeypatch.setenv("AEGIS_PLATFORM_SERVICE_GID", "1000")
+    observed = {}
+
+    import sofia.sdk.platform_management_client as linux_client
+    def fake_read(**kwargs):
+        observed.update(kwargs)
+        return _management_response(
+            platform_id="platform:alpha", generation=3,
+        )
+
+    monkeypatch.setattr(linux_client, "read_linux_management", fake_read)
+
+    assert cli.main(["status", "--json"]) == 0
+
+    payload = _json_output(capsys)
+    assert payload["management"]["state"] == "OBSERVED"
+    assert observed["socket_path"] == socket_path
+    assert observed["installed_service_uid"] == 1000
+    assert observed["installed_service_gid"] == 1000
+    assert observed["installed_service_pid"] is None
+
+
+def test_linux_missing_service_identity_pin_is_not_observed(
+    monkeypatch, capsys, tmp_path,
+):
+    monkeypatch.setattr(cli.sys, "platform", "linux")
+    monkeypatch.setenv(
+        "AEGIS_PLATFORM_MANAGEMENT_ENDPOINT", str(tmp_path / "mgmt.sock"),
+    )
+    monkeypatch.setenv("AEGIS_PLATFORM_EXPECTED_ID", "platform:alpha")
+    monkeypatch.setenv("AEGIS_PLATFORM_EXPECTED_GENERATION", "3")
+
+    assert cli.main(["status", "--json"]) == 0
+
+    payload = _json_output(capsys)
+    assert payload["management"] == {
+        "state": "NOT_OBSERVED",
+        "reason": "MANAGEMENT_SERVICE_UID_PIN_NOT_CONFIGURED",
+    }
+
+
+def test_linux_installed_locations_are_searched(monkeypatch):
+    monkeypatch.setattr(cli.sys, "platform", "linux")
+    directories = cli._installed_executable_directories()
+    assert Path("/opt/aegis/bin") in directories
+    assert Path("/usr/local/bin") in directories
+
+
+def test_linux_endpoint_pin_rejects_relative_socket(monkeypatch, capsys):
+    monkeypatch.setattr(cli.sys, "platform", "linux")
+    monkeypatch.setenv("AEGIS_PLATFORM_MANAGEMENT_ENDPOINT", "relative/mgmt.sock")
+    monkeypatch.setenv("AEGIS_PLATFORM_EXPECTED_ID", "platform:alpha")
+    monkeypatch.setenv("AEGIS_PLATFORM_EXPECTED_GENERATION", "3")
+    monkeypatch.setenv("AEGIS_PLATFORM_SERVICE_UID", "1000")
+    monkeypatch.setenv("AEGIS_PLATFORM_SERVICE_GID", "1000")
+
+    assert cli.main(["status", "--json"]) == 3
+
+    payload = _json_output(capsys)
+    assert payload["code"] == "MANAGEMENT_ENDPOINT_PIN_MISMATCH"
+
+
+@pytest.mark.parametrize(
+    ("command", "filename"),
+    [("tui", "aegis_tui.exe"), ("gui", "aegis-control-center.exe")],
+)
+def test_installed_bin_location_precedes_path(
+    command, filename, monkeypatch, tmp_path, capsys,
+):
+    bindir = tmp_path / "Aegis" / "bin"
+    bindir.mkdir(parents=True)
+    executable = bindir / filename
+    executable.write_text("", encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(cli.sys, "platform", "win32")
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    monkeypatch.setattr(
+        cli.shutil, "which",
+        lambda name: pytest.fail("installed bin must be checked before PATH"),
+    )
+    monkeypatch.setattr(
+        cli.subprocess, "Popen",
+        lambda argv, **kwargs: calls.append((argv, kwargs)),
+    )
+
+    assert cli.main([command, "--json"]) == 0
+
+    payload = _json_output(capsys)
+    assert payload["state"] == "LAUNCHED"
+    assert calls[0][0] == [str(executable)]
+
+
+@pytest.mark.parametrize(
+    ("argv", "code"),
+    [
+        (["service", "start", "--approval-id", "x", "--json"],
+         "OWNER_APPROVAL_REQUIRED"),
+        (["core", "autostart", "core-id", "on", "--approval-id", "x",
+          "--json"], "MANAGEMENT_APPROVAL_REQUIRED"),
+        (["module", "start", "module-id", "--approval-id", "x", "--json"],
+         "MANAGEMENT_APPROVAL_REQUIRED"),
+        (["chat", "hello", "--approval-id", "x", "--json"],
+         "AUTHENTICATED_CORE_BINDING_REQUIRED"),
+    ],
+)
+def test_cli_approval_id_is_parsed_but_never_grants_authority(
+    argv, code, capsys,
+):
+    assert cli.main(argv) == 3
+
+    payload = _json_output(capsys)
+    assert payload["code"] == code
+    assert payload["executed"] is False
+    assert payload["authority_granted"] is False
 
 
 def test_pyproject_declares_the_public_aegis_entrypoint():
