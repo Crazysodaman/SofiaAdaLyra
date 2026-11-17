@@ -242,7 +242,8 @@ class ManagementWindowsPipeListener:
     def serve_once(self) -> bool:
         k, _ = _api()
         if self._handle is None:
-            raise RuntimeError("Windows management pipe not open")
+            # A concurrent close() is a normal shutdown, not a service fault.
+            return False
         connected = k.ConnectNamedPipe(self._handle, None)
         if not connected:
             error = ctypes.get_last_error()
@@ -312,7 +313,7 @@ class ManagementWindowsPipeListener:
             raise TypeError("threading.Event required")
         while not stopped.is_set():
             if self._handle is None:
-                raise RuntimeError("Windows management pipe closed")
+                return
             self.serve_once()
             if not stopped.is_set():
                 stopped.wait(0.02)

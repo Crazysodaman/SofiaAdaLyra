@@ -98,10 +98,15 @@ def test_service_zero_core_autostart_is_healthy_without_starting_core(tmp_path):
     ) as session:
         status = session.startup_status()
         assert set(status) == {
+            'platform_id', 'generation', 'operator_stop', 'core_started',
             'core_count', 'active_core_count', 'startup_state',
             'autostart_enabled_count', 'autostart_reconciled_at',
             'management_listening',
         }
+        assert status['platform_id'] == current.identity.canonical_uuid
+        assert status['generation'] == session.lease.epoch
+        assert status['operator_stop'] is False
+        assert status['core_started'] is False
         assert status['startup_state'] == 'ZERO_CORE_HEALTHY'
         assert status['core_count'] == 0
         assert status['active_core_count'] == 0

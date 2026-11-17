@@ -1,0 +1,2 @@
+# Exact-byte test Core assets and manifests: never apply CRLF conversion.
+* -text

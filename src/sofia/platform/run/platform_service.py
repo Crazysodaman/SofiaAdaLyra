@@ -23,7 +23,8 @@ from uuid import uuid4
 
 from sofia.platform.config.roles import PlatformRole, PlatformRoleConfiguration
 from sofia.platform.run.core_autostart import (
-    CoreStartupReconciler, CoreStartupReport, CoreStartupState,
+    CoreAutostartOutcome, CoreStartupReconciler, CoreStartupReport,
+    CoreStartupState,
 )
 from sofia.platform.run.lease import LocalRunLeaseStore
 from sofia.platform.run.management_mutation import (
@@ -198,6 +199,10 @@ class PlatformServiceSession:
                 PermissionError("Platform-local settings reader not approved")
             ),
             read_startup=self.startup_status,
+            read_core_inventory=(
+                self.core_inventory
+                if self._core_autostart is not None else None
+            ),
             enrolled_denial_responses=True,
         )
         # Same verified local OS peer path, distinct owner enrollment.
@@ -331,6 +336,71 @@ class PlatformServiceSession:
             )
         self._startup_report = report
 
+    def core_inventory(self) -> list[dict[str, object]]:
+        """Service-owned installed Core inventory; never client supplied."""
+        reconciler = self._core_autostart
+        if reconciler is None:
+            return []
+        try:
+            installed = frozenset(reconciler.installed_ids())
+            policies = {policy.core_id: policy for policy in reconciler.store.policies()}
+        except Exception:
+            return []
+        report = self._startup_report
+        observed: dict[str, str] = {}
+        errors: dict[str, str | None] = {}
+        if report is not None:
+            for result in report.results:
+                if result.started:
+                    observed[result.core_id] = "RUNNING"
+                elif result.error_code == "START_STOPPED":
+                    observed[result.core_id] = "STOPPED"
+                elif result.error_code in {
+                    "START_TIMEOUT", "OBSERVE_UNKNOWN", "OUTCOME_UNKNOWN",
+                }:
+                    observed[result.core_id] = "UNKNOWN"
+                elif result.error_code == "NOT_RUNNING":
+                    observed[result.core_id] = "STOPPED"
+                else:
+                    observed[result.core_id] = "FAILED"
+                errors[result.core_id] = result.error_code
+        rows: list[dict[str, object]] = []
+        for core_id in sorted(installed.union(policies)):
+            policy = policies.get(core_id)
+            if policy is None:
+                rows.append({
+                    "core_id": core_id, "installed": core_id in installed,
+                    "enabled": False, "startup_mode": "manual",
+                    "observed_state": "NOT_OBSERVED", "generation": 0,
+                    "last_error_code": None,
+                })
+                continue
+            state = observed.get(core_id)
+            if state is None:
+                if policy.last_outcome is CoreAutostartOutcome.STARTED:
+                    # Cached start is not fresh process observation.
+                    state = "UNKNOWN"
+                elif policy.last_outcome is CoreAutostartOutcome.STOPPED:
+                    state = "STOPPED"
+                elif policy.last_outcome is CoreAutostartOutcome.FAILED:
+                    state = "FAILED"
+                elif policy.last_outcome is CoreAutostartOutcome.OUTCOME_UNKNOWN:
+                    state = "UNKNOWN"
+                else:
+                    state = "NOT_OBSERVED"
+            rows.append({
+                "core_id": core_id,
+                "installed": core_id in installed,
+                "enabled": bool(policy.enabled and core_id in installed),
+                "startup_mode": (
+                    "on_platform_ready" if policy.enabled else "manual"
+                ),
+                "observed_state": state,
+                "generation": int(policy.last_started_generation or 0),
+                "last_error_code": errors.get(core_id, policy.last_error_code),
+            })
+        return rows
+
     def startup_status(self) -> dict[str, object]:
         """Strict non-secret startup projection; zero Cores may be healthy."""
         with self._status_lock:
@@ -376,7 +446,15 @@ class PlatformServiceSession:
                 state = report.startup_state.value
                 active_count = report.active_count
                 reconciled_at = report.reconciled_at.isoformat()
+            if self.lease is None or self._closing or self._closed:
+                raise RuntimeError("Platform startup status requires active service")
             return {
+                "platform_id": self.identity.identity.canonical_uuid,
+                "generation": self.lease.epoch,
+                "operator_stop": self.stop.current().active,
+                # The Platform process itself never imports or loads a Core.
+                # Separately observed workers are reported by active_core_count.
+                "core_started": False,
                 "core_count": core_count,
                 "active_core_count": active_count,
                 "startup_state": state,
