@@ -333,10 +333,21 @@ function Resolve-AegisBundleRoot {
     }
     $scriptDir = [IO.Path]::GetFullPath($PSScriptRoot)
     $candidates = New-Object 'System.Collections.Generic.List[string]'
+    $parent = [IO.Directory]::GetParent($scriptDir)
+    # Installable bundles keep signed media in <bundle>/release and independent
+    # installer trust in <bundle>/installer. Prefer the outer bundle root so the
+    # orchestrator can see both, rather than resolving to release/ itself.
+    $outerCandidates = @($scriptDir)
+    if ($null -ne $parent) { $outerCandidates += $parent.FullName }
+    foreach ($outer in $outerCandidates) {
+        $nested = Join-Path $outer 'release/release-manifest.json'
+        if (Test-Path -LiteralPath $nested -PathType Leaf) {
+            return Assert-AegisLocalPath -Path $outer -Directory
+        }
+    }
     $candidates.Add($scriptDir)
     $candidates.Add((Join-Path $scriptDir 'release'))
     $candidates.Add((Join-Path $scriptDir 'bundle'))
-    $parent = [IO.Directory]::GetParent($scriptDir)
     if ($null -ne $parent) {
         $candidates.Add($parent.FullName)
         $candidates.Add((Join-Path $parent.FullName 'release'))
@@ -390,6 +401,10 @@ function Resolve-AegisBundledPython {
     # root. There is no PATH search, environment lookup or system interpreter
     # fallback, and every filesystem redirection fails closed.
     $rootPath = Assert-AegisLocalPath -Path $Root -Directory
+    $nestedRelease = Join-Path $rootPath 'release'
+    if (Test-Path -LiteralPath (Join-Path $nestedRelease 'release-manifest.json') -PathType Leaf) {
+        $rootPath = Assert-AegisLocalPath -Path $nestedRelease -Directory
+    }
     $windows = [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
     if ($windows) {
         $relative = @('runtime\python\python.exe')
