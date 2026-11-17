@@ -1,0 +1,38 @@
+"""Independent persistent multi-Core identity and personal state contracts."""
+from sofia.core.multicore.contracts import (
+    MULTICORE_SCHEMA,
+    AvatarMetadata,
+    ChannelKind,
+    CoreDescriptor,
+    EvidenceState,
+    LifecycleState,
+    MemoryRecord,
+    MemoryType,
+    PersistentCoreIdentity,
+    PreferenceRecord,
+    PreferenceState,
+    RelationshipDimensions,
+    RelationshipRecord,
+    SecurityClass,
+    StorageTier,
+    VoiceMetadata,
+)
+
+__all__ = [
+    "MULTICORE_SCHEMA",
+    "AvatarMetadata",
+    "ChannelKind",
+    "CoreDescriptor",
+    "EvidenceState",
+    "LifecycleState",
+    "MemoryRecord",
+    "MemoryType",
+    "PersistentCoreIdentity",
+    "PreferenceRecord",
+    "PreferenceState",
+    "RelationshipDimensions",
+    "RelationshipRecord",
+    "SecurityClass",
+    "StorageTier",
+    "VoiceMetadata",
+]
