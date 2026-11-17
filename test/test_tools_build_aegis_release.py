@@ -1,4 +1,4 @@
-"""Release assembler tests use disposable git repos and Ed25519 test keys."""
+﻿"""Release assembler tests use disposable git repos and Ed25519 test keys."""
 from __future__ import annotations
 
 import json
@@ -205,6 +205,15 @@ def _assemble(tmp_path: Path, platform_wheels: dict[str, Path], **changes):
     key, public = _key(tmp_path)
     inputs = _inputs(tmp_path, platform_wheels)
     inputs.update(changes)
+    supplied = inputs.get("trusted_public_key")
+    if supplied is not None:
+        try:
+            supplied_bytes = Path(supplied).read_bytes()
+        except OSError:
+            supplied_bytes = b""
+        if b"PRIVATE KEY" not in supplied_bytes:
+            inputs["trusted_public_key"] = _public_path(tmp_path, public)
+            inputs["trusted_signer_key_id"] = "test-p6-release"
     output = tmp_path / "release-output"
     result = assemble_release(
         repo=repo,
@@ -239,14 +248,14 @@ def test_assembles_complete_windows_and_debian_test_signed_bundles(
     ):
         bundle = output / target.value
         manifest = PlatformReleaseManifest.from_payload(
-            json.loads((bundle / "release-manifest.json").read_text())
+            json.loads((bundle / "release" / "release-manifest.json").read_text())
         )
         assert manifest.source_sha == sha
         assert manifest.target is target
         kinds = {asset.kind for asset in manifest.assets}
         assert {"sdk", "platform", "service", "python-runtime",
                 "dependency-lock", "sbom", "provenance"} <= kinds
-        envelope = json.loads((bundle / "release-signature.json").read_text())
+        envelope = json.loads((bundle / "release" / "release-signature.json").read_text())
         assert set(envelope) == {"signer_key_id", "signature_b64"}
         verified = PlatformReleaseVerifier({
             envelope["signer_key_id"]: public,
@@ -254,13 +263,13 @@ def test_assembles_complete_windows_and_debian_test_signed_bundles(
             manifest.to_payload(),
             signature_b64=envelope["signature_b64"],
             signer_key_id=envelope["signer_key_id"],
-            assets_root=bundle / "assets",
+            assets_root=bundle / "release" / "assets",
             expected_source_sha=sha,
             expected_target=target,
             minimum_revision=1,
         )
         assert verified.digest == manifest.digest
-        digests = json.loads((bundle / "artifact-digests.json").read_text())
+        digests = json.loads((bundle / "release" / "artifact-digests.json").read_text())
         assert digests["manifest_digest"] == manifest.digest
         assert digests["signature_sha256"] == sha256(
             __import__("base64").b64decode(envelope["signature_b64"])
@@ -270,8 +279,8 @@ def test_assembles_complete_windows_and_debian_test_signed_bundles(
             asset.reference.path for asset in manifest.assets
         }
         for path, digest in listed.items():
-            assert sha256((bundle / "assets" / path).read_bytes()).hexdigest() == digest
-        receipt = json.loads((bundle / "build-receipt.json").read_text())
+            assert sha256((bundle / "release" / "assets" / path).read_bytes()).hexdigest() == digest
+        receipt = json.loads((bundle / "release" / "build-receipt.json").read_text())
         assert receipt["result"].startswith("TEST_SIGNED_RELEASE_ASSEMBLED")
         assert receipt["inventory_complete"] is True
         assert receipt["production_authorized"] is False
@@ -426,7 +435,7 @@ def test_locates_native_binaries_under_target_release(
     manifest = PlatformReleaseManifest.from_payload(
         json.loads(
             (tmp_path / "discovered" / "debian12-x86_64" /
-             "release-manifest.json").read_text()
+             "release" / "release-manifest.json").read_text()
         )
     )
     service = next(asset for asset in manifest.assets if asset.kind == "service")
@@ -479,10 +488,10 @@ def test_assembly_is_deterministic(
     )
     assert first["releases"][0]["manifest_digest"] == second["releases"][0]["manifest_digest"]
     for relative in (
-        "release-manifest.json", "release-signature.json",
-        "artifact-digests.json", "build-receipt.json",
-        "assets/dependency-inventory.json", "assets/sbom.json",
-        "assets/assembly-provenance.json", "assets/python-runtime.zip",
+        "release/release-manifest.json", "release/release-signature.json",
+        "release/artifact-digests.json", "release/build-receipt.json",
+        "release/assets/dependency-inventory.json", "release/assets/sbom.json",
+        "release/assets/assembly-provenance.json", "release/assets/python-runtime.zip",
     ):
         assert (tmp_path / "det-a" / "debian12-x86_64" / relative).read_bytes() == (
             tmp_path / "det-b" / "debian12-x86_64" / relative
@@ -527,7 +536,7 @@ def test_assembles_bundle_with_installer_payload_and_wheelhouse(
 
         trust = json.loads((installer / "trust.json").read_text())
         assert trust["schema"] == "aegis.installer.trust.v1"
-        assert trust["signer_key_id"] == "test-installer-publisher"
+        assert trust["signer_key_id"] == "test-p6-release"
         assert trust["public_key_sha256"] == sha256(trusted_pem).hexdigest()
         assert trust["private_key_included"] is False
         assert trust["release_signature_separate"] is True
@@ -538,7 +547,7 @@ def test_assembles_bundle_with_installer_payload_and_wheelhouse(
         assert plan["revision"] == 1
         assert plan["grants_authority"] is False
         assert plan["trust_anchor"]["sha256"] == trusted_digest
-        assert plan["trust_anchor"]["signer_key_id"] == "test-installer-publisher"
+        assert plan["trust_anchor"]["signer_key_id"] == "test-p6-release"
         assert plan["runtime"]["archive_path"] == "assets/python-runtime.zip"
         assert plan["runtime"]["extracted_prefix"] == "runtime/python"
         assert plan["installer_entrypoints"]["Install-Aegis.ps1"] == (
@@ -571,25 +580,25 @@ def test_assembles_bundle_with_installer_payload_and_wheelhouse(
         )
         for wheel in plan["wheelhouse"]["wheels"]:
             assert sha256(
-                (bundle / wheel["path"]).read_bytes()
+                (bundle / "release" / wheel["path"]).read_bytes()
             ).hexdigest() == wheel["sha256"]
 
         manifest = PlatformReleaseManifest.from_payload(
-            json.loads((bundle / "release-manifest.json").read_text())
+            json.loads((bundle / "release" / "release-manifest.json").read_text())
         )
         wheel_assets = [
             asset for asset in manifest.assets if asset.kind == "dependency"
             and asset.reference.path.startswith("wheelhouse/")
         ]
         assert len(wheel_assets) == len(plan["wheelhouse"]["wheels"])
-        envelope = json.loads((bundle / "release-signature.json").read_text())
+        envelope = json.loads((bundle / "release" / "release-signature.json").read_text())
         verified = PlatformReleaseVerifier({
             envelope["signer_key_id"]: public,
         }).verify(
             manifest.to_payload(),
             signature_b64=envelope["signature_b64"],
             signer_key_id=envelope["signer_key_id"],
-            assets_root=bundle / "assets",
+            assets_root=bundle / "release" / "assets",
             expected_source_sha=sha,
             expected_target=target,
             minimum_revision=1,
@@ -600,13 +609,13 @@ def test_assembles_bundle_with_installer_payload_and_wheelhouse(
             bundle,
             trusted_public_key=changes["trusted_public_key"],
             trusted_key_sha256=trusted_digest,
-            trusted_signer_key_id="test-installer-publisher",
+            trusted_signer_key_id="test-p6-release",
         )
         assert payload_report["installer_payload_verified"] is True
         assert payload_report["grants_authority"] is False
         assert payload_report["trust_anchor_sha256"] == trusted_digest
 
-        digests = json.loads((bundle / "artifact-digests.json").read_text())
+        digests = json.loads((bundle / "release" / "artifact-digests.json").read_text())
         assert digests["installer_payload_included"] is True
         assert {
             item["path"] for item in digests["installer"]
@@ -616,7 +625,7 @@ def test_assembles_bundle_with_installer_payload_and_wheelhouse(
             "installer/install-plan.json",
         }
         assert len(digests["wheelhouse"]) == len(plan["wheelhouse"]["wheels"])
-        receipt = json.loads((bundle / "build-receipt.json").read_text())
+        receipt = json.loads((bundle / "release" / "build-receipt.json").read_text())
         assert receipt["installer_payload_included"] is True
         assert receipt["trust_anchor_sha256"] == trusted_digest
         assert receipt["installer_trust_is_release_trust"] is False
@@ -667,7 +676,7 @@ def test_auto_detects_packaging_installers(
         assert (bundle / "installer" / "Install-Aegis.ps1").is_file()
         assert (bundle / "installer" / "install-aegis.sh").is_file()
         assert (bundle / "installer" / "install-plan.json").is_file()
-        assert (bundle / "assets" / "wheelhouse").is_dir()
+        assert (bundle / "release" / "assets" / "wheelhouse").is_dir()
 
 
 def test_installer_payload_requires_trust_anchor(
@@ -732,9 +741,9 @@ def test_tampered_installer_digest_is_refused(
     script.write_bytes(b"X" + original[1:])
     with pytest.raises(ReleaseAssemblyError, match="digest differs"):
         verify_installer_payload(bundle)
-    envelope = json.loads((bundle / "release-signature.json").read_text())
+    envelope = json.loads((bundle / "release" / "release-signature.json").read_text())
     manifest = PlatformReleaseManifest.from_payload(
-        json.loads((bundle / "release-manifest.json").read_text())
+        json.loads((bundle / "release" / "release-manifest.json").read_text())
     )
     PlatformReleaseVerifier({
         envelope["signer_key_id"]: _public,
@@ -742,8 +751,11 @@ def test_tampered_installer_digest_is_refused(
         manifest.to_payload(),
         signature_b64=envelope["signature_b64"],
         signer_key_id=envelope["signer_key_id"],
-        assets_root=bundle / "assets",
+        assets_root=bundle / "release" / "assets",
         expected_source_sha=_sha,
         expected_target=PlatformReleaseTarget.DEBIAN12_X86_64,
         minimum_revision=1,
     )
+
+
+

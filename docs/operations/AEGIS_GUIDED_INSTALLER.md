@@ -75,105 +75,77 @@ release verifier. The expected shape is:
 
 ```text
 aegis-release/
-  release-manifest.json
-  release-signature.json
-  assets/
-    sofia_sdk-<version>-py3-none-any.whl
-    sofia_platform-<version>-py3-none-any.whl
-    aegis-platform-service[.exe]
-    python-runtime.zip
-    dependency-index.json | dependency-inventory.json
-    observed-sbom.json | sbom.json
-    assembly-provenance.json
-  runtime/
-    python/
-      bin/python3.12        # Debian 12
-      python.exe            # Windows x86-64
-  stage-receipt.json        # staged candidate evidence, not an approval
+  release/
+    release-manifest.json
+    release-signature.json
+    artifact-digests.json
+    build-receipt.json
+    assets/
+      sofia_sdk-<version>-py3-none-any.whl
+      sofia_platform-<version>-py3-none-any.whl
+      aegis-platform-service[.exe]
+      aegis_tui[.exe]
+      python-runtime.zip
+      wheelhouse/
+      dependency-inventory.json
+      sbom.json
+      assembly-provenance.json
+  installer/
+    Install-Aegis.ps1
+    Aegis-Setup.exe           # when the Windows launcher was built
+    Start-AegisSetup.ps1      # PowerShell fallback
+    install-aegis.sh
+    trusted-publisher.pem
+    trust.json
+    install-plan.json
 ```
 
-The publisher trust anchor is deliberately **not** part of the bundle:
-
-```text
-<independent trust root>/
-  publisher.pem
-  trust-anchor.json
-```
-
-`trust-anchor.json` is the acceptance fixture convention. A production trust
-anchor must be provisioned out of band and must bind at least the reviewed
-publisher key fingerprint, signer ID, exact source SHA, target and minimum
-revision floor. A public key placed inside the bundle, or a SHA printed by the
-bundle, is never its own trust root.
+`installer/` is deliberately outside `release/`: installer publisher trust
+must never be inside signed release media. The bundle is owner-controlled test
+media. **Independently verify the publisher key fingerprint and signer ID
+out-of-band before running it.** A fingerprint printed inside the same bundle
+is not its own trust root. Production requires the installer launcher itself
+to be Authenticode/OS-package signed with an owner-approved publisher
+certificate.
 
 ## Windows: double-click instructions
 
-1. Place the generated bundle at `C:\AegisBundle`.
-2. Provision the independent trust anchor at
-   `C:\ProgramData\Aegis\trust` (or `%LOCALAPPDATA%\Aegis\trust` for a
-   non-elevated installation).
-3. Double-click `C:\AegisBundle\Install-Aegis.cmd`.
+1. Copy the generated `windows-x86_64` bundle directory to the disposable
+   Windows test host.
+2. Double-click `installer\Aegis-Setup.exe`.
+3. If the executable was not built, run `installer\Install-Aegis.ps1` or
+   `installer\Start-AegisSetup.ps1` instead.
+4. Approve the single UAC elevation prompt. The guided installer then discovers
+   the bundled runtime, release and independent installer trust record; it
+   verifies the signed release before any owner approval.
+5. Complete the normal attended owner-authentication prompts. The installer
+   creates the global `aegis` launcher/PATH entry, GUI/TUI shortcuts, service,
+   and then verifies the running service.
 
-The double-click wrapper must be a generated, signed bundle entrypoint. It must:
-
-- discover `publisher.pem`, `trust-anchor.json`, the release root and the
-  bundled `runtime\python\python.exe` without prompting for a SHA, approval ID
-  or Python path;
-- call the existing `packaging\installers\Install-Aegis.ps1 -Wired` adapter;
-- display whether the release verified before requesting any owner approval;
-- use the existing attended SAFE owner ceremony for the separate code and
-  native-service approvals;
-- show `DENIED`, `STOP`, revocation or bundle-integrity errors without making
-  any service, launcher or `PATH` change.
-
-The current source tree does not ship or certify that wrapper. The harness
-validates the same lifecycle behind the canonical adapter; it does not turn the
-preview-only PowerShell entrypoint into a certified installer.
-
-If a wrapper is unavailable, the existing explicit source path remains:
-
-```powershell
-powershell.exe -NoProfile -NonInteractive -File .\packaging\installers\Install-Aegis.ps1 `
-  -Wired -Operation verify -ReleaseRoot C:\AegisBundle `
-  -PublisherKey C:\ProgramData\Aegis\trust\publisher.pem `
-  -PublisherKeySha256 <INDEPENDENT_PIN> -PublisherSigner <APPROVED_SIGNER> `
-  -ExpectedSourceSha <EXACT_SOURCE_SHA> -Target windows-x86_64 `
-  -MinimumRevision 1 -Json -NoColor
-```
-
-Do not treat a successful verify as installation permission. Each mutating
-operation still requires its own exact one-use SAFE approval.
+No manual SHA, approval ID, Python path or service-registration command is
+required. Owner authentication remains mandatory; signatures and SAFE/STOP are
+never bypassed. A successful signature verification is not installation
+permission.
 
 ## Debian 12: one-command instructions
 
-1. Extract the generated bundle to `/opt/aegis-bundle`.
-2. Provision the independent trust anchor at `/etc/aegis/trust`.
-3. Run the generated guided entrypoint as the intended service owner:
+1. Copy the generated `debian12-x86_64` bundle directory to the disposable
+   Debian 12 test host.
+2. Run:
 
 ```bash
-bash /opt/aegis-bundle/install-aegis.sh \
-  --bundle-root /opt/aegis-bundle \
-  --trust-root /etc/aegis/trust \
-  --guided
+sudo bash installer/install-aegis.sh
 ```
 
-The guided entrypoint must discover the bundle runtime at
-`runtime/python/bin/python3.12`, verify the full signed release, then request
-the separate code-publication and native-service owner approvals. It must not
-elevate by itself, change a service before approval, accept a caller-supplied
-self-signed key, or use a zipped archive or printed SHA as trust.
+The script discovers the bundled Linux runtime and signed release, verifies the
+installer trust record, requests the approved `sudo` elevation when needed, and
+then invokes the guided installer. It creates the global `aegis` launcher, the
+systemd service and the optional desktop entry, and verifies the running
+service.
 
-The current source script exposes the explicit wired operation path instead of
-the guided wrapper above:
-
-```bash
-bash ./packaging/installers/install-aegis.sh --wired --operation verify \
-  --release-root /opt/aegis-bundle \
-  --publisher-key /etc/aegis/trust/publisher.pem \
-  --publisher-sha256 <INDEPENDENT_PIN> --publisher-signer <APPROVED_SIGNER> \
-  --expected-source-sha <EXACT_SOURCE_SHA> \
-  --target debian12-x86_64 --minimum-revision 1 --json
-```
+No manual SHA, approval ID, Python path or `systemctl` command is required.
+Owner authentication remains mandatory; signatures and SAFE/STOP are never
+bypassed. Use `--check` for a zero-effect preview.
 
 ## Trust anchor requirement
 

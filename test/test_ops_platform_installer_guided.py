@@ -1,4 +1,4 @@
-"""One-step guided installer orchestration against disposable signed fixtures.
+﻿"""One-step guided installer orchestration against disposable signed fixtures.
 
 Every publisher key, release, owner proof and OS backend here is disposable test
 material. No administrator rights, real service, production trust root or host
@@ -16,6 +16,8 @@ from types import SimpleNamespace
 
 import pytest
 from cryptography.hazmat.primitives import serialization
+
+from test.test_component_install_production import component_wheels  # noqa: F401
 
 import sofia.platform.ops.platform_installer_bundle as bundle_owner
 import sofia.platform.ops.platform_installer_guided as guided
@@ -457,3 +459,35 @@ def test_json_entrypoint_has_no_ansi_and_exposes_plan(bundle, capsys):
     assert document["plan"]["paths"]["destination"] == str(
         guided.default_paths(TARGET).destination
     )
+
+def test_real_builder_bundle_is_consumed_by_real_guided_launcher(
+    tmp_path, component_wheels,
+):
+    """The real assembler layout must be accepted by the real guided client."""
+    import os
+    from test.test_tools_build_aegis_release import _assemble, _installer_changes
+    from sofia.platform.ops.platform_installer_guided import (
+        discover_bundle, run_guided, verify_bundle,
+    )
+    from sofia.sdk.platform_release import PlatformReleaseTarget
+
+    changes = _installer_changes(tmp_path)
+    _repo, sha, _key, _public, output, _result = _assemble(
+        tmp_path, component_wheels, **changes,
+    )
+    from sofia.platform.ops.platform_installer_bundle import host_release_target
+    target = host_release_target()
+    bundle = output / target.value
+    layout = discover_bundle(bundle)
+    assert layout.release_root == bundle / "release"
+    assert layout.installer_root == bundle / "installer"
+    assert layout.release_root not in layout.trust_key.parents
+    release, _payload = verify_bundle(layout, target=target)
+    assert release.source_sha == sha
+    preview = run_guided(bundle, check=True, target=target)
+    assert preview["outcome"] == "PREVIEW_OK"
+    assert preview["plan"]["release_root"] == str(bundle / "release")
+    assert preview["plan"]["installer_trust_root"] == str(bundle / "installer")
+    assert preview["plan"]["executed"] is False
+
+

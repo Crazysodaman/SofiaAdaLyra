@@ -71,7 +71,10 @@ _HEX64 = re.compile(r"[0-9a-f]{64}\Z")
 _MAX_METADATA_BYTES = 131_072
 _MAX_KEY_BYTES = 16_384
 _MAX_TRUST_BYTES = 16_384
-_TRUST_KEY_NAMES = ("publisher_key_sha256", "trusted_key_sha256", "key_sha256")
+_TRUST_KEY_NAMES = (
+    "publisher_key_sha256", "trusted_key_sha256", "key_sha256",
+    "public_key_sha256", "trusted_public_key_sha256",
+)
 _TRUST_SIGNER_NAMES = (
     "signer_key_id", "trusted_signer_key_id", "publisher_signer",
 )

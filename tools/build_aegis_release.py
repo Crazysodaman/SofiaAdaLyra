@@ -1,4 +1,4 @@
-"""Deterministic, offline, *test-signed* Aegis Platform release assembler.
+﻿"""Deterministic, offline, *test-signed* Aegis Platform release assembler.
 
 This tool reuses the existing canonical release contracts and producers:
 
@@ -895,7 +895,11 @@ def _assemble_target(
     installer_dir: Path | None, trusted_public_key: Path | None,
     trusted_signer_key_id: str | None, dependency_wheelhouse: Path | None,
 ) -> dict[str, object]:
-    assets = destination / "assets"
+    # Installable bundle layout: independent installer trust lives at
+    # <root>/installer, signed release media lives at <root>/release.
+    # Guided discovery deliberately refuses a trust anchor inside release media.
+    release_root = destination / "release"
+    assets = release_root / "assets"
     assets.mkdir(parents=True, exist_ok=False)
     record: list[dict[str, object]] = []
     wheels_meta: list[dict[str, object]] = []
@@ -994,6 +998,17 @@ def _assemble_target(
         if dependency_wheelhouse is None:
             raise ReleaseAssemblyError(
                 "installer payload requires an offline dependency wheelhouse"
+            )
+        trust_pem, _trust_digest = _public_key_pem(trusted_public_key)
+        release_public = private_key.public_key().public_bytes(
+            serialization.Encoding.Raw, serialization.PublicFormat.Raw,
+        )
+        trust_public = serialization.load_pem_public_key(trust_pem).public_bytes(
+            serialization.Encoding.Raw, serialization.PublicFormat.Raw,
+        )
+        if trust_public != release_public or trusted_signer_key_id != signer_key_id:
+            raise ReleaseAssemblyError(
+                "installer publisher trust must match the release signer key/id"
             )
         installer_record, installer_meta = _stage_installer_payload(
             destination=destination / INSTALLER_DIR_NAME,
@@ -1123,8 +1138,8 @@ def _assemble_target(
     if verified.digest != manifest.digest:
         raise ReleaseAssemblyError("self-verification changed the release digest")
 
-    manifest_path = destination / "release-manifest.json"
-    signature_path = destination / "release-signature.json"
+    manifest_path = release_root / "release-manifest.json"
+    signature_path = release_root / "release-signature.json"
     manifest_path.write_bytes(manifest_bytes)
     signature_path.write_bytes(envelope)
 
@@ -1158,7 +1173,7 @@ def _assemble_target(
         "production_signing_claim": False,
         "production_authorized": False,
     })
-    (destination / "artifact-digests.json").write_bytes(digests)
+    (release_root / "artifact-digests.json").write_bytes(digests)
 
     model = {
         "schema": SCHEMA_RECEIPT,
@@ -1201,7 +1216,7 @@ def _assemble_target(
     }
     if not source_tree_clean:
         model["result"] = "TEST_SIGNED_RELEASE_ASSEMBLED_DIRTY_SOURCE_TEST_ONLY"
-    (destination / "build-receipt.json").write_bytes(_json(model))
+    (release_root / "build-receipt.json").write_bytes(_json(model))
     return model
 
 
@@ -1413,15 +1428,20 @@ def verify_installer_payload(
     root = Path(bundle_root).absolute()
     if not root.is_dir() or root.is_symlink():
         raise ReleaseAssemblyError("installer bundle root is unavailable")
+    release_root = root / "release"
+    if not (release_root / "artifact-digests.json").is_file():
+        # Backward-compatible flat media remains readable, but installable
+        # bundles from this builder use the independent release/ layout.
+        release_root = root
     digests = json.loads(
-        _bounded_read(root / "artifact-digests.json", 2 * 1024**2).decode("utf-8")
+        _bounded_read(release_root / "artifact-digests.json", 2 * 1024**2).decode("utf-8")
     )
     installer = digests.get("installer")
     if not isinstance(installer, list) or not installer:
         raise ReleaseAssemblyError("bundle does not contain an installer payload")
     provenance = json.loads(
         _bounded_read(
-            root / "assets" / "assembly-provenance.json", 2 * 1024**2,
+            release_root / "assets" / "assembly-provenance.json", 2 * 1024**2,
         ).decode("utf-8")
     )
     resolved = {
@@ -1698,3 +1718,4 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
