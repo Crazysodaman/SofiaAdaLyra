@@ -14,7 +14,7 @@ use crate::control_center_session::ReadFailure;
 use crate::manager_views::{
     ApprovalState, ApprovalView, CoreLifecycle, CoreObservation, DiagnosticsObservation, FleetPeer,
     FleetTrust, ManagedHealth, ManagerPage, ManagerSnapshot, ModuleView, SectionTruth,
-    SecurityObservation, UpdatesObservation,
+    SecurityObservation, StartupObservation, StartupState, UpdatesObservation,
 };
 use crate::platform_status::{ModuleHealth, ModuleLifecycle, ObservationFreshness};
 use serde_json::{Map, Value};
@@ -59,6 +59,7 @@ pub const MANAGER_OPERATIONS: [(ManagerPage, &str); 6] = [
     (ManagerPage::Diagnostics, "diagnostics.summary"),
 ];
 
+const STARTUP_OPERATION: &str = "startup.status";
 const REVISION_OPERATION: &str = "jobs.list";
 
 /// Read every manager page independently and retain the honest state of pages
@@ -68,6 +69,10 @@ pub fn read_manager_snapshot(
     source: &mut (impl AuthenticatedManagerSnapshotSource + ?Sized),
 ) -> ManagerSnapshot {
     let mut snapshot = ManagerSnapshot::default();
+    let startup = source.observe_operation(STARTUP_OPERATION).ok();
+    if let Some(observation) = &startup {
+        accept_platform_identity(&mut snapshot, observation);
+    }
     let mut observed_pages = 0_usize;
     let mut attempted = 0_usize;
     for (page, operation) in MANAGER_OPERATIONS {
@@ -80,6 +85,11 @@ pub fn read_manager_snapshot(
             observed_pages += 1;
         }
         snapshot.mark(page, truth);
+    }
+    if let Some(observation) = &startup {
+        if platform_matches(&snapshot, observation) {
+            snapshot.startup = parse_startup(&observation.data);
+        }
     }
     if let Ok(observation) = source.observe_operation(REVISION_OPERATION) {
         if platform_matches(&snapshot, &observation) {
@@ -96,6 +106,19 @@ pub fn read_manager_snapshot(
         ObservationFreshness::Stale
     };
     snapshot
+}
+
+fn accept_platform_identity(
+    snapshot: &mut ManagerSnapshot,
+    observation: &AuthenticatedObservation,
+) {
+    if valid_identifier(&observation.platform_id)
+        && observation.platform_generation > 0
+        && snapshot.platform_id.is_none()
+    {
+        snapshot.platform_id = Some(observation.platform_id.clone());
+        snapshot.platform_generation = Some(observation.platform_generation);
+    }
 }
 
 fn observe_page(
@@ -217,12 +240,26 @@ fn parse_cores(snapshot: &mut ManagerSnapshot, value: &Value) -> Result<(), ()> 
     let mut parsed = Vec::with_capacity(cores.len());
     for core in cores {
         let core = core.as_object().ok_or(())?;
-        parsed.push(CoreObservation {
-            core_id: required_id(core, "core_id")?,
+        parsed.push(parse_core(core)?);
+    }
+    snapshot.cores = parsed;
+    Ok(())
+}
+
+fn parse_core(core: &Map<String, Value>) -> Result<CoreObservation, ()> {
+    let core_id = required_id(core, "core_id")?;
+    let legacy = core.contains_key("lifecycle") || core.contains_key("health");
+    if legacy {
+        if core.contains_key("installed") || core.contains_key("observed_state") {
+            return Err(());
+        }
+        return Ok(CoreObservation {
+            core_id,
             lifecycle: match core.get("lifecycle").and_then(Value::as_str).ok_or(())? {
                 "INSTALLED" => CoreLifecycle::Installed,
                 "ACTIVE" => CoreLifecycle::Active,
                 "PAUSED" => CoreLifecycle::Paused,
+                "DISABLED" => CoreLifecycle::Disabled,
                 "UNAVAILABLE" => CoreLifecycle::Unavailable,
                 _ => return Err(()),
             },
@@ -233,11 +270,127 @@ fn parse_cores(snapshot: &mut ManagerSnapshot, value: &Value) -> Result<(), ()> 
                 _ => return Err(()),
             },
             generation: required_u64(core, "generation")?,
-            source_digest: required_digest(core, "source_digest")?,
+            source_digest: Some(required_digest(core, "source_digest")?),
+            installed: None,
+            enabled: None,
+            startup_mode: None,
+            observed_state: None,
+            last_error_code: None,
         });
     }
-    snapshot.cores = parsed;
-    Ok(())
+    if core.len() != 7 {
+        return Err(());
+    }
+    let installed = required_bool(core, "installed")?;
+    let enabled = required_bool(core, "enabled")?;
+    let startup_mode = required_text(core, "startup_mode")?;
+    if !matches!(
+        startup_mode.as_str(),
+        "on_platform_ready" | "manual" | "on_demand"
+    ) {
+        return Err(());
+    }
+    let observed_state = required_text(core, "observed_state")?;
+    if !matches!(
+        observed_state.as_str(),
+        "RUNNING" | "STOPPED" | "STARTING" | "FAILED" | "UNKNOWN" | "NOT_OBSERVED"
+    ) {
+        return Err(());
+    }
+    let last_error_code = optional_text(core, "last_error_code")?;
+    if last_error_code
+        .as_deref()
+        .is_some_and(|code| !valid_error_code(code))
+    {
+        return Err(());
+    }
+    let lifecycle = if !installed {
+        CoreLifecycle::Unavailable
+    } else if !enabled {
+        CoreLifecycle::Disabled
+    } else if observed_state == "RUNNING" {
+        CoreLifecycle::Active
+    } else {
+        CoreLifecycle::Installed
+    };
+    Ok(CoreObservation {
+        core_id,
+        lifecycle,
+        health: ManagedHealth::Unknown,
+        generation: required_u64(core, "generation")?,
+        source_digest: None,
+        installed: Some(installed),
+        enabled: Some(enabled),
+        startup_mode: Some(startup_mode),
+        observed_state: Some(observed_state),
+        last_error_code,
+    })
+}
+
+fn parse_startup(value: &Value) -> Option<StartupObservation> {
+    let data = object(value).ok()?;
+    if data.len() != 10
+        || ![
+            "platform_id",
+            "generation",
+            "operator_stop",
+            "core_started",
+            "core_count",
+            "active_core_count",
+            "startup_state",
+            "autostart_enabled_count",
+            "autostart_reconciled_at",
+            "management_listening",
+        ]
+        .iter()
+        .all(|key| data.contains_key(*key))
+    {
+        return None;
+    }
+    let core_count = required_count(data, "core_count").ok()?;
+    let active_core_count = required_count(data, "active_core_count").ok()?;
+    if active_core_count > core_count {
+        return None;
+    }
+    let startup_state = match data.get("startup_state").and_then(Value::as_str)? {
+        "ZERO_CORE_HEALTHY" if core_count == 0 => StartupState::ZeroCoreHealthy,
+        "CORES_RUNNING" if active_core_count > 0 => StartupState::CoresRunning,
+        "CORES_DISABLED" => StartupState::CoresDisabled,
+        "DEGRADED" => StartupState::Degraded,
+        "UNKNOWN" => StartupState::Unknown,
+        _ => return None,
+    };
+    let core_started = required_bool(data, "core_started").ok()?;
+    if core_count == 0 && (active_core_count != 0 || core_started) {
+        return None;
+    }
+    Some(StartupObservation {
+        core_started,
+        core_count,
+        active_core_count,
+        startup_state,
+        autostart_enabled_count: required_count(data, "autostart_enabled_count").ok()?,
+        autostart_reconciled_at: optional_text(data, "autostart_reconciled_at").ok()?,
+        management_listening: required_bool(data, "management_listening").ok()?,
+    })
+}
+
+fn required_count(data: &Map<String, Value>, key: &str) -> Result<u64, ()> {
+    required_u64(data, key).and_then(|value| if value <= 65_535 { Ok(value) } else { Err(()) })
+}
+
+fn required_text(data: &Map<String, Value>, key: &str) -> Result<String, ()> {
+    optional_text(data, key)?.ok_or(())
+}
+
+fn valid_error_code(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    !bytes.is_empty()
+        && bytes.len() <= 80
+        && bytes[0].is_ascii_alphanumeric()
+        && bytes
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(*byte, b'_' | b'.' | b':' | b'-'))
 }
 
 fn parse_modules(snapshot: &mut ManagerSnapshot, value: &Value) -> Result<(), ()> {
@@ -411,7 +564,9 @@ mod tests {
     };
     use crate::control_center::{InstallationState, LinkState, PermissionState, SafeState};
     use crate::control_center_session::ReadFailure;
-    use crate::manager_views::{manager_lines, ManagerPage, SectionTruth};
+    use crate::manager_views::{
+        manager_lines, CoreLifecycle, ManagedHealth, ManagerPage, SectionTruth, StartupState,
+    };
     use crate::platform_status::ObservationFreshness;
     use serde_json::json;
     use std::collections::BTreeMap;
@@ -501,6 +656,73 @@ mod tests {
         assert_eq!(snapshot.cores.len(), 1);
         assert_eq!(snapshot.modules.len(), 1);
         assert_eq!(snapshot.fleet.len(), 1);
+    }
+
+    #[test]
+    fn platform_startup_and_core_inventory_are_not_legacy_health_claims() {
+        let mut source = Fake::default();
+        source.observe(
+            "startup.status",
+            json!({
+                "platform_id": "platform:alpha",
+                "generation": 9,
+                "operator_stop": false,
+                "core_started": false,
+                "core_count": 1,
+                "active_core_count": 0,
+                "startup_state": "CORES_DISABLED",
+                "autostart_enabled_count": 0,
+                "autostart_reconciled_at": null,
+                "management_listening": true
+            }),
+        );
+        source.observe(
+            "core.list",
+            json!({
+                "platform_id": "platform:alpha",
+                "generation": 9,
+                "operator_stop": false,
+                "cores": [{
+                    "core_id": "01234567-89ab-cdef-0123-456789abcdef",
+                    "installed": true,
+                    "enabled": false,
+                    "startup_mode": "manual",
+                    "observed_state": "STOPPED",
+                    "generation": 0,
+                    "last_error_code": "OPERATOR_STOP"
+                }]
+            }),
+        );
+        let snapshot = read_manager_snapshot(&mut source);
+        assert_eq!(snapshot.section(ManagerPage::Cores), SectionTruth::Observed);
+        let startup = snapshot
+            .startup
+            .as_ref()
+            .expect("reviewed startup projection");
+        assert_eq!(startup.startup_state, StartupState::CoresDisabled);
+        assert!(!startup.core_started);
+        assert_eq!(startup.active_core_count, 0);
+        assert_eq!(snapshot.cores.len(), 1);
+        assert_eq!(snapshot.cores[0].lifecycle, CoreLifecycle::Disabled);
+        assert_eq!(snapshot.cores[0].health, ManagedHealth::Unknown);
+        assert_eq!(snapshot.cores[0].installed, Some(true));
+        assert_eq!(snapshot.cores[0].enabled, Some(false));
+        assert_eq!(
+            snapshot.cores[0].last_error_code.as_deref(),
+            Some("OPERATOR_STOP")
+        );
+        assert!(snapshot.cores[0].source_digest.is_none());
+        let mut view = crate::control_center::ControlCenterView::offline();
+        view.link = LinkState::Observed;
+        view.safe = SafeState::Clear;
+        view.permission = PermissionState::MayRequest;
+        view.installation = InstallationState::Installed;
+        view.platform_generation = Some(9);
+        let lines = manager_lines(ManagerPage::Cores, &view, Some(&snapshot)).join("\n");
+        assert!(lines.contains("STARTUP: state=CORES_DISABLED"));
+        assert!(lines.contains("lifecycle=DISABLED"));
+        assert!(lines.contains("health=UNKNOWN"));
+        assert!(!lines.contains("VERIFIED_HEALTHY"));
     }
 
     #[test]

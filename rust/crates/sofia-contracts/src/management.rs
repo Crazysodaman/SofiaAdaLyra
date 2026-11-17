@@ -99,6 +99,7 @@ impl UntrustedManagementRead {
         if !matches!(
             request.operation.as_str(),
             "platform.status"
+                | "startup.status"
                 | "core.list"
                 | "module.list"
                 | "fleet.list"
@@ -365,7 +366,7 @@ impl UntrustedManagementResponse {
                         || data
                             .get("core_started")
                             .and_then(serde_json::Value::as_bool)
-                            != Some(false)
+                            .is_none()
                         || data
                             .get("operator_stop")
                             .and_then(serde_json::Value::as_bool)
@@ -375,6 +376,12 @@ impl UntrustedManagementResponse {
                         "invalid_management_response",
                         "Platform status projection differs from trusted request",
                     ));
+                }
+                if self.operation == "startup.status" {
+                    validate_startup_projection(data, expected)?;
+                }
+                if self.operation == "core.list" {
+                    validate_core_projection(data, expected)?;
                 }
             }
             "DENIED" => {
@@ -410,6 +417,189 @@ impl UntrustedManagementResponse {
         }
         Ok(())
     }
+}
+
+fn valid_platform_core_id(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() == 36
+        && bytes.iter().enumerate().all(|(index, byte)| {
+            if matches!(index, 8 | 13 | 18 | 23) {
+                *byte == b'-'
+            } else {
+                byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()
+            }
+        })
+}
+
+fn valid_error_code(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    !bytes.is_empty()
+        && bytes.len() <= 80
+        && bytes[0].is_ascii_alphanumeric()
+        && bytes
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(*byte, b'_' | b'.' | b':' | b'-'))
+}
+
+fn exact_object_keys(data: &serde_json::Map<String, serde_json::Value>, keys: &[&str]) -> bool {
+    data.len() == keys.len() && keys.iter().all(|key| data.contains_key(*key))
+}
+
+fn validate_startup_projection(
+    data: &serde_json::Map<String, serde_json::Value>,
+    expected: &UntrustedManagementRead,
+) -> Result<(), ContractError> {
+    let core_count = data.get("core_count").and_then(serde_json::Value::as_u64);
+    let active = data
+        .get("active_core_count")
+        .and_then(serde_json::Value::as_u64);
+    let autostart = data
+        .get("autostart_enabled_count")
+        .and_then(serde_json::Value::as_u64);
+    let state = data
+        .get("startup_state")
+        .and_then(serde_json::Value::as_str);
+    let consistent_counts = matches!(
+        (core_count, active),
+        (Some(core), Some(active)) if core <= 65_535 && active <= core
+    ) && autostart.is_some_and(|value| value <= 65_535);
+    let consistent_state = match state {
+        Some("ZERO_CORE_HEALTHY") => core_count == Some(0),
+        Some("CORES_RUNNING") => active.is_some_and(|value| value > 0),
+        Some("CORES_DISABLED" | "DEGRADED" | "UNKNOWN") => true,
+        _ => false,
+    };
+    let core_started = data
+        .get("core_started")
+        .and_then(serde_json::Value::as_bool);
+    let zero_core = core_count == Some(0) && (active != Some(0) || core_started == Some(true));
+    let reconciled = match data.get("autostart_reconciled_at") {
+        Some(serde_json::Value::Null) => true,
+        Some(serde_json::Value::String(value)) => management_time(value).is_ok(),
+        _ => false,
+    };
+    if !exact_object_keys(
+        data,
+        &[
+            "platform_id",
+            "generation",
+            "operator_stop",
+            "core_started",
+            "core_count",
+            "active_core_count",
+            "startup_state",
+            "autostart_enabled_count",
+            "autostart_reconciled_at",
+            "management_listening",
+        ],
+    ) || data.get("platform_id").and_then(serde_json::Value::as_str)
+        != Some(expected.target_platform_id.as_str())
+        || data.get("generation").and_then(serde_json::Value::as_u64)
+            != Some(expected.expected_generation)
+        || data
+            .get("operator_stop")
+            .and_then(serde_json::Value::as_bool)
+            != Some(false)
+        || core_started.is_none()
+        || !consistent_counts
+        || !consistent_state
+        || zero_core
+        || !reconciled
+        || data
+            .get("management_listening")
+            .and_then(serde_json::Value::as_bool)
+            .is_none()
+    {
+        return Err(ContractError::new(
+            "invalid_management_response",
+            "Platform startup projection differs from trusted request",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_core_projection(
+    data: &serde_json::Map<String, serde_json::Value>,
+    expected: &UntrustedManagementRead,
+) -> Result<(), ContractError> {
+    let rows = data.get("cores").and_then(serde_json::Value::as_array);
+    let Some(rows) = rows.filter(|rows| rows.len() <= 256) else {
+        return Err(ContractError::new(
+            "invalid_management_response",
+            "Platform Core inventory is missing or unbounded",
+        ));
+    };
+    let mut seen = std::collections::BTreeSet::new();
+    let valid_rows = rows.iter().all(|row| {
+        let Some(row) = row.as_object() else {
+            return false;
+        };
+        if !exact_object_keys(
+            row,
+            &[
+                "core_id",
+                "installed",
+                "enabled",
+                "startup_mode",
+                "observed_state",
+                "generation",
+                "last_error_code",
+            ],
+        ) {
+            return false;
+        }
+        let Some(core_id) = row.get("core_id").and_then(serde_json::Value::as_str) else {
+            return false;
+        };
+        let valid_last_error = match row.get("last_error_code") {
+            Some(serde_json::Value::Null) => true,
+            Some(serde_json::Value::String(value)) => valid_error_code(value),
+            _ => false,
+        };
+        valid_platform_core_id(core_id)
+            && seen.insert(core_id)
+            && row
+                .get("installed")
+                .and_then(serde_json::Value::as_bool)
+                .is_some()
+            && row
+                .get("enabled")
+                .and_then(serde_json::Value::as_bool)
+                .is_some()
+            && matches!(
+                row.get("startup_mode").and_then(serde_json::Value::as_str),
+                Some("on_platform_ready" | "manual" | "on_demand")
+            )
+            && matches!(
+                row.get("observed_state")
+                    .and_then(serde_json::Value::as_str),
+                Some("RUNNING" | "STOPPED" | "STARTING" | "FAILED" | "UNKNOWN" | "NOT_OBSERVED")
+            )
+            && row
+                .get("generation")
+                .and_then(serde_json::Value::as_u64)
+                .is_some_and(|value| value <= 9_007_199_254_740_991)
+            && valid_last_error
+    });
+    if !exact_object_keys(
+        data,
+        &["platform_id", "generation", "operator_stop", "cores"],
+    ) || data.get("platform_id").and_then(serde_json::Value::as_str)
+        != Some(expected.target_platform_id.as_str())
+        || data.get("generation").and_then(serde_json::Value::as_u64)
+            != Some(expected.expected_generation)
+        || data
+            .get("operator_stop")
+            .and_then(serde_json::Value::as_bool)
+            != Some(false)
+        || !valid_rows
+    {
+        return Err(ContractError::new(
+            "invalid_management_response",
+            "Platform Core inventory differs from trusted request",
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(test)]

@@ -7,7 +7,12 @@ use sofia_ui_broker::manager_snapshot::{
     read_manager_snapshot, AuthenticatedManagerSnapshotSource,
 };
 use sofia_ui_broker::manager_views::{self, ManagerPage, ManagerSnapshot};
+use sofia_ui_broker::native_management;
 use std::time::{Duration, Instant};
+
+const ENV_ENDPOINT: &str = "AEGIS_MANAGEMENT_ENDPOINT";
+const ENV_PLATFORM_ID: &str = "AEGIS_EXPECTED_PLATFORM_ID";
+const ENV_GENERATION: &str = "AEGIS_EXPECTED_GENERATION";
 
 const THEME: &str = include_str!("../../../../contracts/ui/aegis-theme-v1.json");
 
@@ -172,12 +177,21 @@ pub struct PlatformApp<S: DisplayReadSource> {
 }
 impl<S: DisplayReadSource> PlatformApp<S> {
     pub fn new(source: S) -> Self {
+        Self::new_with_snapshot_source(source, None)
+    }
+
+    pub fn new_with_snapshot_source(
+        source: S,
+        snapshot_source: Option<Box<dyn AuthenticatedManagerSnapshotSource>>,
+    ) -> Self {
         Self {
             status: DesktopStatus::new(source),
             page: 0,
             manager_snapshot: None,
-            snapshot_source: None,
-            last_snapshot: Instant::now(),
+            snapshot_source,
+            last_snapshot: Instant::now()
+                .checked_sub(Duration::from_secs(2))
+                .unwrap_or_else(Instant::now),
             approval_id: String::new(),
             large_text: false,
             compact: false,
@@ -261,6 +275,9 @@ impl<S: DisplayReadSource> PlatformApp<S> {
         match self.page {
             0 => {
                 self.status.draw(ui);
+                for line in manager_views::startup_lines(self.manager_snapshot.as_ref()) {
+                    ui.monospace(line);
+                }
                 ui.separator();
                 ui.label("Core-free operation: the desktop does not require a Core or an inference provider.");
                 ui.label("Launching this window does not verify an installation or service.");
@@ -361,11 +378,37 @@ impl<S: DisplayReadSource> eframe::App for PlatformApp<S> {
 }
 
 pub fn run() -> eframe::Result {
-    run_with_source(OfflineReader)
+    let endpoint = std::env::var(ENV_ENDPOINT).ok();
+    let platform_id = std::env::var(ENV_PLATFORM_ID).ok();
+    let generation = std::env::var(ENV_GENERATION)
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok());
+    match (endpoint, platform_id, generation) {
+        (Some(endpoint), Some(platform_id), Some(generation))
+            if !endpoint.trim().is_empty() && generation > 0 =>
+        {
+            match native_management::open_live_management_readers(
+                &endpoint,
+                &platform_id,
+                generation,
+            ) {
+                Ok((status, snapshot)) => run_with_sources(status, Some(Box::new(snapshot))),
+                Err(_) => run_with_source(OfflineReader),
+            }
+        }
+        _ => run_with_source(OfflineReader),
+    }
 }
 
 /// Compose only an independently authenticated reader from the installed service.
 pub fn run_with_source<S: DisplayReadSource + 'static>(source: S) -> eframe::Result {
+    run_with_sources(source, None)
+}
+
+fn run_with_sources<S: DisplayReadSource + 'static>(
+    source: S,
+    snapshot_source: Option<Box<dyn AuthenticatedManagerSnapshotSource>>,
+) -> eframe::Result {
     eframe::run_native(
         "Aegis Platform Control Center",
         eframe::NativeOptions {
@@ -376,7 +419,12 @@ pub fn run_with_source<S: DisplayReadSource + 'static>(source: S) -> eframe::Res
         },
         Box::new(move |creation| {
             apply_theme(&creation.egui_ctx);
-            Ok(Box::new(PlatformApp::new(source)))
+            let app = if let Some(snapshot_source) = snapshot_source {
+                PlatformApp::new_with_snapshot_source(source, Some(snapshot_source))
+            } else {
+                PlatformApp::new(source)
+            };
+            Ok(Box::new(app))
         }),
     )
 }
