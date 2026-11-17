@@ -16,6 +16,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import re
 from threading import RLock
 from uuid import uuid4
 
@@ -32,6 +33,14 @@ from sofia.sdk.platform_management_mutation import (
 MANAGEMENT_MUTATION_CAPABILITY = "platform.management.mutate"
 OPERATOR_STOP_ACTIVATE_OPERATION = "platform.operator.stop.activate"
 OPERATOR_STOP_ACTIVATE_SCOPE = "operator"
+CORE_AUTOSTART_ENABLE_OPERATION = "core.autostart.enable"
+CORE_AUTOSTART_DISABLE_OPERATION = "core.autostart.disable"
+CORE_AUTOSTART_SCOPE = "operator"
+
+_CORE_AUTOSTART_FIELDS = frozenset({"core_id", "expected_revision", "enabled"})
+_CORE_UUID = re.compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+)
 
 
 class MutationRequestRejected(ValueError):
@@ -169,6 +178,157 @@ def operator_stop_mutation_registry(
             scopes=frozenset({OPERATOR_STOP_ACTIVATE_SCOPE}),
             handler=activate,
             validate_payload=validate,
+        ),
+    ))
+
+
+def combined_mutation_registry(
+    *registries: MutationRegistry,
+) -> MutationRegistry:
+    """Compose service-owned registries without adding or inheriting authority."""
+    if not registries:
+        raise TypeError("at least one service-owned mutation registry required")
+    operations: list[MutationOperation] = []
+    names: set[str] = set()
+    for registry in registries:
+        if not isinstance(registry, MutationRegistry):
+            raise TypeError("service-owned mutation registry required")
+        for name in registry.names:
+            if name in names:
+                raise ValueError("duplicate mutation operation")
+            operation = registry.resolve(name)
+            if operation is None:
+                raise ValueError("mutation registry is inconsistent")
+            names.add(name)
+            operations.append(operation)
+    return MutationRegistry(tuple(operations))
+
+
+def core_autostart_mutation_registry(
+    reconciler,
+) -> MutationRegistry:
+    """Bind owner-approved Core autostart enable/disable to the dispatcher.
+
+    The handler uses the injected reconciler's service-owned installed-Core
+    inventory and the canonical ``CoreAutostartPolicyStore``. It adds no
+    approval store, peer identity or authority of its own: the dispatcher has
+    already consumed the exact one-use SAFE approval and fenced STOP,
+    generation, mutation revision and replay/idempotency.
+    """
+    from sofia.platform.run.core_autostart import (
+        CoreAutostartConflict, CoreAutostartPolicyStore, CoreStartupReconciler,
+        management_autostart_writer,
+    )
+
+    if not isinstance(reconciler, CoreStartupReconciler):
+        raise TypeError("canonical CoreStartupReconciler required")
+    store = reconciler.store
+    if not isinstance(store, CoreAutostartPolicyStore):
+        raise TypeError("canonical CoreAutostartPolicyStore required")
+    write = management_autostart_writer(store)
+
+    def _validate(expected_enabled: bool):
+        def validate(payload: Mapping[str, object]) -> None:
+            if set(payload) != _CORE_AUTOSTART_FIELDS:
+                raise MutationRequestRejected(
+                    "Core autostart payload fields are not exact"
+                )
+            core_id = payload["core_id"]
+            if (
+                not isinstance(core_id, str)
+                or _CORE_UUID.fullmatch(core_id) is None
+            ):
+                raise MutationRequestRejected(
+                    "core_id must be a canonical UUID"
+                )
+            expected_revision = payload["expected_revision"]
+            if type(expected_revision) is not int or expected_revision < 1:
+                raise MutationRequestRejected(
+                    "expected_revision must be a positive integer"
+                )
+            enabled = payload["enabled"]
+            if type(enabled) is not bool:
+                raise MutationRequestRejected("enabled must be bool")
+            if enabled is not expected_enabled:
+                raise MutationRequestRejected(
+                    "operation and enabled target disagree"
+                )
+        return validate
+
+    def _handle(expected_enabled: bool):
+        def handle(invocation: MutationInvocation) -> None:
+            payload = invocation.payload
+            core_id = payload["core_id"]
+            expected_revision = payload["expected_revision"]
+            enabled = payload["enabled"]
+            if enabled is not expected_enabled:
+                raise MutationDenied(
+                    "INVALID_PAYLOAD", "operation and enabled target disagree"
+                )
+            try:
+                installed = frozenset(reconciler.installed_ids())
+            except Exception as error:
+                raise MutationDenied(
+                    "EVIDENCE_UNAVAILABLE",
+                    "installed Core inventory is unavailable",
+                ) from error
+            if core_id not in installed:
+                raise MutationDenied(
+                    "TARGET_MISMATCH", "target Core is not installed"
+                )
+            try:
+                current = store.policy(core_id)
+            except Exception as error:
+                raise MutationDenied(
+                    "EVIDENCE_UNAVAILABLE",
+                    "Core autostart policy is unavailable",
+                ) from error
+            if current is None:
+                if expected_revision != 1:
+                    raise MutationDenied(
+                        "STALE_REVISION",
+                        "new Core autostart policy must start at revision one",
+                    )
+            elif expected_revision != current.approved_revision + 1:
+                raise MutationDenied(
+                    "STALE_REVISION",
+                    "Core autostart policy revision is stale",
+                )
+            fingerprint = mutation_fingerprint(
+                invocation.request, invocation.authenticated_peer,
+            )
+            try:
+                write(
+                    core_id=core_id,
+                    enabled=enabled,
+                    expected_revision=expected_revision,
+                    authorization_fingerprint=fingerprint,
+                    now=invocation.now,
+                )
+            except PermissionError as error:
+                raise MutationDenied(
+                    "NOT_PERMITTED",
+                    "Core autostart management authority rejected",
+                ) from error
+            except CoreAutostartConflict as error:
+                raise MutationDenied(
+                    "STALE_REVISION",
+                    "Core autostart policy revision is stale",
+                ) from error
+        return handle
+
+    return MutationRegistry((
+        MutationOperation(
+            name=CORE_AUTOSTART_ENABLE_OPERATION,
+            scopes=frozenset({CORE_AUTOSTART_SCOPE}),
+            handler=_handle(True),
+            validate_payload=_validate(True),
+        ),
+        MutationOperation(
+            name=CORE_AUTOSTART_DISABLE_OPERATION,
+            scopes=frozenset({CORE_AUTOSTART_SCOPE}),
+            handler=_handle(False),
+            validate_payload=_validate(False),
         ),
     ))
 
