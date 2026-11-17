@@ -1,0 +1,51 @@
+{
+  "schema": "aegis.core.avatar.v1",
+  "core_number": 2,
+  "age_years": 34,
+  "height_inches": 70.1,
+  "weight_pounds": 176,
+  "build": "Sturdy/practical",
+  "head_proportions": 7.5,
+  "measurements": {
+    "head_proportions": 7.5,
+    "shoulders": 17.72,
+    "chest": 40.94,
+    "waist": 33.86,
+    "hips": 39.37,
+    "inseam": 31.89,
+    "arm_span": 70.87,
+    "neck": 15.35,
+    "hand": 7.60,
+    "foot": 10.63,
+    "hair_top": 2.36,
+    "hair_sides": 0.98,
+    "stubble": 0.047
+  },
+  "hair": "Textured slightly untidy",
+  "outfit": "Weathered work jacket",
+  "default_expression": "Warm reserved smile",
+  "colors": {
+    "hair": "#211C1A",
+    "eyes": "#583A2B",
+    "skin": "#C49A7D",
+    "jacket": "#6C4938",
+    "shirt": "#24272B",
+    "denim": "#343537",
+    "boots": "#4B3328",
+    "hardware": "#B47D51",
+    "accent": "#548D87"
+  },
+  "materials": {
+    "jacket": "full-grain leather",
+    "shirt": "matte cotton",
+    "denim": "denim",
+    "boots": "oiled leather",
+    "hardware": "aged copper alloy"
+  },
+  "pbr": {
+    "jacket_roughness": 0.62,
+    "boot_roughness": 0.56,
+    "hardware_metallic": 0.82
+  },
+  "accessory": null
+}

@@ -1,0 +1,55 @@
+{
+  "schema": "aegis.core.avatar.v1",
+  "core_number": 3,
+  "age_years": 27,
+  "height_inches": 65.7,
+  "weight_pounds": 130,
+  "build": "Graceful/agile",
+  "head_proportions": 7.5,
+  "measurements": {
+    "head_proportions": 7.5,
+    "shoulders": 14.96,
+    "bust": 31.25,
+    "underbust": 29.13,
+    "waist": 25.98,
+    "hips": 37.01,
+    "inseam": 29.92,
+    "arm_span": 66.14,
+    "neck": 12.60,
+    "hand": 6.85,
+    "foot": 9.65,
+    "ear_length": 3.46,
+    "ear_width": 1.26,
+    "ear_angle_degrees": 18,
+    "hair_length": 12.20
+  },
+  "hair": "Medium layered",
+  "ears": "subtly tapered half-elven",
+  "outfit": "Scholar/adventurer hybrid",
+  "default_expression": "Composed and elegant",
+  "colors": {
+    "hair": "#A97881",
+    "eyes": "#BF873D",
+    "skin": "#D7B4A5",
+    "coat": "#262A3A",
+    "violet_panels": "#625479",
+    "ivory_inner": "#EEE4D5",
+    "gold_detailing": "#AF9464",
+    "trousers": "#34313F",
+    "boots": "#392935"
+  },
+  "materials": {
+    "coat": "structured woven wool blend",
+    "inner": "soft linen/cotton",
+    "panels": "matte woven fabric",
+    "trousers": "flexible twill",
+    "boots": "aubergine leather",
+    "trim": "antique brass"
+  },
+  "pbr": {
+    "coat_roughness": 0.78,
+    "boot_roughness": 0.53,
+    "trim_metallic": 0.00
+  },
+  "accessory": "Pendant"
+}

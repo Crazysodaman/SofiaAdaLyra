@@ -40,6 +40,18 @@ where = ["src"]
 "sofia.core.identity" = ["identity.json"]
 "sofia.core.embodiment" = ["avatar.json"]
 "sofia.core.personality" = ["personality.json"]
+"sofia.core.cores.mack" = [
+    "constitution.md",
+    "personality.json",
+    "avatar.json",
+    "voice.json",
+]
+"sofia.core.cores.nova" = [
+    "constitution.md",
+    "personality.json",
+    "avatar.json",
+    "voice.json",
+]
 "sofia.modules.ui" = ["assets/*.ico"]
 "sofia.modules.avatar" = [
     "wardrobe_data/*.json",
