@@ -33,6 +33,8 @@ ERROR_PIPE_LISTENING = 536
 ERROR_NO_DATA = 232
 ERROR_BROKEN_PIPE = 109
 ERROR_MORE_DATA = 234
+ERROR_INVALID_HANDLE = 6
+ERROR_OPERATION_ABORTED = 995
 
 
 class _SidAndAttributes(ctypes.Structure):
@@ -252,7 +254,12 @@ class ManagementWindowsPipeListener:
             if error == ERROR_NO_DATA:
                 k.DisconnectNamedPipe(self._handle)
                 return False
+            if error in {ERROR_INVALID_HANDLE, ERROR_OPERATION_ABORTED}:
+                # close() raced this accept during normal shutdown.
+                return False
             if error != ERROR_PIPE_CONNECTED:
+                if self._handle is None:
+                    return False
                 raise PermissionError("Windows pipe connection unavailable")
         try:
             deadline = monotonic() + _TIMEOUT
