@@ -1,4 +1,4 @@
-"""One-step attended orchestrator for the signed Aegis Platform installer.
+﻿"""One-step attended orchestrator for the signed Aegis Platform installer.
 
 The Windows and Linux launchers invoke this module only. It discovers the
 signed release media and the separately provisioned installer trust anchor,
@@ -328,25 +328,41 @@ def _manifest_payload(layout: BundleLayout) -> dict[str, object]:
     return payload
 
 
-def _trust_anchor(layout: BundleLayout) -> tuple[Path, str, str]:
-    key_bytes = _read_bounded(layout.trust_key, _MAX_KEY_BYTES)
+_TRUST_ROOT_ENV = "AEGIS_INSTALLER_TRUST_ROOT"
+
+
+def _trust_record(
+    directory: Path, *, missing_code: str, invalid_code: str,
+) -> tuple[Path, str, str, bytes]:
+    directory = Path(directory)
+    key = directory / "trusted-publisher.pem"
+    record = directory / "trust.json"
+    if (
+        key.is_symlink() or record.is_symlink()
+        or not key.is_file() or not record.is_file()
+    ):
+        raise GuidedDenied(
+            missing_code,
+            "installer/trusted-publisher.pem and installer/trust.json are required",
+        )
+    key_bytes = _read_bounded(key, _MAX_KEY_BYTES)
     fingerprint = sha256(key_bytes).hexdigest()
     try:
         document = loads_strict_model_json(
-            _read_bounded(layout.trust_json, _MAX_TRUST_BYTES).decode("utf-8")
+            _read_bounded(record, _MAX_TRUST_BYTES).decode("utf-8")
         )
     except (OSError, UnicodeError, ValueError, TypeError) as error:
         raise GuidedDenied(
-            "TRUST_ANCHOR_INVALID", "installer trust metadata is unreadable",
+            invalid_code, "installer trust metadata is unreadable",
         ) from error
     if type(document) is not dict:
-        raise GuidedDenied(
-            "TRUST_ANCHOR_INVALID", "installer trust metadata is not an object",
-        )
+        raise GuidedDenied(invalid_code, "installer trust metadata is not an object")
     if document.get("schema") not in (None, TRUST_SCHEMA):
         raise GuidedDenied(
-            "TRUST_ANCHOR_INVALID", "installer trust metadata schema is unsupported",
+            invalid_code, "installer trust metadata schema is unsupported",
         )
+    if document.get("private_key_included") not in (None, False):
+        raise GuidedDenied(invalid_code, "trust metadata must not embed a private key")
     pinned = None
     for name in _TRUST_KEY_NAMES:
         if name in document:
@@ -358,27 +374,80 @@ def _trust_anchor(layout: BundleLayout) -> tuple[Path, str, str]:
             signer = document[name]
             break
     if type(pinned) is not str or _HEX64.fullmatch(pinned) is None:
-        raise GuidedDenied(
-            "TRUST_ANCHOR_INVALID", "trusted publisher key SHA-256 is required",
-        )
+        raise GuidedDenied(invalid_code, "trusted publisher key SHA-256 is required")
     if pinned != fingerprint:
-        raise GuidedDenied(
-            "TRUST_ANCHOR_INVALID", "trusted publisher key differs from its pin",
-        )
+        raise GuidedDenied(invalid_code, "trusted publisher key differs from its pin")
     if type(signer) is not str or not 1 <= len(signer) <= 128:
+        raise GuidedDenied(invalid_code, "trusted signer key identity is required")
+    return key, pinned, signer, key_bytes
+
+
+def _independent_trust_root(
+    target: PlatformReleaseTarget, *, explicit: Path | str | None = None,
+    environ: Mapping[str, str] | None = None,
+) -> Path:
+    env = dict(os.environ if environ is None else environ)
+    if explicit is not None:
+        raw = Path(explicit)
+    elif env.get(_TRUST_ROOT_ENV):
+        raw = Path(env[_TRUST_ROOT_ENV])
+    elif target is PlatformReleaseTarget.WINDOWS_X86_64:
+        program_data = _env(env, "ProgramData", r"C:\ProgramData")
+        raw = Path(program_data) / "Aegis" / "installer-trust"
+    else:
+        raw = Path("/etc/aegis/installer-trust")
+    if not raw.is_absolute():
         raise GuidedDenied(
-            "TRUST_ANCHOR_INVALID", "trusted signer key identity is required",
+            "TRUST_ROOT_INVALID", "independent installer trust root must be absolute",
         )
-    return layout.trust_key, pinned, signer
+    root = _checked(raw)
+    if not root.is_dir():
+        raise GuidedDenied(
+            "TRUST_ROOT_MISSING",
+            "independent owner-controlled installer trust root is not provisioned; "
+            "place trusted-publisher.pem and trust.json outside the bundle first",
+        )
+    return root
+
+
+def _trust_anchor(
+    layout: BundleLayout, *, target: PlatformReleaseTarget,
+    trust_root: Path | str | None = None,
+) -> tuple[Path, str, str]:
+    _bundle_key, bundle_pin, bundle_signer, _bundle_bytes = _trust_record(
+        layout.installer_root,
+        missing_code="TRUST_ANCHOR_MISSING",
+        invalid_code="TRUST_ANCHOR_INVALID",
+    )
+    root = _independent_trust_root(target, explicit=trust_root)
+    if root == layout.bundle_root or _within(root, layout.bundle_root):
+        raise GuidedDenied(
+            "TRUST_ROOT_NOT_INDEPENDENT",
+            "independent installer trust root must be outside the installer bundle",
+        )
+    key, pin, signer, _key_bytes = _trust_record(
+        root,
+        missing_code="TRUST_ROOT_INVALID",
+        invalid_code="TRUST_ROOT_INVALID",
+    )
+    if bundle_pin != pin or bundle_signer != signer:
+        raise GuidedDenied(
+            "TRUST_ANCHOR_MISMATCH",
+            "bundle trust anchor does not match the independent owner trust root",
+        )
+    return key, pin, signer
 
 
 def verify_bundle(
     layout: BundleLayout, *, target: PlatformReleaseTarget,
     expected_parent_manifest_sha256: str | None = None,
+    trust_root: Path | str | None = None,
 ) -> tuple[SignedInstallerRelease, dict[str, object]]:
     """Verify the signed release and independently provisioned trust anchor."""
     payload = _manifest_payload(layout)
-    key, fingerprint, signer = _trust_anchor(layout)
+    key, fingerprint, signer = _trust_anchor(
+        layout, target=target, trust_root=trust_root,
+    )
     try:
         release = verify_offline_installer_bundle(
             layout.release_root,
@@ -781,11 +850,14 @@ def _installer_inputs(
     *, minimum_revision: int, destination: Path,
     previous_destination: Path | None = None,
     expected_parent_manifest_sha256: str | None = None,
+    trust_root: Path | str | None = None,
 ) -> InstallerInputs:
-    _key, fingerprint, signer = _trust_anchor(layout)
+    key, fingerprint, signer = _trust_anchor(
+        layout, target=paths.target, trust_root=trust_root,
+    )
     return InstallerInputs(
         release_root=layout.release_root,
-        publisher_key=layout.trust_key,
+        publisher_key=key,
         publisher_key_sha256=fingerprint,
         publisher_signer=signer,
         expected_source_sha=release.source_sha,
@@ -920,6 +992,7 @@ def run_guided(
     operator_apps_command=None,
     elevation_check: Callable[[], bool] | None = None,
     script_directory: Path | str | None = None,
+    trust_root: Path | str | None = None,
     approval_runner=None,
 ) -> dict[str, object]:
     """Verify, plan and (unless previewing) drive the canonical installer."""
@@ -939,7 +1012,7 @@ def run_guided(
         resolved_paths = _validate_paths(paths or default_paths(target))
         if resolved_paths.target is not target:
             raise GuidedDenied("TARGET_MISMATCH", "path set belongs to another target")
-        release, payload = verify_bundle(layout, target=target)
+        release, payload = verify_bundle(layout, target=target, trust_root=trust_root)
         plan = build_plan(
             layout, resolved_paths, release, payload, operation=requested,
             elevation_required=requested in MUTATING_OPERATIONS,
@@ -969,7 +1042,7 @@ def run_guided(
             destination = current_destination(resolved_paths) or resolved_paths.destination
             inputs = _installer_inputs(
                 layout, resolved_paths, release,
-                minimum_revision=minimum, destination=destination,
+                minimum_revision=minimum, destination=destination, trust_root=trust_root,
             )
             return _read_only(requested, inputs, installer_command)
         except GuidedDenied as error:
@@ -997,6 +1070,7 @@ def run_guided(
             layout, resolved_paths, release, minimum_revision=minimum,
             destination=destination, previous_destination=previous,
             expected_parent_manifest_sha256=expected_parent,
+            trust_root=trust_root,
         )
     except GuidedDenied as error:
         return _denied(requested, error.code, error.detail, plan=plan)
@@ -1236,6 +1310,7 @@ def _print_result(
 
 def _interactive(
     bundle_root: Path | str, *, script_directory: Path | None = None,
+    trust_root: Path | str | None = None, no_color: bool = False,
 ) -> int:
     try:
         interactive = sys.stdin.isatty() and sys.stdout.isatty()
@@ -1249,7 +1324,7 @@ def _interactive(
         print(json.dumps(result, sort_keys=True, separators=(",", ":")))
         return 3
     theme = _load_theme(script_directory)
-    color = "NO_COLOR" not in os.environ
+    color = not no_color
     while True:
         print()
         print(_paint("+------------------------------------------------------------+", "primary", theme, color))
@@ -1281,7 +1356,7 @@ def _interactive(
             continue
         result = run_guided(
             bundle_root, operation=selected, check=False,
-            script_directory=script_directory,
+            script_directory=script_directory, trust_root=trust_root,
         )
         _print_result(result, theme=theme, color=color)
         if (selected not in MUTATING_OPERATIONS
@@ -1297,17 +1372,21 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--operation", choices=OPERATIONS)
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--no-color", action="store_true")
+    parser.add_argument("--trust-root", type=Path)
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     script_directory = Path(__file__).resolve().parent
+    no_color = bool(args.no_color or "NO_COLOR" in os.environ)
     if args.check or args.operation is not None or args.json:
         result = run_guided(
             args.bundle_root, check=bool(args.check or (
                 args.json and args.operation is None
             )), operation=args.operation, script_directory=script_directory,
+            trust_root=args.trust_root,
         )
         if args.json:
             print(json.dumps(
@@ -1315,12 +1394,13 @@ def main(argv: list[str] | None = None) -> int:
             ))
         else:
             theme = _load_theme(script_directory)
-            color = (
-                sys.stdout.isatty() and "NO_COLOR" not in os.environ
-            )
+            color = sys.stdout.isatty() and not no_color
             _print_result(result, theme=theme, color=color)
         return 0 if result.get("outcome") in SUCCESS_OUTCOMES else 3
-    return _interactive(args.bundle_root, script_directory=script_directory)
+    return _interactive(
+        args.bundle_root, script_directory=script_directory,
+        trust_root=args.trust_root, no_color=no_color,
+    )
 
 
 if __name__ == "__main__":
