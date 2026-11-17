@@ -512,6 +512,13 @@ def test_assembles_bundle_with_installer_payload_and_wheelhouse(
         PlatformReleaseTarget.WINDOWS_X86_64,
     ):
         bundle = output / target.value
+        runtime = bundle / "release" / "runtime" / "python"
+        site_packages = (
+            runtime / "Lib" / "site-packages"
+            if target is PlatformReleaseTarget.WINDOWS_X86_64
+            else runtime / "lib" / "python3.12" / "site-packages"
+        )
+        assert (site_packages / "sofia").is_dir()
         installer = bundle / "installer"
         assert (installer / "Install-Aegis.ps1").read_bytes() == (
             installer_source / "Install-Aegis.ps1"

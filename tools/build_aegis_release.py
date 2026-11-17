@@ -917,6 +917,41 @@ def _extract_runtime_tree(runtime_zip: Path, destination: Path) -> None:
                 shutil.copyfileobj(source, sink, length=65536)
 
 
+def _install_runtime_wheels(
+    runtime_prefix: Path, wheels: list[Path], *, target: PlatformReleaseTarget,
+) -> None:
+    """Unpack the exact signed wheels into the extracted runtime site-packages."""
+    if target is PlatformReleaseTarget.WINDOWS_X86_64:
+        site_packages = runtime_prefix / "Lib" / "site-packages"
+    else:
+        site_packages = runtime_prefix / "lib" / "python3.12" / "site-packages"
+    site_packages.mkdir(parents=True, exist_ok=True)
+    for wheel in wheels:
+        with zipfile.ZipFile(wheel) as archive:
+            for info in archive.infolist():
+                name = info.filename.replace("\\", "/")
+                if info.is_dir():
+                    continue
+                parts = name.split("/")
+                if (
+                    name.startswith("/")
+                    or any(part in {"", ".", ".."} for part in parts)
+                    or len(parts) < 2
+                ):
+                    raise ReleaseAssemblyError("runtime wheel member path is unsafe")
+                # Wheel .data/purelib and .data/platlib map into site-packages.
+                if parts[0].endswith(".data") and len(parts) >= 3 and parts[1] in {
+                    "purelib", "platlib",
+                }:
+                    parts = parts[2:]
+                elif parts[0].endswith(".data"):
+                    continue
+                target_path = site_packages.joinpath(*parts)
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+                with archive.open(info) as source, target_path.open("wb") as sink:
+                    shutil.copyfileobj(source, sink, length=65536)
+
+
 def _assemble_target(
     *, target: PlatformReleaseTarget, destination: Path,
     source_sha: str, source_tree_clean: bool, created_at: datetime,
@@ -1023,7 +1058,20 @@ def _assemble_target(
         "target": target.value,
     }
     if installer_dir is not None:
+        runtime_prefix = release_root / "runtime" / "python"
         _extract_runtime_tree(assets / runtime_asset.path, release_root / "runtime")
+        _install_runtime_wheels(
+            runtime_prefix,
+            [
+                assets / sdk_asset.path,
+                assets / platform_asset.path,
+                *[
+                    assets / str(item["path"])
+                    for item in wheelhouse_record
+                ],
+            ],
+            target=target,
+        )
         if trusted_public_key is None or not trusted_signer_key_id:
             raise ReleaseAssemblyError(
                 "installer payload requires an independent trusted public key "
