@@ -884,6 +884,39 @@ def _assert_no_secret_material(root: Path, secret: bytes) -> None:
             )
 
 
+def _extract_runtime_tree(runtime_zip: Path, destination: Path) -> None:
+    """Materialize the already-verified runtime archive for one-step launch.
+
+    The ZIP itself remains the signed release asset. The extracted tree is an
+    installer convenience copy under the bundle, never a new release authority.
+    """
+    destination = Path(destination).absolute()
+    if destination.exists():
+        raise ReleaseAssemblyError("runtime extraction destination already exists")
+    destination.mkdir(parents=True)
+    with zipfile.ZipFile(runtime_zip) as archive:
+        for info in archive.infolist():
+            name = info.filename.replace("\\", "/")
+            directory_entry = info.is_dir() and name.endswith("/")
+            if directory_entry:
+                name = name[:-1]
+            parts = name.split("/")
+            if (
+                name.startswith("/")
+                or not name
+                or any(part in {"", ".", ".."} for part in parts)
+                or (parts[0] != "python" and name != "runtime-manifest.json")
+            ):
+                raise ReleaseAssemblyError("runtime archive member path is unsafe")
+            target = destination.joinpath(*parts)
+            if directory_entry:
+                target.mkdir(parents=True, exist_ok=True)
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with archive.open(info) as source, target.open("wb") as sink:
+                shutil.copyfileobj(source, sink, length=65536)
+
+
 def _assemble_target(
     *, target: PlatformReleaseTarget, destination: Path,
     source_sha: str, source_tree_clean: bool, created_at: datetime,
@@ -990,6 +1023,7 @@ def _assemble_target(
         "target": target.value,
     }
     if installer_dir is not None:
+        _extract_runtime_tree(assets / runtime_asset.path, release_root / "runtime")
         if trusted_public_key is None or not trusted_signer_key_id:
             raise ReleaseAssemblyError(
                 "installer payload requires an independent trusted public key "

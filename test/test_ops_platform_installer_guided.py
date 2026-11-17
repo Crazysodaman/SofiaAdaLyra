@@ -482,6 +482,7 @@ def test_real_builder_bundle_is_consumed_by_real_guided_launcher(
     assert layout.release_root == bundle / "release"
     assert layout.installer_root == bundle / "installer"
     assert layout.release_root not in layout.trust_key.parents
+    assert (bundle / "release" / "runtime" / "python").is_dir()
     release, _payload = verify_bundle(layout, target=target)
     assert release.source_sha == sha
     preview = run_guided(bundle, check=True, target=target)
