@@ -1,0 +1,11 @@
+{
+  "schema": "aegis.core.voice.v1",
+  "core_number": 3,
+  "target": "feminine, bright mid-range",
+  "register": "bright mid-range",
+  "accent": null,
+  "cadence": "expressive, lively",
+  "serious_delivery": "calm when serious",
+  "model_id": null,
+  "assets_created": false
+}
