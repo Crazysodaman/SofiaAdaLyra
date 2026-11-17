@@ -1,0 +1,68 @@
+"""Platform-owned multi-Core chat, channels, inbox and history.
+
+The public engine is canonical-state backed and authority-free with respect to
+execution: chat messages never grant permissions, tool access or Core identity.
+"""
+from sofia.platform.chat.contracts import (
+    ActorKind,
+    CHAT_CONTRACT_SCHEMA,
+    ChatActor,
+    ChatAudience,
+    ChatAuditEvent,
+    ChatMessage,
+    CoreIdentity,
+    Draft,
+    GENERAL_ROOM_ID,
+    InvitationStatus,
+    MAX_CORE_IDENTITIES,
+    MAX_MESSAGE_BODY_BYTES,
+    MembershipStatus,
+    MessageOrigin,
+    MessagePage,
+    MessageProvenance,
+    OutboxEntry,
+    PEER_ENVELOPE_SCHEMA,
+    PeerEnvelope,
+    RetentionResult,
+    Room,
+    RoomHistoryPolicy,
+    RoomInvitation,
+    RoomKind,
+    RoomMembership,
+    RoomSync,
+    SyncResult,
+)
+from sofia.platform.chat.engine import ChatEngine
+from sofia.platform.chat.store import ChatStore
+
+__all__ = [
+    "ActorKind",
+    "CHAT_CONTRACT_SCHEMA",
+    "ChatActor",
+    "ChatAudience",
+    "ChatAuditEvent",
+    "ChatEngine",
+    "ChatMessage",
+    "ChatStore",
+    "CoreIdentity",
+    "Draft",
+    "GENERAL_ROOM_ID",
+    "InvitationStatus",
+    "MAX_CORE_IDENTITIES",
+    "MAX_MESSAGE_BODY_BYTES",
+    "MembershipStatus",
+    "MessageOrigin",
+    "MessagePage",
+    "MessageProvenance",
+    "OutboxEntry",
+    "PEER_ENVELOPE_SCHEMA",
+    "PeerEnvelope",
+    "RetentionResult",
+    "Room",
+    "RoomHistoryPolicy",
+    "RoomInvitation",
+    "RoomKind",
+    "RoomMembership",
+    "RoomSync",
+    "SyncResult",
+]
