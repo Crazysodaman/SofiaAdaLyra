@@ -878,9 +878,17 @@ def _assert_no_secret_material(root: Path, secret: bytes) -> None:
             raise ReleaseAssemblyError(
                 "private signing key material was written into release output"
             )
-        if b"BEGIN PRIVATE KEY" in data or b"BEGIN OPENSSH PRIVATE KEY" in data:
+        if any(
+            marker in data
+            for marker in (
+                b"-----BEGIN PRIVATE KEY-----\n",
+                b"-----BEGIN PRIVATE KEY-----\r\n",
+                b"-----BEGIN OPENSSH PRIVATE KEY-----\n",
+                b"-----BEGIN OPENSSH PRIVATE KEY-----\r\n",
+            )
+        ):
             raise ReleaseAssemblyError(
-                "private key marker was written into release output"
+                "a PEM private key block was written into release output"
             )
 
 
