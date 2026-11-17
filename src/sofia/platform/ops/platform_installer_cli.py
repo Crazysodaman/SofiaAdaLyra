@@ -8,11 +8,17 @@ selection, identity, approval, durable state or OS service behaviour.
 Every mutating command consumes an existing one-use SAFE approval. A missing,
 stale or revoked trust input or approval is denied. Staging is inert and is not
 an installation; native OS effects remain inside the reviewed backend.
+
+The additive ``approval_provider`` hook receives the exact canonical request
+that this module already builds and may return only a one-use approval id. It
+does not mint authority: the existing attended SAFE ceremony and every original
+consume/revocation check remain decisive. ``apply_operator_apps_command`` is the
+additive launcher-only owner used after a separately successful lifecycle step.
 """
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from hashlib import sha256
 import json
@@ -300,7 +306,7 @@ def _operator_apps_preflight(
                 now=now,
             )):
         raise _ApprovalRequired(
-            "operator_apps", request["fingerprint"], command=command,
+            "operator_apps", request, command=command,
         )
     return config
 
@@ -567,7 +573,7 @@ def _ensure_code_published(*, command: str, inputs: InstallerInputs,
     approval = inputs.code_approval_id
     if not approval:
         raise _ApprovalRequired(
-            "code", request["fingerprint"], command=command,
+            "code", request, command=command,
         )
     published = publish_owner_approved_code(
         approval_id=approval, staged_candidate=stage, destination=destination,
@@ -582,10 +588,11 @@ def _ensure_code_published(*, command: str, inputs: InstallerInputs,
 
 
 class _ApprovalRequired(PlatformInstallationDenied):
-    def __init__(self, kind: str, fingerprint: str, *, command: str):
+    def __init__(self, kind: str, request: dict[str, object], *, command: str):
         super().__init__(f"{kind} owner approval required")
         self.kind = kind
-        self.fingerprint = fingerprint
+        self.request = request
+        self.fingerprint = request["fingerprint"]
         self.command = command
 
 
@@ -619,7 +626,7 @@ def _apply_native(*, command: str, inputs: InstallerInputs, operation: str,
     if not inputs.approval_id:
         request = native_service_operation_request(**arguments)
         raise _ApprovalRequired(
-            "native", request["fingerprint"], command=command,
+            "native", request, command=command,
         )
     receipt = apply_owner_approved_native_service(
         **arguments, approval_id=inputs.approval_id, backend=backend, now=now,
@@ -758,7 +765,7 @@ def _command_rollback(inputs: InstallerInputs, backend=None) -> dict[str, object
         )
         if not inputs.code_approval_id:
             raise _ApprovalRequired(
-                "code", request["fingerprint"], command="rollback",
+                "code", request, command="rollback",
             )
         receipt = install_staged_release(
             stage, destination, store=store, verifier=verifier,
@@ -915,7 +922,7 @@ def _command_reconcile(inputs: InstallerInputs, backend=None) -> dict[str, objec
         )
         request = native_service_reconciliation_request(**arguments)
         raise _ApprovalRequired(
-            "native", request["fingerprint"], command="reconcile",
+            "native", request, command="reconcile",
         )
     receipt = reconcile_owner_approved_native_service(
         **arguments, approval_id=inputs.approval_id,
@@ -929,63 +936,172 @@ def _command_reconcile(inputs: InstallerInputs, backend=None) -> dict[str, objec
     )
 
 
-def execute_command(
-    command: str, inputs: InstallerInputs, *, backend=None,
-    operator_apps_path_adapter=None, operator_apps_shortcut_adapter=None,
+def apply_operator_apps_command(
+    operation: str, inputs: InstallerInputs, *, path_adapter=None,
+    shortcut_adapter=None, approval_provider=None,
 ) -> dict[str, object]:
-    if command not in COMMANDS:
-        return _denied(command, "UNSUPPORTED_COMMAND")
+    """Additive owner: apply only operator applications after an installed step.
+
+    It uses the same exact one-use SAFE approval, plan digest and adapters as the
+    lifecycle commands. It never changes a release or an OS service.
+    """
+    if operation not in ("install", "update", "repair", "uninstall"):
+        return _denied(operation, "UNSUPPORTED_COMMAND")
     try:
-        if command == "verify":
-            return _command_verify(inputs)
-        if command == "status":
-            return _command_status(inputs)
-        if command == "doctor":
-            return _command_doctor(inputs)
-        if command == "install":
-            return _command_install(
-                inputs, backend, operator_apps_path_adapter,
-                operator_apps_shortcut_adapter,
-            )
-        if command == "update":
-            return _command_update(
-                inputs, backend, operator_apps_path_adapter,
-                operator_apps_shortcut_adapter,
-            )
-        if command == "rollback":
-            return _command_rollback(inputs, backend)
-        if command == "repair":
-            return _command_repair(
-                inputs, backend, operator_apps_path_adapter,
-                operator_apps_shortcut_adapter,
-            )
-        if command == "uninstall":
-            return _command_uninstall(
-                inputs, backend, operator_apps_path_adapter,
-                operator_apps_shortcut_adapter,
-            )
-        if command == "reinstall":
-            return _command_reinstall(inputs, backend)
-        return _command_reconcile(inputs, backend)
+        config = _operator_apps_config(inputs)
+        if config is None:
+            return _result(operation, "NO_CHANGES_MADE")
+        if not inputs.operator_apps_approval_id:
+            request = operator_apps_request(operation, config)
+            if approval_provider is None:
+                return _denied(
+                    operation, "OWNER_APPROVAL_REQUIRED",
+                    required_approval="operator_apps",
+                    approval_fingerprint=request["fingerprint"],
+                )
+            approval_id = approval_provider("operator_apps", request)
+            inputs = replace(inputs, operator_apps_approval_id=approval_id)
+        _assert_not_stopped(inputs)
+        _operator_apps_preflight(operation, inputs)
+        store = _store(inputs, create=True)
+        receipt = _apply_operator_apps(
+            command=operation, inputs=inputs, store=store, config=config,
+            path_adapter=path_adapter, shortcut_adapter=shortcut_adapter,
+        )
+        return _result(
+            operation, "OK", executed=True, owner_approved=True,
+            operator_apps_operation=operation,
+            **_operator_apps_fields(receipt),
+        )
     except _ApprovalRequired as required:
         return _denied(
-            command, "OWNER_APPROVAL_REQUIRED", required_approval=required.kind,
+            operation, "OWNER_APPROVAL_REQUIRED",
+            required_approval=required.kind,
             approval_fingerprint=required.fingerprint,
         )
     except PlatformInstallationDenied:
-        return _denied(command, "DENIED")
+        return _denied(operation, "DENIED")
     except PermissionError:
-        return _denied(command, "DENIED")
+        return _denied(operation, "DENIED")
     except FileExistsError:
-        return _denied(command, "OCCUPIED_TARGET")
+        return _denied(operation, "OCCUPIED_TARGET")
     except (FileNotFoundError, NotADirectoryError):
-        return _denied(command, "MISSING_INPUT")
+        return _denied(operation, "MISSING_INPUT")
     except OSError:
-        return _denied(command, "INPUT_UNAVAILABLE")
+        return _denied(operation, "INPUT_UNAVAILABLE")
     except (ValueError, TypeError):
-        return _denied(command, "INVALID_INPUT")
+        return _denied(operation, "INVALID_INPUT")
     except Exception:
-        return _denied(command, "REFUSED")
+        return _denied(operation, "REFUSED")
+
+
+def _dispatch_command(
+    command: str, inputs: InstallerInputs, *, backend=None,
+    operator_apps_path_adapter=None, operator_apps_shortcut_adapter=None,
+) -> dict[str, object]:
+    if command == "verify":
+        return _command_verify(inputs)
+    if command == "status":
+        return _command_status(inputs)
+    if command == "doctor":
+        return _command_doctor(inputs)
+    if command == "install":
+        return _command_install(
+            inputs, backend, operator_apps_path_adapter,
+            operator_apps_shortcut_adapter,
+        )
+    if command == "update":
+        return _command_update(
+            inputs, backend, operator_apps_path_adapter,
+            operator_apps_shortcut_adapter,
+        )
+    if command == "rollback":
+        return _command_rollback(inputs, backend)
+    if command == "repair":
+        return _command_repair(
+            inputs, backend, operator_apps_path_adapter,
+            operator_apps_shortcut_adapter,
+        )
+    if command == "uninstall":
+        return _command_uninstall(
+            inputs, backend, operator_apps_path_adapter,
+            operator_apps_shortcut_adapter,
+        )
+    if command == "reinstall":
+        return _command_reinstall(inputs, backend)
+    return _command_reconcile(inputs, backend)
+
+
+def execute_command(
+    command: str, inputs: InstallerInputs, *, backend=None,
+    operator_apps_path_adapter=None, operator_apps_shortcut_adapter=None,
+    approval_provider=None,
+) -> dict[str, object]:
+    """Run one canonical command, optionally asking an attended approval owner.
+
+    The additive ``approval_provider`` hook receives the exact canonical request
+    object that the existing owner builders already produced. It may return only
+    a one-use approval id. The canonical command is then retried with that id,
+    and every approval is still consumed by the original owner.
+    """
+    if command not in COMMANDS:
+        return _denied(command, "UNSUPPORTED_COMMAND")
+    attempts = 0
+    while True:
+        try:
+            return _dispatch_command(
+                command, inputs, backend=backend,
+                operator_apps_path_adapter=operator_apps_path_adapter,
+                operator_apps_shortcut_adapter=operator_apps_shortcut_adapter,
+            )
+        except _ApprovalRequired as required:
+            if approval_provider is None or attempts >= 8:
+                return _denied(
+                    command, "OWNER_APPROVAL_REQUIRED",
+                    required_approval=required.kind,
+                    approval_fingerprint=required.fingerprint,
+                )
+            attempts += 1
+            try:
+                approval_id = approval_provider(required.kind, required.request)
+            except Exception:
+                return _denied(
+                    command, "OWNER_APPROVAL_UNAVAILABLE",
+                    required_approval=required.kind,
+                    approval_fingerprint=required.fingerprint,
+                )
+            if type(approval_id) is not str or not approval_id.strip():
+                return _denied(
+                    command, "OWNER_APPROVAL_UNAVAILABLE",
+                    required_approval=required.kind,
+                    approval_fingerprint=required.fingerprint,
+                )
+            if required.kind == "code":
+                inputs = replace(inputs, code_approval_id=approval_id)
+            elif required.kind == "native":
+                inputs = replace(inputs, approval_id=approval_id)
+            elif required.kind == "operator_apps":
+                inputs = replace(inputs, operator_apps_approval_id=approval_id)
+            else:
+                return _denied(
+                    command, "OWNER_APPROVAL_REQUIRED",
+                    required_approval=required.kind,
+                    approval_fingerprint=required.fingerprint,
+                )
+        except PlatformInstallationDenied:
+            return _denied(command, "DENIED")
+        except PermissionError:
+            return _denied(command, "DENIED")
+        except FileExistsError:
+            return _denied(command, "OCCUPIED_TARGET")
+        except (FileNotFoundError, NotADirectoryError):
+            return _denied(command, "MISSING_INPUT")
+        except OSError:
+            return _denied(command, "INPUT_UNAVAILABLE")
+        except (ValueError, TypeError):
+            return _denied(command, "INVALID_INPUT")
+        except Exception:
+            return _denied(command, "REFUSED")
 
 
 def _parser() -> argparse.ArgumentParser:
