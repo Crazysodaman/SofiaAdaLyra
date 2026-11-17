@@ -33,6 +33,9 @@ from sofia.platform.ops.platform_installer_native_service import (
 from sofia.platform.ops.platform_installer_native_transaction import (
     native_service_operation_request, native_service_reconciliation_request,
 )
+from sofia.platform.ops.platform_installer_operator_apps import (
+    InMemoryPathAdapter, OperatorAppsConfiguration, operator_apps_request,
+)
 from sofia.platform.safe.execution_approval import (
     ExecutionApproval, ExecutionApprovalVerifier,
 )
@@ -826,3 +829,125 @@ def test_signed_installer_end_to_end_lifecycle_retains_identity_and_floor(scope)
     assert [entry[0] for entry in effects] == [
         "RUNNING", "RUNNING", "RUNNING", "REMOVED", "RUNNING",
     ]
+
+class _OperatorShortcuts:
+    def __init__(self):
+        self.created = []
+        self.removed = []
+
+    def create(self, spec):
+        self.created.append(spec)
+        spec.path.parent.mkdir(parents=True, exist_ok=True)
+        spec.path.write_bytes(b"mock-lnk")
+
+    def remove(self, spec):
+        self.removed.append(spec)
+        spec.path.unlink(missing_ok=True)
+
+
+def _operator_config(scope):
+    root = scope.tmp_path / "operator"
+    runtime = root / "runtime/python/bin/python3.12"
+    runtime.parent.mkdir(parents=True)
+    runtime.write_bytes(b"operator-runtime")
+    code = root / "code"
+    code.mkdir()
+    gui = root / "gui/aegis-control-center"
+    gui.parent.mkdir()
+    gui.write_bytes(b"operator-gui")
+    return OperatorAppsConfiguration(
+        target=TARGET, runtime_python=runtime, code_directory=code,
+        bin_directory=root / "bin", gui_executable=gui,
+        approved_roots=(scope.tmp_path,),
+        protected_paths=(scope.identity.home, scope.local_state, scope.safe),
+    )
+
+
+def test_install_operator_apps_require_separate_exact_approval_before_effects(scope):
+    effects = []
+    config = _operator_config(scope)
+    paths = InMemoryPathAdapter(value="/usr/bin:/bin")
+    shortcuts = _OperatorShortcuts()
+    inputs = replace(
+        scope.inputs, operator_apps_requested=True,
+        operator_apps_runtime_python=config.runtime_python,
+        operator_apps_code_directory=config.code_directory,
+        operator_apps_bin_directory=config.bin_directory,
+        operator_apps_gui_executable=config.gui_executable,
+        operator_apps_approved_roots=(scope.tmp_path,),
+    )
+    result = execute_command(
+        "install", inputs, backend=_fake_backend(effects),
+        operator_apps_path_adapter=paths,
+        operator_apps_shortcut_adapter=shortcuts,
+    )
+    assert result["outcome"] == "DENIED"
+    assert result["required_approval"] == "operator_apps"
+    assert result["executed"] is False and result["owner_approved"] is False
+    assert effects == []
+    assert not scope.inputs.destination.exists()
+    assert not config.bin_directory.exists()
+    assert paths.value == "/usr/bin:/bin"
+    assert shortcuts.created == []
+
+
+def test_install_then_operator_apps_use_three_distinct_owner_approvals(scope):
+    effects = []
+    backend = _fake_backend(effects)
+    config = _operator_config(scope)
+    paths = InMemoryPathAdapter(value="/usr/bin:/bin")
+    shortcuts = _OperatorShortcuts()
+    request = operator_apps_request("install", config)
+    apps_approval = _approve(
+        scope, request["capability"], request["fingerprint"], "approval:operator-apps",
+    )
+    inputs = replace(
+        scope.inputs, operator_apps_requested=True,
+        operator_apps_approval_id=apps_approval,
+        operator_apps_runtime_python=config.runtime_python,
+        operator_apps_code_directory=config.code_directory,
+        operator_apps_bin_directory=config.bin_directory,
+        operator_apps_gui_executable=config.gui_executable,
+        operator_apps_approved_roots=(scope.tmp_path,),
+    )
+    first = execute_command(
+        "install", inputs, backend=backend,
+        operator_apps_path_adapter=paths,
+        operator_apps_shortcut_adapter=shortcuts,
+    )
+    assert first["required_approval"] == "code"
+    code_request = _code_request(scope)
+    code_approval = _approve(
+        scope, code_request["capability"], code_request["fingerprint"],
+        "approval:operator-code",
+    )
+    second = execute_command(
+        "install", replace(inputs, code_approval_id=code_approval),
+        backend=backend, operator_apps_path_adapter=paths,
+        operator_apps_shortcut_adapter=shortcuts,
+    )
+    assert second["required_approval"] == "native"
+    native = _native_request(scope)
+    native_approval = _approve(
+        scope, native["capability"], native["fingerprint"],
+        "approval:operator-native",
+    )
+    installed = execute_command(
+        "install", replace(inputs, approval_id=native_approval),
+        backend=backend, operator_apps_path_adapter=paths,
+        operator_apps_shortcut_adapter=shortcuts,
+    )
+    assert installed["outcome"] == "INSTALLED"
+    assert installed["operator_apps_receipt"]["outcome"] == "SUCCEEDED"
+    assert installed["operator_apps_plan_digest"] == request["plan"]["plan_digest"]
+    assert (config.bin_directory / "aegis").is_file()
+    assert len(effects) == 1
+    assert paths.value == "/usr/bin:/bin"
+    replayed = execute_command(
+        "install", replace(inputs, code_approval_id=code_approval,
+                           approval_id=native_approval),
+        backend=backend, operator_apps_path_adapter=paths,
+        operator_apps_shortcut_adapter=shortcuts,
+    )
+    assert replayed["outcome"] == "DENIED"
+    assert len(effects) == 1

@@ -316,6 +316,9 @@ _PROTECTED = frozenset({
     "release.rollout.execute",
     "platform.activate_release",
     "platform.rollback_release",
+    # Installed-host operator launchers, PATH entries and shortcuts are
+    # reversible but must be named explicitly in their own one-use approval.
+    "platform.operator_apps.apply",
     # D028 irreversible one-blob CAS deletion; no standing or self-grant.
     "platform.library.gc_one_verified_blob",
     # Offline seed, enrolled peer CAS and retention are distinct protected effects.
