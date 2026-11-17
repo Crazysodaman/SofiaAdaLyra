@@ -146,6 +146,15 @@ def approval_fingerprint(core_id: str, revision: int, enabled: bool) -> str:
     return sha256(encoded).hexdigest()
 
 
+class _ManagementWriteAuthority:
+    """Opaque, module-private capability for the service mutation handler."""
+
+    __slots__ = ()
+
+
+_MANAGEMENT_WRITE_AUTHORITY = _ManagementWriteAuthority()
+
+
 @dataclass(frozen=True, slots=True)
 class CoreAutostartPolicy:
     """Durable Platform-owned desired state for one Core.
@@ -302,41 +311,15 @@ class CoreAutostartPolicyStore:
     def enabled_policies(self) -> tuple[CoreAutostartPolicy, ...]:
         return tuple(policy for policy in self.policies() if policy.enabled)
 
-    def set_enabled(
+    def _write_policy(
         self, *,
-        core_id: str,
+        core: str,
         enabled: bool,
-        revision: int,
-        approval_ref: str,
-        now: datetime,
+        expected_revision: int,
+        fingerprint: str,
+        moment: datetime,
     ) -> CoreAutostartPolicy:
-        """Write one exact, one-use-approved desired state.
-
-        A duplicate or stale writer is refused. The approval reference is
-        verified but never persisted.
-        """
-        core = _core_id(core_id)
-        if type(enabled) is not bool:
-            raise TypeError("enabled must be bool")
-        expected_revision = _revision(revision)
-        moment = _utc(now)
-        if (
-            not isinstance(approval_ref, str)
-            or _ID.fullmatch(approval_ref) is None
-        ):
-            raise PermissionError(
-                "exact one-use approval reference required for Core autostart"
-            )
-        fingerprint = approval_fingerprint(core, expected_revision, enabled)
-        if self._verify_approval(
-            approval_ref=approval_ref,
-            core_id=core,
-            revision=expected_revision,
-            enabled=enabled,
-            fingerprint=fingerprint,
-            now=moment,
-        ) is not True:
-            raise PermissionError("Core autostart approval denied")
+        """Persist one monotonic revision inside one IMMEDIATE transaction."""
         text = moment.isoformat()
         with closing(self._connect()) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
@@ -392,6 +375,97 @@ class CoreAutostartPolicyStore:
             raise CoreAutostartConflict("Core autostart policy was not persisted")
         return policy
 
+    def set_enabled(
+        self, *,
+        core_id: str,
+        enabled: bool,
+        revision: int,
+        approval_ref: str,
+        now: datetime,
+    ) -> CoreAutostartPolicy:
+        """Write one exact, one-use-approved desired state.
+
+        A duplicate or stale writer is refused. The approval reference is
+        verified but never persisted.
+        """
+        core = _core_id(core_id)
+        if type(enabled) is not bool:
+            raise TypeError("enabled must be bool")
+        expected_revision = _revision(revision)
+        moment = _utc(now)
+        if (
+            not isinstance(approval_ref, str)
+            or _ID.fullmatch(approval_ref) is None
+        ):
+            raise PermissionError(
+                "exact one-use approval reference required for Core autostart"
+            )
+        fingerprint = approval_fingerprint(core, expected_revision, enabled)
+        if self._verify_approval(
+            approval_ref=approval_ref,
+            core_id=core,
+            revision=expected_revision,
+            enabled=enabled,
+            fingerprint=fingerprint,
+            now=moment,
+        ) is not True:
+            raise PermissionError("Core autostart approval denied")
+        return self._write_policy(
+            core=core, enabled=enabled, expected_revision=expected_revision,
+            fingerprint=fingerprint, moment=moment,
+        )
+
+    def set_enabled_from_management(
+        self, *,
+        core_id: str,
+        enabled: bool,
+        expected_revision: int,
+        authorization_fingerprint: str,
+        now: datetime,
+        _authority: object = None,
+    ) -> CoreAutostartPolicy:
+        """Write one management-authorized policy revision. SERVICE ONLY.
+
+        Trust boundary
+        --------------
+        The only legitimate caller is the service-owned management mutation
+        handler bound by ``management_autostart_writer``. That handler runs
+        only after the existing ``ManagementMutationDispatcher`` has:
+
+        * authenticated the local OS peer;
+        * consumed the exact one-use SAFE owner execution approval;
+        * fenced operator STOP, Platform generation and mutation revision;
+        * resolved replay/idempotency to a durable receipt;
+        * revalidated the consumed owner proof after the effect.
+
+        This method therefore does NOT consume a second one-use approval and
+        creates no second approval store. ``authorization_fingerprint`` is the
+        non-secret semantic request/plan digest supplied by the dispatcher. It
+        is recorded as evidence; the owner's approval reference, credential and
+        any secret are never accepted or stored here. The module-private
+        authority token makes a direct call from a client or SDK fail closed.
+        """
+        if _authority is not _MANAGEMENT_WRITE_AUTHORITY:
+            raise PermissionError(
+                "Core autostart management write requires service mutation handler"
+            )
+        core = _core_id(core_id)
+        if type(enabled) is not bool:
+            raise TypeError("enabled must be bool")
+        revision = _revision(expected_revision, "expected_revision")
+        if (
+            not isinstance(authorization_fingerprint, str)
+            or _SHA256.fullmatch(authorization_fingerprint) is None
+        ):
+            raise ValueError(
+                "authorization_fingerprint must be lowercase SHA-256"
+            )
+        moment = _utc(now)
+        return self._write_policy(
+            core=core, enabled=enabled, expected_revision=revision,
+            fingerprint=authorization_fingerprint, moment=moment,
+        )
+
     def record_outcome(
         self, *,
         core_id: str,
@@ -428,6 +502,41 @@ class CoreAutostartPolicyStore:
                 raise CoreAutostartConflict(
                     "Core autostart policy does not exist"
                 )
+
+
+def management_autostart_writer(
+    store: CoreAutostartPolicyStore,
+) -> Callable[..., CoreAutostartPolicy]:
+    """Return the service-owned writer capability bound to one policy store.
+
+    This factory is composed only by the Platform management mutation backend.
+    It hands back a callable carrying the module-private authority token, so a
+    client, SDK or arbitrary handler cannot invoke the internal management
+    write directly. The returned callable still performs no approval or
+    authority check of its own; the dispatcher remains the only authority
+    boundary.
+    """
+    if not isinstance(store, CoreAutostartPolicyStore):
+        raise TypeError("canonical CoreAutostartPolicyStore required")
+
+    def write(
+        *,
+        core_id: str,
+        enabled: bool,
+        expected_revision: int,
+        authorization_fingerprint: str,
+        now: datetime,
+    ) -> CoreAutostartPolicy:
+        return store.set_enabled_from_management(
+            core_id=core_id,
+            enabled=enabled,
+            expected_revision=expected_revision,
+            authorization_fingerprint=authorization_fingerprint,
+            now=now,
+            _authority=_MANAGEMENT_WRITE_AUTHORITY,
+        )
+
+    return write
 
 
 def _normalized_outcome(value: object) -> CoreAutostartOutcome:

@@ -28,7 +28,8 @@ from sofia.platform.run.core_autostart import (
 )
 from sofia.platform.run.lease import LocalRunLeaseStore
 from sofia.platform.run.management_mutation import (
-    ManagementMutationDispatcher, operator_stop_mutation_registry,
+    ManagementMutationDispatcher, combined_mutation_registry,
+    core_autostart_mutation_registry, operator_stop_mutation_registry,
 )
 from sofia.platform.run.management_mutation_store import (
     ManagementMutationReceiptStore,
@@ -246,9 +247,17 @@ class PlatformServiceSession:
         # Mutations use the same canonical Platform SQLite approval/receipt
         # owners as every other SAFE effect. No second approval DB or listener.
         from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
+        registries = [operator_stop_mutation_registry(self.stop)]
+        if self._core_autostart is not None:
+            # Core autostart policy changes are admitted only through this same
+            # dispatcher and canonical one-use SAFE approval. No second
+            # authorization store or listener is created.
+            registries.append(
+                core_autostart_mutation_registry(self._core_autostart)
+            )
         mutation_dispatcher = ManagementMutationDispatcher(
             current_status=self.status,
-            registry=operator_stop_mutation_registry(self.stop),
+            registry=combined_mutation_registry(*registries),
             approvals=ExecutionApprovalVerifier(state_path),
             receipts=ManagementMutationReceiptStore(state_path),
         )
