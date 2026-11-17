@@ -125,3 +125,20 @@ def test_complete_checkout_is_auditable_without_running_modules():
     assert audit['source_issues'] == 0
     assert not audit['cross_module_issues']
     assert audit['beta_verified'] == 0  # Only canonical Platform can certify readiness.
+
+def test_multi_file_module_package_is_not_a_duplicate(tmp_path):
+    """One module may split distinct capabilities across package files."""
+    fake_module(tmp_path, 'MOD-DEV', capability='dev.review.v1')
+    extra = tmp_path / 'src/sofia/modules/sample/check_mod_dev_extra.py'
+    extra.write_text(
+        "MODULE_ID='MOD-DEV'\n"
+        "MODULE_VERSION='0.1.0'\n"
+        "CAPABILITY_ID='dev.validate.v1'\n"
+        "PROFILE='ADVISORY'\n"
+        "RESOURCES=(('cpu_millicores',50),('ram_mib',32),('gpu_mib',0))\n"
+        "def capability_registrations():\n  return ()\n",
+        encoding='utf-8',
+    )
+    audit = audit_optional_source_tree(tmp_path)
+    assert 'MOD-DEV' not in audit['cross_module_issues']
+    assert audit['source_locally_parsed'] == 1

@@ -165,6 +165,10 @@ def audit_optional_source_tree(root: Path, *, remote_observations: Mapping[str, 
     candidates: dict[str, CandidateFinding] = {}
     duplicate: set[str] = set()
     base = root / 'src' / 'sofia' / 'modules'
+    # A legitimate module package may split capabilities across several files
+    # (analysis.py + parsing.py + receipts.py). Track every declared capability
+    # for collision detection, but keep one candidate per module ID.
+    declared_capabilities: list[tuple[str, str]] = []
     for source in sorted(base.glob('*/*.py')):
         try:
             meta, _ = _static_metadata(source)
@@ -175,8 +179,17 @@ def audit_optional_source_tree(root: Path, *, remote_observations: Mapping[str, 
             continue
         module_id = meta.get('MODULE_ID')
         if module_id in EXPECTED_OPTIONAL_IDS:
+            capability_id = meta.get('CAPABILITY_ID')
+            if isinstance(capability_id, str) and capability_id:
+                declared_capabilities.append((module_id, capability_id))
             if module_id in candidates:
-                duplicate.add(module_id)
+                existing = candidates[module_id]
+                same_package = (
+                    existing.source_path is not None
+                    and (root / existing.source_path).parent == source.parent
+                )
+                if not same_package:
+                    duplicate.add(module_id)
             else:
                 candidates[module_id] = _inspect_file(root, source, module_id)
     for module_id in EXPECTED_OPTIONAL_IDS - candidates.keys():
@@ -197,8 +210,12 @@ def audit_optional_source_tree(root: Path, *, remote_observations: Mapping[str, 
     values = tuple(candidates[key] for key in sorted(candidates))
     # Catalog names are not valid signed manifest module IDs without a reviewed
     # alias mapping. No unsigned source inventory can assert lifecycle/BETA.
-    duplicate_caps = sorted(name for name in {f.capability_id for f in values if f.capability_id}
-                            if sum(x.capability_id == name for x in values) > 1)
+    capability_counts: dict[str, int] = {}
+    for _module_id, capability_id in declared_capabilities:
+        capability_counts[capability_id] = capability_counts.get(capability_id, 0) + 1
+    duplicate_caps = sorted(
+        name for name, count in capability_counts.items() if count > 1
+    )
     issues = tuple(sorted(duplicate | {'capability_collision:' + cap for cap in duplicate_caps}))
     return {
         'schema': 'sofia.optional.beta_source_preflight.v1',
