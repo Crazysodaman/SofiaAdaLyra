@@ -1,8 +1,9 @@
 """Launch the independent SDK Validation Core from any working directory.
 
-The script directory is added explicitly because the validation run uses
-``python -I``, which does not prepend the script directory to ``sys.path``.
-Only the sibling ``runtime`` module and its public SDK imports are loaded.
+The script directory is added explicitly because isolated subprocess runs do
+not prepend it to ``sys.path``.  Only the sibling ``runtime`` module and its
+public ``sofia.sdk`` facades are loaded; the portable ``sofia.sdk.runtime``
+facade owns wire validation, deadlines, outcomes and lifecycle dispatch.
 """
 from __future__ import annotations
 

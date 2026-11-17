@@ -4,6 +4,11 @@ The worker imports only the Python standard library plus public ``sofia.sdk``
 facades. It must not import ``sofia.core``, ``sofia.application`` or Platform
 authority internals. Any operation that the SDK does not expose is recorded in
 ``SDK_GAPS.md`` instead of being reached through a private import.
+
+Wire framing, strict message validation, protocol negotiation, deadlines,
+typed outcomes and duplicate-request suppression are provided by the portable
+``sofia.sdk.runtime`` facade.  The deterministic engine and durable worker
+history remain package-local.
 """
 from __future__ import annotations
 
@@ -17,12 +22,17 @@ from typing import Any
 from sofia.sdk import (
     AegisIdentity,
     IdentityKind,
-    ProtocolVersion,
     ProtocolVersionRange,
     SDK_PROTOCOL_VERSION,
-    negotiate_protocol,
 )
 from sofia.sdk.core_definition import CoreDefinition
+from sofia.sdk.runtime import (
+    MAX_RUNTIME_TEXT_CHARS,
+    RuntimeDenied,
+    RuntimeResult,
+    negotiate_runtime_protocol,
+    serve as serve_runtime,
+)
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 COMPONENT = "sdk-validation-core"
@@ -37,21 +47,11 @@ SUPPORTED_PROTOCOL = ProtocolVersionRange(
     SDK_PROTOCOL_VERSION, SDK_PROTOCOL_VERSION
 )
 MAX_LINE_BYTES = 8192
-MAX_TEXT_CHARS = 4000
+MAX_TEXT_CHARS = MAX_RUNTIME_TEXT_CHARS
 MAX_HISTORY_TURNS = 1000
 RUNTIME_RELEASE_PATH = "assets/runtime_release.json"
 STATE_FILE = "history.json"
 FORBIDDEN_MODULE_PREFIXES = ("sofia.core", "sofia.application", "sofia.platform")
-
-
-class ProtocolError(Exception):
-    """A bounded protocol outcome that must not terminate the worker."""
-
-    def __init__(self, code: str, op: str | None, detail: str) -> None:
-        super().__init__(detail)
-        self.code = code
-        self.op = op
-        self.detail = detail
 
 
 def _canonical(document: Any) -> str:
@@ -179,8 +179,8 @@ class HistoryStore:
     def append(self, user: str, core: str) -> int:
         turn = len(self.turns) + 1
         if turn > MAX_HISTORY_TURNS:
-            raise ProtocolError(
-                "history_full", "chat", "history turn limit reached"
+            raise RuntimeDenied(
+                "history_full", "history turn limit reached"
             )
         self.turns.append({"turn": turn, "user": user, "core": core})
         self._save()
@@ -199,7 +199,9 @@ class HistoryStore:
         os.replace(temporary, self.path)
 
 
-class Worker:
+class ValidationCoreAdapter:
+    """Deterministic adapter behind the portable Core runtime facade."""
+
     def __init__(
         self,
         identity: AegisIdentity,
@@ -228,29 +230,15 @@ class Worker:
             "model_status": MODEL_STATUS,
         }
 
-    def hello(self, request: dict[str, object]) -> dict[str, object]:
-        requested = request.get("protocol")
-        if requested is None:
-            negotiated = SDK_PROTOCOL_VERSION
-        elif not isinstance(requested, str):
-            raise ProtocolError(
-                "invalid_protocol", "hello", "protocol must be text"
+    def _require_started(self) -> None:
+        if not self.started:
+            raise RuntimeDenied(
+                "not_started", "start must be acknowledged first"
             )
-        else:
-            try:
-                peer = ProtocolVersion.parse(requested)
-                negotiated = negotiate_protocol(
-                    SUPPORTED_PROTOCOL,
-                    ProtocolVersionRange(peer, peer),
-                )
-            except (ValueError, RuntimeError) as exc:
-                raise ProtocolError(
-                    "incompatible_protocol", "hello",
-                    "peer protocol is not supported",
-                ) from exc
-        return {
-            "status": "ok",
-            "op": "hello",
+
+    def hello(self, request) -> RuntimeResult:
+        negotiated = negotiate_runtime_protocol(request.protocol)
+        return RuntimeResult.succeeded({
             "schema": WORKER_SCHEMA,
             **self._common(),
             "protocol": str(negotiated),
@@ -262,64 +250,58 @@ class Worker:
             "state": "ready" if self.started else "idle",
             "turn_count": len(self.store.turns),
             "loaded_sofia_modules": loaded_sofia_modules(),
-        }
+        })
 
-    def start(self) -> dict[str, object]:
+    def start(self, request) -> RuntimeResult:
         self.started = True
-        return {
-            "status": "ok",
-            "op": "start",
+        self.stopped = False
+        return RuntimeResult.succeeded({
+            "schema": WORKER_SCHEMA,
             **self._common(),
             "state": "ready",
             "turn_count": len(self.store.turns),
-        }
+        })
 
-    def chat(self, request: dict[str, object]) -> dict[str, object]:
-        if not self.started:
-            raise ProtocolError(
-                "not_started", "chat", "start must be acknowledged first"
-            )
-        text = request.get("text")
-        if not isinstance(text, str):
-            raise ProtocolError(
-                "invalid_text", "chat", "text must be a string"
-            )
+    def chat(self, request) -> RuntimeResult:
+        self._require_started()
+        text = request.payload["text"]
         if not text.strip():
-            raise ProtocolError("empty_text", "chat", "text must not be empty")
-        if len(text) > MAX_TEXT_CHARS:
-            raise ProtocolError(
-                "text_too_large", "chat", "text exceeds the character limit"
-            )
-        turn = self.store.append(text, deterministic_reply(
-            text, len(self.store.turns) + 1
-        ))
-        return {
-            "status": "ok",
-            "op": "chat",
+            raise RuntimeDenied("empty_text", "text must not be empty")
+        turn = self.store.append(
+            text, deterministic_reply(text, len(self.store.turns) + 1)
+        )
+        return RuntimeResult.succeeded({
+            "schema": WORKER_SCHEMA,
             **self._common(),
             "turn": turn,
             "reply": self.store.turns[-1]["core"],
             "turn_count": len(self.store.turns),
-        }
+        })
 
-    def history(self) -> dict[str, object]:
-        if not self.started:
-            raise ProtocolError(
-                "not_started", "history", "start must be acknowledged first"
-            )
-        return {
-            "status": "ok",
-            "op": "history",
+    def task(self, request) -> RuntimeResult:
+        self._require_started()
+        name = request.payload["task"]
+        arguments = request.payload["arguments"]
+        digest = sha256(_canonical(arguments).encode("utf-8")).hexdigest()[:16]
+        return RuntimeResult.succeeded({
+            "schema": WORKER_SCHEMA,
+            **self._common(),
+            "task": name,
+            "argument_digest": digest,
+            "turn_count": len(self.store.turns),
+        })
+
+    def history(self, request) -> RuntimeResult:
+        self._require_started()
+        return RuntimeResult.succeeded({
             "schema": HISTORY_SCHEMA,
             "identity": self.identity.to_payload(),
             "turns": list(self.store.turns),
             "count": len(self.store.turns),
-        }
+        })
 
-    def health(self) -> dict[str, object]:
-        return {
-            "status": "ok",
-            "op": "health",
+    def health(self, request) -> RuntimeResult:
+        return RuntimeResult.succeeded({
             "schema": WORKER_SCHEMA,
             **self._common(),
             "state": "ready" if self.started else "idle",
@@ -327,118 +309,22 @@ class Worker:
             "stopped": self.stopped,
             "turn_count": len(self.store.turns),
             "loaded_sofia_modules": loaded_sofia_modules(),
-        }
+        })
 
-    def stop(self) -> dict[str, object]:
+    def stop(self, request) -> RuntimeResult:
         self.stopped = True
-        return {
-            "status": "ok",
-            "op": "stop",
+        self.started = False
+        return RuntimeResult.succeeded({
             "schema": WORKER_SCHEMA,
             "identity": self.identity.to_payload(),
             "state": "stopped",
             "turn_count": len(self.store.turns),
-        }
-
-    def handle(self, request: object) -> dict[str, object]:
-        if not isinstance(request, dict):
-            raise ProtocolError(
-                "invalid_request", None, "request must be a JSON object"
-            )
-        op = request.get("op")
-        if not isinstance(op, str) or not op:
-            raise ProtocolError(
-                "invalid_request", None, "request requires a string op"
-            )
-        allowed = {
-            "hello": {"op", "protocol"},
-            "start": {"op"},
-            "chat": {"op", "text"},
-            "history": {"op"},
-            "health": {"op"},
-            "stop": {"op"},
-        }
-        if op not in allowed:
-            raise ProtocolError("unknown_op", op, "unsupported operation")
-        if set(request) - allowed[op]:
-            raise ProtocolError(
-                "invalid_request", op, "request contains unexpected fields"
-            )
-        if op == "hello":
-            return self.hello(request)
-        if op == "start":
-            return self.start()
-        if op == "chat":
-            return self.chat(request)
-        if op == "history":
-            return self.history()
-        if op == "health":
-            return self.health()
-        return self.stop()
-
-
-def _error_response(
-    code: str, op: str | None, detail: str
-) -> dict[str, object]:
-    return {
-        "status": "error",
-        "op": op,
-        "error": code,
-        "detail": detail,
-    }
+        })
 
 
 def _write(stream: Any, document: dict[str, object]) -> None:
     stream.write(_canonical(document) + "\n")
     stream.flush()
-
-
-def serve(worker: Worker, stdin: Any, stdout: Any) -> int:
-    while True:
-        raw = stdin.readline(MAX_LINE_BYTES + 2)
-        if raw == b"":
-            return 0
-        ended = raw.endswith(b"\n")
-        content = raw[:-1] if ended else raw
-        if len(content) > MAX_LINE_BYTES:
-            if not ended:
-                while True:
-                    remainder = stdin.readline(MAX_LINE_BYTES + 2)
-                    if not remainder or remainder.endswith(b"\n"):
-                        break
-            _write(stdout, _error_response(
-                "message_too_large", None,
-                "request line exceeds the byte limit",
-            ))
-            continue
-        if not content:
-            _write(stdout, _error_response(
-                "invalid_json", None, "empty request line"
-            ))
-            continue
-        try:
-            request = json.loads(content.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            _write(stdout, _error_response(
-                "invalid_json", None, "request is not valid UTF-8 JSON"
-            ))
-            continue
-        op = request.get("op") if isinstance(request, dict) else None
-        try:
-            response = worker.handle(request)
-        except ProtocolError as exc:
-            _write(stdout, _error_response(exc.code, exc.op, exc.detail))
-            continue
-        except Exception:
-            _write(stdout, _error_response(
-                "internal_error",
-                op if isinstance(op, str) else None,
-                "worker could not process the request",
-            ))
-            continue
-        _write(stdout, response)
-        if response.get("status") == "ok" and response.get("op") == "stop":
-            return 0
 
 
 def _state_directory(arguments: list[str]) -> tuple[Path, list[str]]:
@@ -483,8 +369,10 @@ def main(arguments: list[str] | None = None) -> int:
         return 0
     if args:
         raise SystemExit(f"unsupported arguments: {args!r}")
-    worker = Worker(identity, definition, scope, state_dir)
-    return serve(worker, sys.stdin.buffer, sys.stdout)
+    adapter = ValidationCoreAdapter(identity, definition, scope, state_dir)
+    return serve_runtime(
+        adapter, sys.stdin.buffer, sys.stdout.buffer, max_line_bytes=MAX_LINE_BYTES
+    )
 
 
 if __name__ == "__main__":
