@@ -13,6 +13,7 @@ from .factory import (
     create_tts_service_from_environment,
 )
 from .prosody_matrix import VoiceProsodyMatrix, VoiceProsodyPlan, VoiceProsodyProfile, VoiceProsodyWeights, VoiceUrgency
+from .receipts import review_voice_receipts, capability_registrations as receipt_capability_registrations
 from .sapi import WindowsSapiBackend
 from .tts import (
     TTSBackendProbe, TTSPlaybackReceipt, TTSPlaybackState, TTSStatus,
@@ -30,6 +31,7 @@ __all__ = [
     "SpeechInputReceiptStore", "SpeechInputService", "SpeechInputState",
     "VoiceProsodyMatrix", "VoiceProsodyPlan", "VoiceProsodyProfile",
     "VoiceProsodyWeights", "VoiceUrgency", "WindowsSapiBackend",
+    "review_voice_receipts", "receipt_capability_registrations",
     "WindowsSpeechRecognitionBackend", "create_stt_service_from_settings",
     "create_tts_service_from_environment", "prepare_spoken_text",
     "InstalledVoiceProfile", "VOICE_PROFILE_ID", "VOICE_PROFILE_REVISION",
