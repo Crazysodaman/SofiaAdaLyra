@@ -33,6 +33,12 @@ from sofia.platform.ops.platform_installer_code_install import (
 from sofia.platform.ops.platform_installer_native_service import (
     DebianSystemdNativeService, WindowsScmNativeService,
 )
+from sofia.platform.ops.platform_installer_operator_apps import (
+    InMemoryPathAdapter, OperatorAppsConfiguration, OperatorAppsDenied,
+    PyWin32ShortcutAdapter, WindowsRegistryPathAdapter,
+    apply_owner_approved_operator_apps, operator_apps_request,
+)
+from sofia.platform.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.platform.ops.platform_installer_native_transaction import (
     apply_owner_approved_native_service, native_service_operation_request,
     native_transaction_state, reconcile_owner_approved_native_service,
@@ -81,6 +87,21 @@ class InstallerInputs:
     previous_destination: Path | str | None = None
     staging_candidate: Path | str | None = None
     expected_parent_manifest_sha256: str | None = None
+    operator_apps_requested: bool = False
+    operator_apps_approval_id: str | None = None
+    operator_apps_runtime_python: Path | str | None = None
+    operator_apps_code_directory: Path | str | None = None
+    operator_apps_bin_directory: Path | str | None = None
+    operator_apps_gui_executable: Path | str | None = None
+    operator_apps_tui_executable: Path | str | None = None
+    operator_apps_start_menu_directory: Path | str | None = None
+    operator_apps_desktop_directory: Path | str | None = None
+    operator_apps_global_bin_directory: Path | str | None = None
+    operator_apps_approved_roots: tuple[Path | str, ...] = ()
+    operator_apps_protected_paths: tuple[Path | str, ...] = ()
+    operator_apps_path_scope: str = "user"
+    operator_apps_include_powershell: bool = False
+    operator_apps_desktop_shortcut: bool = False
 
 
 def _result(command: str, outcome: str, *, executed: bool = False,
@@ -224,6 +245,111 @@ def _default_backend(target: PlatformReleaseTarget):
     if target is PlatformReleaseTarget.WINDOWS_X86_64:
         return WindowsScmNativeService()
     return DebianSystemdNativeService()
+
+
+def _operator_apps_config(inputs: InstallerInputs) -> OperatorAppsConfiguration | None:
+    if not inputs.operator_apps_requested:
+        return None
+    protected = list(inputs.operator_apps_protected_paths)
+    for value in (inputs.identity_home, inputs.local_state,
+                  inputs.canonical_safe_state):
+        if value is not None:
+            protected.append(value)
+    return OperatorAppsConfiguration(
+        target=_target(inputs.target),
+        runtime_python=Path(_require(
+            inputs.operator_apps_runtime_python, "operator app runtime Python")),
+        code_directory=Path(_require(
+            inputs.operator_apps_code_directory, "operator app code directory")),
+        bin_directory=Path(_require(
+            inputs.operator_apps_bin_directory, "operator app bin directory")),
+        gui_executable=(None if inputs.operator_apps_gui_executable is None
+                        else Path(inputs.operator_apps_gui_executable)),
+        tui_executable=(None if inputs.operator_apps_tui_executable is None
+                        else Path(inputs.operator_apps_tui_executable)),
+        start_menu_directory=(None if inputs.operator_apps_start_menu_directory is None
+                              else Path(inputs.operator_apps_start_menu_directory)),
+        desktop_directory=(None if inputs.operator_apps_desktop_directory is None
+                           else Path(inputs.operator_apps_desktop_directory)),
+        global_bin_directory=(None if inputs.operator_apps_global_bin_directory is None
+                              else Path(inputs.operator_apps_global_bin_directory)),
+        approved_roots=tuple(Path(item) for item in inputs.operator_apps_approved_roots),
+        protected_paths=tuple(Path(item) for item in protected),
+        path_scope=inputs.operator_apps_path_scope,
+        include_powershell=inputs.operator_apps_include_powershell,
+        include_desktop_shortcut=inputs.operator_apps_desktop_shortcut,
+    )
+
+
+def _operator_apps_preflight(
+    command: str, inputs: InstallerInputs,
+) -> OperatorAppsConfiguration | None:
+    """Require the separate exact approval before any Platform effect."""
+    config = _operator_apps_config(inputs)
+    if config is None:
+        return None
+    request = operator_apps_request(command, config)
+    state = Path(_require(inputs.canonical_safe_state, "canonical SAFE state")).absolute()
+    approval_id = inputs.operator_apps_approval_id
+    now = datetime.now(timezone.utc)
+    if (not approval_id
+            or not ExecutionApprovalVerifier(state).matches_unconsumed(
+                approval_id=approval_id,
+                capability=request["capability"],
+                parameters=request["parameters"],
+                now=now,
+            )):
+        raise _ApprovalRequired(
+            "operator_apps", request["fingerprint"], command=command,
+        )
+    return config
+
+
+def _apply_operator_apps(
+    *, command: str, inputs: InstallerInputs, store: PlatformInstallationStore,
+    config: OperatorAppsConfiguration | None, path_adapter=None,
+    shortcut_adapter=None,
+) -> dict[str, object] | None:
+    if config is None:
+        return None
+    target = _target(inputs.target)
+    if path_adapter is None:
+        path_adapter = (
+            WindowsRegistryPathAdapter(scope=config.path_scope)
+            if target is PlatformReleaseTarget.WINDOWS_X86_64
+            else InMemoryPathAdapter()
+        )
+    if shortcut_adapter is None:
+        shortcut_adapter = PyWin32ShortcutAdapter()
+    try:
+        return apply_owner_approved_operator_apps(
+            approval_id=inputs.operator_apps_approval_id,
+            operation=command,
+            config=config,
+            state_path=Path(_require(
+                inputs.canonical_safe_state, "canonical SAFE state")),
+            store=store,
+            path_adapter=path_adapter,
+            shortcut_adapter=shortcut_adapter,
+            now=datetime.now(timezone.utc),
+        )
+    except OperatorAppsDenied:
+        raise
+    except Exception as error:
+        raise PlatformInstallationDenied(
+            "operator application launcher effect failed; receipt recorded"
+        ) from error
+
+
+def _operator_apps_fields(receipt: dict[str, object] | None) -> dict[str, object]:
+    if receipt is None:
+        return {}
+    return {
+        "operator_apps_receipt": receipt,
+        "operator_apps_plan_digest": receipt["plan_digest"],
+        "operator_apps_path_action": receipt["path_action"],
+        "operator_apps_shortcut_actions": receipt["shortcut_actions"],
+    }
 
 
 def staging_candidate_path(store_path: Path | str, release_id: str,
@@ -503,13 +629,16 @@ def _apply_native(*, command: str, inputs: InstallerInputs, operation: str,
     return receipt
 
 
-def _command_install(inputs: InstallerInputs, backend=None) -> dict[str, object]:
+def _command_install(inputs: InstallerInputs, backend=None,
+                     operator_apps_path_adapter=None,
+                     operator_apps_shortcut_adapter=None) -> dict[str, object]:
     floor = _positive_floor(_require(inputs.minimum_revision, "revision floor"))
     _assert_not_stopped(inputs)
     release = _verify_release(
         inputs, floor=floor,
         expected_parent=inputs.expected_parent_manifest_sha256,
     )
+    operator_apps = _operator_apps_preflight("install", inputs)
     store = _store(inputs, create=True)
     if store.pending_attempts():
         raise PlatformInstallationDenied("unreconciled B1 attempt blocks install")
@@ -528,15 +657,23 @@ def _command_install(inputs: InstallerInputs, backend=None) -> dict[str, object]
         local_state=local_state, safe=safe, previous_destination=None,
         backend=backend, now=now,
     )
+    operator_receipt = _apply_operator_apps(
+        command="install", inputs=inputs, store=store, config=operator_apps,
+        path_adapter=operator_apps_path_adapter,
+        shortcut_adapter=operator_apps_shortcut_adapter,
+    )
     return _result(
         "install", "INSTALLED", executed=True, owner_approved=True,
         **_release_fields(release), **publication,
         native_process_state=receipt.get("process_state"),
         service_health=receipt.get("service_health"),
+        **_operator_apps_fields(operator_receipt),
     )
 
 
-def _command_update(inputs: InstallerInputs, backend=None) -> dict[str, object]:
+def _command_update(inputs: InstallerInputs, backend=None,
+                    operator_apps_path_adapter=None,
+                    operator_apps_shortcut_adapter=None) -> dict[str, object]:
     floor = _positive_floor(_require(inputs.minimum_revision, "revision floor"))
     _assert_not_stopped(inputs)
     store = _store(inputs, create=True)
@@ -550,6 +687,7 @@ def _command_update(inputs: InstallerInputs, backend=None) -> dict[str, object]:
         inputs, floor=floor,
         expected_parent=previous_row["manifest_sha256"],
     )
+    operator_apps = _operator_apps_preflight("update", inputs)
     verifier = _pinned_verifier(inputs)
     destination, identity, local_state, safe = _paths(inputs)
     if destination == previous:
@@ -567,11 +705,17 @@ def _command_update(inputs: InstallerInputs, backend=None) -> dict[str, object]:
         local_state=local_state, safe=safe, previous_destination=previous,
         backend=backend, now=now,
     )
+    operator_receipt = _apply_operator_apps(
+        command="update", inputs=inputs, store=store, config=operator_apps,
+        path_adapter=operator_apps_path_adapter,
+        shortcut_adapter=operator_apps_shortcut_adapter,
+    )
     return _result(
         "update", "UPDATED", executed=True, owner_approved=True,
         **_release_fields(release), **publication,
         native_process_state=receipt.get("process_state"),
         service_health=receipt.get("service_health"),
+        **_operator_apps_fields(operator_receipt),
     )
 
 
@@ -663,12 +807,15 @@ def _verify_installed_release(inputs: InstallerInputs, *, operation: str,
     return release, store, verifier, destination, identity, local_state, safe
 
 
-def _command_repair(inputs: InstallerInputs, backend=None) -> dict[str, object]:
+def _command_repair(inputs: InstallerInputs, backend=None,
+                    operator_apps_path_adapter=None,
+                    operator_apps_shortcut_adapter=None) -> dict[str, object]:
     floor = _positive_floor(_require(inputs.minimum_revision, "revision floor"))
     _assert_not_stopped(inputs)
     release, store, verifier, destination, identity, local_state, safe = (
         _verify_installed_release(inputs, operation="repair", floor=floor)
     )
+    operator_apps = _operator_apps_preflight("repair", inputs)
     backend = backend or _default_backend(_target(inputs.target))
     receipt = _apply_native(
         command="repair", inputs=inputs, operation="repair", store=store,
@@ -676,26 +823,40 @@ def _command_repair(inputs: InstallerInputs, backend=None) -> dict[str, object]:
         local_state=local_state, safe=safe, previous_destination=None,
         backend=backend, now=datetime.now(timezone.utc),
     )
+    operator_receipt = _apply_operator_apps(
+        command="repair", inputs=inputs, store=store, config=operator_apps,
+        path_adapter=operator_apps_path_adapter,
+        shortcut_adapter=operator_apps_shortcut_adapter,
+    )
     return _result(
         "repair", "REPAIRED", executed=True, owner_approved=True,
         **_release_fields(release),
         native_process_state=receipt.get("process_state"),
         service_health=receipt.get("service_health"),
+        **_operator_apps_fields(operator_receipt),
     )
 
 
-def _command_uninstall(inputs: InstallerInputs, backend=None) -> dict[str, object]:
+def _command_uninstall(inputs: InstallerInputs, backend=None,
+                       operator_apps_path_adapter=None,
+                       operator_apps_shortcut_adapter=None) -> dict[str, object]:
     floor = _positive_floor(_require(inputs.minimum_revision, "revision floor"))
     _assert_not_stopped(inputs)
     release, store, verifier, destination, identity, local_state, safe = (
         _verify_installed_release(inputs, operation="uninstall", floor=floor)
     )
+    operator_apps = _operator_apps_preflight("uninstall", inputs)
     backend = backend or _default_backend(_target(inputs.target))
     receipt = _apply_native(
         command="uninstall", inputs=inputs, operation="unregister", store=store,
         verifier=verifier, destination=destination, identity=identity,
         local_state=local_state, safe=safe, previous_destination=None,
         backend=backend, now=datetime.now(timezone.utc),
+    )
+    operator_receipt = _apply_operator_apps(
+        command="uninstall", inputs=inputs, store=store, config=operator_apps,
+        path_adapter=operator_apps_path_adapter,
+        shortcut_adapter=operator_apps_shortcut_adapter,
     )
     return _result(
         "uninstall", "UNINSTALLED", executed=True, owner_approved=True,
@@ -704,6 +865,7 @@ def _command_uninstall(inputs: InstallerInputs, backend=None) -> dict[str, objec
         protected_state_policy="RETAIN",
         native_process_state=receipt.get("process_state"),
         service_health=receipt.get("service_health"),
+        **_operator_apps_fields(operator_receipt),
     )
 
 
@@ -767,7 +929,10 @@ def _command_reconcile(inputs: InstallerInputs, backend=None) -> dict[str, objec
     )
 
 
-def execute_command(command: str, inputs: InstallerInputs, *, backend=None) -> dict[str, object]:
+def execute_command(
+    command: str, inputs: InstallerInputs, *, backend=None,
+    operator_apps_path_adapter=None, operator_apps_shortcut_adapter=None,
+) -> dict[str, object]:
     if command not in COMMANDS:
         return _denied(command, "UNSUPPORTED_COMMAND")
     try:
@@ -778,15 +943,27 @@ def execute_command(command: str, inputs: InstallerInputs, *, backend=None) -> d
         if command == "doctor":
             return _command_doctor(inputs)
         if command == "install":
-            return _command_install(inputs, backend)
+            return _command_install(
+                inputs, backend, operator_apps_path_adapter,
+                operator_apps_shortcut_adapter,
+            )
         if command == "update":
-            return _command_update(inputs, backend)
+            return _command_update(
+                inputs, backend, operator_apps_path_adapter,
+                operator_apps_shortcut_adapter,
+            )
         if command == "rollback":
             return _command_rollback(inputs, backend)
         if command == "repair":
-            return _command_repair(inputs, backend)
+            return _command_repair(
+                inputs, backend, operator_apps_path_adapter,
+                operator_apps_shortcut_adapter,
+            )
         if command == "uninstall":
-            return _command_uninstall(inputs, backend)
+            return _command_uninstall(
+                inputs, backend, operator_apps_path_adapter,
+                operator_apps_shortcut_adapter,
+            )
         if command == "reinstall":
             return _command_reinstall(inputs, backend)
         return _command_reconcile(inputs, backend)
@@ -831,6 +1008,29 @@ def _parser() -> argparse.ArgumentParser:
     common.add_argument("--previous-destination", type=Path)
     common.add_argument("--staging-candidate", type=Path)
     common.add_argument("--expected-parent-manifest-sha256")
+    common.add_argument("--operator-apps", dest="operator_apps_requested",
+                        action="store_true")
+    common.add_argument("--operator-apps-approval-id")
+    common.add_argument("--operator-apps-runtime-python", type=Path)
+    common.add_argument("--operator-apps-code-directory", type=Path)
+    common.add_argument("--operator-apps-bin-directory", type=Path)
+    common.add_argument("--operator-apps-gui-executable", type=Path)
+    common.add_argument("--operator-apps-tui-executable", type=Path)
+    common.add_argument("--operator-apps-start-menu-directory", type=Path)
+    common.add_argument("--operator-apps-desktop-directory", type=Path)
+    common.add_argument("--operator-apps-global-bin-directory", type=Path)
+    common.add_argument("--operator-apps-approved-root", type=Path,
+                        dest="operator_apps_approved_roots", action="append",
+                        default=[])
+    common.add_argument("--operator-apps-protected-path", type=Path,
+                        dest="operator_apps_protected_paths", action="append",
+                        default=[])
+    common.add_argument("--operator-apps-path-scope",
+                        choices=("user", "machine"), default="user")
+    common.add_argument("--operator-apps-include-powershell",
+                        action="store_true")
+    common.add_argument("--operator-apps-desktop-shortcut",
+                        action="store_true")
     common.add_argument("--json", action="store_true")
     subparsers = parser.add_subparsers(dest="command", required=True)
     for command in COMMANDS:
@@ -857,6 +1057,21 @@ def _inputs(args: argparse.Namespace) -> InstallerInputs:
         previous_destination=args.previous_destination,
         staging_candidate=args.staging_candidate,
         expected_parent_manifest_sha256=args.expected_parent_manifest_sha256,
+        operator_apps_requested=args.operator_apps_requested,
+        operator_apps_approval_id=args.operator_apps_approval_id,
+        operator_apps_runtime_python=args.operator_apps_runtime_python,
+        operator_apps_code_directory=args.operator_apps_code_directory,
+        operator_apps_bin_directory=args.operator_apps_bin_directory,
+        operator_apps_gui_executable=args.operator_apps_gui_executable,
+        operator_apps_tui_executable=args.operator_apps_tui_executable,
+        operator_apps_start_menu_directory=args.operator_apps_start_menu_directory,
+        operator_apps_desktop_directory=args.operator_apps_desktop_directory,
+        operator_apps_global_bin_directory=args.operator_apps_global_bin_directory,
+        operator_apps_approved_roots=tuple(args.operator_apps_approved_roots),
+        operator_apps_protected_paths=tuple(args.operator_apps_protected_paths),
+        operator_apps_path_scope=args.operator_apps_path_scope,
+        operator_apps_include_powershell=args.operator_apps_include_powershell,
+        operator_apps_desktop_shortcut=args.operator_apps_desktop_shortcut,
     )
 
 
