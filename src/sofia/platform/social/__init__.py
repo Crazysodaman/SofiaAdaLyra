@@ -1,4 +1,4 @@
-"""Shared versioned social contracts for federated Core communication."""
+"""Platform-owned social contracts, federation and autonomy packages."""
 from sofia.platform.social.contracts import (
     SOCIAL_CONTRACT_VERSION,
     Audience,
