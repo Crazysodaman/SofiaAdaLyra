@@ -930,14 +930,10 @@ def _install_runtime_wheels(
         with zipfile.ZipFile(wheel) as archive:
             for info in archive.infolist():
                 name = info.filename.replace("\\", "/")
-                if info.is_dir():
+                if info.is_dir() or name.endswith("/"):
                     continue
                 parts = name.split("/")
-                if (
-                    name.startswith("/")
-                    or any(part in {"", ".", ".."} for part in parts)
-                    or len(parts) < 2
-                ):
+                if name.startswith("/") or any(part in {"", ".", ".."} for part in parts):
                     raise ReleaseAssemblyError("runtime wheel member path is unsafe")
                 # Wheel .data/purelib and .data/platlib map into site-packages.
                 if parts[0].endswith(".data") and len(parts) >= 3 and parts[1] in {
