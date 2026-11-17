@@ -19,7 +19,48 @@ CAPABILITY_ID = "it.database.analyze_status.v1"
 PROFILE = "ADVISORY"
 RESOURCES = (("cpu_millicores", 50), ("ram_mib", 32), ("gpu_mib", 0))
 _REF = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,119}$")
-_FIELDS = frozenset({"source_ref", "database_ref", "observed_at", "service_state", "connections_used", "connections_limit", "replica_lag_seconds", "p95_query_ms", "errors_last_5m"})
+_REQUIRED_FIELDS = frozenset({"source_ref", "database_ref", "observed_at", "service_state", "connections_used", "connections_limit", "replica_lag_seconds", "p95_query_ms", "errors_last_5m"})
+_OPTIONAL_FIELDS = frozenset({"replication_state", "note"})
+_MAX_NOTE = 280
+_REPLICATION_STATES = frozenset({"streaming", "lagging", "stopped", "unknown"})
+_SENSITIVE_SEGMENTS = frozenset({"password", "passwd", "secret", "secrets", "token", "apikey", "api_key", "credential", "credentials", "private_key", "privkey", "access_key"})
+_SECRET_ASSIGN = re.compile(r"(?i)\b(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|credential)s?\s*[:=]\s*[^\s,;]{1,256}")
+_BEARER = re.compile(r"(?i)\b(?:bearer|basic)\s+[A-Za-z0-9._~+/=-]{8,}")
+_URL_USERINFO = re.compile(r"(?i)\b([a-z][a-z0-9+.-]*://)[^/\s@]{1,256}@")
+_WIN_PATH = re.compile(r"(?i)\b[A-Za-z]:\\(?:[^\s,;\\]+\\){0,12}[^\s,;\\]*")
+_UNC_PATH = re.compile(r"\\\\[^\s,;]{1,256}")
+_PRIVATE_PATH = re.compile(r"(?i)(?<![\w.-])/(?:home|users|root|private|etc|tmp|var|opt|srv|mnt|data)/[^\s,;]{1,256}")
+_EMAIL = re.compile(r"(?i)\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
+
+
+def _safe_ref(value: object, label: str) -> str:
+    if not isinstance(value, str) or _REF.fullmatch(value) is None:
+        raise ValueError(f"invalid {label}")
+    if "\\" in value or "//" in value or re.match(r"^[A-Za-z]:/", value):
+        raise ValueError(f"unsafe {label}")
+    if re.search(r"(?i)(^|[:/])(?:home|users|root|private|etc|tmp|var|opt|srv|mnt|data)(?:/|$)", value):
+        raise ValueError(f"private path in {label}")
+    segments = re.split(r"[:/]", value)
+    if any(segment in {"", ".", ".."} for segment in segments):
+        raise ValueError(f"unsafe {label}")
+    if any(segment.lower() in _SENSITIVE_SEGMENTS for segment in segments):
+        raise ValueError(f"sensitive {label}")
+    return value
+
+
+def _redact_text(value: object, label: str) -> tuple[str | None, int]:
+    if value is None:
+        return None, 0
+    if not isinstance(value, str) or len(value) > _MAX_NOTE:
+        raise ValueError(f"invalid {label}")
+    if any(ord(char) < 32 or ord(char) == 127 for char in value):
+        raise ValueError(f"control characters in {label}")
+    text = value
+    removed = 0
+    for pattern in (_SECRET_ASSIGN, _BEARER, _URL_USERINFO, _WIN_PATH, _UNC_PATH, _PRIVATE_PATH, _EMAIL):
+        text, count = pattern.subn("<redacted>", text)
+        removed += count
+    return text, removed
 
 
 def _bounded_number(value: object, label: str, maximum: float, *, integer: bool = False) -> float | int:
@@ -45,15 +86,14 @@ def _time(value: object) -> datetime:
 
 
 def analyze_status(status: Mapping[str, object], *, now: datetime, max_age_seconds: int = 300) -> dict[str, object]:
-    if not isinstance(status, Mapping) or set(status) != _FIELDS:
+    if not isinstance(status, Mapping) or not _REQUIRED_FIELDS.issubset(status) or not set(status).issubset(_REQUIRED_FIELDS | _OPTIONAL_FIELDS):
         raise ValueError("database status fields mismatch")
     if not isinstance(now, datetime) or now.tzinfo is None or now.utcoffset() is None:
         raise ValueError("now requires timezone")
     if type(max_age_seconds) is not int or not 1 <= max_age_seconds <= 86_400:
         raise ValueError("invalid max_age_seconds")
-    source, db = status["source_ref"], status["database_ref"]
-    if any(not isinstance(x, str) or _REF.fullmatch(x) is None for x in (source, db)):
-        raise ValueError("invalid database identity")
+    source = _safe_ref(status["source_ref"], "database source identity")
+    db = _safe_ref(status["database_ref"], "database identity")
     state = status["service_state"]
     if not isinstance(state, str) or state not in {"up", "down", "unknown"}:
         raise ValueError("invalid service_state")
@@ -68,13 +108,19 @@ def analyze_status(status: Mapping[str, object], *, now: datetime, max_age_secon
     if p95 is not None:
         _bounded_number(p95, "p95_query_ms", 3_600_000)
     errors = _bounded_number(status["errors_last_5m"], "errors_last_5m", 10_000_000, integer=True)
+    replication = status.get("replication_state")
+    if replication is not None and (not isinstance(replication, str) or replication not in _REPLICATION_STATES):
+        raise ValueError("invalid replication_state")
+    note, redactions = _redact_text(status.get("note"), "database note")
     when = _time(status["observed_at"])
     age = (now.astimezone(timezone.utc) - when).total_seconds()
     freshness = "future" if age < -5 else "stale" if age > max_age_seconds else "fresh"
     ratio = None
     flags: list[str] = []
+    replication_observation: str | None = None
     if freshness == "fresh":
         ratio = round(100.0 * used / limit, 3)
+        replication_observation = replication
         if state == "down":
             flags.append("database_down_reported")
         elif state == "unknown":
@@ -83,19 +129,31 @@ def analyze_status(status: Mapping[str, object], *, now: datetime, max_age_secon
             flags.append("connection_pressure")
         if lag is not None and lag > 30:
             flags.append("replica_lag_elevated")
+        if lag is not None and lag > 300:
+            flags.append("replica_lag_critical")
         if p95 is not None and p95 > 1000:
             flags.append("query_latency_elevated")
+        if p95 is not None and p95 > 5000:
+            flags.append("query_latency_critical")
         if errors:
             flags.append("errors_reported")
-    classification = "unknown" if freshness != "fresh" or state == "unknown" else "degraded" if flags else "no_issue_observed"
+        if replication == "stopped":
+            flags.append("replication_stopped_reported")
+        elif replication == "lagging":
+            flags.append("replication_lag_reported")
+        elif replication == "unknown":
+            flags.append("replication_state_unknown")
+    unknown_state = state == "unknown" or replication == "unknown"
+    classification = "unknown" if freshness != "fresh" or unknown_state else "degraded" if flags else "no_issue_observed"
     return {"schema": "sofia.it.database.report.v1", "module_id": MODULE_ID, "sdk_protocol": str(SDK_PROTOCOL_VERSION),
             "source_ref": source, "database_ref": db, "observed_at": when.isoformat(), "freshness": freshness,
-            "classification": classification, "connection_percent": ratio, "flags": flags,
+            "classification": classification, "connection_percent": ratio, "replication_state": replication_observation,
+            "flags": flags, "note": note, "redactions": redactions,
             "evidence_class": "supplied_unverified", "effect": "none"}
 
 
 def capability_registrations():
-    cap = Capability(CAPABILITY_ID, "Summarize database service, connection, replica and latency observations without running SQL.")
+    cap = Capability(CAPABILITY_ID, "Summarize database service, connection, replication, replica-lag and latency observations without running SQL.")
     def handler(request: CapabilityRequest):
         if request.capability != cap or set(request.parameters) != {"status"}:
             raise ValueError("invalid database capability request")
