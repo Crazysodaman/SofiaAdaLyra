@@ -54,6 +54,10 @@ from sofia.modules.discord.outbound import (
     OutboundDecision,
     OutboundDenial,
 )
+from sofia.modules.discord.receipts import (
+    reconcile_discord_receipts,
+    capability_registrations as receipt_capability_registrations,
+)
 from sofia.modules.discord.store import (
     DiscordInboxRecord,
     DiscordInboxStore,
@@ -61,6 +65,10 @@ from sofia.modules.discord.store import (
     InboxAcceptResult,
     InboxClaimResult,
 )
+
+
+def capability_registrations():
+    return receipt_capability_registrations()
 
 __all__ = (
     "AccessDecision",
@@ -106,4 +114,6 @@ __all__ = (
     "DiscordOutboxRecord",
     "InboxAcceptResult",
     "InboxClaimResult",
+    "reconcile_discord_receipts",
+    "capability_registrations",
 )

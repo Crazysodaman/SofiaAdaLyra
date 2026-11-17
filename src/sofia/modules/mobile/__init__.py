@@ -5,6 +5,7 @@ from .pairing import MobileDeviceCredentialStore, EnrolledDevice
 from .model import MobileSensorReport
 from .notifications import MobileNotification, MobileNotificationStore
 from .provisioning import MobileProvisioning, mobile_companion_ready
+from .receipts import reconcile_mobile_receipts, capability_registrations
 from .sensors import MobileSensorProvider, MobileSensorStore
 from .server import MobileCompanionServer, MobileServerConfiguration
 
@@ -21,4 +22,6 @@ __all__ = [
     "MobileSensorReport",
     "MobileSensorStore",
     "MobileServerConfiguration",
+    "reconcile_mobile_receipts",
+    "capability_registrations",
 ]
