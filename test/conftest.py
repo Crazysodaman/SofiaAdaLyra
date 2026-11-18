@@ -43,6 +43,8 @@ MODULE_PACKAGE_MARKERS: dict[str, tuple[str, ...]] = {
     "avatar": ("pkg_avatar",),
     "body": ("pkg_body",),
     "capability": ("pkg_safe",),
+    "chat": ("pkg_social", "pkg_safe"),
+    "chat_clients": ("pkg_ui", "pkg_social", "pkg_net"),
     "clean": ("pkg_clean",),
     "codebase": ("pkg_dev",),
     "cognition": ("pkg_core",),

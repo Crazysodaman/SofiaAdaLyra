@@ -1,4 +1,4 @@
-"""Actual-state multi-Core management, registration and owner controls."""
+﻿"""Actual-state multi-Core management, registration and owner controls."""
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -231,7 +231,7 @@ def test_unavailable_or_invalid_definition_source_fails_closed() -> None:
 
 def test_expected_sofia_mack_nova_are_explicit_not_assumed() -> None:
     registry = InMemoryCoreDefinitionSource()
-    sofia = definition(1, "Sofía")
+    sofia = definition(1, "SofÃ­a")
     mack = definition(2, "Mack")
     nova = definition(3, "Nova")
     for item in (sofia, mack, nova):
@@ -241,18 +241,18 @@ def test_expected_sofia_mack_nova_are_explicit_not_assumed() -> None:
         item.full_name: item for item in snapshot.expected
     }
     assert [item.full_name for item in EXPECTED_CORE_IDENTITIES] == [
-        "Sofía", "Mack", "Nova",
+        "Sofía Ada Lyra", "Mack Fuller", "Nova Arden",
     ]
-    assert status["Sofía"].present is True
-    assert status["Mack"].present is True
-    assert status["Nova"].present is True
+    assert status[EXPECTED_CORE_IDENTITIES[0].full_name].present is True
+    assert status["Mack Fuller"].present is True
+    assert status["Nova Arden"].present is True
 
     registry.remove(nova.core_id)
     snapshot = management(registry).snapshot()
     status = {item.full_name: item for item in snapshot.expected}
-    assert status["Nova"].present is False
-    assert status["Nova"].core_id is None
-    assert status["Nova"].state is None
+    assert status["Nova Arden"].present is False
+    assert status["Nova Arden"].core_id is None
+    assert status["Nova Arden"].state is None
 
 
 def test_owner_controls_require_authorization_and_never_fake_stop() -> None:
@@ -333,3 +333,5 @@ def test_operator_stop_disables_controls_without_new_state_claims() -> None:
     assert stopped.allowed is False
     assert backend.calls == []
     assert service.snapshot().cores[0].state is CoreDisplayState.INSTALLED
+
+

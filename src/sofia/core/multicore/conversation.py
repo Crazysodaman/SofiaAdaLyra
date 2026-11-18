@@ -98,8 +98,12 @@ def chat_identity_from_profile(
 
     ``PersistentCoreIdentity`` and ``CoreDescriptor`` both expose a stable
     ``core_id``; only ``generation`` or ``platform_id`` may need to be supplied
-    by the owning composition.  Display text is never used as identity.
+    by the owning composition.  Display text is never used as identity.  A
+    richer ``CoreProfile`` wrapper is unwrapped through its descriptor.
     """
+    descriptor = _profile_value(record, "descriptor")
+    if descriptor is not None:
+        record = descriptor
     core = _profile_value(record, "core_id")
     if core is None:
         raise ValueError("profile record has no independent core_id")
