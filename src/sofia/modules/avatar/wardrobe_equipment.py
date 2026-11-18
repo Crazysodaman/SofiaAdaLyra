@@ -248,8 +248,10 @@ class WardrobeDesign:
             raise EquipmentError("privacy must be WardrobePrivacy")
         if self.content_rating not in CONTENT_RATINGS:
             raise EquipmentError("content_rating is unknown")
-        if self.content_rating != "standard" and self.privacy is not WardrobePrivacy.PRIVATE:
-            raise EquipmentError("lewd/explicit designs must be private")
+        if self.content_rating != "standard" and self.privacy not in {
+            WardrobePrivacy.PRIVATE, WardrobePrivacy.ADULT,
+        }:
+            raise EquipmentError("lewd/explicit designs must be private or adult")
         if self.asset_ref is not None:
             _identifier(self.asset_ref, "asset_ref")
         _text(self.source, "source")
@@ -290,6 +292,11 @@ class WardrobeDesign:
     @property
     def normalized_slots(self) -> tuple[str, ...]:
         return normalize_slots(self.slots)
+
+    @property
+    def physical_protection(self) -> bool:
+        """Armor metadata is cosmetic; it never grants physical protection."""
+        return False
 
     def to_payload(self) -> dict[str, object]:
         return {
@@ -418,6 +425,11 @@ class ArmorDecision:
     @property
     def metadata_only(self) -> bool:
         return True
+
+    @property
+    def physical_protection(self) -> bool:
+        """A virtual armor decision never implies physical protection."""
+        return False
 
 
 def _deny(reason: str) -> ArmorDecision:
@@ -600,11 +612,15 @@ def dependent_armor_items(
     if target.garment_class is GarmentClass.ARMOR_UNDERSUIT:
         return tuple(
             item for item in items
-            if item.garment_class is GarmentClass.ARMOR_BASE
-            or (
-                item.armor is not None
-                and item.armor.family is target.armor.family
-                and item.armor.undersuit_interface == target.armor.undersuit_interface
+            if item.item_instance_id != target.item_instance_id
+            and (
+                item.garment_class is GarmentClass.ARMOR_BASE
+                or (
+                    item.armor is not None
+                    and item.armor.family is target.armor.family
+                    and item.armor.undersuit_interface
+                    == target.armor.undersuit_interface
+                )
             )
         )
     if target.garment_class is GarmentClass.ARMOR_BASE:
