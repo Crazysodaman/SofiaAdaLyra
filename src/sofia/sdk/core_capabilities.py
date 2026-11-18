@@ -24,7 +24,7 @@ from enum import Enum
 from hashlib import sha256
 import json
 import re
-from typing import Mapping
+from typing import Iterable, Mapping
 from uuid import UUID
 
 CORE_CAPABILITIES_SCHEMA = "aegis.core.capabilities.v1"
@@ -86,6 +86,19 @@ class RendererCapability(str, Enum):
     HAPTIC = "haptic"
 
 
+class BodyCapability(str, Enum):
+    """Body/rig predicates used to gate anatomy-specific represented motion.
+
+    A body capability is declared anatomy, never proof of a compatible mesh,
+    asset, collision rig or rendered playback.
+    """
+
+    HUMAN_FORM = "human_form"
+    FOX_EARS = "fox_ears"
+    FOX_TAIL = "fox_tail"
+    WINGS = "wings"
+
+
 def _uuid(value: object, label: str) -> UUID:
     if not isinstance(value, UUID) or value.int == 0:
         raise CapabilityError(f"{label} must be a nonzero UUID")
@@ -114,6 +127,52 @@ def _bool(value: object, label: str) -> bool:
     if type(value) is not bool:
         raise CapabilityError(f"{label} must be boolean")
     return value
+
+
+@dataclass(frozen=True, slots=True)
+class BodyCapabilityProfile:
+    """Declared body/rig features for one Core; never a renderer/asset claim."""
+
+    features: frozenset[BodyCapability]
+    rig_id: str = "human"
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.features, frozenset) or not self.features:
+            raise CapabilityError("body features must be a nonempty frozenset")
+        if any(not isinstance(item, BodyCapability) for item in self.features):
+            raise CapabilityError("body features must be BodyCapability values")
+        _identifier(self.rig_id, "rig_id")
+
+    @classmethod
+    def human_only(cls, rig_id: str = "human") -> "BodyCapabilityProfile":
+        return cls(frozenset({BodyCapability.HUMAN_FORM}), rig_id)
+
+    @classmethod
+    def sofia_fox(cls, rig_id: str = "human-fox") -> "BodyCapabilityProfile":
+        return cls(
+            frozenset({
+                BodyCapability.HUMAN_FORM,
+                BodyCapability.FOX_EARS,
+                BodyCapability.FOX_TAIL,
+            }),
+            rig_id,
+        )
+
+    def supports(self, feature: BodyCapability) -> bool:
+        if not isinstance(feature, BodyCapability):
+            raise CapabilityError("feature must be a BodyCapability")
+        return feature in self.features
+
+    def missing(
+        self, required: Iterable[BodyCapability],
+    ) -> tuple[BodyCapability, ...]:
+        required_items = tuple(required)
+        if any(not isinstance(item, BodyCapability) for item in required_items):
+            raise CapabilityError("required body capabilities must be typed")
+        return tuple(item for item in required_items if item not in self.features)
+
+    def supports_all(self, required: Iterable[BodyCapability]) -> bool:
+        return not self.missing(required)
 
 
 @dataclass(frozen=True, slots=True)
@@ -233,6 +292,30 @@ class CoreCapabilityContract:
 
     def is_effective(self, family: CapabilityFamily) -> bool:
         return self.state(family).effective
+
+    def renderer_available(self, renderer: RendererCapability) -> bool:
+        """Return whether the optional renderer surface is declared present."""
+        if not isinstance(renderer, RendererCapability):
+            raise CapabilityError("renderer must be a RendererCapability")
+        return renderer in self.renderers
+
+    def missing_renderers(
+        self, required: Iterable[RendererCapability],
+    ) -> tuple[RendererCapability, ...]:
+        required_items = tuple(required)
+        if any(not isinstance(item, RendererCapability) for item in required_items):
+            raise CapabilityError("required renderers must be typed")
+        return tuple(item for item in required_items if item not in self.renderers)
+
+    def body_supports(
+        self,
+        body: BodyCapabilityProfile,
+        required: Iterable[BodyCapability],
+    ) -> bool:
+        """Declared gesture anatomy interface plus a compatible body/rig."""
+        if not isinstance(body, BodyCapabilityProfile):
+            raise CapabilityError("body must be a BodyCapabilityProfile")
+        return self.supports(CapabilityFamily.GESTURE) and body.supports_all(required)
 
     def with_state(
         self, family: CapabilityFamily, state: CapabilityState
@@ -389,6 +472,105 @@ class CapabilityReceipt:
         )
 
 
+def _source_core_id(source: object) -> UUID | None:
+    candidate = getattr(source, "core_id", None)
+    if isinstance(candidate, UUID):
+        return candidate
+    identity = getattr(source, "identity", None)
+    if identity is not None:
+        for attribute in ("identity_id", "core_id"):
+            candidate = getattr(identity, attribute, None)
+            if isinstance(candidate, UUID):
+                return candidate
+    descriptor = getattr(source, "descriptor", None)
+    if descriptor is not None:
+        candidate = getattr(descriptor, "core_id", None)
+        if isinstance(candidate, UUID):
+            return candidate
+    return None
+
+
+def _source_core_number(source: object) -> int | None:
+    for owner in (source, getattr(source, "spec", None), getattr(source, "descriptor", None)):
+        if owner is None:
+            continue
+        candidate = getattr(owner, "core_number", None)
+        if type(candidate) is int:
+            return candidate
+    return None
+
+
+def definition_digest_for(source: object) -> str:
+    """Derive a stable definition digest without allocating or authenticating."""
+    candidate = getattr(source, "digest", None)
+    if isinstance(candidate, str) and _DIGEST.fullmatch(candidate) is not None:
+        return candidate
+    constitution = getattr(source, "constitution_sha256", None)
+    personality = getattr(source, "personality_sha256", None)
+    if (
+        isinstance(constitution, str)
+        and _DIGEST.fullmatch(constitution) is not None
+        and isinstance(personality, str)
+        and _DIGEST.fullmatch(personality) is not None
+    ):
+        return sha256(
+            b"aegis.core.profile.v1\x00"
+            + constitution.encode("ascii")
+            + b"\x00"
+            + personality.encode("ascii")
+        ).hexdigest()
+    raise CapabilityError(
+        "source must expose a CoreDefinition digest or profile asset digests"
+    )
+
+
+def derive_core_capability_contract(
+    source: object,
+    *,
+    core_id: UUID | None = None,
+    core_number: int | None = None,
+    definition_digest: str | None = None,
+    renderers: tuple[RendererCapability, ...] = (RendererCapability.TEXT,),
+    revision: int = 1,
+) -> CoreCapabilityContract:
+    """Derive equal universal capability declarations for an existing Core.
+
+    The caller-supplied ``core_id`` is authoritative; a conflicting identity in
+    ``source`` is rejected instead of being cloned or silently replaced. Every
+    family is declared, while installed/available/authorized/effective remain
+    false: this helper never grants authority or claims an optional renderer.
+    """
+    source_id = _source_core_id(source)
+    if core_id is None:
+        core_id = source_id
+    elif source_id is not None and source_id != core_id:
+        raise CapabilityError("supplied core_id differs from the source identity")
+    if core_id is None:
+        raise CapabilityError("an externally supplied core_id is required")
+    _uuid(core_id, "core_id")
+
+    number = core_number if core_number is not None else _source_core_number(source)
+    if number is None:
+        raise CapabilityError("a core_number is required")
+    if type(number) is not int or number < 1:
+        raise CapabilityError("core_number must be a positive integer")
+
+    digest = (
+        definition_digest
+        if definition_digest is not None
+        else definition_digest_for(source)
+    )
+    _digest(digest, "definition_digest")
+
+    return CoreCapabilityContract.universal(
+        core_id=core_id,
+        core_number=number,
+        definition_digest=digest,
+        renderers=renderers,
+        revision=revision,
+    )
+
+
 def unavailable_receipt(
     *,
     receipt_id: UUID,
@@ -416,6 +598,8 @@ __all__ = [
     "CAPABILITY_RECEIPT_SCHEMA",
     "CORE_CAPABILITIES_SCHEMA",
     "MAX_CAPABILITY_FAMILIES",
+    "BodyCapability",
+    "BodyCapabilityProfile",
     "CapabilityError",
     "CapabilityFamily",
     "CapabilityOutcome",
@@ -424,5 +608,7 @@ __all__ = [
     "CoreCapabilityContract",
     "RendererCapability",
     "UNIVERSAL_CAPABILITY_FAMILIES",
+    "definition_digest_for",
+    "derive_core_capability_contract",
     "unavailable_receipt",
 ]
