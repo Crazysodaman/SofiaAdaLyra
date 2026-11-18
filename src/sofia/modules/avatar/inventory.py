@@ -350,12 +350,15 @@ class InventoryEngine:
         ttl_seconds: int = 3600,
         note: str | None = None,
         at: datetime | None = None,
+        offer_id: UUID | None = None,
     ) -> TransferOffer:
         if operation not in _OFFER_OPERATIONS:
             raise InventoryError(f"{operation.value} is not an offer operation")
         now = _utc(at) if at is not None else _now()
         if type(ttl_seconds) is not int or ttl_seconds <= 0:
             raise InventoryError("ttl_seconds must be a positive integer")
+        if offer_id is not None and (not isinstance(offer_id, UUID) or offer_id.int == 0):
+            raise InventoryError("offer_id must be a nonzero UUID when supplied")
         ttl = timedelta(seconds=ttl_seconds)
         if ttl > _MAX_OFFER_LIFETIME:
             raise InventoryError("offer lifetime exceeds the bounded maximum")
@@ -412,7 +415,7 @@ class InventoryEngine:
                 self.design(design_id)
 
             offer = TransferOffer(
-                offer_id=uuid4(),
+                offer_id=uuid4() if offer_id is None else offer_id,
                 operation=operation,
                 sender_core_id=sender_core_id,
                 recipient_core_id=recipient_core_id,

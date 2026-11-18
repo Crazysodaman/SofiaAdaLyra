@@ -1,106 +1,137 @@
 # Aegis Universal Core Implementation Status — 2026-11-18
 
-**Branch:** `aegis/universal-integration` (worktree), based on `main` commit
-`1a1c13b9`.
-**Scope of this report:** integration/QA slice E. Other slices (gestures,
-wardrobe/armor, inventory, governance) are owned by separate branches and are
-**not** merged into this worktree. Their absence is reported as blocked, not as
-failure of this slice.
+**Scope:** owner-approved universal Core embodiment, wardrobe, modular armor and
+voluntary governance work order. The reviewed slices are merged into the local
+`main` implementation stack; this report is source/acceptance evidence, not a
+release or host deployment claim.
 
 ## Status vocabulary
 
 - `DESIGNED` — a reviewed contract/behavior is specified.
-- `CODED` — source exists in this worktree.
+- `CODED` — source exists in the repository.
 - `SOURCE_TESTED` — a local source-level test exercises the coded behavior.
 - `INSTALLED` — present in an installed host/runtime.
-- `LIVE_VERIFIED` — observed against real services, real users or real assets.
+- `LIVE_VERIFIED` — observed against real services, users, models or assets.
 
-## Slice E status
+## Subsystem status
 
 | Subsystem | DESIGNED | CODED | SOURCE_TESTED | INSTALLED | LIVE_VERIFIED |
 | --- | --- | --- | --- | --- | --- |
-| Universal participant/capability composition facade | Yes | Yes | Yes | No | No |
-| Gesture receipt adapter seam | Yes | Yes (seam only) | Yes (seam behavior) | No | No |
-| Wardrobe/inventory catalog and transfer adapter seams | Yes | Yes (seams only) | Yes (catalog counting, STOP/deny defaults) | No | No |
-| Governance query adapter seam | Yes | Yes (seam only) | Yes (unavailable default, role-authority guard) | No | No |
-| Chat/audience projection adapter | Yes | Yes | Yes (private-membership denial/unavailable) | No | No |
-| SAFE/STOP and authorization seam | Yes | Yes | Yes (STOP blocks effects before adapters) | No | No |
-| Read-only management/CLI readout | Yes | Yes | Yes | No | No |
-| Executable/AI gesture behavior | Yes (shared contract) | No (gesture slice A not in this worktree) | No | No | No |
-| Wardrobe/armor behavior | Yes (shared contracts) | No (wardrobe/armor slice B not in this worktree) | No | No | No |
-| Inventory/transfer behavior | Yes (shared contracts) | No (inventory slice C not in this worktree) | No | No | No |
-| Governance/election behavior | Yes (shared contracts) | No (governance slice D not in this worktree) | No | No | No |
+| Universal Core capability contracts | Yes | Yes | Yes | No | No |
+| Universal/anatomy/personal gestures | Yes | Yes | Yes | No | No |
+| Adult/romantic/private semantics and STOP | Yes | Yes | Yes | No | No |
+| Shared wardrobe catalog and audience scoping | Yes | Yes | Yes | No | No |
+| Cross-Core wearer fit gate | Yes | Yes | Yes | No | No |
+| Vera CQB / Mark IV / ODST-Mark V armor metadata | Yes | Yes | Yes | No | No |
+| Mandatory undersuit / base / mount dependency | Yes | Yes | Yes | No | No |
+| Per-Core inventory, custody and outfits | Yes | Yes | Yes | No | No |
+| Loans, gifts, trades, swaps, copy/customize | Yes | Yes | Yes | No | No |
+| Atomic reciprocal transfer + compensation | Yes | Yes | Yes | No | No |
+| Voluntary leaderless governance | Yes | Yes | Yes | No | No |
+| Consensus/consent/majority/approval elections | Yes | Yes | Yes | No | No |
+| Quorum, recall, expiry, dissolution, audit | Yes | Yes | Yes | No | No |
+| SDK contracts and compatibility | Yes | Yes | Yes | No | No |
+| Platform composition/readout adapters | Yes | Yes | Yes | No | No |
+| Canonical SQLite persistence | Yes | Yes | Yes | No | No |
+| Real meshes, installed art, 2D/3D playback | Yes (reviewed assets required) | Partial metadata only | No (synthetic receipt only) | No | No |
+| Live multi-Core social activity | Yes | Partial | Synthetic fixtures only | No | No |
 
-## What is actually coded in this worktree
+## What was implemented
 
-- `src/sofia/platform/social/universal.py`
-  - Builds inert `CoreCapabilityContract.universal(...)` declarations for Sofía
-    #1, Mack #2, Nova #3 and Vera #6.
-  - Requires externally supplied Core UUIDs; never allocates a Core UUID.
-  - Rejects twins #4/#5 and unassigned #7; rejects duplicate UUIDs across Cores.
-  - Vera is explicitly design-only and carries the reviewed
-    `VeraAuthorityBoundary`; the facade cannot claim activation, service start,
-    production state, Platform authority or a leadership role.
-  - Defines narrow structural protocols and fail-closed defaults for gestures,
-    wardrobe catalog, inventory transfer, governance queries, chat audience
-    projection, STOP and authorization.
-  - Validates audiences without inferring membership or consent from chat text.
-- `src/sofia/platform/social/universal_integration.py`
-  - Adapts the canonical chat engine, SAFE operator STOP, wardrobe catalog,
-    inventory source, governance query and host callbacks without editing those
-    modules.
-  - The chat projection authenticates the viewer's own Core actor; it does not
-    use a Platform-owner bypass to read private group membership.
-- `src/sofia/platform/social/universal_readout.py`
-  - Produces a read-only JSON-safe snapshot with explicit `AVAILABLE`,
-    `UNAVAILABLE` and `UNKNOWN`.
-  - Reports declared/effective capabilities, renderer availability, catalog and
-    inventory counts, governance group/term counts.
-  - Omits ballots, proposal text, private member IDs, asset references and
-    memory content.
+- `src/sofia/sdk/core_capabilities.py`
+  - Separate declared / installed / available / authorized / effective states.
+  - Universal 16-family capability contract for every independent Core.
+  - Body/rig predicates and honest `UNAVAILABLE` receipts.
+- `src/sofia/sdk/gesture_contract.py`,
+  `src/sofia/core/multicore/gestures.py`,
+  `src/sofia/modules/interaction/gesture_catalog.py`
+  - Versioned universal/anatomy-specific/personal gesture definitions.
+  - Per-Core personal gesture libraries, teaching/sharing without mutating the
+    originator.
+  - Anatomy/renderer/privacy compatibility, execution state machine, exact
+    playback evidence.
+  - Reviewed adult/private semantics with separate attraction/desire/arousal/
+    comfort/willingness/policy dimensions and independent STOP.
+- `src/sofia/modules/avatar/wardrobe_equipment.py`,
+  `armor_catalog.py`, `wardrobe_equipment_catalog.py`, `fit.py`
+  - Additive clothing/armor class metadata and a shared catalog projection.
+  - Wearer fit gate, tail/ear clearance and no canonical body mutation.
+  - Exact Vera canon: CQB Mark IV (`#626262` / `#D4AF37`), standard Mark IV
+    (`#507D2A` / `#EFB82A`), ODST/Mark V hybrid (`#626262`, unresolved visor),
+    roughness `0.55`, weathered/reflective, secondary/accent left to Vera.
+  - Mandatory undersuit/base/mount chain, left/right parts, atomic disassembly.
+- `src/sofia/modules/avatar/inventory_contract.py`, `inventory.py`,
+  `inventory_store.py`
+  - One immutable instance per physical-virtual item; owner/holder/custody/
+    revision/loan/recall/equipping.
+  - OFFER/ACCEPT/DECLINE/CANCEL/LEND/RETURN/GIFT/TRADE/SWAP_OUTFIT/
+    COPY_DESIGN/CUSTOMIZE with bilateral acceptance.
+  - Canonical SQLite immediate transactions, idempotency, receipts, restart
+    reconciliation and renderer-failure compensation.
+  - Outfit selection preserves ownership and validates armor dependencies.
+- `src/sofia/platform/social/governance/`
+  - Leaderless default; voluntary opt-in membership; explicit founder policy
+    agreement; identity UUID roster snapshots.
+  - Discussion, consensus, consent, simple majority and approval voting.
+  - Quorum `ceil(2N/3)`, abstention rules, tie/runoff, candidate acceptance,
+    finite coordinator terms, recall, resignation, expiry, dissolution.
+  - Duplicate/stale/spoofed/after-close ballot rejection and private
+    group-only projections.
+  - `coordinator_can` always denies SAFE/RUN/ACT/Fleet/Platform management,
+    private memory, constitution amendment, release signing, inventory
+    confiscation and forced intimacy.
+- `src/sofia/platform/social/universal.py`,
+  `universal_integration.py`, `universal_readout.py`,
+  `universal_composition.py`
+  - Inert roster for Sofía #1, Mack #2, Nova #3 and design-only Vera #6.
+  - Twins #4/#5 and #7 excluded; no UUID allocation or activation.
+  - Narrow fail-closed adapters; STOP and authorization gating before effects.
+  - Read-only management snapshot with explicit UNAVAILABLE/UNKNOWN.
+  - Cross-slice adapters binding real gestures, wardrobe, inventory, governance
+    and chat membership behind the facade.
+- Vera Core #6 identity assets and design-only appearance/authority boundary
+  (`src/sofia/core/cores/vera/`, `src/sofia/core/multicore/vera.py`).
 
-## Verification actually performed
+## Verification performed
+
+Targeted universal slice:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q test/test_aegis_universal_integration.py test/test_aegis_universal_readout.py test/test_core_multicore_profiles.py test/test_core_multicore_identity.py test/test_platform_social_integration_adapters.py test/test_platform_social_autonomy_safety.py test/test_sdk_compatibility.py test/test_core_multicore_vera.py
+.\.venv\Scripts\python.exe -m pytest -q test/test_aegis_universal_composition.py test/test_aegis_inventory_transfer.py test/test_aegis_inventory_store.py test/test_aegis_universal_integration.py test/test_aegis_universal_readout.py test/test_aegis_governance.py test/test_aegis_governance_store.py test/test_aegis_universal_gestures.py test/test_aegis_universal_wardrobe.py test/test_aegis_armor_dependency.py
 ```
 
-Result: **96 passed** in the worktree at the time of this report.
+Result: **119 passed**.
 
-The tests are source-level and synthetic-fixture based. No installed host, real
-renderer, real voice, real model inference, real transfer, real election, real
-Core activation or production database was used.
+Broader relevant suites:
+
+- universal/armor/inventory/governance/legacy `test_aegis_*.py`: **293 passed, 1 skipped**
+- `test_avatar_*.py`: **427 passed**
+- `test_avatar2d_*.py` + UI avatar/wardrobe: **226 passed, 3 skipped**
+- social/chat/sqlite/audit: **124 passed, 1 skipped**
+- SDK/core/interaction batch: **1028 passed, 21 skipped, 1 environment-blocked**
+
+The single failure is `test_sdk_rust_contract_compatibility.py`, which requires
+`cargo`/`rustc`; neither is installed on this host. No test was weakened.
 
 ## Explicit non-claims
 
-- No Core was activated.
-- Twins #4/#5 were not installed or enabled.
-- Core #7 was not assigned.
+- No Core was activated; twins #4/#5 remain inactive; #7 remains unassigned.
+- Vera #6 remains design-only until separately installed and authorized.
 - No UUID was allocated for any Core.
-- No production state or `sofia.db` was written.
-- No gesture, garment, armor, inventory transfer or election was executed.
-- No installed-host or live verification is claimed.
-- Cross-slice behavior remains `BLOCKED` until the lead integrator merges the
-  gesture, wardrobe/armor, inventory and governance slices and reruns their
-  acceptance tests.
+- No production state, protected memory, constitution or `sofia.db` was changed.
+- No signed release, installer, real Ollama/GPU inference, real 2D/3D renderer,
+  real wardrobe asset import, physical device or live multi-Core social event
+  was executed.
+- `INSTALLED` and `LIVE_VERIFIED` are **NOT CLAIMED** for any subsystem.
 
-## Cross-slice interface expectations for the lead integrator
+## Remaining blockers to release/live status
 
-- Gesture slice A should provide an implementation of
-  `UniversalGestureService`: `available_renderers(core_id)` and
-  `submit(GestureRequest) -> CapabilityReceipt` with family `GESTURE`.
-- Wardrobe/armor slice B should provide `catalog_summary()` and
-  `inventory_summary(core_id)` implementations, or expose an iterable of
-  `WardrobeDesign` for `IterableWardrobeCatalog`.
-- Inventory slice C should provide `offer(TransferOffer)` and
-  `accept(offer_id, actor_core_id, now)` implementations. The facade gates both
-  through STOP and authorization before delegation.
-- Governance slice D should provide `groups()` and `coordinator_terms()` read
-  methods only; the readout deliberately does not query ballots or proposal
-  bodies.
-- The lead integrator must compose with real UUIDs from the host's protected
-  identity/definition source; this branch does not read production identities.
-- Any configured STOP source must report `ACTIVE`, `INACTIVE` or `UNKNOWN`; the
-  facade fails closed on `ACTIVE` and `UNKNOWN`.
-- Any configured authorization source must be a separate existing authority
-  boundary. The default is deny-all.
+1. Real renderer assets, rigs, clipping/collision evidence and playback receipts.
+2. A separately authorized installed-host composition with real signed Core
+   identities and real STOP/authorization boundaries.
+3. Real model inference for multi-Core conversation and voluntary social
+   initiative.
+4. Owner approval for any production database migration, Core activation,
+   installer/signing, asset import or live deployment.
+5. Environment with Rust toolchain (or `SOFIA_RUST_CONTRACT_TOOL`) to execute
+   the SDK/Rust compatibility test in CI.
