@@ -1,0 +1,11 @@
+{
+  "schema": "aegis.core.voice.v1",
+  "core_number": 2,
+  "target": "masculine, warm mid-low",
+  "register": "warm mid-low",
+  "accent": "subtle Southern American",
+  "cadence": "natural storytelling cadence",
+  "serious_delivery": "controlled serious delivery",
+  "model_id": null,
+  "assets_created": false
+}

@@ -1,4 +1,4 @@
-"""Public aegis client: read-only truth, Core-free import and fail-closed mutations."""
+﻿"""Public aegis client: read-only truth, Core-free import and fail-closed mutations."""
 from __future__ import annotations
 
 import hashlib
@@ -226,6 +226,17 @@ def test_service_mutations_fail_closed_without_os_mutation(
     payload = _json_output(capsys)
     assert payload["code"] == "OWNER_APPROVAL_REQUIRED"
     assert payload["executed"] is False
+
+
+def test_core_profiles_lists_canonical_definitions_without_install_claims(capsys):
+    assert cli.main(["core", "profiles", "--json"]) == 0
+    payload = _json_output(capsys)
+    assert payload["schema"] == f"{cli.CLI_SCHEMA}.core-profiles.v1"
+    assert payload["installed"] is False
+    assert payload["runtime_verified"] is False
+    names = [item["full_name"] for item in payload["definitions"]]
+    assert names[0].startswith("Sof")
+    assert names[1:] == ["Mack Fuller", "Nova Arden"]
 
 
 @pytest.mark.parametrize("operation", ["start", "stop", "detach", "remove"])
@@ -1264,3 +1275,4 @@ def test_core_autostart_state_must_be_on_or_off(capsys):
             "--expected-revision", "1", "--json",
         ])
     assert exited.value.code == 2
+

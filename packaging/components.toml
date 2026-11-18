@@ -49,5 +49,15 @@ package_data = { "sofia.core.constitution" = [
     "avatar.json",
 ], "sofia.core.personality" = [
     "personality.json",
+], "sofia.core.cores.mack" = [
+    "constitution.md",
+    "personality.json",
+    "avatar.json",
+    "voice.json",
+], "sofia.core.cores.nova" = [
+    "constitution.md",
+    "personality.json",
+    "avatar.json",
+    "voice.json",
 ] }
 entry_points = {}

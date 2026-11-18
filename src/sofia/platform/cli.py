@@ -778,6 +778,28 @@ def _not_observed(reason: str, **extra: object) -> dict[str, object]:
     return payload
 
 
+def _core_profile_catalog() -> dict[str, object]:
+    """Return canonical definition metadata only; never installation evidence."""
+    from sofia.core.multicore.management import EXPECTED_CORE_IDENTITIES
+
+    return {
+        "schema": f"{CLI_SCHEMA}.core-profiles.v1",
+        "command": "core profiles",
+        "definitions": [
+            {
+                "core_number": item.core_number,
+                "full_name": item.full_name,
+                "nickname": item.nickname,
+                "slug": item.slug,
+            }
+            for item in EXPECTED_CORE_IDENTITIES
+        ],
+        "installed": False,
+        "runtime_verified": False,
+        "note": "Canonical definition metadata is not installation or runtime evidence.",
+    }
+
+
 def _core_bindings(core_id: str | None = None) -> dict[str, object]:
     path, reason = _safe_state_path(_state_path())
     if path is None:
@@ -1352,6 +1374,10 @@ def _build_parser() -> argparse.ArgumentParser:
 
     core = subparsers.add_parser("core", help="observe synthetic Core bindings")
     core_sub = core.add_subparsers(dest="core_command", required=True)
+    core_profiles = core_sub.add_parser(
+        "profiles", help="list canonical Core definitions without installation claims",
+    )
+    core_profiles.add_argument("--json", action="store_true")
     core_list = core_sub.add_parser("list", help="list durable Core bindings")
     core_list.add_argument("--json", action="store_true")
     _add_management_arguments(core_list)
@@ -1481,6 +1507,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             as_json=as_json,
         )
     if args.command == "core":
+        if args.core_command == "profiles":
+            _emit(_core_profile_catalog(), as_json=as_json)
+            return EXIT_OK
         if args.core_command == "list":
             def core_list_payload(management: dict[str, object]) -> dict[str, object]:
                 payload = _core_bindings()
