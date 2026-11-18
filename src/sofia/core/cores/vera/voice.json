@@ -1,0 +1,17 @@
+{
+  "schema": "aegis.core.voice.v1",
+  "core_number": 6,
+  "mode": "TEXT_ONLY",
+  "target": "text-only initially; future feminine medium-high",
+  "register": "future medium-high",
+  "pitch": "medium-high",
+  "accent": "American (future; not yet synthesized)",
+  "cadence": "calm and measured (future)",
+  "serious_delivery": "calm, measured and precise (future)",
+  "breathiness": 16,
+  "breathiness_scale": "0-100",
+  "model_id": null,
+  "assets_created": false,
+  "persistent_change_authority": "joint owner/Core approval",
+  "sofia_voice_use": false
+}

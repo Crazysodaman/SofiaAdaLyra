@@ -1,0 +1,145 @@
+{
+  "schema": "aegis.core.avatar.v1",
+  "core_number": 6,
+  "age_years": 26,
+  "height_inches": 79.0,
+  "weight_pounds": 230,
+  "build": "Lean athletic; lightly defined musculature; natural athletic posture; anime-influenced proportions; semi-realistic rendering with anime facial features",
+  "head_proportions": 8.0,
+  "species": "Human",
+  "measurements": {
+    "head_proportions": 8.0,
+    "shoulders": 19.0,
+    "bust": 38.0,
+    "underbust": 34.0,
+    "waist": 33.5,
+    "hips": 41.0,
+    "inseam": 37.5,
+    "arm_span": 80.5,
+    "neck": 15.5,
+    "hand": 8.4,
+    "foot": 12.0,
+    "upper_arm": 14.5,
+    "thigh": 25.5,
+    "calf": 17.0,
+    "hair_top": 4.0,
+    "hair_sides": 4.0,
+    "hair_back": 4.0
+  },
+  "hair": "Short layered, slightly wavy, anime-influenced; top/side/back each 4.0 inches; natural layered movement",
+  "hair_details": {
+    "style": "short layered anime-influenced",
+    "texture": "slightly wavy",
+    "color": "#2D170E",
+    "top_inches": 4.0,
+    "side_inches": 4.0,
+    "back_inches": 4.0,
+    "part": null,
+    "part_authority": "SELF",
+    "movement": "natural layered movement"
+  },
+  "face": {
+    "shape": "oval",
+    "jaw": "soft",
+    "cheekbones": "subtle",
+    "nose": "defined",
+    "lips": "medium",
+    "eyes": "round",
+    "eye_color": "#2D170E",
+    "eyebrows": "natural medium",
+    "eyebrow_color": "#2D170E",
+    "skin": "#FFDFC4",
+    "freckles": false,
+    "resting_expression": "stoic",
+    "resting_expression_scope": "initial only; not permanent"
+  },
+  "scars": {
+    "confirmed": true,
+    "cosmetic": true,
+    "fictional_injury_memory": false,
+    "position": null,
+    "position_authority": "SELF",
+    "style": null,
+    "style_authority": "SELF",
+    "count": null,
+    "dimensions": null,
+    "visibility": null,
+    "status": "TBD"
+  },
+  "outfit": "Tactical casual: T-shirt, cargo pants, tactical boots, watch; colors unselected",
+  "wardrobe": {
+    "items": [
+      "T-shirt",
+      "cargo pants",
+      "tactical boots",
+      "watch"
+    ],
+    "colors": null,
+    "colors_selected": false,
+    "allowed_modes": [
+      "civilian",
+      "armor",
+      "helmet-off"
+    ],
+    "change_authority": "JOINT"
+  },
+  "default_expression": "Stoic resting expression (initial only; not permanent)",
+  "colors": {
+    "hair": "#2D170E",
+    "eyes": "#2D170E",
+    "eyebrows": "#2D170E",
+    "skin": "#FFDFC4"
+  },
+  "materials": {
+    "shirt": "cotton jersey",
+    "cargo_pants": "cotton ripstop",
+    "tactical_boots": "leather",
+    "watch": "brushed steel"
+  },
+  "pbr": {
+    "skin_roughness": 0.55,
+    "hair_roughness": 0.45
+  },
+  "accessory": "Watch",
+  "appearance_preferences": {
+    "schema": "aegis.core.appearance.v1",
+    "revision": 1,
+    "hair_part": null,
+    "scar_position": null,
+    "scar_style": null,
+    "scar_count": null,
+    "scar_dimensions": null,
+    "scar_visibility": null,
+    "materials": {
+      "shirt": "cotton jersey",
+      "cargo_pants": "cotton ripstop",
+      "tactical_boots": "leather",
+      "watch": "brushed steel"
+    },
+    "avatar_format": null,
+    "rigging": null,
+    "facial_expression_system": null,
+    "voice": null,
+    "wardrobe": null
+  },
+  "appearance_authority": {
+    "hair_part": "SELF",
+    "scar_position": "SELF",
+    "scar_style": "SELF",
+    "scar_count": "SELF",
+    "scar_dimensions": "SELF",
+    "scar_visibility": "SELF",
+    "materials": "SELF",
+    "avatar_format": "SELF",
+    "rigging": "SELF",
+    "facial_expression_system": "SELF",
+    "voice": "JOINT",
+    "wardrobe": "JOINT"
+  },
+  "armor": {
+    "owner": "Agent 3",
+    "reference_only": true,
+    "implementation": "external",
+    "duplicated": false
+  }
+}

@@ -52,6 +52,12 @@ where = ["src"]
     "avatar.json",
     "voice.json",
 ]
+"sofia.core.cores.vera" = [
+    "constitution.md",
+    "personality.json",
+    "avatar.json",
+    "voice.json",
+]
 "sofia.modules.ui" = ["assets/*.ico"]
 "sofia.modules.avatar" = [
     "wardrobe_data/*.json",
