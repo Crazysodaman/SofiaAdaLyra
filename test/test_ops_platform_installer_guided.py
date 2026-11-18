@@ -67,15 +67,20 @@ def bundle(tmp_path, platform_wheels):
     public = builder._key.public_key().public_bytes(
         serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo,
     )
-    (installer / "trusted-publisher.pem").write_bytes(public)
-    (installer / "trust.json").write_text(json.dumps({
+    trust_document = json.dumps({
         "schema": guided.TRUST_SCHEMA,
         "publisher_key_sha256": sha256(public).hexdigest(),
         "signer_key_id": builder.signer_key_id,
-    }), encoding="utf-8")
+    })
+    (installer / "trusted-publisher.pem").write_bytes(public)
+    (installer / "trust.json").write_text(trust_document, encoding="utf-8")
+    independent = tmp_path / "owner-controlled-trust"
+    independent.mkdir()
+    (independent / "trusted-publisher.pem").write_bytes(public)
+    (independent / "trust.json").write_text(trust_document, encoding="utf-8")
     return SimpleNamespace(
         root=root, release=root / "release", builder=builder,
-        manifest=manifest, trust=installer,
+        manifest=manifest, trust=installer, independent_trust=independent,
     )
 
 
@@ -167,7 +172,8 @@ def _fake_backend(effects):
 def _run(bundle, paths, **kwargs):
     return guided.run_guided(
         bundle.root, target=TARGET, paths=paths,
-        elevation_check=lambda: True, **kwargs,
+        elevation_check=lambda: True, trust_root=bundle.independent_trust,
+        **kwargs,
     )
 
 
@@ -207,6 +213,35 @@ def test_check_rejects_missing_installer_trust_anchor(bundle, paths):
     assert not paths.destination.exists()
 
 
+def test_check_requires_independent_owner_trust_root(bundle, paths, tmp_path):
+    result = _run(bundle, paths, check=True, trust_root=tmp_path / "absent-trust")
+
+    assert result["outcome"] == "DENIED"
+    assert result["error"]["code"] == "TRUST_ROOT_MISSING"
+
+
+def test_bundle_cannot_supply_its_own_independent_trust_root(bundle, paths):
+    inside = bundle.root / "owner-trust"
+    shutil.copytree(bundle.trust, inside)
+
+    result = _run(bundle, paths, check=True, trust_root=inside)
+
+    assert result["outcome"] == "DENIED"
+    assert result["error"]["code"] == "TRUST_ROOT_NOT_INDEPENDENT"
+
+
+def test_independent_trust_root_must_match_bundle_anchor(bundle, paths):
+    trust_path = bundle.independent_trust / "trust.json"
+    document = json.loads(trust_path.read_text(encoding="utf-8"))
+    document["signer_key_id"] = "different-owner-signer"
+    trust_path.write_text(json.dumps(document), encoding="utf-8")
+
+    result = _run(bundle, paths, check=True)
+
+    assert result["outcome"] == "DENIED"
+    assert result["error"]["code"] == "TRUST_ANCHOR_MISMATCH"
+
+
 def test_check_rejects_tampered_release_signature(bundle, paths):
     signature = bundle.release / "release-signature.json"
     document = json.loads(signature.read_text(encoding="utf-8"))
@@ -244,7 +279,10 @@ def test_flat_release_media_cannot_supply_its_own_trust_anchor(bundle, paths):
     shutil.copytree(bundle.release, flat)
     shutil.copytree(bundle.trust, flat / "installer")
 
-    result = guided.run_guided(flat, check=True, target=TARGET, paths=paths)
+    result = guided.run_guided(
+        flat, check=True, target=TARGET, paths=paths,
+        trust_root=bundle.independent_trust,
+    )
 
     assert result["outcome"] == "DENIED"
     assert result["error"]["code"] == "TRUST_NOT_INDEPENDENT"
@@ -278,6 +316,7 @@ def test_nonelevated_mutation_refuses_before_any_approval_or_effect(bundle, path
     result = guided.run_guided(
         bundle.root, operation="install", target=TARGET, paths=paths,
         approval_adapter=approvals, elevation_check=lambda: False,
+        trust_root=bundle.independent_trust,
     )
 
     assert result["outcome"] == "ELEVATION_REQUIRED"
@@ -430,7 +469,7 @@ def test_lifecycle_routing_uses_existing_commands_and_previous_destination(
         operator_apps_shortcut_adapter=FakeShortcuts(),
     )
 
-    assert result["outcome"] == expected_outcome
+    assert result["outcome"] == expected_outcome, result
     assert calls[0][0] == operation
     requested_inputs = calls[0][1]
     if operation in ("update", "rollback"):
@@ -447,6 +486,7 @@ def test_lifecycle_routing_uses_existing_commands_and_previous_destination(
 def test_json_entrypoint_has_no_ansi_and_exposes_plan(bundle, capsys):
     argv = [
         "--bundle-root", str(bundle.root), "--check", "--json",
+        "--trust-root", str(bundle.independent_trust),
     ]
     code = guided.main(argv)
     output = capsys.readouterr().out
@@ -459,6 +499,51 @@ def test_json_entrypoint_has_no_ansi_and_exposes_plan(bundle, capsys):
     assert document["plan"]["paths"]["destination"] == str(
         guided.default_paths(TARGET).destination
     )
+
+def test_no_color_flag_is_accepted_for_preview_json(bundle, capsys):
+    argv = [
+        "--bundle-root", str(bundle.root), "--check", "--json", "--no-color",
+        "--trust-root", str(bundle.independent_trust),
+    ]
+    code = guided.main(argv)
+    output = capsys.readouterr().out
+    assert code == 0
+    assert "\x1b" not in output
+    assert json.loads(output)["outcome"] == "PREVIEW_OK"
+
+
+def test_no_color_is_forwarded_to_normal_guided_menu(bundle, monkeypatch):
+    captured = {}
+
+    def fake_interactive(bundle_root, **kwargs):
+        captured.update(kwargs, bundle_root=bundle_root)
+        return 0
+
+    monkeypatch.setattr(guided, "_interactive", fake_interactive)
+    code = guided.main([
+        "--bundle-root", str(bundle.root), "--no-color",
+        "--trust-root", str(bundle.independent_trust),
+    ])
+    assert code == 0
+    assert captured["no_color"] is True
+    assert captured["trust_root"] == bundle.independent_trust
+
+
+def test_default_guided_menu_keeps_color_contract(bundle, monkeypatch):
+    captured = {}
+
+    def fake_interactive(bundle_root, **kwargs):
+        captured.update(kwargs)
+        return 0
+
+    monkeypatch.setattr(guided, "_interactive", fake_interactive)
+    code = guided.main([
+        "--bundle-root", str(bundle.root),
+        "--trust-root", str(bundle.independent_trust),
+    ])
+    assert code == 0
+    assert captured["no_color"] is False
+
 
 def test_real_builder_bundle_is_consumed_by_real_guided_launcher(
     tmp_path, component_wheels,
@@ -483,9 +568,22 @@ def test_real_builder_bundle_is_consumed_by_real_guided_launcher(
     assert layout.installer_root == bundle / "installer"
     assert layout.release_root not in layout.trust_key.parents
     assert (bundle / "release" / "runtime" / "python").is_dir()
-    release, _payload = verify_bundle(layout, target=target)
+    owner_trust = tmp_path / "owner-controlled-trust"
+    owner_trust.mkdir()
+    shutil.copyfile(
+        bundle / "installer" / "trusted-publisher.pem",
+        owner_trust / "trusted-publisher.pem",
+    )
+    shutil.copyfile(
+        bundle / "installer" / "trust.json", owner_trust / "trust.json",
+    )
+    release, _payload = verify_bundle(
+        layout, target=target, trust_root=owner_trust,
+    )
     assert release.source_sha == sha
-    preview = run_guided(bundle, check=True, target=target)
+    preview = run_guided(
+        bundle, check=True, target=target, trust_root=owner_trust,
+    )
     assert preview["outcome"] == "PREVIEW_OK"
     assert preview["plan"]["release_root"] == str(bundle / "release")
     assert preview["plan"]["installer_trust_root"] == str(bundle / "installer")
