@@ -50,6 +50,30 @@ _EXPORTS = {
             "module_settings_contract_to_document",
         )
     },
+    **{
+        name: ("core_capabilities", name) for name in (
+            "CAPABILITY_RECEIPT_SCHEMA", "CORE_CAPABILITIES_SCHEMA",
+            "MAX_CAPABILITY_FAMILIES", "BodyCapability",
+            "BodyCapabilityProfile", "CapabilityError", "CapabilityFamily",
+            "CapabilityOutcome", "CapabilityReceipt", "CapabilityState",
+            "CoreCapabilityContract", "RendererCapability",
+            "UNIVERSAL_CAPABILITY_FAMILIES", "definition_digest_for",
+            "derive_core_capability_contract", "unavailable_receipt",
+        )
+    },
+    **{
+        name: ("gesture_contract", name) for name in (
+            "ADULT_REVIEWED_POLICY", "ADULT_SCENE_SCHEMA",
+            "GESTURE_CONTRACT_SCHEMA", "GESTURE_RECEIPT_SCHEMA",
+            "AdultEligibility", "AdultSceneDecision", "AdultSceneReceipt",
+            "AdultSceneRequest", "GestureClass", "GestureCompatibility",
+            "GestureCompatibilityStatus", "GestureDefinition", "GestureError",
+            "GestureEvidence", "GestureExecution", "GestureParty",
+            "GesturePartyKind", "GesturePlaybackReceipt", "GesturePrivacy",
+            "GestureStateError", "IntimacyDimensions", "SceneAudience",
+            "evaluate_adult_scene", "resolve_gesture_compatibility",
+        )
+    },
 }
 
 __all__ = list(_EXPORTS)
