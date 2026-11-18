@@ -1,4 +1,4 @@
-﻿"""One-step attended orchestrator for the signed Aegis Platform installer.
+"""One-step attended orchestrator for the signed Aegis Platform installer.
 
 The Windows and Linux launchers invoke this module only. It discovers the
 signed release media and the separately provisioned installer trust anchor,

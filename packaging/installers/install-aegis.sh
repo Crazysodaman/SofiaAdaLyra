@@ -323,6 +323,13 @@ resolve_bundled_python() {
     LAST_ERROR='Bundled runtime release root contains a symlinked path component.'
     return 2
   fi
+  if [[ -f "$root_real/release/release-manifest.json" &&
+        ! -L "$root_real/release/release-manifest.json" ]]; then
+    root_real="$(realpath -e -- "$root_real/release")" || {
+      LAST_ERROR='Bundled runtime release root is unavailable.'
+      return 2
+    }
+  fi
   os="$(uname -s 2>/dev/null || true)"
   arch="$(uname -m 2>/dev/null || true)"
   if [[ "$os" != Linux ]]; then

@@ -170,10 +170,10 @@ def _fake_backend(effects):
 
 
 def _run(bundle, paths, **kwargs):
+    kwargs.setdefault("trust_root", bundle.independent_trust)
     return guided.run_guided(
         bundle.root, target=TARGET, paths=paths,
-        elevation_check=lambda: True, trust_root=bundle.independent_trust,
-        **kwargs,
+        elevation_check=lambda: True, **kwargs,
     )
 
 
@@ -264,7 +264,7 @@ def test_check_rejects_wrong_signer_and_wrong_key_pin(bundle, paths):
     }), encoding="utf-8")
     wrong_signer = _run(bundle, paths, check=True)
     assert wrong_signer["outcome"] == "DENIED"
-    assert wrong_signer["error"]["code"] == "RELEASE_REJECTED"
+    assert wrong_signer["error"]["code"] == "TRUST_ANCHOR_MISMATCH"
 
     trust_path.write_text(json.dumps({
         **original, "publisher_key_sha256": "0" * 64,
