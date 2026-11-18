@@ -211,6 +211,24 @@ resolve_bundle_root() {
     return 0
   fi
   parent="$(dirname -- "$SCRIPT_DIR")"
+  # Installable bundles keep signed media in <bundle>/release and the
+  # independent installer trust in <bundle>/installer. Prefer that outer
+  # bundle root so discover_bundle can see both.
+  for candidate in "$SCRIPT_DIR" "$parent"; do
+    if [[ -f "$candidate/release/release-manifest.json" &&
+          ! -L "$candidate/release/release-manifest.json" ]]; then
+      real="$(realpath -e -- "$candidate")" || {
+        LAST_ERROR='Installer release root path is unavailable.'
+        return 2
+      }
+      if [[ "$(realpath -ms -- "$candidate")" != "$real" ]]; then
+        LAST_ERROR='Installer release root contains a symbolic link or escape.'
+        return 2
+      fi
+      RESOLVED_BUNDLE_ROOT="$real"
+      return 0
+    fi
+  done
   for candidate in "$SCRIPT_DIR" "$SCRIPT_DIR/release" "$SCRIPT_DIR/bundle" \
       "$parent" "$parent/release" "$parent/bundle"; do
     if [[ -f "$candidate/release-manifest.json" && ! -L "$candidate/release-manifest.json" ]]; then
@@ -304,6 +322,13 @@ resolve_bundled_python() {
   if [[ "$(realpath -ms -- "$root")" != "$root_real" ]]; then
     LAST_ERROR='Bundled runtime release root contains a symlinked path component.'
     return 2
+  fi
+  if [[ -f "$root_real/release/release-manifest.json" &&
+        ! -L "$root_real/release/release-manifest.json" ]]; then
+    root_real="$(realpath -e -- "$root_real/release")" || {
+      LAST_ERROR='Bundled runtime release root is unavailable.'
+      return 2
+    }
   fi
   os="$(uname -s 2>/dev/null || true)"
   arch="$(uname -m 2>/dev/null || true)"

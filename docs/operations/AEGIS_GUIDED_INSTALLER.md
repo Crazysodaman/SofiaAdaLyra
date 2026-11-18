@@ -164,6 +164,29 @@ stale revision, trust key inside the bundle, tampered manifest/signature/asset,
 missing dependency metadata or missing runtime asset must deny before any
 installation, service, launcher or `PATH` effect.
 
+## Independent trust provisioning
+
+The bundle's `installer/trusted-publisher.pem` and `installer/trust.json` are
+provisioning copies for the owner, not the authority used by the guided
+installer. Provision an independent owner-controlled copy before running setup:
+
+- Windows default: `%ProgramData%\Aegis\installer-trust\`
+- Debian default: `/etc/aegis/installer-trust/`
+
+Each directory must contain exactly `trusted-publisher.pem` and `trust.json`
+with the same signer key ID and public key SHA-256 that the owner independently
+verified. The guided installer refuses an absent root, a root inside the
+bundle, or a bundle/root mismatch. `AEGIS_INSTALLER_TRUST_ROOT` is supported
+for disposable test provisioning and must not be treated as proof of owner
+trust. No commercial certificate is required for personal-use test signing.
+
+`--no-color` is accepted by the Python guided module and forwarded by both
+launchers. The launchers also honor `NO_COLOR` and their native no-color
+switches. Invocation tests build real assembler output, replace only the
+disposable runtime with an argument echo, and exercise Windows PowerShell and
+Bash bundle discovery, `--check`, JSON, normal operation forwarding, missing
+trust, and missing runtime failure paths.
+
 ## Approval, STOP and revocation
 
 Mutating operations require distinct exact one-use SAFE approvals. The canonical
