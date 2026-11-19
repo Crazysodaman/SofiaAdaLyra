@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-SOFIA_PERSONAL_NAME = "SofA-a Ada Lyra"
+SOFIA_PERSONAL_NAME = "Sofía Ada Lyra"
 SOFIA_NICKNAME = "Sofía"
 SOFIA_CORE_NUMBER = 1
 SOFIA_SLUG = "sofia"

@@ -90,6 +90,8 @@ EXPECTED_CORE_IDENTITIES: tuple[ExpectedCoreIdentity, ...] = (
     ExpectedCoreIdentity(1, "Sofía Ada Lyra", "Sofía", "sofia"),
     ExpectedCoreIdentity(2, "Mack Fuller", "Mack", "mack"),
     ExpectedCoreIdentity(3, "Nova Arden", "Nova", "nova"),
+    ExpectedCoreIdentity(6, "Vera", "Vera", "vera"),
+    ExpectedCoreIdentity(7, "Core #7", "Unwritten", "unwritten"),
 )
 
 

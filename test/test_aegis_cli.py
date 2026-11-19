@@ -236,7 +236,7 @@ def test_core_profiles_lists_canonical_definitions_without_install_claims(capsys
     assert payload["runtime_verified"] is False
     names = [item["full_name"] for item in payload["definitions"]]
     assert names[0].startswith("Sof")
-    assert names[1:] == ["Mack Fuller", "Nova Arden"]
+    assert names[1:] == ["Mack Fuller", "Nova Arden", "Vera", "Core #7"]
 
 
 @pytest.mark.parametrize("operation", ["start", "stop", "detach", "remove"])

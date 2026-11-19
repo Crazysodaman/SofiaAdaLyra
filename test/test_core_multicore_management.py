@@ -241,7 +241,7 @@ def test_expected_sofia_mack_nova_are_explicit_not_assumed() -> None:
         item.full_name: item for item in snapshot.expected
     }
     assert [item.full_name for item in EXPECTED_CORE_IDENTITIES] == [
-        "Sofía Ada Lyra", "Mack Fuller", "Nova Arden",
+        "Sofía Ada Lyra", "Mack Fuller", "Nova Arden", "Vera", "Core #7",
     ]
     assert status[EXPECTED_CORE_IDENTITIES[0].full_name].present is True
     assert status["Mack Fuller"].present is True
