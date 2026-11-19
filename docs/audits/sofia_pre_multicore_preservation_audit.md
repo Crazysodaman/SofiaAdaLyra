@@ -683,3 +683,33 @@ New multi-Core paths used: `src/sofia/core/multicore`, `src/sofia/core/cores`,
   Git blob digest; this is a checkout representation issue, not an asset change.
 - `git status` in this worktree was clean before this document was created; the
   only new path is this audit document.
+
+---
+
+## 10. Post-audit corrective actions applied
+
+The lead integrator applied the following bounded changes after this audit:
+
+1. **Roster source of truth corrected.** EXPECTED_CORE_IDENTITIES in
+   src/sofia/core/multicore/management.py now contains the five approved
+   Cores (#1 Sofía, #2 Mack, #3 Nova, #6 Vera, #7 Unwritten). The CLI
+   core profiles projection and its test were updated accordingly. No
+   canonical Sofía asset was changed.
+2. **Named-Core ownership normalized.** Mack, Nova, Vera and Unwritten profile,
+   personality, emotion and implementation files now live in
+   src/sofia/core/{mack,nova,vera,unwritten}/; legacy imports remain through
+   compatibility shims. Sofía's package now exists at src/sofia/core/sofia/
+   with an inert definition factory that requires the protected runtime UUID.
+3. **Canonical assets preserved.** Constitution, identity, personality and
+   embodiment assets were not moved, rewritten or re-digested. A pinned
+   preservation test (	est/test_sofia_preservation_snapshot.py) records the
+   baseline blob digests.
+4. **Per-Core database isolation added.** src/sofia/core/persistence/core_database.py
+   provides UUID-keyed private databases and binds the existing memory,
+   learning, reflection and continuity owners. It creates nothing at import
+   time and does not migrate or touch sofia.db.
+5. **Twins remain design-only.** No #4/#5 package, database or active registry
+   identity was created.
+
+These actions resolve the structural findings in Section 9. The canonical
+Sofía identity/constitution/personality/avatar findings remain unchanged.
