@@ -108,6 +108,7 @@ class InstallerInputs:
     operator_apps_path_scope: str = "user"
     operator_apps_include_powershell: bool = False
     operator_apps_desktop_shortcut: bool = False
+    operator_apps_start_at_login: bool = False
 
 
 def _result(command: str, outcome: str, *, executed: bool = False,
@@ -284,6 +285,7 @@ def _operator_apps_config(inputs: InstallerInputs) -> OperatorAppsConfiguration 
         path_scope=inputs.operator_apps_path_scope,
         include_powershell=inputs.operator_apps_include_powershell,
         include_desktop_shortcut=inputs.operator_apps_desktop_shortcut,
+        start_at_login=inputs.operator_apps_start_at_login,
     )
 
 

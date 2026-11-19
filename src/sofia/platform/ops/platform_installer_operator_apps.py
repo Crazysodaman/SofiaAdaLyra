@@ -78,6 +78,7 @@ class OperatorAppsConfiguration:
     path_scope: str = "user"
     include_powershell: bool = False
     include_desktop_shortcut: bool = False
+    start_at_login: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.target, PlatformReleaseTarget):
@@ -88,6 +89,8 @@ class OperatorAppsConfiguration:
             raise TypeError("include_powershell must be boolean")
         if type(self.include_desktop_shortcut) is not bool:
             raise TypeError("include_desktop_shortcut must be boolean")
+        if type(self.start_at_login) is not bool:
+            raise TypeError("start_at_login must be boolean")
         if not self.approved_roots:
             raise OperatorAppsDenied("at least one approved launcher root is required")
 
@@ -166,6 +169,59 @@ class ShortcutAdapter(Protocol):
     def create(self, spec: ShortcutSpec) -> None: ...
 
     def remove(self, spec: ShortcutSpec) -> None: ...
+
+
+class StartupAdapter(Protocol):
+    """Testable adapter for optional per-user sign-in startup."""
+
+    def enable(self, *, command: str) -> bool: ...
+
+    def disable(self) -> bool: ...
+
+
+class WindowsRunKeyStartupAdapter:
+    """Write only the reviewed per-user Aegis startup value in HKCU Run."""
+
+    value_name = "AegisPlatformUI"
+
+    def enable(self, *, command: str) -> bool:
+        if os.name != "nt":
+            raise OperatorAppsDenied("start-at-login is supported only on Windows")
+        if not isinstance(command, str) or not command.strip() or "\x00" in command:
+            raise OperatorAppsDenied("invalid startup command")
+        import winreg
+
+        with winreg.CreateKeyEx(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Run",
+            0,
+            winreg.KEY_READ | winreg.KEY_SET_VALUE,
+        ) as key:
+            try:
+                current, _kind = winreg.QueryValueEx(key, self.value_name)
+            except FileNotFoundError:
+                current = None
+            if current == command:
+                return False
+            winreg.SetValueEx(key, self.value_name, 0, winreg.REG_SZ, command)
+            return True
+
+    def disable(self) -> bool:
+        if os.name != "nt":
+            return False
+        import winreg
+
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Run",
+            0,
+            winreg.KEY_SET_VALUE,
+        ) as key:
+            try:
+                winreg.DeleteValue(key, self.value_name)
+            except FileNotFoundError:
+                return False
+            return True
 
 
 class PyWin32ShortcutAdapter:
@@ -365,9 +421,9 @@ def _shortcut_sidecar(spec: ShortcutSpec, link_sha256: str | None = None) -> str
     }) + "\n"
 
 
-def _shortcut(path: Path, launcher: Path, launcher_sha256: str) -> ShortcutSpec:
+def _shortcut(path: Path, launcher: Path, launcher_sha256: str,
+             *, arguments: str = "gui") -> ShortcutSpec:
     sidecar = path.with_name(path.name + ".aegis-owner.json")
-    arguments = "gui"
     spec_sha256 = sha256(_canonical_json({
         "path": str(path), "target": str(launcher), "arguments": arguments,
         "working_directory": str(launcher.parent),
@@ -399,6 +455,7 @@ def _plan_inputs(config: OperatorAppsConfiguration) -> dict[str, object]:
         "path_scope": config.path_scope,
         "include_powershell": config.include_powershell,
         "include_desktop_shortcut": config.include_desktop_shortcut,
+        "start_at_login": config.start_at_login,
     }
 
 
@@ -452,6 +509,7 @@ def build_operator_apps_plan(config: OperatorAppsConfiguration) -> dict[str, obj
             "ownership_marker": OWNERSHIP_MARKER,
         })
 
+    launcher_arguments = "gui" if gui is not None else ("tui" if tui is not None else None)
     shortcuts: list[ShortcutSpec] = []
     if config.target is PlatformReleaseTarget.WINDOWS_X86_64:
         content, digest = _windows_shim(python, code, source_sha256)
@@ -464,17 +522,23 @@ def build_operator_apps_plan(config: OperatorAppsConfiguration) -> dict[str, obj
         if config.start_menu_directory is not None:
             start = _absolute(config.start_menu_directory, "Start Menu directory")
             _assert_approved(start, roots)
-            if gui is None:
-                raise OperatorAppsDenied("Start Menu shortcut requires a GUI executable")
-            shortcuts.append(_shortcut(start / "Aegis Platform.lnk", launcher, launcher_sha256))
+            if launcher_arguments is None:
+                raise OperatorAppsDenied("Start Menu shortcut requires a GUI or TUI executable")
+            shortcuts.append(_shortcut(
+                start / "Aegis Platform.lnk", launcher, launcher_sha256,
+                arguments=launcher_arguments,
+            ))
         if config.include_desktop_shortcut:
             if config.desktop_directory is None:
                 raise OperatorAppsDenied("desktop shortcut requires a desktop directory")
             desktop = _absolute(config.desktop_directory, "desktop directory")
             _assert_approved(desktop, roots)
-            if gui is None:
-                raise OperatorAppsDenied("desktop shortcut requires a GUI executable")
-            shortcuts.append(_shortcut(desktop / "Aegis Platform.lnk", launcher, launcher_sha256))
+            if launcher_arguments is None:
+                raise OperatorAppsDenied("desktop shortcut requires a GUI or TUI executable")
+            shortcuts.append(_shortcut(
+                desktop / "Aegis Platform.lnk", launcher, launcher_sha256,
+                arguments=launcher_arguments,
+            ))
     else:
         content, digest = _posix_script(python, code, source_sha256)
         primary = bin_dir / "aegis"
@@ -500,6 +564,11 @@ def build_operator_apps_plan(config: OperatorAppsConfiguration) -> dict[str, obj
             add_file(applications / "aegis-platform.desktop", "desktop-entry",
                      desktop, digest, 0o644, source=launcher_sha256)
 
+    startup_command = (
+        None if (config.target is not PlatformReleaseTarget.WINDOWS_X86_64
+                 or launcher_arguments is None)
+        else f'"{launcher}" {launcher_arguments}'
+    )
     files_by_path = {Path(item["path"]) for item in files}
     for directory in {path.parent for path in files_by_path}:
         for name in _BIN_NAMES:
@@ -541,6 +610,12 @@ def build_operator_apps_plan(config: OperatorAppsConfiguration) -> dict[str, obj
             "source_sha256": item.source_sha256,
             "target_sha256": item.target_sha256,
         } for item in sorted(shortcuts, key=lambda item: str(item.path))],
+        "startup": {
+            "requested": config.start_at_login,
+            "supported": startup_command is not None,
+            "command": startup_command,
+            "action": "ENSURE" if config.start_at_login else "NO_CHANGE",
+        },
         "executed": False,
         "owner_approved": False,
         "core_activated": False,
@@ -558,6 +633,7 @@ def _parameters(operation: str, plan: dict[str, object]) -> dict[str, object]:
         "path_scope": plan["path"]["scope"],
         "file_count": len(plan["files"]),
         "shortcut_count": len(plan["shortcuts"]),
+        "startup_requested": plan["startup"]["requested"],
     }
 
 
@@ -807,8 +883,9 @@ def _write_state(store: PlatformInstallationStore, state: dict[str, object]) -> 
 def _execute_install(
     *, operation: str, plan: dict[str, object], config: OperatorAppsConfiguration,
     path_adapter: PathAdapter, shortcut_adapter: ShortcutAdapter,
-    store: PlatformInstallationStore,
+    store: PlatformInstallationStore, startup_adapter: StartupAdapter | None = None,
 ) -> dict[str, object]:
+    previous = _load_state(store)
     roots = tuple(Path(str(item)) for item in plan["configuration"]["approved_roots"])
     windows = config.target is PlatformReleaseTarget.WINDOWS_X86_64
     installed: list[str] = []
@@ -866,6 +943,23 @@ def _execute_install(
         else:
             shortcut_actions.append({"path": str(spec.path), "action": "NO_CHANGE"})
 
+    startup_action = {"requested": bool(plan["startup"]["requested"]), "action": "NO_CHANGE"}
+    startup_was_ours = bool(previous is not None and previous.get("startup_added_by_us") is True)
+    if plan["startup"]["requested"]:
+        if plan["startup"]["supported"] is not True or not plan["startup"]["command"]:
+            raise OperatorAppsDenied("start-at-login is unavailable for this target/launcher")
+        adapter = startup_adapter or WindowsRunKeyStartupAdapter()
+        if adapter.enable(command=str(plan["startup"]["command"])):
+            startup_action["action"] = "ENABLE"
+            startup_was_ours = True
+            changed = True
+    elif startup_was_ours:
+        adapter = startup_adapter or WindowsRunKeyStartupAdapter()
+        if adapter.disable():
+            startup_action["action"] = "DISABLE"
+            changed = True
+        startup_was_ours = False
+
     entry = str(plan["path"]["entry"])
     path_action = {"entry": entry, "scope": config.path_scope, "action": "NO_CHANGE"}
     added = False
@@ -877,7 +971,6 @@ def _execute_install(
             path_action["action"] = "ADD"
             changed = True
 
-    previous = _load_state(store)
     path_added_by_us = added or bool(
         previous is not None and previous.get("path_added_by_us") is True
     )
@@ -889,6 +982,7 @@ def _execute_install(
         "path_added_by_us": path_added_by_us,
         "files": [str(item["path"]) for item in plan["files"]],
         "shortcuts": [str(raw["path"]) for raw in plan["shortcuts"]],
+        "startup_added_by_us": startup_was_ours,
     }
     _write_state(store, state)
     return {
@@ -903,7 +997,7 @@ def _execute_install(
 def _execute_uninstall(
     *, plan: dict[str, object], config: OperatorAppsConfiguration,
     path_adapter: PathAdapter, shortcut_adapter: ShortcutAdapter,
-    store: PlatformInstallationStore,
+    store: PlatformInstallationStore, startup_adapter: StartupAdapter | None = None,
 ) -> dict[str, object]:
     windows = config.target is PlatformReleaseTarget.WINDOWS_X86_64
     removed: list[str] = []
@@ -924,6 +1018,12 @@ def _execute_uninstall(
             changed = True
 
     state = _load_state(store)
+    startup_action = {"requested": False, "action": "NO_CHANGE"}
+    if state is not None and state.get("startup_added_by_us") is True:
+        adapter = startup_adapter or WindowsRunKeyStartupAdapter()
+        if adapter.disable():
+            startup_action["action"] = "DISABLE"
+            changed = True
     path_action = {
         "entry": str(plan["path"]["entry"]), "scope": config.path_scope,
         "action": "NO_CHANGE",
@@ -945,6 +1045,7 @@ def _execute_uninstall(
         "removed_paths": removed,
         "path_action": path_action,
         "shortcut_actions": shortcut_actions,
+        "startup_action": startup_action,
         "changed": changed,
     }
 
@@ -1009,6 +1110,10 @@ def _receipt(
             "action": "NO_CHANGE",
         }),
         "shortcut_actions": (effects or {}).get("shortcut_actions", []),
+        "startup_action": (effects or {}).get("startup_action", {
+            "requested": bool(plan.get("startup", {}).get("requested")),
+            "action": "NO_CHANGE",
+        }),
         "owner_approved": True,
         "executed": effects is not None,
         "core_activated": False,
@@ -1028,6 +1133,7 @@ def apply_owner_approved_operator_apps(
     store: PlatformInstallationStore,
     path_adapter: PathAdapter,
     shortcut_adapter: ShortcutAdapter,
+    startup_adapter: StartupAdapter | None = None,
     now: datetime | None = None,
 ) -> dict[str, object]:
     """Consume one exact owner approval, then apply the launcher plan."""
@@ -1064,12 +1170,13 @@ def apply_owner_approved_operator_apps(
                 effects = _execute_uninstall(
                     plan=plan, config=config, path_adapter=path_adapter,
                     shortcut_adapter=shortcut_adapter, store=store,
+                    startup_adapter=startup_adapter,
                 )
             else:
                 effects = _execute_install(
                     operation=operation, plan=plan, config=config,
                     path_adapter=path_adapter, shortcut_adapter=shortcut_adapter,
-                    store=store,
+                    store=store, startup_adapter=startup_adapter,
                 )
         except Exception as error:
             observed = _observed_effects(plan, operation, store)

@@ -19,7 +19,9 @@ from dataclasses import dataclass, replace
 from hashlib import sha256
 import json
 import os
+import platform
 from pathlib import Path
+import shutil
 import re
 import subprocess
 import sys
@@ -46,6 +48,7 @@ from sofia.platform.ops.platform_installer_operator_apps import (
 )
 from sofia.platform.ops.platform_release import PlatformReleaseRejected
 from sofia.platform.state.artifact_file import read_artifact_file
+from sofia.platform.state.path_policy import inside_git_worktree
 from sofia.platform.state.private_file import assert_no_redirected_components
 from sofia.sdk.cognition_json import loads_strict_model_json
 from sofia.sdk.platform_release import PlatformReleaseTarget
@@ -123,6 +126,7 @@ class GuidedPaths:
     start_menu: Path | None
     desktop: Path | None
     approved_roots: tuple[Path, ...]
+    install_root: Path | None = None
 
     def as_plan(self) -> dict[str, str | None]:
         return {
@@ -135,6 +139,8 @@ class GuidedPaths:
             "global_bin": None if self.global_bin is None else str(self.global_bin),
             "start_menu": None if self.start_menu is None else str(self.start_menu),
             "desktop": None if self.desktop is None else str(self.desktop),
+            "install_root": (None if self.install_root is None
+                             else str(self.install_root)),
         }
 
 
@@ -177,7 +183,7 @@ def _validate_paths(paths: GuidedPaths) -> GuidedPaths:
     for value in (
         paths.destination, paths.identity_home, paths.local_state,
         paths.safe_state, paths.store_path, paths.operator_bin,
-        paths.global_bin, paths.start_menu, paths.desktop,
+        paths.global_bin, paths.start_menu, paths.desktop, paths.install_root,
     ):
         if value is not None:
             _approved(value, paths.approved_roots)
@@ -238,6 +244,90 @@ def default_paths(
         )
     else:
         raise GuidedDenied("UNSUPPORTED_TARGET", "unsupported signed release target")
+    return _validate_paths(paths)
+
+
+def default_install_root(
+    target: PlatformReleaseTarget, *, environ: Mapping[str, str] | None = None,
+) -> Path:
+    """Return the owner-facing default install root for this exact target.
+
+    On a Windows host with a D: drive the requested VENUS-style default is
+    ``D:\\Aegis``; otherwise the reviewed Program Files location is used.
+    """
+    environment = os.environ if environ is None else environ
+    if target is PlatformReleaseTarget.WINDOWS_X86_64:
+        if Path("D:\\").exists():
+            return Path("D:\\Aegis")
+        program_files = Path(_env(
+            environment, "ProgramFiles", r"C:\Program Files",
+        ))
+        return program_files / "Aegis"
+    return Path("/opt/aegis")
+
+
+def paths_for_install_root(
+    target: PlatformReleaseTarget,
+    install_root: Path | str,
+    *,
+    environ: Mapping[str, str] | None = None,
+    desktop_directory: Path | str | None = None,
+) -> GuidedPaths:
+    """Derive all reviewed Platform paths from one owner-selected root."""
+    if not isinstance(target, PlatformReleaseTarget):
+        raise TypeError("typed release target required")
+    environment = os.environ if environ is None else environ
+    root = Path(install_root)
+    if not root.is_absolute():
+        raise GuidedDenied("INVALID_INSTALL_ROOT", "install directory must be absolute")
+    root = _checked(root)
+    if inside_git_worktree(root):
+        raise GuidedDenied(
+            "INVALID_INSTALL_ROOT",
+            "install directory must be outside a Git worktree",
+        )
+    desktop = None if desktop_directory is None else _checked(Path(desktop_directory))
+    if target is PlatformReleaseTarget.WINDOWS_X86_64:
+        program_data = Path(_env(environment, "ProgramData", r"C:\ProgramData"))
+        start_menu = program_data / "Microsoft/Windows/Start Menu/Programs/Aegis"
+        roots = [root, program_data / "Microsoft/Windows/Start Menu/Programs"]
+        if desktop is not None:
+            roots.append(desktop)
+        paths = GuidedPaths(
+            target=target,
+            destination=root / "platform",
+            identity_home=root / "identity",
+            local_state=root / "state",
+            safe_state=root / "safe",
+            store_path=root / "installation" / "platform-installation.db",
+            operator_bin=root / "bin",
+            global_bin=None,
+            start_menu=start_menu,
+            desktop=desktop,
+            approved_roots=tuple(roots),
+            install_root=root,
+        )
+    else:
+        global_bin = Path("/usr/local/bin") if root == Path("/opt/aegis") else None
+        roots = [root]
+        if global_bin is not None:
+            roots.append(global_bin)
+        if desktop is not None:
+            roots.append(desktop)
+        paths = GuidedPaths(
+            target=target,
+            destination=root / "platform",
+            identity_home=root / "identity",
+            local_state=root / "state",
+            safe_state=root / "safe",
+            store_path=root / "installation" / "platform-installation.db",
+            operator_bin=root / "bin",
+            global_bin=global_bin,
+            start_menu=None,
+            desktop=desktop,
+            approved_roots=tuple(roots),
+            install_root=root,
+        )
     return _validate_paths(paths)
 
 
@@ -701,6 +791,8 @@ def _executable(destination: Path, names: Sequence[str]) -> Path | None:
 
 def _operator_configuration(
     paths: GuidedPaths, destination: Path,
+    *, start_at_login: bool = False, include_tui: bool = True,
+    include_start_menu: bool = True, include_desktop: bool = False,
 ) -> OperatorAppsConfiguration | None:
     windows = paths.target is PlatformReleaseTarget.WINDOWS_X86_64
     runtime = destination / "runtime" / "python" / (
@@ -716,7 +808,7 @@ def _operator_configuration(
     tui = _executable(destination, (
         ("aegis_tui.exe", "aegis-tui.exe")
         if windows else ("aegis-tui", "aegis_tui")
-    ))
+    )) if include_tui else None
     return OperatorAppsConfiguration(
         target=paths.target,
         runtime_python=runtime,
@@ -724,16 +816,21 @@ def _operator_configuration(
         bin_directory=paths.operator_bin,
         gui_executable=gui,
         tui_executable=tui,
-        start_menu_directory=(paths.start_menu if windows and gui is not None else None),
+        start_menu_directory=(
+            paths.start_menu if (windows and include_start_menu
+                                and (gui is not None or tui is not None))
+            else None
+        ),
         desktop_directory=(
-            paths.desktop if not windows and gui is not None else None
+            paths.desktop if include_desktop and paths.desktop is not None else None
         ),
         global_bin_directory=(None if windows else paths.global_bin),
         approved_roots=paths.approved_roots,
         protected_paths=(paths.identity_home, paths.local_state, paths.safe_state),
         path_scope="machine" if windows else "user",
         include_powershell=windows,
-        include_desktop_shortcut=False,
+        include_desktop_shortcut=bool(include_desktop),
+        start_at_login=bool(start_at_login),
     )
 
 
@@ -756,6 +853,7 @@ def _operator_inputs(
         operator_apps_path_scope=config.path_scope,
         operator_apps_include_powershell=config.include_powershell,
         operator_apps_desktop_shortcut=config.include_desktop_shortcut,
+        operator_apps_start_at_login=config.start_at_login,
     )
 
 
@@ -993,6 +1091,10 @@ def run_guided(
     elevation_check: Callable[[], bool] | None = None,
     script_directory: Path | str | None = None,
     trust_root: Path | str | None = None,
+    start_at_login: bool = False,
+    include_tui: bool = True,
+    include_start_menu: bool = True,
+    include_desktop: bool = False,
     approval_runner=None,
 ) -> dict[str, object]:
     """Verify, plan and (unless previewing) drive the canonical installer."""
@@ -1017,6 +1119,44 @@ def run_guided(
             layout, resolved_paths, release, payload, operation=requested,
             elevation_required=requested in MUTATING_OPERATIONS,
         )
+        asset_kinds = {
+            str(item.get("kind"))
+            for item in payload.get("assets", [])
+            if isinstance(item, dict)
+        }
+        plan["install_root"] = (
+            None if resolved_paths.install_root is None
+            else str(resolved_paths.install_root)
+        )
+        plan["components"] = {
+            "platform_service": True,
+            "terminal_tui": "tui" in asset_kinds,
+            "console_launcher": True,
+            "start_menu_shortcut": bool(
+                include_start_menu and "tui" in asset_kinds
+            ),
+            "desktop_shortcut": bool(
+                include_desktop and "tui" in asset_kinds
+            ),
+            "start_at_login": bool(start_at_login),
+        }
+        plan["startup_preference"] = (
+            "SIGN_IN_TUI" if start_at_login else "SERVICE_START_ONLY"
+        )
+        operator_plan = plan.get("operator_apps")
+        if isinstance(operator_plan, dict):
+            command = None
+            if (
+                target is PlatformReleaseTarget.WINDOWS_X86_64
+                and include_tui and "tui" in asset_kinds
+            ):
+                command = f'"{resolved_paths.operator_bin / "aegis.cmd"}" tui'
+            operator_plan["startup"] = {
+                "requested": bool(start_at_login),
+                "supported": command is not None,
+                "command": command,
+                "action": "ENSURE" if start_at_login else "NO_CHANGE",
+            }
     except GuidedDenied as error:
         return _denied(requested, error.code, error.detail)
     except PlatformInstallationDenied as error:
@@ -1123,7 +1263,9 @@ def run_guided(
     operator_operation = "update" if requested == "rollback" else requested
     if operator_operation in ("install", "update", "repair", "uninstall"):
         config = operator_apps_config or _operator_configuration(
-            resolved_paths, destination,
+            resolved_paths, destination, start_at_login=start_at_login,
+            include_tui=include_tui, include_start_menu=include_start_menu,
+            include_desktop=include_desktop,
         )
         if config is None:
             operator_result = _result(
@@ -1308,6 +1450,238 @@ def _print_result(
     )
 
 
+def _desktop_directory(target: PlatformReleaseTarget) -> Path | None:
+    if target is PlatformReleaseTarget.WINDOWS_X86_64:
+        profile = os.environ.get("USERPROFILE", "").strip()
+        candidate = None if not profile else Path(profile) / "Desktop"
+    else:
+        candidate = Path.home() / "Desktop"
+    return candidate if candidate is not None and candidate.is_dir() else None
+
+
+def _existing_ancestor(path: Path) -> Path:
+    current = path
+    while not current.exists() and current != current.parent:
+        current = current.parent
+    return current
+
+
+def _preflight(
+    bundle_root: Path | str,
+    *,
+    target: PlatformReleaseTarget,
+    install_root: Path,
+    trust_root: Path | str | None,
+    script_directory: Path | None,
+) -> dict[str, object]:
+    """Read-only host/media checks used by the Windows TUI before prompting."""
+    blockers: list[str] = []
+    release_fields: dict[str, object] = {}
+    asset_bytes = 0
+    asset_kinds: set[str] = set()
+    try:
+        layout = discover_bundle(bundle_root, script_directory=script_directory)
+        release, payload = verify_bundle(
+            layout, target=target, trust_root=trust_root,
+        )
+        _bundled_python(layout, target)
+        release_fields = _release_fields(release)
+        for item in payload.get("assets", []):
+            if not isinstance(item, dict):
+                continue
+            asset_kinds.add(str(item.get("kind")))
+            reference = item.get("reference")
+            if isinstance(reference, dict):
+                size = reference.get("size_bytes")
+                if type(size) is int and size >= 0:
+                    asset_bytes += size
+    except GuidedDenied as error:
+        blockers.append(f"{error.code}: {error.detail}")
+    except PlatformInstallationDenied as error:
+        blockers.append(str(error))
+    except (OSError, ValueError, TypeError):
+        blockers.append("installer media or trust inputs are unavailable")
+
+    try:
+        paths = paths_for_install_root(
+            target, install_root,
+            desktop_directory=_desktop_directory(target),
+        )
+        existing = current_destination(paths)
+    except (GuidedDenied, OSError, ValueError, TypeError, PermissionError) as error:
+        paths = None
+        existing = None
+        blockers.append(
+            getattr(error, "detail", str(error)) or "install directory is invalid"
+        )
+
+    ancestor = _existing_ancestor(install_root)
+    try:
+        usage = shutil.disk_usage(ancestor)
+        free_bytes = int(usage.free)
+    except OSError:
+        free_bytes = 0
+        blockers.append("free disk space could not be observed")
+    required_bytes = asset_bytes + 512 * 1024 * 1024
+    if free_bytes and free_bytes < required_bytes:
+        blockers.append(
+            f"insufficient disk space: need at least {required_bytes} bytes, "
+            f"observed {free_bytes}"
+        )
+
+    return {
+        "ok": not blockers,
+        "blockers": tuple(blockers),
+        "host": platform.node() or "UNKNOWN",
+        "os": platform.platform(),
+        "target": target.value,
+        "install_root": str(install_root),
+        "existing_destination": None if existing is None else str(existing),
+        "paths": None if paths is None else paths.as_plan(),
+        "free_bytes": free_bytes,
+        "required_bytes": required_bytes,
+        "asset_bytes": asset_bytes,
+        "asset_kinds": tuple(sorted(asset_kinds)),
+        "tui_available": "tui" in asset_kinds,
+        **release_fields,
+    }
+
+
+def _prompt_text(prompt: str, default: str) -> str:
+    value = input(f"{prompt} [{default}]: ").strip()
+    return default if not value else value
+
+
+def _prompt_yes(prompt: str, *, default: bool = True) -> bool:
+    marker = "Y/n" if default else "y/N"
+    value = input(f"{prompt} [{marker}]: ").strip().casefold()
+    if not value:
+        return default
+    if value in ("y", "yes"):
+        return True
+    if value in ("n", "no"):
+        return False
+    return default
+
+
+def _print_preflight(preflight: Mapping[str, object], *, theme, color: bool) -> None:
+    print(_paint("SYSTEM CHECK", "primary", theme, color))
+    print(f"HOST={preflight.get('host')}")
+    print(f"OS={preflight.get('os')}")
+    print(f"TARGET={preflight.get('target')}")
+    print(f"INSTALL_ROOT={preflight.get('install_root')}")
+    print(f"SIGNED_RELEASE={preflight.get('release_id', 'UNAVAILABLE')}")
+    print(f"REVISION={preflight.get('revision', 'UNKNOWN')}")
+    print(f"SIGNER={preflight.get('signer_key_id', 'UNAVAILABLE')}")
+    existing = preflight.get("existing_destination")
+    print(f"EXISTING_INSTALL={existing or 'NONE_DETECTED'}")
+    print(f"FREE_BYTES={preflight.get('free_bytes')}")
+    print(f"REQUIRED_BYTES={preflight.get('required_bytes')}")
+    print(f"TUI_AVAILABLE={str(preflight.get('tui_available')).upper()}")
+    blockers = preflight.get("blockers", ())
+    if blockers:
+        print(_paint("BLOCKERS:", "warning", theme, color))
+        for blocker in blockers:
+            print(f"  - {blocker}")
+    else:
+        print(_paint("SYSTEM CHECK=PASS", "success", theme, color))
+
+
+def _install_wizard(
+    bundle_root: Path | str, *, target: PlatformReleaseTarget,
+    script_directory: Path | None, trust_root: Path | str | None,
+    theme, color: bool, no_color: bool,
+) -> dict[str, object] | None:
+    default_root = default_install_root(target)
+    preflight = _preflight(
+        bundle_root, target=target, install_root=default_root,
+        trust_root=trust_root, script_directory=script_directory,
+    )
+    _print_preflight(preflight, theme=theme, color=color)
+    if preflight.get("blockers"):
+        return None
+    selected_root = Path(_prompt_text(
+        "Installation directory", str(preflight.get("install_root", default_root)),
+    ))
+    desktop = _desktop_directory(target)
+    preflight = _preflight(
+        bundle_root, target=target, install_root=selected_root,
+        trust_root=trust_root, script_directory=script_directory,
+    )
+    _print_preflight(preflight, theme=theme, color=color)
+    if preflight.get("blockers"):
+        return None
+    if preflight.get("existing_destination"):
+        print(
+            "An existing Aegis installation was detected. No files are changed "
+            "until the reviewed plan is verified and owner approval succeeds."
+        )
+
+    tui_available = bool(preflight.get("tui_available"))
+    include_tui = _prompt_yes(
+        "Install terminal TUI launcher", default=tui_available,
+    ) if tui_available else False
+    include_start_menu = _prompt_yes(
+        "Create Start Menu shortcut", default=include_tui,
+    ) if include_tui else False
+    include_desktop = _prompt_yes(
+        "Create Desktop shortcut",
+        default=False,
+    ) if desktop is not None and include_tui else False
+    start_at_login = _prompt_yes(
+        "Start Aegis TUI at sign-in", default=False,
+    ) if (
+        target is PlatformReleaseTarget.WINDOWS_X86_64 and include_tui
+    ) else False
+
+    try:
+        paths = paths_for_install_root(
+            target, selected_root, desktop_directory=desktop,
+        )
+        plan_result = run_guided(
+            bundle_root, check=True, target=target, paths=paths,
+            script_directory=script_directory, trust_root=trust_root,
+            start_at_login=start_at_login, include_tui=include_tui,
+            include_start_menu=include_start_menu, include_desktop=include_desktop,
+        )
+    except Exception as error:
+        print(f"Plan could not be produced: {error}")
+        return None
+    plan = plan_result.get("plan")
+    if isinstance(plan, dict):
+        print()
+        _print_result(plan_result, theme=theme, color=color)
+        print("COMPONENTS=" + json.dumps(
+            plan.get("components", {}), sort_keys=True, separators=(",", ":"),
+        ))
+        print("STARTUP_PREFERENCE=" + str(plan.get("startup_preference")))
+        operator_plan = plan.get("operator_apps")
+        startup_plan = (
+            operator_plan.get("startup")
+            if isinstance(operator_plan, dict) else None
+        )
+        if isinstance(startup_plan, dict):
+            print("STARTUP_ACTION=" + json.dumps(
+                startup_plan, sort_keys=True, separators=(",", ":"),
+            ))
+        else:
+            print("STARTUP_ACTION=UNKNOWN")
+    if plan_result.get("outcome") != "PREVIEW_OK":
+        return plan_result
+    if not _prompt_yes(
+        "Apply this exact read-only plan now? Owner approval and UAC are still required",
+        default=False,
+    ):
+        print("Installation cancelled; no changes were made.")
+        return None
+    return run_guided(
+        bundle_root, operation="install", target=target, paths=paths,
+        script_directory=script_directory, trust_root=trust_root,
+        start_at_login=start_at_login, include_tui=include_tui,
+        include_start_menu=include_start_menu, include_desktop=include_desktop,
+    )
+
+
 def _interactive(
     bundle_root: Path | str, *, script_directory: Path | None = None,
     trust_root: Path | str | None = None, no_color: bool = False,
@@ -1353,6 +1727,21 @@ def _interactive(
             return 0
         if selected == "invalid":
             print("Invalid selection; no operation performed.")
+            continue
+        try:
+            target = host_release_target()
+        except PlatformInstallationDenied as error:
+            print(f"Unsupported host: {error}")
+            continue
+        if selected == "install":
+            result = _install_wizard(
+                bundle_root, target=target, script_directory=script_directory,
+                trust_root=trust_root, theme=theme, color=color,
+                no_color=no_color,
+            )
+            if result is None:
+                continue
+            _print_result(result, theme=theme, color=color)
             continue
         result = run_guided(
             bundle_root, operation=selected, check=False,

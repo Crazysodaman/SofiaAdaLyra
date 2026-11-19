@@ -200,19 +200,46 @@ contracts enforce:
 - identity and protected local state are retained through update, uninstall and
   reinstall.
 
-## Observed blocker in this checkout
+## Windows owner-facing TUI
 
-The harness currently reports `pass: false` for the requested
-`install -> verify -> update -> repair -> rollback -> uninstall -> reinstall`
-sequence. Repair of the current release before update succeeds. Repair after
-an update is recorded as `repair_after_update` and fails.
+The bundled Python guided module remains the single security backend. The
+Windows setup launcher elevates once and opens the interactive TUI; no Git,
+Python installation, Rust toolchain or manual configuration is required of the
+owner.
 
-`platform_installer_cli._verify_installed_release` calls `_verify_release`
-without forwarding the trusted predecessor manifest digest. A signed child
-release therefore cannot be re-verified for repair after an update, and repair
-is denied before any native effect. The harness does not bypass, monkey-patch
-or fabricate success for this production contract. The blocker must be fixed
-and re-tested under the normal reviewed installer change process.
+The install wizard now:
+
+- detects the OS, architecture, target and hostname;
+- discovers the complete signed release media and the independent installer
+  trust root;
+- verifies the signed release before prompting for any change;
+- detects an existing canonical installation;
+- reports free and required disk space;
+- prompts for the installation directory, defaulting to `D:\Aegis` when a D:
+  drive is present (otherwise the reviewed Program Files location);
+- prompts for terminal TUI launcher, Start Menu shortcut, Desktop shortcut and
+  optional start-at-sign-in preference;
+- displays an exact read-only plan including paths, release/signature identity,
+  selected components, service name, approvals, identity/state retention and
+  startup preference;
+- applies only after explicit plan confirmation through the existing SAFE/STOP
+  owner ceremony and the launcher's single UAC elevation.
+
+Existing facilities, state and Core databases are retained. The wizard refuses
+an unsupported host, missing/tampered trust, missing bundled runtime,
+insufficient disk space or an install directory inside a Git worktree before
+any effect. It does not create trust material, install a Core, enroll Fleet,
+activate a Core or touch production `sofia.db`.
+
+## Repair-after-update blocker status
+
+The previously documented `repair_after_update` blocker was resolved by
+forwarding the trusted installed predecessor manifest digest into media
+verification. The disposable acceptance harness now reports
+`default_guided_lifecycle: true` and no `repair_after_update` failure. It
+continues to label the result `SIMULATED`, `installed_host_verified=false` and
+`production_authorized=false`; no production or installed-host certification is
+claimed by this source test.
 
 ## Still required before certification
 
@@ -226,9 +253,9 @@ and re-tested under the normal reviewed installer change process.
 - Real Windows Start Menu/desktop shortcut, user/machine `PATH` and Debian
   desktop/global launcher behaviour, including removal idempotency.
 - Real owner FIDO2 SAFE approval, STOP and revocation ceremonies.
-- A reviewed repair fix for the child-release predecessor forwarding blocker.
-- A generated and signed Windows double-click entrypoint and Debian guided
-  entrypoint shipped inside the complete offline bundle.
+- A production-signed Windows double-click entrypoint and Debian guided
+  entrypoint shipped inside the complete offline bundle. An unsigned disposable
+  `Aegis-Setup.exe` may be built for review, but it is never production media.
 - Exact final commit SHA, all artifact digests, CI/run evidence, post-reboot
   native receipts and an explicit remaining-limitations summary.
 
