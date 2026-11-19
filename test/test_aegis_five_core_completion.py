@@ -288,14 +288,12 @@ def test_shared_model_does_not_leak_personality_or_memory(
 
 def test_twins_and_unapproved_numbers_have_no_core_definitions():
     assert {spec.core_number for spec in DEFAULT_CORE_PROFILES.specs()} == {2, 3, 6}
-    core_root = Path("src/sofia/core/cores")
+    core_root = Path("src/sofia/core")
     assert {
-        path.name
-        for path in core_root.iterdir()
-        if path.is_dir() and path.name != "__pycache__"
-    } == {
-        "mack", "nova", "vera", "unwritten"
-    }
+        slug for slug in ("sofia", "mack", "nova", "vera", "unwritten")
+        if (core_root / slug).is_dir()
+    } == {"sofia", "mack", "nova", "vera", "unwritten"}
+    assert not (core_root / "cores").exists()
     for number in (4, 5):
         with pytest.raises(Exception):
             build_universal_participant(number, UUID(int=number))
@@ -334,8 +332,8 @@ def test_packaging_covers_all_five_approved_cores(tmp_path):
     config = (Path("pyproject.toml")).read_text(encoding="utf-8")
     components = (Path("packaging/components.toml")).read_text(encoding="utf-8")
     for token in (
-        "sofia.core.cores",
-        "sofia.core.cores.unwritten",
+        "sofia.core",
+        "sofia.core.unwritten",
         "constitution.md",
     ):
         assert token in config
@@ -343,10 +341,10 @@ def test_packaging_covers_all_five_approved_cores(tmp_path):
     from sofia.platform.verify.component_artifacts import CORE_ASSET_FILES
 
     for relative in (
-        "sofia/core/cores/unwritten/constitution.md",
-        "sofia/core/cores/vera/constitution.md",
-        "sofia/core/cores/mack/constitution.md",
-        "sofia/core/cores/nova/constitution.md",
+        "sofia/core/unwritten/constitution.md",
+        "sofia/core/vera/constitution.md",
+        "sofia/core/mack/constitution.md",
+        "sofia/core/nova/constitution.md",
         "sofia/core/constitution/constitution.md",
     ):
         assert relative in CORE_ASSET_FILES

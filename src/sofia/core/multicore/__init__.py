@@ -1,4 +1,6 @@
 """Independent persistent multi-Core identity, state and behavior contracts."""
+import importlib
+
 from sofia.core.multicore.continuity import (
     CONTINUITY_SCHEMA,
     ContinuityError,
@@ -25,8 +27,6 @@ from sofia.core.multicore.contracts import (
     VoiceMetadata,
 )
 from sofia.core.multicore.emotion import (
-    MACK_EMOTION_PROFILE,
-    NOVA_EMOTION_PROFILE,
     SIMULATED_EMOTION_DISCLAIMER,
     CoreEmotionAppraisal,
     CurrentSimulatedEmotion,
@@ -86,8 +86,6 @@ from sofia.core.multicore.memory import (
     ShareAuthorization,
 )
 from sofia.core.multicore.personality import (
-    MACK_FULLER_PROFILE,
-    NOVA_ARDEN_PROFILE,
     CorePersonalityProfile,
     OwnerAuthorization,
     PersonalityAuthorizationError,
@@ -108,8 +106,6 @@ from sofia.core.multicore.personality import (
 )
 from sofia.core.multicore.profiles import (
     DEFAULT_CORE_PROFILES,
-    MACK_PROFILE,
-    NOVA_PROFILE,
     CoreProfile,
     CoreProfileAlreadyRegistered,
     CoreProfileError,
@@ -121,44 +117,6 @@ from sofia.core.multicore.profiles import (
     mack_core_profile,
     nova_core_descriptor,
     nova_core_profile,
-)
-from sofia.core.multicore.vera import (
-    APPEARANCE_FIELDS,
-    JOINT_AUTHORITY_FIELDS,
-    SELF_AUTHORITY_FIELDS,
-    VERA_APPEARANCE_AUTHORITY,
-    VERA_APPEARANCE_SCHEMA,
-    VERA_ARMOR_HOOK,
-    VERA_ASSET_FILES,
-    VERA_AUTHORITY,
-    VERA_CALLSIGN,
-    VERA_COLORS,
-    VERA_CORE_NUMBER,
-    VERA_EYE_COLOR,
-    VERA_EYEBROW_COLOR,
-    VERA_GENDER,
-    VERA_HAIR_COLOR,
-    VERA_HAIR_LENGTH_INCHES,
-    VERA_HEIGHT_INCHES,
-    VERA_MEASUREMENTS,
-    VERA_PERSONA_CONCEPT,
-    VERA_PERSONAL_NAME,
-    VERA_PROFILE,
-    VERA_SKIN_COLOR,
-    VERA_SURNAME,
-    VERA_VISUAL_SPECIES,
-    VERA_VOICE_BREATHINESS,
-    VERA_WEIGHT_POUNDS,
-    AppearanceAuthority,
-    VeraAppearanceAuthorityError,
-    VeraAppearanceError,
-    VeraAppearancePreferences,
-    VeraAuthorityBoundary,
-    initial_appearance_preferences,
-    load_vera_appearance_preferences,
-    vera_asset_digests,
-    vera_core_descriptor,
-    vera_core_profile,
 )
 from sofia.core.multicore.packages import (
     CORE_PACKAGE_SCHEMA,
@@ -175,49 +133,6 @@ from sofia.core.multicore.packages import (
     load_core_package_manifest,
     manifest_from_core_profile,
     register_package_with_lifecycle,
-)
-from sofia.core.multicore.unwritten import (
-    UNWRITTEN_CONSTITUTION_FILE,
-    UNWRITTEN_CONSTITUTION_SCHEMA,
-    UNWRITTEN_CORE_NUMBER,
-    UNWRITTEN_SCHEMA,
-    UNWRITTEN_SLUG,
-    FabricatedIdentityError,
-    IdentityAttribute,
-    IdentityAttributeRecord,
-    IdentityAttributeState,
-    IdentityConflictError,
-    IdentityEvidenceKind,
-    IdentityIsolationError,
-    IdentityObservation,
-    IdentityRevision,
-    IntroductionStatus,
-    MulticoreUnwrittenIdentity,
-    NO_PREASSIGNED_RELATIONSHIPS,
-    NO_SOCIAL_AUTHORITY,
-    OBSERVATION_SCHEMA,
-    OPERATOR_DISPLAY_LABEL,
-    OwnerApproval,
-    OwnerApprovalRequired,
-    PrivateReflection,
-    ProposalSource,
-    ProtectedIdentityCorruption,
-    ProtectedIdentityError,
-    REFLECTION_SCHEMA,
-    RuntimeBinding,
-    SocialChannel,
-    SocialInvitation,
-    SocialPolicy,
-    SocialPolicyError,
-    TEXT_ONLY_INTERFACE,
-    UnwrittenCoreProfile,
-    UnwrittenError,
-    UnwrittenSocial,
-    UnwrittenStopped,
-    blank_core_profile,
-    create_blank_core,
-    unwritten_constitution_bytes,
-    unwritten_constitution_sha256,
 )
 from sofia.core.multicore.reflection import (
     MAX_ROUTINE_CANDIDATES,
@@ -244,6 +159,30 @@ from sofia.core.multicore.relationships import (
     RelationshipRevision,
     RelationshipStatus,
 )
+
+_LAZY_MODULES = (
+    "sofia.core.mack",
+    "sofia.core.nova",
+    "sofia.core.vera",
+    "sofia.core.unwritten",
+    "sofia.core.multicore.personality",
+    "sofia.core.multicore.emotion",
+)
+
+
+def __getattr__(name: str):
+    """Lazy legacy re-exports for Core-specific names without import cycles."""
+    if not name.startswith("_"):
+        for module_name in _LAZY_MODULES:
+            module = importlib.import_module(module_name)
+            try:
+                value = getattr(module, name)
+            except AttributeError:
+                continue
+            globals()[name] = value
+            return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     "MULTICORE_SCHEMA",

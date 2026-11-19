@@ -59,7 +59,7 @@ UUID_TEXT = re.compile(
 
 
 def _asset_bytes(name: str) -> bytes:
-    return resource_files("sofia.core.cores").joinpath("vera", name).read_bytes()
+    return resource_files("sofia.core").joinpath("vera", name).read_bytes()
 
 
 def _asset_json(name: str) -> dict:
@@ -67,7 +67,7 @@ def _asset_json(name: str) -> dict:
 
 
 def _copy_assets(destination: Path, names=CORE_ASSET_FILES) -> Path:
-    source = resource_files("sofia.core.cores").joinpath("vera")
+    source = resource_files("sofia.core").joinpath("vera")
     target = destination / "vera"
     target.mkdir(parents=True)
     for name in names:
@@ -413,8 +413,8 @@ def test_vera_asset_digests_match_definition_and_raw_files():
     definition = profile.core_definition(revision=1, runtime_release_sha256="a" * 64)
     assert definition.identity.identity_id == VERA_ID
     assert definition.name == "Vera"
-    assert definition.constitution.path == "cores/vera/constitution.md"
-    assert definition.personality.path == "cores/vera/personality.json"
+    assert definition.constitution.path == "vera/constitution.md"
+    assert definition.personality.path == "vera/personality.json"
     assert definition.constitution.sha256 == digests["constitution.md"]
     assert definition.personality.sha256 == digests["personality.json"]
 

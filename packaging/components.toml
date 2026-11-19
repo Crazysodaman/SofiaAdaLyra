@@ -49,24 +49,24 @@ package_data = { "sofia.core.constitution" = [
     "avatar.json",
 ], "sofia.core.personality" = [
     "personality.json",
-], "sofia.core.cores.mack" = [
+], "sofia.core.mack" = [
     "constitution.md",
     "personality.json",
     "avatar.json",
     "voice.json",
-], "sofia.core.cores.nova" = [
+], "sofia.core.nova" = [
     "constitution.md",
     "personality.json",
     "avatar.json",
     "voice.json",
-], "sofia.core.cores.vera" = [
+], "sofia.core.vera" = [
     "constitution.md",
     "personality.json",
     "avatar.json",
     "voice.json",
-], "sofia.core.cores.unwritten" = [
+], "sofia.core.unwritten" = [
     "constitution.md",
-], "sofia.core.cores" = [
+], "sofia.core" = [
     "*/constitution.md",
     "*/personality.json",
     "*/avatar.json",

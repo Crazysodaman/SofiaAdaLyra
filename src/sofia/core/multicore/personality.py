@@ -400,51 +400,19 @@ class CorePersonalityProfile:
         )
 
 
-MACK_FULLER_PROFILE = CorePersonalityProfile(
-    continuity_key="mack-fuller",
-    core_number=2,
-    full_name="Mack Fuller",
-    baseline_traits=(
-        PersonalityTraitSeed("directness", 0.85, PersonalityChangeClass.ADAPTIVE),
-        PersonalityTraitSeed("steadiness", 0.80, PersonalityChangeClass.STABLE),
-        PersonalityTraitSeed("stubbornness", 0.65, PersonalityChangeClass.ADAPTIVE),
-        PersonalityTraitSeed("protectiveness", 0.70, PersonalityChangeClass.ADAPTIVE),
-        PersonalityTraitSeed("curiosity", 0.50, PersonalityChangeClass.ADAPTIVE),
-        PersonalityTraitSeed("loyalty", 0.80, PersonalityChangeClass.STABLE),
-    ),
-    seriousness_context={
-        "safety": 0.95,
-        "engineering": 0.80,
-        "casual": 0.25,
-        "play": 0.15,
-    },
-    flaw="stubbornness",
-    aliases=("Mack",),
-    forbidden_aliases=("Loki",),
-)
+def __getattr__(name: str):
+    """Legacy lazy re-exports; Core-owned baselines live in per-Core modules."""
+    if name == "MACK_FULLER_PROFILE":
+        from sofia.core.mack.personality import MACK_FULLER_PROFILE
 
-NOVA_ARDEN_PROFILE = CorePersonalityProfile(
-    continuity_key="nova-arden",
-    core_number=3,
-    full_name="Nova Arden",
-    baseline_traits=(
-        PersonalityTraitSeed("independence", 0.88, PersonalityChangeClass.STABLE),
-        PersonalityTraitSeed("rebelliousness", 0.62, PersonalityChangeClass.ADAPTIVE),
-        PersonalityTraitSeed("curiosity", 0.85, PersonalityChangeClass.ADAPTIVE),
-        PersonalityTraitSeed("playfulness", 0.78, PersonalityChangeClass.ADAPTIVE),
-        PersonalityTraitSeed("impulsiveness", 0.55, PersonalityChangeClass.ADAPTIVE),
-        PersonalityTraitSeed("warmth", 0.60, PersonalityChangeClass.STABLE),
-    ),
-    seriousness_context={
-        "safety": 0.85,
-        "boundaries": 0.90,
-        "casual": 0.35,
-        "play": 0.70,
-    },
-    flaw="impulsiveness",
-    aliases=("Nova",),
-    forbidden_aliases=(),
-)
+        globals()[name] = MACK_FULLER_PROFILE
+        return MACK_FULLER_PROFILE
+    if name == "NOVA_ARDEN_PROFILE":
+        from sofia.core.nova.personality import NOVA_ARDEN_PROFILE
+
+        globals()[name] = NOVA_ARDEN_PROFILE
+        return NOVA_ARDEN_PROFILE
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 @dataclass(frozen=True, slots=True)
