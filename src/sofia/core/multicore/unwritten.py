@@ -965,6 +965,13 @@ class MulticoreUnwrittenIdentity:
             if not isinstance(profile, UnwrittenCoreProfile):
                 raise TypeError("profile must be an UnwrittenCoreProfile")
             profile.verify()
+            approved_digest = unwritten_constitution_sha256()
+            if profile.constitution_sha256 is None:
+                profile = replace(profile, constitution_sha256=approved_digest)
+            elif profile.constitution_sha256 != approved_digest:
+                raise ProtectedIdentityCorruption(
+                    "profile constitution digest does not match the approved charter"
+                )
             if core_id is not None and _uuid(core_id, "core_id") != profile.core_id:
                 raise ValueError("core_id does not match the supplied profile")
             core_id = profile.core_id
@@ -1218,6 +1225,10 @@ class MulticoreUnwrittenIdentity:
                     raise ProtectedIdentityCorruption(
                         "identity observation has the wrong memory type"
                     )
+                if record.security is not SecurityClass.PRIVATE:
+                    raise ProtectedIdentityCorruption(
+                        "identity evidence must remain owner-private"
+                    )
                 try:
                     payload = json.loads(record.content)
                 except (TypeError, ValueError) as exc:
@@ -1235,9 +1246,26 @@ class MulticoreUnwrittenIdentity:
                     raise ProtectedIdentityCorruption(
                         "private reflection has the wrong memory type"
                     )
+                if record.security is not SecurityClass.PRIVATE:
+                    raise ProtectedIdentityCorruption(
+                        "private reflections must remain owner-private"
+                    )
+                fields = {
+                    "schema", "reflection_id", "owner_core_id", "content",
+                    "evidence", "created_at", "security",
+                }
                 try:
                     payload = json.loads(record.content)
-                    reflections.append(PrivateReflection(
+                    if (
+                        not isinstance(payload, Mapping)
+                        or set(payload) != fields
+                        or payload["schema"] != REFLECTION_SCHEMA
+                        or payload["security"] != SecurityClass.PRIVATE.value
+                    ):
+                        raise ProtectedIdentityCorruption(
+                            "private reflection payload is invalid"
+                        )
+                    reflection = PrivateReflection(
                         reflection_id=UUID(str(payload["reflection_id"])),
                         owner_core_id=UUID(str(payload["owner_core_id"])),
                         content=str(payload["content"]),
@@ -1245,11 +1273,18 @@ class MulticoreUnwrittenIdentity:
                             UUID(str(item)) for item in payload["evidence"]
                         ),
                         created_at=datetime.fromisoformat(str(payload["created_at"])),
-                    ))
+                    )
+                except ProtectedIdentityCorruption:
+                    raise
                 except (TypeError, ValueError, KeyError) as exc:
                     raise ProtectedIdentityCorruption(
                         "private reflection payload failed validation"
                     ) from exc
+                if reflection.owner_core_id != self._core_id:
+                    raise ProtectedIdentityCorruption(
+                        "private reflection names a different Core"
+                    )
+                reflections.append(reflection)
         self._observations = sorted(
             parsed,
             key=lambda item: (item.observed_at, str(item.observation_id)),
@@ -1302,11 +1337,15 @@ class MulticoreUnwrittenIdentity:
                 "model-generated text cannot revise or confirm personal identity"
             )
         if (
-            kind is IdentityEvidenceKind.DELIBERATE_SELF_SELECTION
+            kind
+            in (
+                IdentityEvidenceKind.DELIBERATE_SELF_SELECTION,
+                IdentityEvidenceKind.CORRECTION,
+            )
             and evidence is EvidenceState.SPECULATIVE
         ):
             raise IdentityConflictError(
-                "deliberate self-selection cannot rest on speculative evidence"
+                "confirmed identity changes cannot rest on speculative evidence"
             )
         if kind is not IdentityEvidenceKind.RETIREMENT and not value:
             raise ValueError("identity observations require a value")
@@ -1357,7 +1396,11 @@ class MulticoreUnwrittenIdentity:
             approval_id = owner_approval.approval_id
         if (
             attribute in OWNER_APPROVAL_REQUIRED
-            and kind is IdentityEvidenceKind.DELIBERATE_SELF_SELECTION
+            and kind
+            in (
+                IdentityEvidenceKind.DELIBERATE_SELF_SELECTION,
+                IdentityEvidenceKind.CORRECTION,
+            )
             and not approved
         ):
             raise OwnerApprovalRequired(
@@ -1631,6 +1674,8 @@ class MulticoreUnwrittenIdentity:
                 if reference not in refs:
                     refs.append(reference)
         if latest.kind is IdentityEvidenceKind.RETIREMENT:
+            if latest.model_generated:
+                return replace(prior, evidence=evidence, interaction_refs=tuple(refs))
             if prior.state is IdentityAttributeState.RETIRED:
                 return replace(
                     prior, evidence=evidence, interaction_refs=tuple(refs)
@@ -1671,6 +1716,13 @@ class MulticoreUnwrittenIdentity:
         if latest.kind is IdentityEvidenceKind.CORRECTION:
             if prior.state is IdentityAttributeState.UNSELECTED:
                 raise IdentityConflictError("an unselected attribute cannot be corrected")
+            if not latest.promotable:
+                return replace(prior, evidence=evidence, interaction_refs=tuple(refs))
+            if (
+                latest.attribute in OWNER_APPROVAL_REQUIRED
+                and not latest.owner_approved
+            ):
+                return replace(prior, evidence=evidence, interaction_refs=tuple(refs))
             new_state = IdentityAttributeState.REVISED
             value = latest.value
             confidence = _confidence(valid)
@@ -1785,6 +1837,10 @@ class MulticoreUnwrittenIdentity:
         self, *, expected_core_id: UUID | None = None
     ) -> bool:
         self._profile.verify(expected_core_id=expected_core_id)
+        if self._profile.constitution_sha256 != unwritten_constitution_sha256():
+            raise ProtectedIdentityCorruption(
+                "protected constitution digest does not match the approved charter"
+            )
         if expected_core_id is not None and _uuid(
             expected_core_id, "expected_core_id"
         ) != self._core_id:
