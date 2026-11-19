@@ -203,6 +203,42 @@ def _ensure_private_core_directory(directory: Path) -> None:
     assert_owner_private_path(directory, directory=True)
 
 
+def _assert_core_number_available(
+    root: Path,
+    *,
+    core_id: UUID,
+    core_number: int,
+) -> None:
+    if not root.exists() or not root.is_dir():
+        return
+    assert_no_redirected_components(root, include_leaf=True)
+    for child in root.iterdir():
+        if child.is_symlink() or not child.is_dir():
+            continue
+        try:
+            existing_id = UUID(child.name)
+        except ValueError:
+            continue
+        if existing_id.int == 0 or existing_id == core_id:
+            continue
+        database = child / CORE_DATABASE_FILENAME
+        if not database.exists() or database.is_symlink():
+            continue
+        try:
+            with closing(sqlite3.connect(
+                sqlite_file_uri(database, read_only=True), uri=True, timeout=10,
+            )) as connection:
+                _, _, stored_number = _read_binding(connection)
+        except (CoreDatabaseError, sqlite3.DatabaseError, OSError):
+            raise CoreDatabaseIntegrityError(
+                "another private Core database cannot be verified"
+            ) from None
+        if stored_number == core_number:
+            raise CoreDatabaseConflictError(
+                "approved Core number is already bound to a different UUID"
+            )
+
+
 def _secure_private_file(path: Path) -> None:
     if os.name == "nt":
         restrict_new_owner_private_path(path, directory=False)
@@ -585,6 +621,9 @@ class CorePrivateDatabase:
             )
         paths = paths_for(root, identifier)
         _ensure_private_root(paths.root)
+        _assert_core_number_available(
+            paths.root, core_id=identifier, core_number=number,
+        )
         _ensure_private_core_directory(paths.directory)
 
         existed = paths.database.exists() or paths.database.is_symlink()

@@ -156,6 +156,24 @@ def test_creates_only_uuid_keyed_databases_for_approved_core_numbers(tmp_path):
         assert not (root / str(rejected_id)).exists()
 
 
+def test_approved_core_number_cannot_be_rebound_to_a_new_uuid(tmp_path):
+    root = tmp_path / "private-cores"
+    CorePrivateDatabase.create(root, core_id=ID2, core_number=2).close()
+    replacement = uuid4()
+
+    with pytest.raises(CoreDatabaseConflictError):
+        CorePrivateDatabase.create(root, core_id=replacement, core_number=2)
+    assert not (root / str(replacement)).exists()
+
+    with pytest.raises(CoreDatabaseConflictError):
+        CorePrivateDatabase.create(root, core_id=ID3, core_number=2)
+    assert not (root / str(ID3)).exists()
+
+    allowed = CorePrivateDatabase.create(root, core_id=ID3, core_number=3)
+    assert allowed.core_number == 3
+    allowed.close()
+
+
 def test_binds_existing_services_and_preserves_one_core_across_restart(tmp_path):
     root = tmp_path / "private-cores"
     database = CorePrivateDatabase.create(

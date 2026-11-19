@@ -211,14 +211,15 @@ def test_junction_root_fails_closed(tmp_path):
 
 
 def test_open_rejects_unbound_sqlite_and_foreign_ownership(tmp_path):
-    root = tmp_path / "private-cores"
-    ensure_owner_private_directory(root)
+    unbound_root = tmp_path / "unbound-cores"
+    ensure_owner_private_directory(unbound_root)
     unbound_id = uuid4()
-    ensure_owner_private_directory(root / str(unbound_id))
-    bootstrap_canonical_sqlite(root / str(unbound_id) / "core.db")
+    ensure_owner_private_directory(unbound_root / str(unbound_id))
+    bootstrap_canonical_sqlite(unbound_root / str(unbound_id) / "core.db")
     with pytest.raises(CoreDatabaseConflictError):
-        CorePrivateDatabase.open(root, core_id=unbound_id)
+        CorePrivateDatabase.open(unbound_root, core_id=unbound_id)
 
+    root = tmp_path / "private-cores"
     mack = CorePrivateDatabase.create(root, core_id=ID2, core_number=2)
     nova = CorePrivateDatabase.create(root, core_id=ID3, core_number=3)
     mack.close()
