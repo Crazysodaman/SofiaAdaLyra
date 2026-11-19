@@ -37,8 +37,8 @@ owner context. Missing owner decisions are marked **OWNER DECISION REQUIRED**.
 | Area | Present in Git | Missing / not fabricated |
 | --- | --- | --- |
 | Sofía Constitution | `src/sofia/core/constitution/constitution.md` + digest | — |
-| Mack Constitution | `src/sofia/core/cores/mack/constitution.md` | Contains the known cross-Core superiority framing; amendment requires the protected review process |
-| Nova Constitution | `src/sofia/core/cores/nova/constitution.md` | Same known cross-Core framing issue; amendment requires the protected review process |
+| Mack Constitution | `src/sofia/core/cores/mack/constitution.md` | Current text says it does not replace/amend/outrank Sof�a; no superiority framing observed. Any amendment remains protected. |
+| Nova Constitution | `src/sofia/core/cores/nova/constitution.md` | Same observed peer framing; no superiority framing observed. Any amendment remains protected. |
 | Vera Constitution | `src/sofia/core/cores/vera/constitution.md` | Surname unselected |
 | #7 Constitution | `src/sofia/core/cores/unwritten/constitution.md` | Neutral bootstrap only; no personal identity |
 | Personality assets | Sofia, Mack, Nova, Vera JSON | No #7 personality asset (intentional) |
@@ -66,10 +66,10 @@ owner context. Missing owner decisions are marked **OWNER DECISION REQUIRED**.
 
 ## Known reconciliation issues
 
-- Mack/Nova Constitution text frames Sofía's personal Constitution as superior.
-  Per the universal governance specification, this is an error to correct only
-  through the existing protected amendment process. It is **not silently
-  rewritten** here.
+- The earlier universal design note reported Mack/Nova Constitution text as
+  framing Sofía as superior. The current committed text says it does not
+  replace, amend or outrank Sofía. It remains a protected document and was not
+  silently edited.
 - No canonical per-Core model/provider preference is recorded in Git. Runtime
   bindings are per-Core but no owner-selected default is fabricated.
 - No canonical production UUID for #7 is recorded in Git. The implementation

@@ -24,7 +24,7 @@ OBSERVED via `git rev-parse` and `git log`:
 | --- | --- | --- |
 | `aegis/core5-reconcile` HEAD | `de0ea92cb0da6e39e32c0802e5991594c3a74e43` | Audit branch |
 | local `main` | `de0ea92cb0da6e39e32c0802e5991594c3a74e43` | Same commit as audit branch |
-| local ref `origin/main` | `aeef1559dc6eb58fa0b829aca73476d76a6f9eb4` | Last locally observed origin ref; remote tip not queried |
+| local ref `origin/main` | `aeef1559dc6eb58fa0b829aca73476d76a6f9eb4` | Remote tip observed by `git fetch` before the final five-Core push |
 | parent of `de0ea92c` | `aeef1559dc6eb58fa0b829aca73476d76a6f9eb4` | Commit is one commit ahead of the parent |
 
 OBSERVED commit:
@@ -38,10 +38,10 @@ OBSERVED documentation baselines differ:
 - `docs/sofia2/AEGIS_CORES_6_7_IMPLEMENTATION_V1.md:7` records baseline main as `7ea80fb3`.
 - The current worktree HEAD is `de0ea92c`.
 
-INFERRED: the catalog documents the parent baseline and the integration document
-documents an older workstream baseline. Neither is a claim about the current
-remote tip. The remote tip itself is UNKNOWN because no network `ls-remote`
-or fetch was performed in this audit.
+OBSERVED: a later `git fetch origin` before the final push still reported
+`origin/main = aeef1559`. The catalog documents the parent baseline and the
+integration document documents an older workstream baseline. Neither is a
+claim about installed or live deployment.
 
 ## 2. Per-Core matrix
 
@@ -315,12 +315,13 @@ OBSERVED:
 INFERRED: #4/#5 are placeholder numbers only. No Core-specific identity,
 personality, asset, package, or test contract may be inferred for them.
 
-Additional OBSERVED inconsistency (not a #4/#5 issue):
-`universal.py:66` defines `DESIGN_ONLY_CORE_NUMBERS = frozenset({6})`, while
-`CORE_CATALOG_V1.md:20` calls Vera an approved independent Core and
-`test_aegis_five_core_completion.py:98-100` expects #7 `design_only is False`.
-The intent of the `design_only` flag for #6 is UNKNOWN; it may be legacy
-stage-6 terminology. No source change was made.
+RESOLVED inconsistency (not a #4/#5 issue):
+The audit observed `universal.py` still defining
+`DESIGN_ONLY_CORE_NUMBERS = frozenset({6})`. The lead integrator subsequently
+removed the permanent design-only label after all five approved Cores gained
+source implementations. `DESIGN_ONLY_CORE_NUMBERS` is now empty; tests assert
+Vera is not design-only. This is a source decision recorded in the merged
+commit, not a claim of installed activation.
 
 ## 8. Test-command appendix
 

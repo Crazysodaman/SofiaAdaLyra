@@ -396,6 +396,33 @@ def _generate_pyproject(
     return "\n".join(lines)
 
 
+def _package_data_assets(package_dir: Path, pattern: str) -> tuple[Path, ...]:
+    """Expand one reviewed package-data file or glob without path escape."""
+    if not isinstance(pattern, str) or not pattern.strip():
+        raise ComponentArtifactError("package-data pattern must be nonempty text")
+    normalized = pattern.replace("\\", "/")
+    parts = normalized.split("/")
+    if normalized.startswith("/") or ".." in parts:
+        raise ComponentArtifactError(
+            f"package-data pattern escapes its package: {pattern!r}"
+        )
+    if any(character in normalized for character in "*?["):
+        matches = tuple(
+            sorted(
+                path for path in package_dir.glob(normalized) if path.is_file()
+            )
+        )
+        if not matches:
+            raise ComponentArtifactError(
+                f"declared asset pattern matched nothing: {package_dir / normalized}"
+            )
+        return matches
+    target = package_dir / normalized
+    if not target.is_file():
+        raise ComponentArtifactError(f"missing declared asset: {target}")
+    return (target,)
+
+
 def _stage_component(
     repo: Path,
     component: Mapping[str, object],
@@ -415,10 +442,9 @@ def _stage_component(
                 staged.append(path.relative_to(stage_root).as_posix())
     package_data = component.get("package_data", {})  # type: ignore[arg-type]
     for package, files in package_data.items():  # type: ignore[union-attr]
+        package_dir = source_root / package.replace(".", "/")
         for file_name in files:
-            asset = source_root / package.replace(".", "/") / file_name  # type: ignore[union-attr]
-            if not asset.is_file():
-                raise ComponentArtifactError(f"missing declared asset: {asset}")
+            _package_data_assets(package_dir, file_name)
     for relpath in component.get("extra_files", []):  # type: ignore[union-attr]
         source_file = source_root / relpath  # type: ignore[operator]
         if not source_file.is_file():

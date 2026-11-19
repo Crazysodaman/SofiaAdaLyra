@@ -63,7 +63,9 @@ UNIVERSAL_COMPOSITION_SCHEMA = "aegis.social.universal_composition.v1"
 SOFIA_CORE_NUMBER = 1
 INTENDED_CORE_NUMBERS: frozenset[int] = frozenset({1, 2, 3, 6, 7})
 PROHIBITED_CORE_NUMBERS: frozenset[int] = frozenset({4, 5})
-DESIGN_ONLY_CORE_NUMBERS: frozenset[int] = frozenset({6})
+# All five approved Cores now have source-level implementations.  Design-only
+# remains an explicit future state rather than a permanent Vera label.
+DESIGN_ONLY_CORE_NUMBERS: frozenset[int] = frozenset()
 SOFIA_DISPLAY_NAME = "Sofía Ada Lyra"
 SOFIA_SLUG = "sofia"
 

@@ -273,7 +273,7 @@ def test_adult_gesture_requires_explicit_adult_audience(tmp_path):
     assert allowed.outcome is CapabilityOutcome.RENDERED
 
 
-def test_design_only_vera_cannot_render_or_receive_transfers(tmp_path):
+def test_approved_vera_can_render_and_receive_transfers(tmp_path):
     _state_path, engine = _inventory(tmp_path)
     composition = compose_universal_core_services(
         core_ids=IDS,
@@ -290,8 +290,28 @@ def test_design_only_vera_cannot_render_or_receive_transfers(tmp_path):
     receipt = composition.request_gesture(
         _request(core_id=IDS[6], gesture_id="wave")
     )
-    assert receipt.outcome is CapabilityOutcome.UNAVAILABLE
-    assert "design-only" in receipt.reason
+    assert receipt.outcome is CapabilityOutcome.RENDERED
+
+    item = engine.mint("vera_undersuit_mark_iv", IDS[1], at=NOW)
+    offer = TransferOffer(
+        offer_id=UUID("56565656-7878-4901-8323-565656565656"),
+        operation=TransferOperation.GIFT,
+        sender_core_id=IDS[1],
+        recipient_core_id=IDS[6],
+        item_instance_ids=(item.item_instance_id,),
+        reciprocal_item_instance_ids=(),
+        expected_items=(ItemRevision(item.item_instance_id, item.revision),),
+        created_at=NOW,
+        expires_at=NOW + timedelta(minutes=5),
+        idempotency_key="gift-to-vera",
+    )
+    proposed = composition.propose_transfer(offer)
+    assert proposed.status is OfferStatus.PENDING
+    accepted = composition.accept_transfer(
+        offer_id=offer.offer_id, actor_core_id=IDS[6]
+    )
+    assert accepted.status is OfferStatus.ACCEPTED
+    assert engine.item(item.item_instance_id).owner_core_id == IDS[6]
 
 
 def test_wardrobe_catalog_and_inventory_adapters_are_truthful(tmp_path):

@@ -171,7 +171,9 @@ from sofia.core.multicore.packages import (
     CorePackageManifest,
     CorePackageRegistry,
     CorePackageSofiaSubstitution,
+    blank_unwritten_package,
     load_core_package_manifest,
+    manifest_from_core_profile,
     register_package_with_lifecycle,
 )
 from sofia.core.multicore.unwritten import (
@@ -410,7 +412,9 @@ __all__ = [
     "CorePackageManifest",
     "CorePackageRegistry",
     "CorePackageSofiaSubstitution",
+    "blank_unwritten_package",
     "load_core_package_manifest",
+    "manifest_from_core_profile",
     "register_package_with_lifecycle",
     "UNWRITTEN_CONSTITUTION_FILE",
     "UNWRITTEN_CONSTITUTION_SCHEMA",

@@ -83,8 +83,8 @@ release or host deployment claim.
 - `src/sofia/platform/social/universal.py`,
   `universal_integration.py`, `universal_readout.py`,
   `universal_composition.py`
-  - Inert roster for Sofía #1, Mack #2, Nova #3 and design-only Vera #6.
-  - Twins #4/#5 and #7 excluded; no UUID allocation or activation.
+  - Inert roster for Sofía #1, Mack #2, Nova #3, Vera #6 and blank Unwritten #7.
+  - Twins #4/#5 excluded; no UUID allocation or activation.
   - Narrow fail-closed adapters; STOP and authorization gating before effects.
   - Read-only management snapshot with explicit UNAVAILABLE/UNKNOWN.
   - Cross-slice adapters binding real gestures, wardrobe, inventory, governance
@@ -115,7 +115,7 @@ The single failure is `test_sdk_rust_contract_compatibility.py`, which requires
 
 ## Explicit non-claims
 
-- No Core was activated; twins #4/#5 remain inactive; #7 remains unassigned.
+- No Core was activated; twins #4/#5 remain inactive; #7 remains a blank identity with no personal traits.
 - Vera #6 remains design-only until separately installed and authorized.
 - No UUID was allocated for any Core.
 - No production state, protected memory, constitution or `sofia.db` was changed.

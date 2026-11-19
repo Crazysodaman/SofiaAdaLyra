@@ -3,13 +3,14 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 
 from sofia.core.multicore.vera import VERA_AUTHORITY
 from sofia.modules.avatar.inventory_contract import (
     ItemRevision,
+    OfferStatus,
     TransferOperation,
     TransferOffer,
     TransferReceipt,
@@ -115,10 +116,24 @@ class RecordingInventory:
 
     def offer(self, offer: TransferOffer) -> TransferReceipt:
         self.offers.append(offer)
-        raise AssertionError("transfer should not be reached")
+        return TransferReceipt(
+            receipt_id=uuid4(),
+            offer_id=offer.offer_id,
+            operation=offer.operation,
+            status=OfferStatus.PENDING,
+            actor_core_id=offer.sender_core_id,
+            item_instance_ids=(
+                offer.item_instance_ids + offer.reciprocal_item_instance_ids
+            ),
+            resulting_items=offer.expected_items,
+            idempotency_key=offer.idempotency_key,
+            occurred_at=offer.created_at,
+            evidence_ref="test:offer",
+            reason="inert test offer",
+        )
 
     def accept(self, *, offer_id, actor_core_id, now) -> TransferReceipt:
-        raise AssertionError("transfer should not be reached")
+        raise AssertionError("accept should not be reached")
 
 
 class MembershipProjection:
@@ -199,7 +214,7 @@ def test_roster_is_exactly_the_reviewed_intended_participants():
             assert state.authorized is False
             assert state.effective is False
     veras = composition.roster.by_number[6]
-    assert veras.design_only is True
+    assert veras.design_only is False
     assert veras.authority is VERA_AUTHORITY
     assert composition.runtime_activated is False
     assert composition.services_started is False
@@ -296,33 +311,33 @@ def test_supported_renderer_returns_only_the_adapter_receipt():
     assert gestures.requests == [request]
 
 
-def test_design_only_vera_cannot_act_even_when_seams_allow():
+def test_approved_vera_can_act_when_seams_allow():
     gestures = RecordingGestureService()
+    inventory = RecordingInventory()
     composition = compose(
         core_ids=IDS,
         gestures=gestures,
-        inventory=RecordingInventory(),
+        inventory=inventory,
         stop=InactiveStop(),
         authorization=AllowAllAuthorization(),
     )
     receipt = composition.request_gesture(_request(core_id=IDS[6]))
-    assert receipt.outcome is CapabilityOutcome.UNAVAILABLE
-    assert "design-only" in receipt.reason
-    assert gestures.requests == []
+    assert receipt.outcome is CapabilityOutcome.RENDERED
+    assert gestures.requests
     target_receipt = composition.request_gesture(
         _request(core_id=IDS[1], target_core_id=IDS[6])
     )
-    assert target_receipt.outcome is CapabilityOutcome.UNAVAILABLE
-    assert "design-only" in target_receipt.reason
-    with pytest.raises(UniversalUnavailable):
-        composition.propose_transfer(_offer(recipient_core_id=IDS[6]))
+    assert target_receipt.outcome is CapabilityOutcome.RENDERED
+    proposed = composition.propose_transfer(_offer(recipient_core_id=IDS[6]))
+    assert proposed.status is OfferStatus.PENDING
+    assert inventory.offers
     direct = composition.validate_audience(
         audience=_audience(
             AudienceKind.DIRECT, room="direct:vera", recipients=(IDS[6],)
         ),
         sender_core_id=IDS[1],
     )
-    assert direct.status is AudienceStatus.DENIED
+    assert direct.status is AudienceStatus.ALLOWED
 
 
 def test_private_group_audience_requires_independent_membership_evidence():

@@ -77,7 +77,7 @@ inert universal facade:
 - anatomy-specific tail gesture accepted for Sofía, rejected for human-only
   Cores;
 - adult gesture refused without an explicitly eligible private adult audience;
-- design-only Vera cannot render or receive a transfer;
+- approved Vera can render and receive a transfer when authorized seams are supplied;
 - shared catalog/inventory counts are truthful;
 - a GIFT offer created through the facade commits through the canonical
   inventory engine and transfers one instance exactly once;

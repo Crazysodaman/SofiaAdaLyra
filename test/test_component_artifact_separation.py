@@ -49,11 +49,22 @@ def test_component_manifest_declares_exclusive_ownership():
         assert not packages & owned_packages, packages & owned_packages
         owned_packages |= packages
     core = components["core"]
-    declared_assets = {
-        f"{package.replace('.', '/')}/{file_name}"
-        for package, files in core["package_data"].items()  # type: ignore[union-attr]
-        for file_name in files  # type: ignore[union-attr]
-    }
+    declared_assets: set[str] = set()
+    source_root = ROOT / "src"
+    for package, files in core["package_data"].items():  # type: ignore[union-attr]
+        package_dir = source_root / package.replace(".", "/")
+        for file_name in files:  # type: ignore[union-attr]
+            if any(character in file_name for character in "*?["):
+                matches = package_dir.glob(file_name)
+                declared_assets.update(
+                    path.relative_to(source_root).as_posix()
+                    for path in matches
+                    if path.is_file()
+                )
+            else:
+                declared_assets.add(
+                    f"{package.replace('.', '/')}/{file_name}"
+                )
     assert declared_assets == set(CORE_ASSET_FILES)
 
 
