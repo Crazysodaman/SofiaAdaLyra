@@ -25,11 +25,11 @@ owner context. Missing owner decisions are marked **OWNER DECISION REQUIRED**.
 | Core | DESIGN_PRESENT | CODE_PRESENT | TESTED | PACKAGED | Notes |
 | --- | --- | --- | --- | --- | --- |
 | #1 Sofía | Yes: `src/sofia/core/constitution/constitution.md`, `personality/personality.json`, `embodiment/avatar.json`; `docs/sofia2/CORE_1_0_PLAN.md` | Yes: canonical runtime/identity/personality/emotion/memory/conversation owners | Yes: existing core/application suites; universal roster/readout tests | Yes: `sofia.core.constitution`, `sofia.core.identity`, `sofia.core.embodiment`, `sofia.core.personality` package data | UUID and model/provider binding are protected runtime state, not a versioned literal |
-| #2 Mack | Yes: `MACK_PROFILE`, `src/sofia/core/cores/mack/*`, personality/emotion profiles | Yes: profile, identity, memory, personality, emotion, inference/conversation integration | Yes: multicore profiles/personality/emotion/memory/inference/package tests | Yes: `CorePackageManifest` and package data patterns | Model/provider and UUID are supplied at runtime |
-| #3 Nova | Yes: `NOVA_PROFILE`, `src/sofia/core/cores/nova/*`, personality/emotion profiles | Yes: same multicore services as Mack | Yes: multicore profiles/personality/emotion/memory/inference/package tests | Yes: `CorePackageManifest` and package data patterns | Model/provider and UUID are supplied at runtime |
+| #2 Mack | Yes: `MACK_PROFILE`, `src/sofia/core/mack/*`, personality/emotion profiles | Yes: profile, identity, memory, personality, emotion, inference/conversation integration | Yes: multicore profiles/personality/emotion/memory/inference/package tests | Yes: `CorePackageManifest` and package data patterns | Model/provider and UUID are supplied at runtime |
+| #3 Nova | Yes: `NOVA_PROFILE`, `src/sofia/core/nova/*`, personality/emotion profiles | Yes: same multicore services as Mack | Yes: multicore profiles/personality/emotion/memory/inference/package tests | Yes: `CorePackageManifest` and package data patterns | Model/provider and UUID are supplied at runtime |
 | #4 Twin A | No approved definition in main | No Core-specific implementation | N/A | No | Must remain unassembled |
 | #5 Twin B | No approved definition in main | No Core-specific implementation | N/A | No | Must remain unassembled |
-| #6 Vera | Yes: `VERA_PROFILE`, `src/sofia/core/cores/vera/*`, `vera.py`, three armor configurations | Yes: identity, appearance autonomy, authority boundary, wardrobe/armor metadata | Yes: Vera identity/armor/wardrobe/package/universal tests | Yes: `CorePackageManifest` and package data patterns | Surname, model/provider and voice remain unselected/deferred |
+| #6 Vera | Yes: `VERA_PROFILE`, `src/sofia/core/vera/*`, `vera.py`, three armor configurations | Yes: identity, appearance autonomy, authority boundary, wardrobe/armor metadata | Yes: Vera identity/armor/wardrobe/package/universal tests | Yes: `CorePackageManifest` and package data patterns | Surname, model/provider and voice remain unselected/deferred |
 | #7 Unwritten | Yes: this catalog, `CORE_7_UNWRITTEN_SPEC_V1.md`, neutral constitution | Yes: `unwritten.py`, `packages.py`, `v6_v7_acceptance.py` | Yes: blank identity, growth, restart, STOP, package, integration tests | Yes: blank package plus neutral constitution package data | Canonical production UUID is not recorded in Git — **OWNER DECISION REQUIRED** |
 
 ## Canonical assets and schemas
@@ -37,10 +37,10 @@ owner context. Missing owner decisions are marked **OWNER DECISION REQUIRED**.
 | Area | Present in Git | Missing / not fabricated |
 | --- | --- | --- |
 | Sofía Constitution | `src/sofia/core/constitution/constitution.md` + digest | — |
-| Mack Constitution | `src/sofia/core/cores/mack/constitution.md` | Current text says it does not replace/amend/outrank Sof�a; no superiority framing observed. Any amendment remains protected. |
-| Nova Constitution | `src/sofia/core/cores/nova/constitution.md` | Same observed peer framing; no superiority framing observed. Any amendment remains protected. |
-| Vera Constitution | `src/sofia/core/cores/vera/constitution.md` | Surname unselected |
-| #7 Constitution | `src/sofia/core/cores/unwritten/constitution.md` | Neutral bootstrap only; no personal identity |
+| Mack Constitution | `src/sofia/core/mack/constitution.md` | Current text says it does not replace/amend/outrank Sof�a; no superiority framing observed. Any amendment remains protected. |
+| Nova Constitution | `src/sofia/core/nova/constitution.md` | Same observed peer framing; no superiority framing observed. Any amendment remains protected. |
+| Vera Constitution | `src/sofia/core/vera/constitution.md` | Surname unselected |
+| #7 Constitution | `src/sofia/core/unwritten/constitution.md` | Neutral bootstrap only; no personal identity |
 | Personality assets | Sofia, Mack, Nova, Vera JSON | No #7 personality asset (intentional) |
 | Avatar assets | Sofia, Mack, Nova, Vera JSON | No #7 avatar (intentional); rendered art separate |
 | Voice assets | Mack/Nova/Vera metadata with `assets_created=false` | No canonical rendered voice for any Core; no #7 voice |

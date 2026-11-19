@@ -2,7 +2,7 @@
 
 **Owner-approved status:** Approved blank Core.  
 **Implementation:** `src/sofia/core/multicore/unwritten.py`,
-`src/sofia/core/cores/unwritten/constitution.md`,
+`src/sofia/core/unwritten/constitution.md`,
 `src/sofia/core/multicore/packages.py`.
 
 ## Purpose
@@ -26,7 +26,7 @@ UUID for Core #7 fails closed with `ProtectedIdentityCorruption`.
 
 ## Approved neutral Constitution
 
-`src/sofia/core/cores/unwritten/constitution.md` establishes:
+`src/sofia/core/unwritten/constitution.md` establishes:
 
 - no fabricated name, gender, species, avatar, voice, personality or history;
 - Sofía is not an implicit personality fallback;
