@@ -462,6 +462,76 @@ class CorePackageManifest:
         )
 
 
+def manifest_from_core_profile(
+    profile: CoreProfile,
+    *,
+    lifecycle: LifecycleState = LifecycleState.DEFINED,
+) -> CorePackageManifest:
+    """Compose an inert package manifest from a validated Core profile.
+
+    The caller must have already supplied the Core UUID and loaded the canonical
+    assets.  Composition allocates no identity, verifies no installed artifact
+    and grants no authority.
+    """
+    if not isinstance(profile, CoreProfile):
+        raise TypeError("profile must be a CoreProfile")
+    core_id = profile.descriptor.core_id
+    if core_id is None:
+        raise CorePackageError("Core profile requires a supplied Core UUID")
+    spec = profile.spec
+    return CorePackageManifest(
+        core_id=core_id,
+        core_number=spec.core_number,
+        slug=spec.slug,
+        descriptor=profile.descriptor,
+        constitution=CoreAssetReference(
+            spec.constitution_path,
+            profile.constitution_sha256,
+            profile.constitution_size,
+        ),
+        personality=CoreAssetReference(
+            spec.personality_path,
+            profile.personality_sha256,
+            profile.personality_size,
+        ),
+        lifecycle=lifecycle,
+        avatar_present=profile.avatar_present,
+        voice_present=profile.voice_present,
+    )
+
+
+def blank_unwritten_package(
+    core_id: UUID,
+    *,
+    lifecycle: LifecycleState = LifecycleState.DEFINED,
+) -> CorePackageManifest:
+    """Reserve Core #7's immutable number/slug without personal metadata.
+
+    The neutral bootstrap constitution remains a Core #7 package-data asset and
+    is intentionally not attached as a personal constitution.  This manifest
+    carries no descriptor, personality, avatar or voice metadata.
+    """
+    # Late import keeps the package-manifest module independent of the heavier
+    # blank-identity services while sharing Core #7's canonical identifiers.
+    from sofia.core.multicore.unwritten import (
+        UNWRITTEN_CORE_NUMBER,
+        UNWRITTEN_SLUG,
+    )
+
+    return CorePackageManifest(
+        core_id=_require_uuid(core_id, "core_id"),
+        core_number=UNWRITTEN_CORE_NUMBER,
+        slug=UNWRITTEN_SLUG,
+        descriptor=None,
+        constitution=None,
+        personality=None,
+        lifecycle=lifecycle,
+        avatar_present=False,
+        voice_present=False,
+        blank_identity=True,
+    )
+
+
 def load_core_package_manifest(path: Path | str) -> CorePackageManifest:
     """Read a bounded manifest file without installing or activating anything."""
     target = Path(path).absolute()
@@ -677,6 +747,8 @@ __all__ = [
     "CorePackageRegistry",
     "CorePackageSofiaSubstitution",
     "MAX_PACKAGE_MANIFEST_BYTES",
+    "blank_unwritten_package",
     "load_core_package_manifest",
+    "manifest_from_core_profile",
     "register_package_with_lifecycle",
 ]
