@@ -64,7 +64,7 @@ IDS = {
     6: UUID("66666666-6666-4666-8666-666666666666"),
     7: UUID("77777777-7777-4777-8777-777777777777"),
 }
-CORE_ROOT = Path(__file__).resolve().parents[1] / "src" / "sofia" / "core" / "cores"
+CORE_ROOT = Path(__file__).resolve().parents[1] / "src" / "sofia" / "core"
 
 
 def _register(store: MulticoreIdentityStore, profile):
@@ -104,7 +104,7 @@ def _memory_record(owner_core_id: UUID, content: str) -> MemoryRecord:
 
 
 def _copy_core_assets(destination: Path, slug: str, names: tuple[str, ...]) -> Path:
-    source = resource_files("sofia.core.cores").joinpath(slug)
+    source = resource_files("sofia.core").joinpath(slug)
     target = destination / slug
     target.mkdir(parents=True)
     for name in names:
@@ -252,7 +252,7 @@ def test_core_personality_emotion_and_vera_prose_metadata_stay_separate():
     assert "impulsivity" in nova.descriptor.character_flaw
 
     vera_asset = json.loads(
-        resource_files("sofia.core.cores")
+        resource_files("sofia.core")
         .joinpath("vera", "personality.json")
         .read_text(encoding="utf-8")
     )
@@ -281,7 +281,7 @@ def test_core_personality_emotion_and_vera_prose_metadata_stay_separate():
         for record in blank.attributes
     )
     assert not (
-        resource_files("sofia.core.cores")
+        resource_files("sofia.core")
         .joinpath("unwritten", "personality.json")
         .is_file()
     )
@@ -350,7 +350,8 @@ def test_twins_have_no_profiles_assets_packages_and_cannot_compose(tmp_path):
         for path in CORE_ROOT.iterdir()
         if path.is_dir() and path.name != "__pycache__"
     }
-    assert asset_directories == {"mack", "nova", "vera", "unwritten"}
+    assert {"mack", "nova", "vera", "unwritten", "sofia"} <= asset_directories
+    assert not (CORE_ROOT / "cores").exists()
     assert not any(
         name in asset_directories for name in ("4", "5", "twin-a", "twin-b")
     )

@@ -86,19 +86,19 @@ APPROVED_CORE_ASSET_SETS = {
     "sofia/core/identity/identity.json",
     "sofia/core/embodiment/avatar.json",
     "sofia/core/personality/personality.json",
-    "sofia/core/cores/mack/constitution.md",
-    "sofia/core/cores/mack/personality.json",
-    "sofia/core/cores/mack/avatar.json",
-    "sofia/core/cores/mack/voice.json",
-    "sofia/core/cores/nova/constitution.md",
-    "sofia/core/cores/nova/personality.json",
-    "sofia/core/cores/nova/avatar.json",
-    "sofia/core/cores/nova/voice.json",
-    "sofia/core/cores/vera/constitution.md",
-    "sofia/core/cores/vera/personality.json",
-    "sofia/core/cores/vera/avatar.json",
-    "sofia/core/cores/vera/voice.json",
-    "sofia/core/cores/unwritten/constitution.md",
+    "sofia/core/mack/constitution.md",
+    "sofia/core/mack/personality.json",
+    "sofia/core/mack/avatar.json",
+    "sofia/core/mack/voice.json",
+    "sofia/core/nova/constitution.md",
+    "sofia/core/nova/personality.json",
+    "sofia/core/nova/avatar.json",
+    "sofia/core/nova/voice.json",
+    "sofia/core/vera/constitution.md",
+    "sofia/core/vera/personality.json",
+    "sofia/core/vera/avatar.json",
+    "sofia/core/vera/voice.json",
+    "sofia/core/unwritten/constitution.md",
 }
 
 
@@ -362,8 +362,8 @@ def test_twins_have_no_definition_and_absent_assets_cannot_register(tmp_path):
     for number in (4, 5):
         with pytest.raises(UnknownCoreProfile):
             DEFAULT_CORE_PROFILES.resolve(number)
-        assert not (CORE_ROOT / "cores" / str(number)).exists()
-        assert not (CORE_ROOT / "cores" / f"twin-{number}").exists()
+        assert not (CORE_ROOT / str(number)).exists()
+        assert not (CORE_ROOT / f"twin-{number}").exists()
 
     lifecycle, synthetic, authorization_calls = _lifecycle()
     for number, slug in ((4, "twin-a"), (5, "twin-b")):
@@ -409,23 +409,23 @@ def test_package_data_declares_all_five_approved_core_asset_sets():
     patterns = pyproject["tool"]["setuptools"]["package-data"]
     core_data = components["components"]["core"]["package_data"]
 
-    assert "sofia.core.cores" in patterns
-    assert "sofia.core.cores" in core_data
-    assert "sofia.core.cores.unwritten" in patterns
-    assert "sofia.core.cores.unwritten" in core_data
-    assert set(patterns["sofia.core.cores.unwritten"]) == {"constitution.md"}
-    assert set(core_data["sofia.core.cores.unwritten"]) == {"constitution.md"}
+    assert "sofia.core" in patterns
+    assert "sofia.core" in core_data
+    assert "sofia.core.unwritten" in patterns
+    assert "sofia.core.unwritten" in core_data
+    assert set(patterns["sofia.core.unwritten"]) == {"constitution.md"}
+    assert set(core_data["sofia.core.unwritten"]) == {"constitution.md"}
     generic = {
         "*/constitution.md",
         "*/personality.json",
         "*/avatar.json",
         "*/voice.json",
     }
-    assert generic <= set(patterns["sofia.core.cores"])
-    assert generic <= set(core_data["sofia.core.cores"])
+    assert generic <= set(patterns["sofia.core"])
+    assert generic <= set(core_data["sofia.core"])
     for slug in ("mack", "nova", "vera"):
-        assert f"sofia.core.cores.{slug}" in patterns
-        assert f"sofia.core.cores.{slug}" in core_data
+        assert f"sofia.core.{slug}" in patterns
+        assert f"sofia.core.{slug}" in core_data
 
     assert APPROVED_CORE_ASSET_SETS <= set(CORE_ASSET_FILES)
     for relative in APPROVED_CORE_ASSET_SETS:
@@ -460,7 +460,7 @@ def test_blank_core_7_package_is_personal_identity_free_and_immutable(tmp_path):
             revision=1, runtime_release_sha256=RUNTIME_SHA,
         )
 
-    unwritten_dir = CORE_ROOT / "cores" / "unwritten"
+    unwritten_dir = CORE_ROOT / "unwritten"
     assert (unwritten_dir / "constitution.md").is_file()
     assert not (unwritten_dir / "personality.json").exists()
     assert not (unwritten_dir / "avatar.json").exists()

@@ -14,7 +14,7 @@ import json
 import math
 from pathlib import Path
 import re
-from typing import Callable, Mapping
+from typing import Callable, Iterable, Mapping
 from uuid import UUID
 
 from sofia.core.multicore.contracts import (
@@ -135,70 +135,11 @@ class CoreProfileSpec:
 
     @property
     def constitution_path(self) -> str:
-        return f"cores/{self.slug}/constitution.md"
+        return f"{self.slug}/constitution.md"
 
     @property
     def personality_path(self) -> str:
-        return f"cores/{self.slug}/personality.json"
-
-
-MACK_PROFILE = CoreProfileSpec(
-    slug="mack",
-    core_number=2,
-    full_name="Mack Fuller",
-    nickname="Mack",
-    gender="Male",
-    presentation_species="Human",
-    apparent_age=34,
-    identity_concept="The Frontier Gentleman",
-)
-
-NOVA_PROFILE = CoreProfileSpec(
-    slug="nova",
-    core_number=3,
-    full_name="Nova Arden",
-    nickname=None,
-    gender="Female",
-    presentation_species="Half-elf",
-    apparent_age=27,
-    identity_concept="The Unbound Scholar",
-    accessory="Pendant",
-    required_measurements={"bust": 31.25},
-    required_pbr={"trim_metallic": 0.00},
-)
-
-
-VERA_PROFILE = CoreProfileSpec(
-    slug="vera",
-    core_number=6,
-    full_name="Vera",
-    nickname="Vera",
-    gender="Female",
-    presentation_species="Human",
-    apparent_age=26,
-    identity_concept="Original Spartan-inspired character",
-    accessory="Watch",
-    required_measurements={
-        "head_proportions": 8.0,
-        "shoulders": 19.0,
-        "bust": 38.0,
-        "underbust": 34.0,
-        "waist": 33.5,
-        "hips": 41.0,
-        "inseam": 37.5,
-        "arm_span": 80.5,
-        "neck": 15.5,
-        "hand": 8.4,
-        "foot": 12.0,
-        "upper_arm": 14.5,
-        "thigh": 25.5,
-        "calf": 17.0,
-        "hair_top": 4.0,
-        "hair_sides": 4.0,
-        "hair_back": 4.0,
-    },
-    required_pbr={"skin_roughness": 0.55, "hair_roughness": 0.45},
-)
+        return f"{self.slug}/personality.json"
 
 
 @dataclass(frozen=True, slots=True)
@@ -245,7 +186,7 @@ class CoreProfile:
 
 
 def _asset_root(resource_root: Path | None):
-    return files("sofia.core.cores") if resource_root is None else Path(resource_root)
+    return files("sofia.core") if resource_root is None else Path(resource_root)
 
 
 def _read_bytes(root, *parts: str, required: bool) -> bytes | None:
@@ -506,6 +447,8 @@ def mack_core_profile(
     resource_root: Path | None = None,
     require_presentation_assets: bool = False,
 ) -> CoreProfile:
+    from sofia.core.mack.profile import MACK_PROFILE
+
     return load_core_profile(
         MACK_PROFILE, core_id,
         resource_root=resource_root,
@@ -519,6 +462,8 @@ def nova_core_profile(
     resource_root: Path | None = None,
     require_presentation_assets: bool = False,
 ) -> CoreProfile:
+    from sofia.core.nova.profile import NOVA_PROFILE
+
     return load_core_profile(
         NOVA_PROFILE, core_id,
         resource_root=resource_root,
@@ -542,9 +487,22 @@ ProfileBuilder = Callable[..., CoreProfile]
 class CoreProfileRegistry:
     """Generic registry for current and future independent Cores."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        defaults: Callable[[], Iterable[CoreProfileSpec]] | None = None,
+    ) -> None:
         self._profiles: dict[str, CoreProfileSpec] = {}
         self._numbers: dict[int, str] = {}
+        self._defaults = defaults
+        self._defaults_loaded = defaults is None
+
+    def _ensure_defaults(self) -> None:
+        if self._defaults_loaded:
+            return
+        self._defaults_loaded = True
+        assert self._defaults is not None
+        for spec in self._defaults():
+            self.register(spec)
 
     def register(self, spec: CoreProfileSpec) -> None:
         if not isinstance(spec, CoreProfileSpec):
@@ -557,9 +515,11 @@ class CoreProfileRegistry:
         self._numbers[spec.core_number] = spec.slug
 
     def specs(self) -> tuple[CoreProfileSpec, ...]:
+        self._ensure_defaults()
         return tuple(self._profiles[key] for key in sorted(self._profiles))
 
     def resolve(self, selector: str | int) -> CoreProfileSpec:
+        self._ensure_defaults()
         if isinstance(selector, int):
             slug = self._numbers.get(selector)
             if slug is None:
@@ -591,10 +551,16 @@ class CoreProfileRegistry:
         return self.create(selector, core_id, **options).descriptor
 
 
-DEFAULT_CORE_PROFILES = CoreProfileRegistry()
-DEFAULT_CORE_PROFILES.register(MACK_PROFILE)
-DEFAULT_CORE_PROFILES.register(NOVA_PROFILE)
-DEFAULT_CORE_PROFILES.register(VERA_PROFILE)
+def _default_core_specs() -> tuple[CoreProfileSpec, ...]:
+    """Load per-Core profile constants without creating an import cycle."""
+    from sofia.core.mack.profile import MACK_PROFILE
+    from sofia.core.nova.profile import NOVA_PROFILE
+    from sofia.core.vera.profile import VERA_PROFILE
+
+    return (MACK_PROFILE, NOVA_PROFILE, VERA_PROFILE)
+
+
+DEFAULT_CORE_PROFILES = CoreProfileRegistry(defaults=_default_core_specs)
 
 
 def create_core_profile(
@@ -604,6 +570,26 @@ def create_core_profile(
 ) -> CoreProfile:
     """Create any registered profile; the UUID is always externally supplied."""
     return DEFAULT_CORE_PROFILES.create(selector, core_id, **options)
+
+
+def __getattr__(name: str):
+    """Legacy lazy re-exports for the per-Core profile constants."""
+    if name == "MACK_PROFILE":
+        from sofia.core.mack.profile import MACK_PROFILE
+
+        globals()[name] = MACK_PROFILE
+        return MACK_PROFILE
+    if name == "NOVA_PROFILE":
+        from sofia.core.nova.profile import NOVA_PROFILE
+
+        globals()[name] = NOVA_PROFILE
+        return NOVA_PROFILE
+    if name == "VERA_PROFILE":
+        from sofia.core.vera.profile import VERA_PROFILE
+
+        globals()[name] = VERA_PROFILE
+        return VERA_PROFILE
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 __all__ = [

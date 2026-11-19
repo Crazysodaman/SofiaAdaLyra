@@ -36,7 +36,7 @@ UUID_TEXT = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F
 
 
 def _copy_assets(destination: Path, slug: str, names=CORE_ASSET_FILES) -> Path:
-    source = resource_files("sofia.core.cores").joinpath(slug)
+    source = resource_files("sofia.core").joinpath(slug)
     target = destination / slug
     target.mkdir(parents=True)
     for name in names:
@@ -228,10 +228,10 @@ def test_definition_references_match_package_asset_bytes():
     )
     assert definition.identity.identity_id == MACK_ID
     assert definition.name == "Mack Fuller"
-    assert definition.constitution.path == "cores/mack/constitution.md"
-    assert definition.personality.path == "cores/mack/personality.json"
-    constitution = (root / "cores" / "mack" / "constitution.md").read_bytes()
-    personality = (root / "cores" / "mack" / "personality.json").read_bytes()
+    assert definition.constitution.path == "mack/constitution.md"
+    assert definition.personality.path == "mack/personality.json"
+    constitution = (root / "mack" / "constitution.md").read_bytes()
+    personality = (root / "mack" / "personality.json").read_bytes()
     assert definition.constitution.sha256 == sha256(constitution).hexdigest()
     assert definition.constitution.size_bytes == len(constitution)
     assert definition.personality.sha256 == sha256(personality).hexdigest()
@@ -331,7 +331,7 @@ def test_profile_asset_loading_uses_package_resources_not_absolute_paths():
     profile = load_core_profile(MACK_PROFILE, MACK_ID)
     assert profile.constitution_sha256 == sha256(
         Path(profiles.__file__).resolve().parent.parent
-        .joinpath("cores", "mack", "constitution.md").read_bytes()
+        .joinpath("mack", "constitution.md").read_bytes()
     ).hexdigest()
     assert profile.constitution_size > 0
     assert profile.personality_size > 0

@@ -1,4 +1,4 @@
-﻿"""Versioned installable Core package manifests, registry and inert adapters."""
+"""Versioned installable Core package manifests, registry and inert adapters."""
 from __future__ import annotations
 
 from base64 import b64encode
@@ -582,14 +582,14 @@ def test_package_adapters_preserve_existing_definition_contract(tmp_path):
 
 def test_packaging_declares_generic_core_asset_patterns_for_installable_cores():
     config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    patterns = config["tool"]["setuptools"]["package-data"]["sofia.core.cores"]
+    patterns = config["tool"]["setuptools"]["package-data"]["sofia.core"]
     assert {
         "*/constitution.md",
         "*/personality.json",
         "*/avatar.json",
         "*/voice.json",
     } <= set(patterns)
-    cores = ROOT / "src" / "sofia" / "core" / "cores"
+    cores = ROOT / "src" / "sofia" / "core"
     assert (cores / "vera" / "avatar.json").is_file()
 
 

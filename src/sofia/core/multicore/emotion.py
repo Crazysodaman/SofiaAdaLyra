@@ -228,34 +228,19 @@ class EmotionBehaviorProfile:
             _token(context, "serious context")
 
 
-MACK_EMOTION_PROFILE = EmotionBehaviorProfile(
-    continuity_key="mack-fuller",
-    display_name="Mack Fuller",
-    temperament={
-        "steadiness": 0.82,
-        "directness": 0.78,
-        "protectiveness": 0.70,
-        "curiosity": 0.45,
-    },
-    expressiveness=0.62,
-    recovery_scale=1.25,
-    serious_contexts=("safety", "engineering"),
-)
+def __getattr__(name: str):
+    """Legacy lazy re-exports; Core-owned baselines live in per-Core modules."""
+    if name == "MACK_EMOTION_PROFILE":
+        from sofia.core.mack.emotion import MACK_EMOTION_PROFILE
 
-NOVA_EMOTION_PROFILE = EmotionBehaviorProfile(
-    continuity_key="nova-arden",
-    display_name="Nova Arden",
-    temperament={
-        "independence": 0.86,
-        "curiosity": 0.88,
-        "playfulness": 0.80,
-        "impulsiveness": 0.58,
-        "warmth": 0.60,
-    },
-    expressiveness=0.82,
-    recovery_scale=0.85,
-    serious_contexts=("safety", "boundaries"),
-)
+        globals()[name] = MACK_EMOTION_PROFILE
+        return MACK_EMOTION_PROFILE
+    if name == "NOVA_EMOTION_PROFILE":
+        from sofia.core.nova.emotion import NOVA_EMOTION_PROFILE
+
+        globals()[name] = NOVA_EMOTION_PROFILE
+        return NOVA_EMOTION_PROFILE
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 class SimulatedEmotionTone(str, Enum):
