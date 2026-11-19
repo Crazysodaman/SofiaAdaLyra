@@ -36,6 +36,7 @@ IDS = {
     2: UUID("bbbbbbbb-2222-4222-8222-222222222222"),
     3: UUID("cccccccc-3333-4333-8333-333333333333"),
     6: UUID("dddddddd-6666-4666-8666-666666666666"),
+    7: UUID("eeeeeeee-7777-4777-8777-777777777777"),
 }
 
 
@@ -161,7 +162,7 @@ def test_default_readout_is_explicitly_inert_and_unavailable():
         inventory.availability is Availability.UNAVAILABLE
         for inventory in readout.wardrobe.inventories
     )
-    assert len(readout.cores) == 4
+    assert len(readout.cores) == 5
     for core in readout.cores:
         assert core.activated is False
         assert core.runtime_state == "INERT"
@@ -238,10 +239,10 @@ def test_readout_is_read_only_and_calls_only_read_seams():
     )
     build_universal_readout(composition, now=NOW)
     assert wardrobe.catalog_calls == 1
-    assert wardrobe.inventory_calls == [IDS[1], IDS[2], IDS[3], IDS[6]]
+    assert wardrobe.inventory_calls == [IDS[1], IDS[2], IDS[3], IDS[6], IDS[7]]
     assert governance.group_calls == 1
     assert governance.term_calls == 1
-    assert gestures.calls == 4
+    assert gestures.calls == 5
 
 
 def test_unsupported_renderers_are_unavailable_not_rendered():
@@ -327,7 +328,7 @@ def test_readout_never_labels_a_social_role_as_platform_authority():
     assert all(summary.leaderless for summary in readout.governance.groups)
 
 
-def test_all_four_readouts_declare_every_capability_family_but_none_effective():
+def test_all_five_readouts_declare_every_capability_family_but_none_effective():
     composition = compose(core_ids=IDS)
     readout = build_universal_readout(composition, now=NOW)
     for core in readout.cores:

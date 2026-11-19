@@ -60,6 +60,7 @@ IDS = {
     2: UUID("bbbbbbbb-2222-4222-8222-222222222222"),
     3: UUID("cccccccc-3333-4333-8333-333333333333"),
     6: UUID("dddddddd-6666-4666-8666-666666666666"),
+    7: UUID("eeeeeeee-7777-4777-8777-777777777777"),
 }
 
 
@@ -179,7 +180,7 @@ def _offer(recipient_core_id: UUID = IDS[3]) -> TransferOffer:
 def test_roster_is_exactly_the_reviewed_intended_participants():
     composition = compose(core_ids=IDS)
     numbers = {item.core_number for item in composition.roster.participants}
-    assert numbers == INTENDED_CORE_NUMBERS == {1, 2, 3, 6}
+    assert numbers == INTENDED_CORE_NUMBERS == {1, 2, 3, 6, 7}
     assert numbers & PROHIBITED_CORE_NUMBERS == set()
     for participant in composition.roster.participants:
         assert participant.design_only is (
@@ -210,7 +211,7 @@ def test_source_never_allocates_uuids_or_activates_twins():
     source = Path(universal.__file__).read_text(encoding="utf-8")
     for token in ("uuid1(", "uuid4(", "uuid5(", "activate_core", "start_service"):
         assert token not in source
-    for number in (4, 5, 7):
+    for number in (4, 5):
         with pytest.raises(UniversalFacadeError):
             build_universal_participant(number, UUID(int=number))
 

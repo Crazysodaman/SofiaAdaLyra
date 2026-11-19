@@ -58,6 +58,18 @@ where = ["src"]
     "avatar.json",
     "voice.json",
 ]
+"sofia.core.cores.unwritten" = [
+    "constitution.md",
+]
+# Generic pattern so later installable Core packages ship personal assets
+# without editing this file for each new Core. Core #7 ships only its neutral
+# constitution because its personal identity remains genuinely blank.
+"sofia.core.cores" = [
+    "*/constitution.md",
+    "*/personality.json",
+    "*/avatar.json",
+    "*/voice.json",
+]
 "sofia.modules.ui" = ["assets/*.ico"]
 "sofia.modules.avatar" = [
     "wardrobe_data/*.json",

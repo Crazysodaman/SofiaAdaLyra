@@ -50,6 +50,11 @@ CORE_ASSET_FILES: tuple[str, ...] = (
     "sofia/core/cores/nova/personality.json",
     "sofia/core/cores/nova/avatar.json",
     "sofia/core/cores/nova/voice.json",
+    "sofia/core/cores/vera/constitution.md",
+    "sofia/core/cores/vera/personality.json",
+    "sofia/core/cores/vera/avatar.json",
+    "sofia/core/cores/vera/voice.json",
+    "sofia/core/cores/unwritten/constitution.md",
 )
 
 COMPONENT_DISTRIBUTIONS: tuple[str, ...] = ("sdk", "platform", "core")

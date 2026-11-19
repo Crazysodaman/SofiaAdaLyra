@@ -57,6 +57,7 @@ IDS = {
     2: UUID("bbbbbbbb-2222-4222-8222-222222222222"),
     3: UUID("cccccccc-3333-4333-8333-333333333333"),
     6: UUID("dddddddd-6666-4666-8666-666666666666"),
+    7: UUID("eeeeeeee-7777-4777-8777-777777777777"),
 }
 ADULT_ROOM = "private-adult-room"
 

@@ -27,6 +27,11 @@ from sofia.core.multicore.profiles import (
     mack_core_profile,
     nova_core_profile,
 )
+from sofia.core.multicore.unwritten import (
+    OPERATOR_DISPLAY_LABEL,
+    UNWRITTEN_SLUG,
+    unwritten_constitution_sha256,
+)
 from sofia.core.multicore.vera import (
     VERA_AUTHORITY,
     VeraAuthorityBoundary,
@@ -56,8 +61,8 @@ from sofia.sdk.core_capabilities import (
 
 UNIVERSAL_COMPOSITION_SCHEMA = "aegis.social.universal_composition.v1"
 SOFIA_CORE_NUMBER = 1
-INTENDED_CORE_NUMBERS: frozenset[int] = frozenset({1, 2, 3, 6})
-PROHIBITED_CORE_NUMBERS: frozenset[int] = frozenset({4, 5, 7})
+INTENDED_CORE_NUMBERS: frozenset[int] = frozenset({1, 2, 3, 6, 7})
+PROHIBITED_CORE_NUMBERS: frozenset[int] = frozenset({4, 5})
 DESIGN_ONLY_CORE_NUMBERS: frozenset[int] = frozenset({6})
 SOFIA_DISPLAY_NAME = "Sofía Ada Lyra"
 SOFIA_SLUG = "sofia"
@@ -473,7 +478,7 @@ class UniversalParticipant:
 
 @dataclass(frozen=True, slots=True)
 class UniversalCoreRoster:
-    """The reviewed intended participants; twins and #7 are never members."""
+    """The reviewed intended participants; twins #4/#5 are never members."""
 
     participants: tuple[UniversalParticipant, ...]
 
@@ -489,7 +494,7 @@ class UniversalCoreRoster:
                 "Nova #3 and Vera #6"
             )
         if set(numbers) & PROHIBITED_CORE_NUMBERS:
-            raise UniversalFacadeError("twins #4/#5 and #7 are not participants")
+            raise UniversalFacadeError("twins #4/#5 are not participants")
         core_ids = tuple(item.core_id for item in self.participants)
         if len(set(core_ids)) != len(core_ids):
             raise UniversalFacadeError("participant Core UUIDs must be distinct")
@@ -548,10 +553,14 @@ def _definition_digest(
     *,
     core_number: int,
     core_id: UUID,
+    slug: str,
     profile: CoreProfile | None,
+    constitution_sha256: str | None = None,
 ) -> str:
     if profile is None:
-        material = f"sofia|{core_number}|{core_id}"
+        material = f"{slug}|{core_number}|{core_id}"
+        if constitution_sha256 is not None:
+            material = f"{material}|{constitution_sha256}"
     else:
         material = "|".join((
             profile.spec.slug,
@@ -588,6 +597,7 @@ def build_universal_participant(
     profile: CoreProfile | None
     design_only = core_number in DESIGN_ONLY_CORE_NUMBERS
     authority: VeraAuthorityBoundary | None = None
+    constitution_sha256: str | None = None
     if core_number == SOFIA_CORE_NUMBER:
         profile = None
         slug = SOFIA_SLUG
@@ -600,14 +610,23 @@ def build_universal_participant(
         profile = nova_core_profile(core_id, resource_root=resource_root)
         slug = profile.spec.slug
         display_name = profile.spec.full_name
-    else:
+    elif core_number == 6:
         profile = vera_core_profile(core_id, resource_root=resource_root)
         slug = profile.spec.slug
         display_name = profile.spec.full_name
         authority = VERA_AUTHORITY
+    else:
+        profile = None
+        slug = UNWRITTEN_SLUG
+        display_name = OPERATOR_DISPLAY_LABEL
+        constitution_sha256 = unwritten_constitution_sha256()
     if definition_digest is None:
         digest = _definition_digest(
-            core_number=core_number, core_id=core_id, profile=profile,
+            core_number=core_number,
+            core_id=core_id,
+            slug=slug,
+            profile=profile,
+            constitution_sha256=constitution_sha256,
         )
     else:
         digest = _digest(definition_digest, "definition_digest")
@@ -648,7 +667,7 @@ def build_universal_roster(
         )
     if supplied_numbers != INTENDED_CORE_NUMBERS:
         raise UniversalFacadeError(
-            "core_ids must supply exactly Sofía #1, Mack #2, Nova #3 and Vera #6"
+            "core_ids must supply exactly Sofia #1, Mack #2, Nova #3, Vera #6 and Unwritten #7"
         )
     digests = {} if definition_digests is None else dict(definition_digests)
     participants = tuple(
