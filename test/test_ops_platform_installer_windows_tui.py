@@ -91,6 +91,52 @@ def test_operator_apps_plan_records_start_at_login_with_tui_shortcut(tmp_path):
     assert plan["shortcut_count"] if "shortcut_count" in plan else True
 
 
+def test_preflight_detects_orchestrator_tui_asset_role(monkeypatch, tmp_path):
+    release = SimpleNamespace(
+        release_id="test-release",
+        revision=1,
+        manifest_sha256="a" * 64,
+        source_sha="b" * 40,
+        target=WINDOWS.value,
+        signer_key_id="test-signer",
+        trust_key_sha256="c" * 64,
+        asset_count=2,
+    )
+    payload = {
+        "assets": [
+            {
+                "kind": "dependency",
+                "role": "aegis_tui",
+                "reference": {
+                    "path": "aegis_tui.exe",
+                    "sha256": "d" * 64,
+                    "size_bytes": 1,
+                },
+            },
+            {
+                "kind": "service",
+                "reference": {
+                    "path": "aegis-platform-service.exe",
+                    "sha256": "e" * 64,
+                    "size_bytes": 1,
+                },
+            },
+        ]
+    }
+    monkeypatch.setattr(guided, "discover_bundle", lambda *a, **k: object())
+    monkeypatch.setattr(guided, "verify_bundle", lambda *a, **k: (release, payload))
+    monkeypatch.setattr(guided, "_bundled_python", lambda *a, **k: None)
+
+    result = guided._preflight(
+        tmp_path, target=WINDOWS, install_root=tmp_path / "Aegis",
+        trust_root=None, script_directory=None,
+    )
+
+    assert result["ok"] is True
+    assert result["tui_available"] is True
+    assert "tui" in result["asset_kinds"]
+
+
 def test_install_wizard_collects_root_components_and_startup(
     monkeypatch, tmp_path,
 ):

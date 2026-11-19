@@ -1119,11 +1119,17 @@ def run_guided(
             layout, resolved_paths, release, payload, operation=requested,
             elevation_required=requested in MUTATING_OPERATIONS,
         )
-        asset_kinds = {
-            str(item.get("kind"))
-            for item in payload.get("assets", [])
-            if isinstance(item, dict)
-        }
+        asset_kinds = set()
+        for item in payload.get("assets", []):
+            if not isinstance(item, dict):
+                continue
+            kind = str(item.get("kind"))
+            asset_kinds.add(kind)
+            reference = item.get("reference")
+            path = "" if not isinstance(reference, dict) else str(reference.get("path", ""))
+            if (kind == "tui" or item.get("role") == "aegis_tui"
+                    or path.casefold().endswith(("aegis_tui.exe", "aegis-tui.exe"))):
+                asset_kinds.add("tui")
         plan["install_root"] = (
             None if resolved_paths.install_root is None
             else str(resolved_paths.install_root)
@@ -1489,8 +1495,13 @@ def _preflight(
         for item in payload.get("assets", []):
             if not isinstance(item, dict):
                 continue
-            asset_kinds.add(str(item.get("kind")))
+            kind = str(item.get("kind"))
+            asset_kinds.add(kind)
             reference = item.get("reference")
+            path = "" if not isinstance(reference, dict) else str(reference.get("path", ""))
+            if (kind == "tui" or item.get("role") == "aegis_tui"
+                    or path.casefold().endswith(("aegis_tui.exe", "aegis-tui.exe"))):
+                asset_kinds.add("tui")
             if isinstance(reference, dict):
                 size = reference.get("size_bytes")
                 if type(size) is int and size >= 0:
