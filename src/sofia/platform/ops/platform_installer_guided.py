@@ -212,7 +212,7 @@ def default_paths(
             target=target,
             destination=base / "platform",
             identity_home=data / "identity",
-            local_state=data / "state",
+            local_state=data / "state" / "platform.db",
             safe_state=data / "safe",
             store_path=data / "installation" / "platform-installation.db",
             operator_bin=base / "bin",
@@ -231,7 +231,7 @@ def default_paths(
             target=target,
             destination=base / "platform",
             identity_home=data / "identity",
-            local_state=data / "state",
+            local_state=data / "state" / "platform.db",
             safe_state=data / "safe",
             store_path=data / "installation" / "platform-installation.db",
             operator_bin=base / "bin",
@@ -297,7 +297,7 @@ def paths_for_install_root(
             target=target,
             destination=root / "platform",
             identity_home=root / "identity",
-            local_state=root / "state",
+            local_state=root / "state" / "platform.db",
             safe_state=root / "safe",
             store_path=root / "installation" / "platform-installation.db",
             operator_bin=root / "bin",
@@ -318,7 +318,7 @@ def paths_for_install_root(
             target=target,
             destination=root / "platform",
             identity_home=root / "identity",
-            local_state=root / "state",
+            local_state=root / "state" / "platform.db",
             safe_state=root / "safe",
             store_path=root / "installation" / "platform-installation.db",
             operator_bin=root / "bin",
@@ -978,6 +978,7 @@ def _installer_inputs(
     previous_destination: Path | None = None,
     expected_parent_manifest_sha256: str | None = None,
     trust_root: Path | str | None = None,
+    bootstrap_first_install_state: bool = False,
 ) -> InstallerInputs:
     key, fingerprint, signer = _trust_anchor(
         layout, target=paths.target, trust_root=trust_root,
@@ -995,6 +996,7 @@ def _installer_inputs(
         local_state=paths.local_state,
         canonical_safe_state=paths.safe_state,
         store_path=paths.store_path,
+        bootstrap_first_install_state=bootstrap_first_install_state,
         previous_destination=previous_destination,
         expected_parent_manifest_sha256=expected_parent_manifest_sha256,
     )
@@ -1111,6 +1113,7 @@ def run_guided(
     target: PlatformReleaseTarget | None = None,
     paths: GuidedPaths | None = None,
     install_root: Path | str | None = None,
+    bootstrap_first_install_state: bool = False,
     approval_adapter: ApprovalAdapter | None = None,
     native_backend=None,
     operator_apps_path_adapter=None,
@@ -1265,6 +1268,9 @@ def run_guided(
             destination=destination, previous_destination=previous,
             expected_parent_manifest_sha256=expected_parent,
             trust_root=trust_root,
+            bootstrap_first_install_state=(
+                bool(bootstrap_first_install_state) and requested == "install"
+            ),
         )
     except GuidedDenied as error:
         return _denied(requested, error.code, error.detail, plan=plan)
@@ -1744,6 +1750,7 @@ def _install_wizard(
         script_directory=script_directory, trust_root=trust_root,
         start_at_login=start_at_login, include_tui=include_tui,
         include_start_menu=include_start_menu, include_desktop=include_desktop,
+        bootstrap_first_install_state=True,
     )
 
 

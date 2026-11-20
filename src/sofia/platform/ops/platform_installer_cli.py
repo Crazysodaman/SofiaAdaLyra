@@ -26,6 +26,7 @@ from pathlib import Path
 import re
 import sys
 
+from sofia.platform.config.roles import PlatformRole, PlatformRoleConfiguration
 from sofia.platform.ops.platform_installation import (
     PlatformInstallationDenied, PlatformInstallationStore, install_staged_release,
     platform_rollback_request, verify_installed, verify_staged_release_candidate,
@@ -53,6 +54,9 @@ from sofia.platform.ops.platform_release import PlatformReleaseVerifier
 from sofia.platform.ops.platform_release_staging import stage_platform_release
 from sofia.platform.safe.operator_stop import OperatorStopStore
 from sofia.platform.state.artifact_file import read_artifact_file
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
+from sofia.platform.state.installation_identity import InstallationIdentityStore
+from sofia.platform.state.local_store import PlatformLocalStore
 from sofia.platform.state.private_file import (
     assert_no_redirected_components, ensure_owner_private_directory,
 )
@@ -90,6 +94,7 @@ class InstallerInputs:
     store_path: Path | str | None = None
     approval_id: str | None = None
     code_approval_id: str | None = None
+    bootstrap_first_install_state: bool = False
     previous_destination: Path | str | None = None
     staging_candidate: Path | str | None = None
     expected_parent_manifest_sha256: str | None = None
@@ -231,6 +236,53 @@ def _stop_active(inputs: InstallerInputs) -> bool:
     if not safe.exists():
         raise FileNotFoundError("canonical SAFE state is absent")
     return OperatorStopStore(safe).current().active
+
+
+def _bootstrap_first_install_state(inputs: InstallerInputs) -> None:
+    """Provision empty identity, SAFE and local state for an authorized install.
+
+    The attended guided installer sets this explicit input after the owner
+    approves the preview. An existing destination or installation store never
+    permits this initialization; partial state is validated, never repaired.
+    """
+    if not inputs.bootstrap_first_install_state:
+        return
+    destination = Path(_require(inputs.destination, "destination")).absolute()
+    identity_home = Path(_require(inputs.identity_home, "identity home")).absolute()
+    local_state = Path(_require(
+        inputs.local_state, "local Platform state",
+    )).absolute()
+    safe = Path(_require(
+        inputs.canonical_safe_state, "canonical SAFE state",
+    )).absolute()
+    store_path = Path(_require(
+        inputs.store_path, "local installation state",
+    )).absolute()
+    if safe.exists() and identity_home.exists() and local_state.exists():
+        return
+    if destination.exists():
+        raise PlatformInstallationDenied(
+            "first-install state bootstrap is unavailable for an existing installation"
+        )
+    if store_path.exists():
+        store = PlatformInstallationStore(store_path)
+        checkpoint = store.checkpoint()
+        if (store.history() or store.pending_attempts()
+                or (checkpoint is not None
+                    and checkpoint.active_release_id is not None)):
+            raise PlatformInstallationDenied(
+                "first-install state bootstrap is unavailable for an existing installation"
+            )
+    ensure_owner_private_directory(safe.parent)
+    if not safe.exists():
+        bootstrap_canonical_sqlite(safe)
+    identity = InstallationIdentityStore(identity_home).initialize()
+    roles = PlatformRoleConfiguration((PlatformRole.MODULE_HOST,))
+    PlatformLocalStore(
+        local_state, roles=roles,
+        host_identity=identity.identity.canonical_uuid,
+        create=not local_state.exists(),
+    )
 
 
 def _assert_not_stopped(inputs: InstallerInputs) -> None:
@@ -642,6 +694,7 @@ def _command_install(inputs: InstallerInputs, backend=None,
                      operator_apps_path_adapter=None,
                      operator_apps_shortcut_adapter=None) -> dict[str, object]:
     floor = _positive_floor(_require(inputs.minimum_revision, "revision floor"))
+    _bootstrap_first_install_state(inputs)
     _assert_not_stopped(inputs)
     release = _verify_release(
         inputs, floor=floor,

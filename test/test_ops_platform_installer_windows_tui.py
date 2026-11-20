@@ -30,7 +30,7 @@ def test_custom_install_root_is_uuid_safe_and_derives_all_platform_paths(tmp_pat
     assert paths.install_root == root
     assert paths.destination == root / "platform"
     assert paths.identity_home == root / "identity"
-    assert paths.local_state == root / "state"
+    assert paths.local_state == root / "state" / "platform.db"
     assert paths.safe_state == root / "safe"
     assert paths.store_path == root / "installation" / "platform-installation.db"
     assert paths.operator_bin == root / "bin"

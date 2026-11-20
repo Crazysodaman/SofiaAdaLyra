@@ -337,7 +337,7 @@ def test_canonical_default_paths_are_approved_for_both_hosts():
     debian = guided.default_paths(TARGET)
     assert debian.destination == Path("/opt/aegis/platform")
     assert debian.identity_home == Path("/var/lib/aegis/identity")
-    assert debian.local_state == Path("/var/lib/aegis/state")
+    assert debian.local_state == Path("/var/lib/aegis/state/platform.db")
     assert debian.store_path == Path(
         "/var/lib/aegis/installation/platform-installation.db"
     )
@@ -405,6 +405,70 @@ def test_successful_one_step_orchestration_uses_existing_owners(bundle, paths):
     encoded = json.dumps(result, sort_keys=True)
     assert approvals.open_host_password not in encoded
     assert "approval_id" not in encoded
+
+
+def test_fresh_install_without_safe_bootstrap_reproduces_missing_input(
+    bundle, tmp_path,
+):
+    root = tmp_path / "Aegis"
+    paths = guided.paths_for_install_root(TARGET, root)
+    assert not paths.safe_state.exists()
+
+    result = guided.run_guided(
+        bundle.root, operation="install", target=TARGET, paths=paths,
+        trust_root=bundle.independent_trust,
+        elevation_check=lambda: True,
+        approval_adapter=RecordingApprovalAdapter(paths.safe_state),
+        native_backend=_fake_backend([]),
+        operator_apps_path_adapter=InMemoryPathAdapter(),
+        operator_apps_shortcut_adapter=FakeShortcuts(),
+    )
+
+    assert result["outcome"] == "DENIED"
+    assert result["error"]["code"] == "MISSING_INPUT"
+    stages = {item["stage"]: item["outcome"] for item in result["stages"]}
+    assert stages["release_verification"] == "VERIFIED"
+    assert stages["code_publication"] == "NOT_REACHED"
+    assert result["executed"] is False
+    assert not paths.safe_state.exists()
+    assert not paths.destination.exists()
+
+
+def test_attended_fresh_install_bootstraps_missing_identity_safe_and_state(
+    bundle, tmp_path,
+):
+    root = tmp_path / "Aegis"
+    paths = guided.paths_for_install_root(TARGET, root)
+    assert not paths.safe_state.exists()
+    effects = []
+    approvals = RecordingApprovalAdapter(paths.safe_state)
+
+    result = guided.run_guided(
+        bundle.root, operation="install", target=TARGET, paths=paths,
+        trust_root=bundle.independent_trust,
+        elevation_check=lambda: True,
+        bootstrap_first_install_state=True,
+        approval_adapter=approvals,
+        native_backend=_fake_backend(effects),
+        operator_apps_path_adapter=InMemoryPathAdapter(),
+        operator_apps_shortcut_adapter=FakeShortcuts(),
+    )
+
+    assert result["outcome"] == "INSTALLED", json.dumps(result, sort_keys=True)
+    assert paths.safe_state.is_file()
+    assert result["executed"] is True
+    assert result["owner_approved"] is True
+    assert result["core_activated"] is False
+    assert [item["capability"] for item in approvals.requests] == [
+        CODE_PUBLISH_CAPABILITY,
+        guided.NATIVE_CHANNEL_CAPABILITY,
+        OPERATOR_APPS_CAPABILITY,
+    ]
+    stages = {item["stage"]: item["outcome"] for item in result["stages"]}
+    assert stages["code_publication"] == "COMPLETED"
+    assert stages["native_service"] == "COMPLETED"
+    assert stages["operator_apps"] == "COMPLETED"
+    assert effects and effects[0][0] == "RUNNING"
 
 
 def test_uninstall_retains_identity_and_protected_state(bundle, paths):
