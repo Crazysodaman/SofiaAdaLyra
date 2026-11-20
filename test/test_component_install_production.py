@@ -9,6 +9,7 @@ SDK files, and Core uninstall that preserves the Platform installation.
 from __future__ import annotations
 
 import hashlib
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -37,7 +38,17 @@ def production_venv(tmp_path_factory, component_wheels) -> dict[str, object]:
         if sys.platform == "win32"
         else venv_root / "bin" / "python"
     )
-    context = {"venv_root": venv_root, "python": python, "log": []}
+    environment = {
+        key: value for key, value in os.environ.items()
+        if key not in {"PYTHONPATH", "PYTHONHOME"}
+        and not key.startswith("SOFIA_")
+    }
+    context = {
+        "venv_root": venv_root,
+        "python": python,
+        "log": [],
+        "environment": environment,
+    }
 
     def run(args: list[str], *, timeout: int = 600) -> str:
         completed = subprocess.run(
@@ -46,6 +57,7 @@ def production_venv(tmp_path_factory, component_wheels) -> dict[str, object]:
             text=True,
             timeout=timeout,
             check=False,
+            env=environment,
         )
         context["log"].append((tuple(args), completed.returncode))
         if completed.returncode:
@@ -114,9 +126,10 @@ def test_production_component_install_lifecycle(production_venv, component_wheel
         "print('core-absent-probe-ok')\n"
     )
     without_core = subprocess.run(
-        [str(production_venv["python"]), "-c", core_probe],
+        [str(production_venv["python"]), "-I", "-c", core_probe],
         capture_output=True, text=True, timeout=120, check=False,
         cwd=str(production_venv["venv_root"]),
+        env=production_venv["environment"],
     )
     assert without_core.returncode != 0
     assert "core-absent-probe-ok" not in without_core.stdout
@@ -130,9 +143,10 @@ def test_production_component_install_lifecycle(production_venv, component_wheel
     assert _sha256(platform_marker_path) == platform_marker_digest
 
     with_core = subprocess.run(
-        [str(production_venv["python"]), "-c", core_probe],
+        [str(production_venv["python"]), "-I", "-c", core_probe],
         capture_output=True, text=True, timeout=120, check=False,
         cwd=str(production_venv["venv_root"]),
+        env=production_venv["environment"],
     )
     assert with_core.returncode == 0, with_core.stderr
     assert "core-absent-probe-ok" in with_core.stdout
@@ -146,9 +160,10 @@ def test_production_component_install_lifecycle(production_venv, component_wheel
     assert installed_init.read_bytes() == sdk_init_bytes
     assert _sha256(platform_marker_path) == platform_marker_digest
     after_uninstall = subprocess.run(
-        [str(production_venv["python"]), "-c", core_probe],
+        [str(production_venv["python"]), "-I", "-c", core_probe],
         capture_output=True, text=True, timeout=120, check=False,
         cwd=str(production_venv["venv_root"]),
+        env=production_venv["environment"],
     )
     assert after_uninstall.returncode != 0
     run(["-m", "pip", "check"])
@@ -169,9 +184,10 @@ def test_production_venv_kept_platform_without_core(
     python = production_venv["python"]
     probe = "import sofia.platform.run.active_release; print('platform-ok')"
     completed = subprocess.run(
-        [str(python), "-c", probe],
+        [str(python), "-I", "-c", probe],
         capture_output=True, text=True, timeout=120, check=False,
         cwd=str(production_venv["venv_root"]),
+        env=production_venv["environment"],
     )
     assert completed.returncode == 0, completed.stderr
     assert "platform-ok" in completed.stdout
@@ -270,7 +286,8 @@ def test_installed_generic_worker_runs_without_core(production_venv, tmp_path, k
     ''')
     completed = subprocess.run(
         [str(production_venv['python']), '-I', '-c', program, str(tmp_path), kind],
-        cwd=str(production_venv['venv_root']), capture_output=True, text=True, timeout=120,
+        cwd=str(production_venv['venv_root']), capture_output=True, text=True,
+        timeout=120, env=production_venv['environment'],
     )
     assert completed.returncode == 0, completed.stdout + completed.stderr
     assert 'installed-worker-ok' in completed.stdout
@@ -282,7 +299,8 @@ def test_installed_neutral_providers_without_core(production_venv):
 
     completed = subprocess.run(
         [str(production_venv['python']), '-I', '-c', NEUTRAL_PROVIDER_PROBE],
-        cwd=str(production_venv['venv_root']), capture_output=True, text=True, timeout=60,
+        cwd=str(production_venv['venv_root']), capture_output=True, text=True,
+        timeout=60, env=production_venv['environment'],
     )
     assert completed.returncode == 0, completed.stdout + completed.stderr
     assert 'generic-providers-ok' in completed.stdout
