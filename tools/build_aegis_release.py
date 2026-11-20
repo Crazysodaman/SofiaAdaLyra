@@ -120,6 +120,9 @@ _GIT_SHA = re.compile(r"[0-9a-f]{40}\Z")
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 _PYTHON_VERSION = re.compile(r"3\.12\.(?:0|[1-9][0-9]{0,4})\Z")
 _RELEASE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,119}\Z")
+_OWNER_AUTHORIZATION_REFERENCE = re.compile(
+    r"[A-Za-z0-9][A-Za-z0-9_.:/-]{0,199}\Z"
+)
 
 _CORE_MARKERS = ("sofia/core/", "sofia-core", "sofia_core")
 _PII_WHEEL_SUFFIXES = (".db", ".sqlite", ".sqlite3")
@@ -595,13 +598,17 @@ def _inventory_payload(
     python_version: str, assets: list[dict[str, object]],
     wheels: list[dict[str, object]], runtime: dict[str, object],
     native: dict[str, object], installer: list[dict[str, object]],
+    owner_private_authorization: str | None = None,
 ) -> bytes:
+    owner_private = owner_private_authorization is not None
     return _json({
         "schema": SCHEMA_INVENTORY,
         "source_sha": source_sha,
         "target": target.value,
         "python_version": python_version,
-        "test_signing_only": True,
+        "test_signing_only": not owner_private,
+        "private_deployment_authorized": owner_private,
+        "owner_authorization_reference": owner_private_authorization,
         "production_authorized": False,
         "artifacts": sorted(assets, key=lambda item: str(item["path"])),
         "wheels": sorted(wheels, key=lambda item: str(item["path"])),
@@ -647,7 +654,9 @@ def _provenance_payload(
     python_version: str, artifact_hashes: dict[str, str],
     installer_payload_included: bool, trust_anchor_sha256: str | None,
     wheelhouse_distributions: list[str],
+    owner_private_authorization: str | None = None,
 ) -> bytes:
+    owner_private = owner_private_authorization is not None
     bundle_digest = _sha256_bytes(_json(sorted(artifact_hashes.items())))
     external = {
         "source_sha": source_sha,
@@ -655,7 +664,9 @@ def _provenance_payload(
         "python_version": python_version,
         "revision": revision,
         "source_tree_clean": source_tree_clean,
-        "test_signing_only": True,
+        "test_signing_only": not owner_private,
+        "private_deployment_authorized": owner_private,
+        "owner_authorization_reference": owner_private_authorization,
         "production_authorized": False,
         "installer_payload_included": bool(installer_payload_included),
         "wheelhouse_distributions": sorted(wheelhouse_distributions),
@@ -688,7 +699,9 @@ def _provenance_payload(
                     "invocationId": release_id,
                     "startedOn": created_at.astimezone(timezone.utc).isoformat(),
                     "source_tree_clean": source_tree_clean,
-                    "test_signing_only": True,
+                    "test_signing_only": not owner_private,
+                    "private_deployment_authorized": owner_private,
+                    "owner_authorization_reference": owner_private_authorization,
                 },
             },
         },
@@ -703,7 +716,9 @@ def _install_plan_payload(
     entrypoints: dict[str, str | None], installer_files: list[dict[str, object]],
     trust_anchor: dict[str, object], wheelhouse: list[dict[str, object]],
     runtime: dict[str, object], service_binary: str, tui_binary: str,
+    owner_private_authorization: str | None = None,
 ) -> bytes:
+    owner_private = owner_private_authorization is not None
     setup_exe = entrypoints.get(INSTALLER_SETUP_EXE)
     operator_apps = {
         "gui": f"installer/{setup_exe}" if setup_exe else None,
@@ -726,7 +741,9 @@ def _install_plan_payload(
         "grants_authority": False,
         "executed": False,
         "production_authorized": False,
-        "test_signing_only": True,
+        "test_signing_only": not owner_private,
+        "private_deployment_authorized": owner_private,
+        "owner_authorization_reference": owner_private_authorization,
         "bundle_source_sha": source_sha,
         "target": target.value,
         "revision": revision,
@@ -776,7 +793,9 @@ def _stage_installer_payload(
     release_id: str, application_version: str, python_version: str,
     wheelhouse: list[dict[str, object]], runtime: dict[str, object],
     service_binary: str, tui_binary: str,
+    owner_private_authorization: str | None = None,
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
+    owner_private = owner_private_authorization is not None
     installer_root = Path(destination)
     installer_root.mkdir(parents=True, exist_ok=False)
     files = _installer_payload_files(installer_dir, targets)
@@ -811,7 +830,9 @@ def _stage_installer_payload(
         "applies_to": "installer-payload-and-install-plan",
         "release_signature_separate": True,
         "release_signer_key_id": release_signer_key_id,
-        "test_signing_only": True,
+        "test_signing_only": not owner_private,
+        "private_deployment_authorized": owner_private,
+        "owner_authorization_reference": owner_private_authorization,
         "production_authorized": False,
     }
     trust_bytes = _json(trust)
@@ -845,6 +866,7 @@ def _stage_installer_payload(
         installer_files=records, trust_anchor=trust_anchor,
         wheelhouse=wheelhouse, runtime=runtime,
         service_binary=service_binary, tui_binary=tui_binary,
+        owner_private_authorization=owner_private_authorization,
     )
     plan_record = _write_named_file(installer_root / "install-plan.json", plan)
     records.append({
@@ -966,7 +988,9 @@ def _assemble_target(
     private_key, signer_key_id: str,
     installer_dir: Path | None, trusted_public_key: Path | None,
     trusted_signer_key_id: str | None, dependency_wheelhouse: Path | None,
+    owner_private_authorization: str | None = None,
 ) -> dict[str, object]:
+    owner_private = owner_private_authorization is not None
     # Installable bundle layout: independent installer trust lives at
     # <root>/installer, signed release media lives at <root>/release.
     # Guided discovery deliberately refuses a trust anchor inside release media.
@@ -1116,12 +1140,14 @@ def _assemble_target(
             runtime=runtime_plan,
             service_binary=service_asset.path,
             tui_binary=tui_asset.path,
+            owner_private_authorization=owner_private_authorization,
         )
 
     inventory = _inventory_payload(
         source_sha=source_sha, target=target, python_version=python_version,
         assets=record, wheels=wheels_meta, runtime=runtime_meta,
         native=native_meta, installer=installer_record,
+        owner_private_authorization=owner_private_authorization,
     )
     inventory_asset = _write_asset(assets, "dependency-inventory.json", inventory)
     record.append({
@@ -1159,6 +1185,7 @@ def _assemble_target(
             str(item["distribution"]) for item in wheels_meta
             if item.get("kind") == "runtime-dependency"
         ],
+        owner_private_authorization=owner_private_authorization,
     )
     provenance_asset = _write_asset(assets, "assembly-provenance.json", provenance)
     record.append({
@@ -1256,6 +1283,9 @@ def _assemble_target(
         "installer_payload_included": bool(installer_list),
         "trust_anchor": trust_meta,
         "wheelhouse": wheelhouse_list,
+        "test_signing_only": not owner_private,
+        "private_deployment_authorized": owner_private,
+        "owner_authorization_reference": owner_private_authorization,
         "production_signing_claim": False,
         "production_authorized": False,
     })
@@ -1263,7 +1293,11 @@ def _assemble_target(
 
     model = {
         "schema": SCHEMA_RECEIPT,
-        "result": "TEST_SIGNED_RELEASE_ASSEMBLED_NOT_INSTALLED",
+        "result": (
+            "OWNER_PRIVATE_RELEASE_ASSEMBLED_NOT_INSTALLED"
+            if owner_private else
+            "TEST_SIGNED_RELEASE_ASSEMBLED_NOT_INSTALLED"
+        ),
         "source_sha": source_sha,
         "source_tree_clean": source_tree_clean,
         "target": target.value,
@@ -1291,7 +1325,9 @@ def _assemble_target(
         "wheelhouse": wheelhouse_list,
         "inventory_complete": True,
         "core_or_pii_present": False,
-        "test_signing_only": True,
+        "test_signing_only": not owner_private,
+        "private_deployment_authorized": owner_private,
+        "owner_authorization_reference": owner_private_authorization,
         "production_signing_claim": False,
         "production_authorized": False,
         "trust_root_embedded": False,
@@ -1301,7 +1337,11 @@ def _assemble_target(
         "created_at": created_at.astimezone(timezone.utc).isoformat(),
     }
     if not source_tree_clean:
-        model["result"] = "TEST_SIGNED_RELEASE_ASSEMBLED_DIRTY_SOURCE_TEST_ONLY"
+        model["result"] = (
+            "OWNER_PRIVATE_RELEASE_REFUSED_DIRTY_SOURCE"
+            if owner_private else
+            "TEST_SIGNED_RELEASE_ASSEMBLED_DIRTY_SOURCE_TEST_ONLY"
+        )
     (release_root / "build-receipt.json").write_bytes(_json(model))
     return model
 
@@ -1330,10 +1370,21 @@ def assemble_release(
     revision: int = 1,
     allow_dirty: bool = False,
     created_at: datetime | None = None,
+    owner_private_authorization: str | None = None,
 ) -> dict[str, object]:
-    """Assemble one or more signed test-release bundles, refusing incompleteness."""
+    """Assemble one or more signed release bundles, refusing incompleteness."""
+    owner_private = owner_private_authorization is not None
     if not isinstance(signer_key_id, str) or not 1 <= len(signer_key_id) <= 128:
         raise ReleaseAssemblyError("bounded signer_key_id required")
+    if owner_private and (
+        not isinstance(owner_private_authorization, str)
+        or not _OWNER_AUTHORIZATION_REFERENCE.fullmatch(
+            owner_private_authorization
+        )
+    ):
+        raise ReleaseAssemblyError(
+            "bounded owner authorization reference required"
+        )
     if type(revision) is not int or revision < 1:
         raise ReleaseAssemblyError("positive release revision required")
     version = application_version or _default_application_version()
@@ -1411,6 +1462,16 @@ def assemble_release(
         raise ReleaseAssemblyError("timezone-aware created_at required")
     if not allow_dirty and not clean:
         raise ReleaseAssemblyError("clean source tree required")
+    if owner_private and (not clean or allow_dirty):
+        raise ReleaseAssemblyError(
+            "owner-private release requires a clean, non-test source tree"
+        )
+    if owner_private and (
+        resolved_installer_dir is None or trusted_public_key is None
+    ):
+        raise ReleaseAssemblyError(
+            "owner-private release requires installer payload and independent trust"
+        )
 
     resolved_service: dict[PlatformReleaseTarget, Path] = {}
     resolved_tui: dict[PlatformReleaseTarget, Path] = {}
@@ -1476,6 +1537,7 @@ def assemble_release(
                         if trusted_public_key is not None else None
                     ),
                     dependency_wheelhouse=dependency_wheelhouse,
+                    owner_private_authorization=owner_private_authorization,
                 )
                 staging.replace(final)
                 results.append(model)
@@ -1490,7 +1552,9 @@ def assemble_release(
         "schema": "aegis.platform.release-assembly-set.v1",
         "source_sha": observed_sha,
         "source_tree_clean": clean,
-        "test_signing_only": True,
+        "test_signing_only": not owner_private,
+        "private_deployment_authorized": owner_private,
+        "owner_authorization_reference": owner_private_authorization,
         "production_signing_claim": False,
         "production_authorized": False,
         "installed_host_verified": False,
@@ -1744,6 +1808,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--revision", type=int, default=1)
     parser.add_argument("--created-at")
     parser.add_argument(
+        "--owner-private-authorization", metavar="REFERENCE",
+        help="owner-approved private-deployment authorization reference; "
+             "requires a clean tree and independent installer trust",
+    )
+    parser.add_argument(
         "--allow-dirty", action="store_true",
         help="test-only mode; records a dirty source tree and refuses production claims",
     )
@@ -1784,6 +1853,7 @@ def main(argv: list[str] | None = None) -> int:
             revision=args.revision,
             allow_dirty=args.allow_dirty,
             created_at=created_at,
+            owner_private_authorization=args.owner_private_authorization,
         )
         print(json.dumps(result, sort_keys=True, indent=2))
         return 0

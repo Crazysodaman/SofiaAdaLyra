@@ -293,6 +293,42 @@ def test_assembles_complete_windows_and_debian_test_signed_bundles(
         assert b"BEGIN PUBLIC KEY" not in metadata
 
 
+def test_owner_private_authorization_is_explicit_and_not_production(
+    tmp_path: Path, platform_wheels: dict[str, Path],
+) -> None:
+    changes = _installer_changes(tmp_path)
+    changes["owner_private_authorization"] = (
+        "owner-approved-private-test-2026-11-19"
+    )
+    _repo, _sha, _key, _public, output, result = _assemble(
+        tmp_path, platform_wheels, **changes,
+    )
+    assert result["test_signing_only"] is False
+    assert result["private_deployment_authorized"] is True
+    assert result["owner_authorization_reference"] == (
+        "owner-approved-private-test-2026-11-19"
+    )
+    assert result["production_authorized"] is False
+    assert result["production_signing_claim"] is False
+    for target in (
+        PlatformReleaseTarget.DEBIAN12_X86_64,
+        PlatformReleaseTarget.WINDOWS_X86_64,
+    ):
+        bundle = output / target.value
+        receipt = json.loads(
+            (bundle / "release" / "build-receipt.json").read_text()
+        )
+        assert receipt["result"].startswith(
+            "OWNER_PRIVATE_RELEASE_ASSEMBLED"
+        )
+        assert receipt["test_signing_only"] is False
+        assert receipt["private_deployment_authorized"] is True
+        assert receipt["production_authorized"] is False
+        trust = json.loads((bundle / "installer" / "trust.json").read_text())
+        assert trust["private_deployment_authorized"] is True
+        assert trust["production_authorized"] is False
+
+
 def test_source_sha_mismatch_is_refused(
     tmp_path: Path, platform_wheels: dict[str, Path],
 ) -> None:
