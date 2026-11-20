@@ -39,10 +39,27 @@ The script signs with SHA-256, optionally timestamps with SHA-256, and runs
 private key or PFX password. If no thumbprint is supplied, it emits
 `AUTHENTICODE=NOT_SIGNED` and the output remains test media.
 
+The current script uses the caller's `CurrentUser` certificate store. It does
+not pass `signtool`'s `/sm` option, so a certificate in
+`LocalMachine\My` is not currently selectable by this script; use
+`CurrentUser\My` on the signing host or extend the script with an explicitly
+reviewed machine-store option. The installed-host verifier, by contrast,
+accepts a validly chained certificate regardless of which store signed it.
+
 The current host has `signtool.exe` available under the Windows SDK, but no
 certificate with a code-signing EKU and private key in `CurrentUser\My` or
 `LocalMachine\My`. Therefore the audited `Aegis-Setup.exe` remains
 `NotSigned`.
+
+## Native binary coverage
+
+The current installer build signs only `Aegis-Setup.exe`. The bundled
+`aegis-platform-service.exe` and `aegis_tui.exe` are covered by the independent
+Ed25519 release signature but are not Authenticode-signed. A complete signed
+Windows candidate must either Authenticode-sign every shipped PE binary with an
+owner-approved certificate or explicitly document and approve that the native
+binaries are release-signature-only. Do not describe the current package as
+fully Authenticode-signed.
 
 ## Owner provisioning prerequisites
 
@@ -157,6 +174,13 @@ powershell.exe -NoProfile -NonInteractive -File `
 - The owner must retain a revocation list for compromised launcher certificates
   and must re-verify previously issued media after any revocation event.
 
+The current `Install-Aegis.ps1` bootstrap check verifies the Authenticode
+`Status`, exact independently pinned thumbprint, certificate validity window and
+code-signing EKU. It records `publisher_revocation_fresh=false` and is
+explicitly `AUTHENTICODE_BINARY_ONLY`; it does not itself prove a fresh
+revocation result or timestamp. Independent release verification must perform
+those checks before any install approval.
+
 ## Private-key protection
 
 - Prefer a hardware-backed, non-exportable CNG key or HSM.
@@ -181,6 +205,8 @@ The following are release blockers, not reasons to self-sign:
 - unavailable or stale revocation status;
 - missing trusted timestamp when policy requires it;
 - `Aegis-Setup.exe` remains `NotSigned`;
+- native service/TUI binaries remain `NotSigned` without an explicit
+  release-signature-only approval;
 - release Ed25519 verification fails or uses an in-bundle trust root;
 - no disposable Windows host for installed-host acceptance.
 
