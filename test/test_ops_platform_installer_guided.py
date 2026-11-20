@@ -1,4 +1,4 @@
-﻿"""One-step guided installer orchestration against disposable signed fixtures.
+"""One-step guided installer orchestration against disposable signed fixtures.
 
 Every publisher key, release, owner proof and OS backend here is disposable test
 material. No administrator rights, real service, production trust root or host
@@ -632,6 +632,7 @@ def test_real_builder_bundle_is_consumed_by_real_guided_launcher(
     planned_tui = preview["plan"]["operator_apps"]["planned_tui_executable"]
     assert planned_tui is not None
     assert Path(planned_tui).name in {"aegis_tui.exe", "aegis_tui"}
+    assert preview["plan"]["operator_apps"]["tui_executable"] == planned_tui
     assert preview["plan"]["operator_apps"]["tui_state"] == (
         "PLANNED_NOT_INSTALLED"
     )

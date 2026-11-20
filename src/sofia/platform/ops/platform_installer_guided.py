@@ -703,14 +703,15 @@ def build_plan(
                     )):
                 tui_asset = path
                 break
-    if tui_asset is not None:
-        operator_plan["planned_tui_executable"] = str(
-            paths.destination / "assets" / Path(tui_asset).name
-        )
-        operator_plan["tui_state"] = "PLANNED_NOT_INSTALLED"
-    else:
-        operator_plan["planned_tui_executable"] = None
-        operator_plan["tui_state"] = "UNAVAILABLE"
+    planned_tui = (
+        None if tui_asset is None else
+        str(paths.destination / "assets" / Path(tui_asset).name)
+    )
+    operator_plan["tui_executable"] = planned_tui
+    operator_plan["planned_tui_executable"] = planned_tui
+    operator_plan["tui_state"] = (
+        "UNAVAILABLE" if planned_tui is None else "PLANNED_NOT_INSTALLED"
+    )
     return {
         "schema": PLAN_SCHEMA,
         "mode": "PREVIEW_ONLY" if operation not in MUTATING_OPERATIONS else "PLANNED",
