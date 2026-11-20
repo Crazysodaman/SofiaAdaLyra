@@ -1,4 +1,4 @@
-﻿"""Release assembler tests use disposable git repos and Ed25519 test keys."""
+"""Release assembler tests use disposable git repos and Ed25519 test keys."""
 from __future__ import annotations
 
 import json
@@ -163,12 +163,12 @@ def _payloads(tmp_path: Path) -> dict:
     return {
         PlatformReleaseTarget.DEBIAN12_X86_64: {
             "service": _write(tmp_path / "service-debian", service),
-            "tui": _write(tmp_path / "tui-debian", tui),
+            "tui": _write(tmp_path / "aegis_tui", tui),
             "prefix": _prefix(tmp_path / "prefix-debian", windows=False),
         },
         PlatformReleaseTarget.WINDOWS_X86_64: {
             "service": _write(tmp_path / "service-windows", service_w),
-            "tui": _write(tmp_path / "tui-windows", tui_w),
+            "tui": _write(tmp_path / "aegis_tui.exe", tui_w),
             "prefix": _prefix(tmp_path / "prefix-windows", windows=True),
         },
     }
@@ -412,7 +412,7 @@ def test_core_wheel_is_refused(
                     tmp_path / "service-debian",
             },
             tui_binaries={
-                PlatformReleaseTarget.DEBIAN12_X86_64: tmp_path / "tui-debian",
+                PlatformReleaseTarget.DEBIAN12_X86_64: tmp_path / "aegis_tui",
             },
             python_prefixes={
                 PlatformReleaseTarget.DEBIAN12_X86_64:

@@ -652,7 +652,7 @@ def _operator_plan(paths: GuidedPaths) -> dict[str, object]:
 def build_plan(
     layout: BundleLayout, paths: GuidedPaths, release: SignedInstallerRelease,
     payload: Mapping[str, object], *, operation: str,
-    elevation_required: bool,
+    elevation_required: bool, trust_root: Path | str | None = None,
 ) -> dict[str, object]:
     assets = payload.get("assets")
     release_files = []
@@ -686,13 +686,41 @@ def build_plan(
             "owner_authentication": "ATTENDED_EXISTING_SAFE_CEREMONY",
         },
     ]
+    operator_plan = _operator_plan(paths)
+    tui_asset = None
+    if isinstance(assets, list):
+        for item in assets:
+            if type(item) is not dict:
+                continue
+            reference = item.get("reference")
+            if type(reference) is not dict:
+                continue
+            path = str(reference.get("path", ""))
+            if (item.get("role") == "aegis_tui"
+                    or Path(path).name.casefold() in (
+                        "aegis_tui.exe", "aegis-tui.exe",
+                        "aegis_tui", "aegis-tui",
+                    )):
+                tui_asset = path
+                break
+    if tui_asset is not None:
+        operator_plan["planned_tui_executable"] = str(
+            paths.destination / "assets" / Path(tui_asset).name
+        )
+        operator_plan["tui_state"] = "PLANNED_NOT_INSTALLED"
+    else:
+        operator_plan["planned_tui_executable"] = None
+        operator_plan["tui_state"] = "UNAVAILABLE"
     return {
         "schema": PLAN_SCHEMA,
         "mode": "PREVIEW_ONLY" if operation not in MUTATING_OPERATIONS else "PLANNED",
         "operation": operation,
         "bundle_root": str(layout.bundle_root),
         "release_root": str(layout.release_root),
-        "installer_trust_root": str(layout.installer_root),
+        "installer_trust_root": (
+            None if trust_root is None else str(trust_root)
+        ),
+        "bundle_installer_directory": str(layout.installer_root),
         "target": release.target,
         "source_sha": release.source_sha,
         "revision": release.revision,
@@ -712,7 +740,7 @@ def build_plan(
         "state_retention": "RETAIN",
         "purge": "SEPARATE_NOT_DEFAULT",
         "release_files": release_files,
-        "operator_apps": _operator_plan(paths),
+        "operator_apps": operator_plan,
         "approvals_needed": approvals,
         "elevation_required": elevation_required,
         "executed": False,
@@ -1081,6 +1109,7 @@ def run_guided(
     operation: str | None = None,
     target: PlatformReleaseTarget | None = None,
     paths: GuidedPaths | None = None,
+    install_root: Path | str | None = None,
     approval_adapter: ApprovalAdapter | None = None,
     native_backend=None,
     operator_apps_path_adapter=None,
@@ -1111,13 +1140,28 @@ def run_guided(
             target = host_release_target()
         if not isinstance(target, PlatformReleaseTarget):
             raise GuidedDenied("UNSUPPORTED_TARGET", "typed release target required")
-        resolved_paths = _validate_paths(paths or default_paths(target))
+        if paths is not None and install_root is not None:
+            raise GuidedDenied(
+                "CONFLICTING_PATH_INPUT",
+                "provide either a full path set or one install root, not both",
+            )
+        if install_root is not None:
+            resolved_paths = paths_for_install_root(
+                target, install_root,
+                desktop_directory=_desktop_directory(target),
+            )
+        else:
+            resolved_paths = _validate_paths(paths or default_paths(target))
         if resolved_paths.target is not target:
             raise GuidedDenied("TARGET_MISMATCH", "path set belongs to another target")
         release, payload = verify_bundle(layout, target=target, trust_root=trust_root)
+        independent_trust_root = _independent_trust_root(
+            target, explicit=trust_root,
+        )
         plan = build_plan(
             layout, resolved_paths, release, payload, operation=requested,
             elevation_required=requested in MUTATING_OPERATIONS,
+            trust_root=independent_trust_root,
         )
         asset_kinds = set()
         for item in payload.get("assets", []):
@@ -1128,7 +1172,10 @@ def run_guided(
             reference = item.get("reference")
             path = "" if not isinstance(reference, dict) else str(reference.get("path", ""))
             if (kind == "tui" or item.get("role") == "aegis_tui"
-                    or path.casefold().endswith(("aegis_tui.exe", "aegis-tui.exe"))):
+                    or Path(path).name.casefold() in (
+                        "aegis_tui.exe", "aegis-tui.exe",
+                        "aegis_tui", "aegis-tui",
+                    )):
                 asset_kinds.add("tui")
         plan["install_root"] = (
             None if resolved_paths.install_root is None
@@ -1500,7 +1547,10 @@ def _preflight(
             reference = item.get("reference")
             path = "" if not isinstance(reference, dict) else str(reference.get("path", ""))
             if (kind == "tui" or item.get("role") == "aegis_tui"
-                    or path.casefold().endswith(("aegis_tui.exe", "aegis-tui.exe"))):
+                    or Path(path).name.casefold() in (
+                        "aegis_tui.exe", "aegis-tui.exe",
+                        "aegis_tui", "aegis-tui",
+                    )):
                 asset_kinds.add("tui")
             if isinstance(reference, dict):
                 size = reference.get("size_bytes")
@@ -1602,8 +1652,11 @@ def _install_wizard(
     bundle_root: Path | str, *, target: PlatformReleaseTarget,
     script_directory: Path | None, trust_root: Path | str | None,
     theme, color: bool, no_color: bool,
+    install_root: Path | str | None = None,
 ) -> dict[str, object] | None:
-    default_root = default_install_root(target)
+    default_root = (
+        default_install_root(target) if install_root is None else Path(install_root)
+    )
     preflight = _preflight(
         bundle_root, target=target, install_root=default_root,
         trust_root=trust_root, script_directory=script_directory,
@@ -1696,6 +1749,7 @@ def _install_wizard(
 def _interactive(
     bundle_root: Path | str, *, script_directory: Path | None = None,
     trust_root: Path | str | None = None, no_color: bool = False,
+    install_root: Path | str | None = None,
 ) -> int:
     try:
         interactive = sys.stdin.isatty() and sys.stdout.isatty()
@@ -1748,7 +1802,7 @@ def _interactive(
             result = _install_wizard(
                 bundle_root, target=target, script_directory=script_directory,
                 trust_root=trust_root, theme=theme, color=color,
-                no_color=no_color,
+                no_color=no_color, install_root=install_root,
             )
             if result is None:
                 continue
@@ -1757,6 +1811,7 @@ def _interactive(
         result = run_guided(
             bundle_root, operation=selected, check=False,
             script_directory=script_directory, trust_root=trust_root,
+            install_root=install_root,
         )
         _print_result(result, theme=theme, color=color)
         if (selected not in MUTATING_OPERATIONS
@@ -1774,6 +1829,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--no-color", action="store_true")
     parser.add_argument("--trust-root", type=Path)
+    parser.add_argument("--install-root", type=Path)
     return parser
 
 
@@ -1786,7 +1842,7 @@ def main(argv: list[str] | None = None) -> int:
             args.bundle_root, check=bool(args.check or (
                 args.json and args.operation is None
             )), operation=args.operation, script_directory=script_directory,
-            trust_root=args.trust_root,
+            trust_root=args.trust_root, install_root=args.install_root,
         )
         if args.json:
             print(json.dumps(
@@ -1800,6 +1856,7 @@ def main(argv: list[str] | None = None) -> int:
     return _interactive(
         args.bundle_root, script_directory=script_directory,
         trust_root=args.trust_root, no_color=no_color,
+        install_root=args.install_root,
     )
 
 

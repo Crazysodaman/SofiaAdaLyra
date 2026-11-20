@@ -27,6 +27,8 @@ param(
     [switch]$Json,
     [switch]$DryRun,
     [string]$BundleRoot,
+    [string]$InstallRoot,
+    [string]$TrustRoot,
     [ValidateSet('verify','status','doctor','install','update','repair','rollback','uninstall','reinstall','reconcile','purge')]
     [string]$Operation,
     [string]$VerifySeed,
@@ -497,6 +499,14 @@ function Invoke-AegisElevatedRelaunch {
     $parts.Add((ConvertTo-AegisQuotedArgument -Value $PSCommandPath))
     $parts.Add('-BundleRoot')
     $parts.Add((ConvertTo-AegisQuotedArgument -Value $Root))
+    if (-not [string]::IsNullOrWhiteSpace($InstallRoot)) {
+        $parts.Add('-InstallRoot')
+        $parts.Add((ConvertTo-AegisQuotedArgument -Value $InstallRoot))
+    }
+    if (-not [string]::IsNullOrWhiteSpace($TrustRoot)) {
+        $parts.Add('-TrustRoot')
+        $parts.Add((ConvertTo-AegisQuotedArgument -Value $TrustRoot))
+    }
     if ($Operation) {
         $parts.Add('-Operation')
         $parts.Add($Operation)
@@ -545,6 +555,14 @@ function Invoke-AegisGuidedInstaller {
         $arguments.Add($value)
     }
     if ($Check) { $arguments.Add('--check') }
+    if ($InstallRoot) {
+        $arguments.Add('--install-root')
+        $arguments.Add($InstallRoot)
+    }
+    if ($TrustRoot) {
+        $arguments.Add('--trust-root')
+        $arguments.Add($TrustRoot)
+    }
     if ($Operation) {
         $arguments.Add('--operation')
         $arguments.Add($Operation)

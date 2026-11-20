@@ -92,10 +92,10 @@ The assembler refuses an owner-private release if the source tree is dirty,
 ```powershell
 $bundle = 'D:\SofiaDev\SofiaAdaLyra\build\aegis-release-windows-owner-private-2026-11-19\windows-x86_64'
 $trust = 'D:\SofiaDev\SofiaAdaLyra\build\owner-private-trust-2026-11-19'
-$env:AEGIS_INSTALLER_TRUST_ROOT = $trust
 
 powershell.exe -NoProfile -NonInteractive -File `
-  "$bundle\installer\Install-Aegis.ps1" -Check -Json
+  "$bundle\installer\Install-Aegis.ps1" -Check -Json `
+  -InstallRoot 'D:\Aegis' -TrustRoot $trust
 ```
 
 The owner trust root must contain `trusted-publisher.pem` and `trust.json`
@@ -118,7 +118,8 @@ effect and still requires attended owner authentication and UAC.
 
 ```powershell
 powershell.exe -ExecutionPolicy Bypass -NoProfile -File `
-  'D:\SofiaDev\SofiaAdaLyra\build\aegis-release-windows-owner-private-2026-11-19\windows-x86_64\installer\Install-Aegis.ps1'
+  'D:\SofiaDev\SofiaAdaLyra\build\aegis-release-windows-owner-private-2026-11-19\windows-x86_64\installer\Install-Aegis.ps1' `
+  -InstallRoot 'D:\Aegis' -TrustRoot 'D:\SofiaDev\SofiaAdaLyra\build\owner-private-trust-2026-11-19'
 ```
 
 When prompted, accept `D:\Aegis` as the installation directory, select the

@@ -203,6 +203,39 @@ def test_check_verifies_release_and_plan_with_zero_effects(bundle, paths):
     assert not paths.store_path.exists()
 
 
+def test_check_uses_explicit_install_root_and_actual_trust_root(bundle, tmp_path):
+    root = tmp_path / "Aegis"
+    result = guided.run_guided(
+        bundle.root, check=True, target=TARGET, install_root=root,
+        trust_root=bundle.independent_trust,
+    )
+
+    assert result["outcome"] == "PREVIEW_OK"
+    assert result["plan"]["install_root"] == str(root)
+    assert result["plan"]["paths"]["install_root"] == str(root)
+    assert result["plan"]["paths"]["destination"] == str(root / "platform")
+    assert result["plan"]["installer_trust_root"] == str(
+        bundle.independent_trust
+    )
+    assert result["plan"]["bundle_installer_directory"] == str(bundle.trust)
+    assert not (root / "platform").exists()
+
+
+def test_explicit_trust_root_is_not_replaced_by_environment(
+    bundle, paths, monkeypatch, tmp_path,
+):
+    decoy = tmp_path / "decoy-trust"
+    shutil.copytree(bundle.independent_trust, decoy)
+    monkeypatch.setenv("AEGIS_INSTALLER_TRUST_ROOT", str(decoy))
+
+    result = _run(bundle, paths, check=True)
+
+    assert result["outcome"] == "PREVIEW_OK"
+    assert result["plan"]["installer_trust_root"] == str(
+        bundle.independent_trust
+    )
+
+
 def test_check_rejects_missing_installer_trust_anchor(bundle, paths):
     (bundle.trust / "trust.json").unlink()
 
@@ -583,10 +616,25 @@ def test_real_builder_bundle_is_consumed_by_real_guided_launcher(
     assert release.source_sha == sha
     preview = run_guided(
         bundle, check=True, target=target, trust_root=owner_trust,
+        install_root=tmp_path / "Aegis",
     )
     assert preview["outcome"] == "PREVIEW_OK"
     assert preview["plan"]["release_root"] == str(bundle / "release")
-    assert preview["plan"]["installer_trust_root"] == str(bundle / "installer")
+    assert preview["plan"]["installer_trust_root"] == str(owner_trust)
+    assert preview["plan"]["bundle_installer_directory"] == str(
+        bundle / "installer"
+    )
+    assert preview["plan"]["install_root"] == str(tmp_path / "Aegis")
+    assert preview["plan"]["paths"]["destination"] == str(
+        tmp_path / "Aegis" / "platform"
+    )
+    assert preview["plan"]["components"]["terminal_tui"] is True
+    planned_tui = preview["plan"]["operator_apps"]["planned_tui_executable"]
+    assert planned_tui is not None
+    assert Path(planned_tui).name in {"aegis_tui.exe", "aegis_tui"}
+    assert preview["plan"]["operator_apps"]["tui_state"] == (
+        "PLANNED_NOT_INSTALLED"
+    )
     assert preview["plan"]["executed"] is False
 
 

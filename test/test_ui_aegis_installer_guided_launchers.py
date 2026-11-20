@@ -200,9 +200,12 @@ def test_windows_check_previews_through_guided_orchestrator_with_fake_runtime(tm
     _write_trust(installer)
     _compile_echo_exe(bundle / "runtime" / "python" / "python.exe")
 
+    owner_trust = tmp_path / "owner-trust"
+    _write_trust(owner_trust)
     result = subprocess.run(
         ["powershell.exe", "-ExecutionPolicy", "Bypass", "-NoProfile",
-         "-NonInteractive", "-File", str(script), "-Check", "-Json"],
+         "-NonInteractive", "-File", str(script), "-Check", "-Json",
+         "-InstallRoot", r"D:\Aegis", "-TrustRoot", str(owner_trust)],
         capture_output=True, text=True, timeout=60,
     )
     assert result.returncode == 0, result.stderr
@@ -211,6 +214,10 @@ def test_windows_check_previews_through_guided_orchestrator_with_fake_runtime(tm
     assert str(bundle) in result.stdout
     assert "--check" in result.stdout
     assert "--json" in result.stdout
+    assert "--install-root" in result.stdout
+    assert r"D:\Aegis" in result.stdout
+    assert "--trust-root" in result.stdout
+    assert str(owner_trust) in result.stdout
     assert "--approval-id" not in result.stdout
     assert "--wired" not in result.stdout
     assert "\x1b" not in result.stdout
