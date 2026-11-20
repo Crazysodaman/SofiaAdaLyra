@@ -133,10 +133,11 @@ def _result(command: str, outcome: str, *, executed: bool = False,
 
 
 def _denied(command: str, code: str, *, executed: bool = False,
+            detail: str = "signed installer contract refused the request",
             **fields) -> dict[str, object]:
     return _result(
         command, "DENIED", executed=executed,
-        error={"code": code, "detail": "signed installer contract refused the request"},
+        error={"code": code, "detail": detail},
         **fields,
     )
 
@@ -1147,9 +1148,18 @@ def execute_command(
             attempts += 1
             try:
                 approval_id = approval_provider(required.kind, required.request)
-            except Exception:
+            except Exception as error:
+                code = getattr(error, "code", None)
+                detail = getattr(error, "detail", None)
+                if type(code) is str and type(detail) is str:
+                    return _denied(
+                        command, code, detail=detail,
+                        required_approval=required.kind,
+                        approval_fingerprint=required.fingerprint,
+                    )
                 return _denied(
                     command, "OWNER_APPROVAL_UNAVAILABLE",
+                    detail="Owner approval ceremony was unavailable.",
                     required_approval=required.kind,
                     approval_fingerprint=required.fingerprint,
                 )

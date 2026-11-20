@@ -12,6 +12,9 @@ import json
 import os
 from pathlib import Path
 import shutil
+import sqlite3
+import subprocess
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -36,6 +39,7 @@ from sofia.platform.ops.platform_installer_operator_apps import (
 from sofia.platform.safe.execution_approval import (
     ExecutionApproval, ExecutionApprovalVerifier,
 )
+from sofia.platform.state.canonical_sqlite import bootstrap_canonical_sqlite
 from sofia.sdk.platform_release import PlatformReleaseTarget
 from test.owner_auth_fixture import record_verified_owner_approval
 from test.test_ops_platform_installation import SignedReleaseBuilder
@@ -469,6 +473,188 @@ def test_attended_fresh_install_bootstraps_missing_identity_safe_and_state(
     assert stages["native_service"] == "COMPLETED"
     assert stages["operator_apps"] == "COMPLETED"
     assert effects and effects[0][0] == "RUNNING"
+
+
+class _FailingApprovalAdapter:
+    def __init__(self, error):
+        self.error = error
+
+    def authorize(self, _request):
+        raise self.error
+
+
+def test_missing_owner_enrollment_is_actionable_not_generic(tmp_path):
+    state = bootstrap_canonical_sqlite(tmp_path / "safe.db")
+    adapter = guided.SubprocessApprovalAdapter(
+        sys.executable, state,
+        runner=lambda *a, **k: (_ for _ in ()).throw(
+            AssertionError("subprocess must not launch without enrollment")
+        ),
+    )
+    with pytest.raises(guided.ApprovalUnavailable) as raised:
+        adapter.authorize({
+            "capability": CODE_PUBLISH_CAPABILITY,
+            "parameters": {"release_id": "test"},
+        })
+    assert raised.value.code == "OWNER_ENROLLMENT_MISSING"
+    assert "enroll" in raised.value.detail.casefold()
+    assert "approval_id" not in raised.value.detail
+
+
+def test_subprocess_adapter_selects_enrolled_credential_and_keeps_receipt_private(
+    tmp_path,
+):
+    state = bootstrap_canonical_sqlite(tmp_path / "safe.db")
+    from sofia.platform.safe.owner_webauthn import OwnerWebAuthnVerifier
+    OwnerWebAuthnVerifier(
+        state, rp_id="localhost", origin="http://localhost:39872",
+    )
+    credential_id = "test-credential-public-id"
+    with sqlite3.connect(state) as db:
+        db.execute(
+            "INSERT INTO safe_owner_credential "
+            "(credential_id,public_key_der,credential_kind,sign_count,enrolled_at) "
+            "VALUES(?,?,?,?,?)",
+            (credential_id, b"test-only-key", "security_key", 0,
+             datetime.now(timezone.utc).isoformat()),
+        )
+    calls = []
+
+    def runner(command, **kwargs):
+        calls.append((command, kwargs))
+        return SimpleNamespace(
+            returncode=0,
+            stdout=json.dumps({
+                "approval_id": "approval:private-one-use",
+                "capability": CODE_PUBLISH_CAPABILITY,
+            }),
+            stderr="",
+        )
+
+    adapter = guided.SubprocessApprovalAdapter(sys.executable, state, runner=runner)
+    approval_id = adapter.authorize({
+        "capability": CODE_PUBLISH_CAPABILITY,
+        "parameters": {"release_id": "test"},
+    })
+
+    assert approval_id == "approval:private-one-use"
+    command, kwargs = calls[0]
+    assert "--credential-id" in command
+    assert credential_id in command
+    assert "owner-secret" not in command
+    assert kwargs["stdin"] is subprocess.DEVNULL
+    assert kwargs["capture_output"] is True
+
+
+@pytest.mark.parametrize(
+    ("returncode", "stderr", "expected"),
+    (
+        (2, "owner secret not enrolled; run owner_secret_cli init",
+         "OWNER_ENROLLMENT_MISSING"),
+        (2, "owner approval timed out", "OWNER_APPROVAL_CANCELLED"),
+        (2, "could not open local WebAuthn browser",
+         "OWNER_APPROVAL_UI_UNAVAILABLE"),
+        (2, "local operator is not SofA-a's enrolled Windows owner",
+         "OWNER_CREDENTIAL_UNAVAILABLE"),
+        (2, "software owner authentication unavailable",
+         "OWNER_CREDENTIAL_UNAVAILABLE"),
+        (2, "owner authentication denied", "OWNER_AUTHENTICATION_DENIED"),
+        (1, "unexpected internal failure", "OWNER_APPROVAL_SUBPROCESS_FAILED"),
+    ),
+)
+def test_subprocess_adapter_sanitizes_denial_categories(
+    tmp_path, returncode, stderr, expected,
+):
+    state = bootstrap_canonical_sqlite(tmp_path / "safe.db")
+    from sofia.platform.safe.owner_webauthn import OwnerWebAuthnVerifier
+    OwnerWebAuthnVerifier(
+        state, rp_id="localhost", origin="http://localhost:39872",
+    )
+    with sqlite3.connect(state) as db:
+        db.execute(
+            "INSERT INTO safe_owner_credential "
+            "(credential_id,public_key_der,credential_kind,sign_count,enrolled_at) "
+            "VALUES(?,?,?,?,?)",
+            ("test-credential", b"test-only-key", "security_key", 0,
+             datetime.now(timezone.utc).isoformat()),
+        )
+    adapter = guided.SubprocessApprovalAdapter(
+        sys.executable, state,
+        runner=lambda *a, **k: SimpleNamespace(
+            returncode=returncode, stdout="", stderr=stderr,
+        ),
+    )
+
+    with pytest.raises(guided.ApprovalUnavailable) as raised:
+        adapter.authorize({
+            "capability": CODE_PUBLISH_CAPABILITY,
+            "parameters": {"release_id": "test"},
+        })
+    assert raised.value.code == expected
+    assert "owner secret" not in raised.value.detail.casefold()
+    assert "test-credential" not in raised.value.detail
+    assert "approval:private" not in raised.value.detail
+
+
+def test_subprocess_adapter_invalid_receipt_and_start_failure(tmp_path):
+    state = bootstrap_canonical_sqlite(tmp_path / "safe.db")
+    from sofia.platform.safe.owner_webauthn import OwnerWebAuthnVerifier
+    OwnerWebAuthnVerifier(
+        state, rp_id="localhost", origin="http://localhost:39872",
+    )
+    with sqlite3.connect(state) as db:
+        db.execute(
+            "INSERT INTO safe_owner_credential "
+            "(credential_id,public_key_der,credential_kind,sign_count,enrolled_at) "
+            "VALUES(?,?,?,?,?)",
+            ("test-credential", b"test-only-key", "security_key", 0,
+             datetime.now(timezone.utc).isoformat()),
+        )
+    invalid = guided.SubprocessApprovalAdapter(
+        sys.executable, state,
+        runner=lambda *a, **k: SimpleNamespace(
+            returncode=0, stdout="not-json", stderr="",
+        ),
+    )
+    with pytest.raises(guided.ApprovalUnavailable) as raised:
+        invalid.authorize({
+            "capability": CODE_PUBLISH_CAPABILITY,
+            "parameters": {"release_id": "test"},
+        })
+    assert raised.value.code == "OWNER_APPROVAL_INVALID_RECEIPT"
+
+    def unavailable(*_a, **_k):
+        raise OSError("python unavailable")
+
+    failed = guided.SubprocessApprovalAdapter(
+        sys.executable, state, runner=unavailable,
+    )
+    with pytest.raises(guided.ApprovalUnavailable) as raised:
+        failed.authorize({
+            "capability": CODE_PUBLISH_CAPABILITY,
+            "parameters": {"release_id": "test"},
+        })
+    assert raised.value.code == "OWNER_APPROVAL_SUBPROCESS_FAILED"
+
+
+def test_guided_propagates_sanitized_owner_approval_code(bundle, paths):
+    result = _run(
+        bundle, paths, operation="install",
+        approval_adapter=_FailingApprovalAdapter(guided.ApprovalUnavailable(
+            "No owner approval credential is enrolled. Run attended enrollment.",
+            code="OWNER_ENROLLMENT_MISSING",
+        )),
+        native_backend=_fake_backend([]),
+        operator_apps_path_adapter=InMemoryPathAdapter(),
+        operator_apps_shortcut_adapter=FakeShortcuts(),
+    )
+
+    assert result["outcome"] == "DENIED"
+    assert result["error"]["code"] == "OWNER_ENROLLMENT_MISSING"
+    assert "enrolled" in result["error"]["detail"].casefold()
+    stages = {item["stage"]: item["outcome"] for item in result["stages"]}
+    assert stages["code_publication"] == "REFUSED"
+    assert result["executed"] is False
 
 
 def test_uninstall_retains_identity_and_protected_state(bundle, paths):

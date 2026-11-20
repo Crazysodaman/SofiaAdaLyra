@@ -12,23 +12,38 @@ from sofia.platform.safe.owner_enroll_browser import require_owner_windows_accou
 from sofia.platform.safe.owner_webauthn import OwnerWebAuthnVerifier
 
 
+def enrolled_owner_credentials(
+    state_path: Path | str, *, kind: str | None = None,
+) -> tuple[str, ...]:
+    """Read public enrolled credential IDs without asserting host ownership."""
+    if kind is not None and kind not in ("security_key", "platform"):
+        raise ValueError("unknown owner authenticator kind")
+    verifier = OwnerWebAuthnVerifier(
+        state_path, rp_id="localhost", origin="http://localhost:39872",
+    )
+    with closing(verifier._db()) as db:
+        if kind is None:
+            rows = db.execute(
+                "SELECT credential_id FROM safe_owner_credential "
+                "WHERE revoked_at IS NULL ORDER BY enrolled_at,credential_id"
+            ).fetchall()
+        else:
+            rows = db.execute(
+                "SELECT credential_id FROM safe_owner_credential "
+                "WHERE credential_kind=? AND revoked_at IS NULL "
+                "ORDER BY enrolled_at,credential_id",
+                (kind,),
+            ).fetchall()
+    return tuple(str(row["credential_id"]) for row in rows)
+
+
 def active_owner_credentials(
     state_path: Path | str, *, kind: str = "security_key",
 ) -> tuple[str, ...]:
     if kind not in ("security_key", "platform"):
         raise ValueError("unknown owner authenticator kind")
     require_owner_windows_account(state_path)
-    verifier = OwnerWebAuthnVerifier(
-        state_path, rp_id="localhost", origin="http://localhost:39872",
-    )
-    with closing(verifier._db()) as db:
-        rows = db.execute(
-            "SELECT credential_id FROM safe_owner_credential "
-            "WHERE credential_kind=? AND revoked_at IS NULL "
-            "ORDER BY enrolled_at,credential_id",
-            (kind,),
-        ).fetchall()
-    return tuple(str(row["credential_id"]) for row in rows)
+    return enrolled_owner_credentials(state_path, kind=kind)
 
 
 def select_owner_credential(

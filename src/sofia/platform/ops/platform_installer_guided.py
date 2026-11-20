@@ -23,6 +23,7 @@ import platform
 from pathlib import Path
 import shutil
 import re
+import sqlite3
 import subprocess
 import sys
 from typing import Callable, Mapping, Protocol, Sequence
@@ -47,6 +48,8 @@ from sofia.platform.ops.platform_installer_operator_apps import (
     PyWin32ShortcutAdapter, WindowsRegistryPathAdapter,
 )
 from sofia.platform.ops.platform_release import PlatformReleaseRejected
+from sofia.platform.safe.owner_approval_ui import enrolled_owner_credentials
+from sofia.platform.safe.owner_secret import OwnerSecretStore
 from sofia.platform.state.artifact_file import read_artifact_file
 from sofia.platform.state.path_policy import inside_git_worktree
 from sofia.platform.state.private_file import assert_no_redirected_components
@@ -94,6 +97,11 @@ class GuidedDenied(PlatformInstallationDenied):
 
 class ApprovalUnavailable(PlatformInstallationDenied):
     """The attended owner ceremony did not return a usable approval."""
+
+    def __init__(self, detail: str, *, code: str = "OWNER_APPROVAL_UNAVAILABLE"):
+        super().__init__(detail)
+        self.code = code
+        self.detail = detail
 
 
 class ApprovalAdapter(Protocol):
@@ -886,6 +894,85 @@ def _operator_inputs(
     )
 
 
+def _owner_approval_credential(state_path: Path | str) -> str:
+    """Select the already-enrolled attended owner credential without minting one."""
+    try:
+        if OwnerSecretStore(state_path).enabled():
+            return "owner-secret"
+    except (OSError, PermissionError, RuntimeError, TypeError, ValueError,
+            sqlite3.Error) as error:
+        raise ApprovalUnavailable(
+            "Owner approval state is unavailable or unreadable.",
+            code="OWNER_CREDENTIAL_UNAVAILABLE",
+        ) from error
+    try:
+        for kind in ("security_key", "platform"):
+            credentials = enrolled_owner_credentials(state_path, kind=kind)
+            if len(credentials) > 1:
+                raise ApprovalUnavailable(
+                    "Multiple enrolled owner credentials are available; "
+                    "select one in the attended owner configuration.",
+                    code="OWNER_CREDENTIAL_AMBIGUOUS",
+                )
+            if credentials:
+                return credentials[0]
+    except ApprovalUnavailable:
+        raise
+    except (OSError, PermissionError, RuntimeError, TypeError, ValueError,
+            sqlite3.Error) as error:
+        raise ApprovalUnavailable(
+            "Enrolled owner credentials are unavailable or unreadable.",
+            code="OWNER_CREDENTIAL_UNAVAILABLE",
+        ) from error
+    raise ApprovalUnavailable(
+        "No owner approval credential is enrolled in the installer SAFE state. "
+        "Run the attended owner enrollment ceremony on Venus first.",
+        code="OWNER_ENROLLMENT_MISSING",
+    )
+
+
+def _approval_failure(stderr: object, returncode: object) -> ApprovalUnavailable:
+    text = str(stderr or "").casefold()
+    if "owner secret not enrolled" in text or "no enrolled" in text:
+        return ApprovalUnavailable(
+            "No owner approval credential is enrolled in the installer SAFE state. "
+            "Run the attended owner enrollment ceremony on Venus first.",
+            code="OWNER_ENROLLMENT_MISSING",
+        )
+    if "timed out" in text or "cancel" in text:
+        return ApprovalUnavailable(
+            "Owner approval was not completed before cancellation or timeout.",
+            code="OWNER_APPROVAL_CANCELLED",
+        )
+    if "browser" in text or "authorization browser" in text:
+        return ApprovalUnavailable(
+            "The local attended owner approval browser could not be opened.",
+            code="OWNER_APPROVAL_UI_UNAVAILABLE",
+        )
+    if "interactive terminal" in text or "console" in text:
+        return ApprovalUnavailable(
+            "Owner approval requires an attended interactive owner session.",
+            code="OWNER_ATTENDED_SESSION_REQUIRED",
+        )
+    if ("local operator is not" in text or "windows sid" in text
+            or "owner account binding" in text or "enrolled windows owner" in text
+            or "authentication unavailable" in text
+            or "credential unavailable" in text):
+        return ApprovalUnavailable(
+            "The current Windows session is not the enrolled owner.",
+            code="OWNER_CREDENTIAL_UNAVAILABLE",
+        )
+    if "authentication denied" in text or "denied" in text or "invalid" in text:
+        return ApprovalUnavailable(
+            "Owner authentication was refused.",
+            code="OWNER_AUTHENTICATION_DENIED",
+        )
+    return ApprovalUnavailable(
+        "Owner approval subprocess failed before issuing a valid receipt.",
+        code="OWNER_APPROVAL_SUBPROCESS_FAILED",
+    )
+
+
 class SubprocessApprovalAdapter:
     """Ask the existing attended SAFE ceremony; return only the approval id."""
 
@@ -903,9 +990,16 @@ class SubprocessApprovalAdapter:
         capability = request.get("capability")
         parameters = request.get("parameters")
         if type(capability) is not str or not capability.strip():
-            raise ApprovalUnavailable("canonical approval request has no capability")
+            raise ApprovalUnavailable(
+                "Canonical owner approval request has no capability.",
+                code="OWNER_APPROVAL_INVALID_REQUEST",
+            )
         if type(parameters) is not dict:
-            raise ApprovalUnavailable("canonical approval request has no parameters")
+            raise ApprovalUnavailable(
+                "Canonical owner approval request has no parameters.",
+                code="OWNER_APPROVAL_INVALID_REQUEST",
+            )
+        credential = _owner_approval_credential(self.state_path)
         command = [
             str(self.python_executable), "-E", "-s", "-P", "-B", "-m",
             "sofia.platform.safe.approve_execution",
@@ -914,32 +1008,35 @@ class SubprocessApprovalAdapter:
             "--parameters-json",
             json.dumps(parameters, sort_keys=True, separators=(",", ":"),
                        allow_nan=False),
+            "--credential-id", credential,
             "--ttl-seconds", "900",
         ]
         try:
             completed = self._runner(
                 command, capture_output=True, text=True,
                 timeout=self.timeout_seconds, check=False,
+                stdin=subprocess.DEVNULL,
             )
         except (OSError, subprocess.SubprocessError) as error:
             raise ApprovalUnavailable(
-                "attended owner approval ceremony is unavailable",
+                "Owner approval subprocess could not be started.",
+                code="OWNER_APPROVAL_SUBPROCESS_FAILED",
             ) from error
         if completed.returncode != 0:
-            raise ApprovalUnavailable(
-                "owner did not authenticate or approve the exact action",
-            )
+            raise _approval_failure(completed.stderr, completed.returncode)
         try:
             receipt = json.loads(completed.stdout)
         except (TypeError, ValueError) as error:
             raise ApprovalUnavailable(
-                "attended owner approval ceremony returned no receipt",
+                "Owner approval ceremony returned no valid receipt.",
+                code="OWNER_APPROVAL_INVALID_RECEIPT",
             ) from error
         approval_id = receipt.get("approval_id") if type(receipt) is dict else None
         if (type(approval_id) is not str or not approval_id.strip()
                 or receipt.get("capability") != capability):
             raise ApprovalUnavailable(
-                "attended owner approval ceremony returned an invalid receipt",
+                "Owner approval ceremony returned an invalid receipt.",
+                code="OWNER_APPROVAL_INVALID_RECEIPT",
             )
         return approval_id
 
@@ -951,7 +1048,10 @@ def _provider(adapter: ApprovalAdapter | None):
     def authorize(_kind: str, request: Mapping[str, object]) -> str:
         approval_id = adapter.authorize(request)
         if type(approval_id) is not str or not approval_id.strip():
-            raise ApprovalUnavailable("owner approval ceremony returned no approval")
+            raise ApprovalUnavailable(
+                "Owner approval ceremony returned no approval.",
+                code="OWNER_APPROVAL_INVALID_RECEIPT",
+            )
         return approval_id
 
     return authorize
