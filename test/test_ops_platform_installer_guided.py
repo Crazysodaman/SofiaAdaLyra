@@ -542,8 +542,32 @@ def test_subprocess_adapter_selects_enrolled_credential_and_keeps_receipt_privat
     assert "--credential-id" in command
     assert credential_id in command
     assert "owner-secret" not in command
-    assert kwargs["stdin"] is subprocess.DEVNULL
+    assert kwargs["input"] == ""
+    assert "stdin" not in kwargs
     assert kwargs["capture_output"] is True
+
+
+def test_approval_subprocess_pipe_is_not_a_tty():
+    completed = subprocess.run(
+        [sys.executable, "-E", "-s", "-P", "-B", "-c",
+         "import sys\nprint(sys.stdin.isatty())\n"],
+        input="", capture_output=True, text=True, timeout=30,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.strip() == "False"
+
+
+def test_bundled_approval_python_pipe_is_not_a_tty():
+    executable = os.environ.get("AEGIS_TEST_BUNDLED_PYTHON")
+    if not executable:
+        pytest.skip("set AEGIS_TEST_BUNDLED_PYTHON to a reviewed bundled python.exe")
+    completed = subprocess.run(
+        [executable, "-E", "-s", "-P", "-B", "-c",
+         "import sys\nprint(sys.stdin.isatty())\n"],
+        input="", capture_output=True, text=True, timeout=30,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.strip() == "False"
 
 
 @pytest.mark.parametrize(

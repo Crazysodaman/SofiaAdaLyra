@@ -1013,9 +1013,8 @@ class SubprocessApprovalAdapter:
         ]
         try:
             completed = self._runner(
-                command, capture_output=True, text=True,
+                command, input="", capture_output=True, text=True,
                 timeout=self.timeout_seconds, check=False,
-                stdin=subprocess.DEVNULL,
             )
         except (OSError, subprocess.SubprocessError) as error:
             raise ApprovalUnavailable(
