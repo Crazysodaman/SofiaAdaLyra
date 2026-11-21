@@ -26,6 +26,13 @@ from sofia.platform.safe.owner_enroll_browser import require_owner_windows_accou
 from sofia.platform.safe.permissions import capability_permission_policy, PermissionLevel
 
 
+LOCAL_INSTALL_PLATFORM_CAPABILITIES = frozenset({
+    "platform.install_verified_code",
+    "platform.native_service.apply",
+    "platform.operator_apps.apply",
+})
+
+
 _PAGE = """<!doctype html><html lang="en"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sofía secure owner approval</title>
@@ -65,11 +72,26 @@ document.getElementById('approve').addEventListener('click',async()=>{
 </script></body></html>"""
 
 
+def requires_security_key(
+    capability: str, *, allow_platform_credential: bool = False,
+) -> bool:
+    """Return whether this exact capability requires a FIDO2 security key."""
+    if type(allow_platform_credential) is not bool:
+        raise TypeError("allow_platform_credential must be bool")
+    protected = (
+        capability_permission_policy(capability).level >= PermissionLevel.PROTECTED
+    )
+    return protected and not (
+        allow_platform_credential
+        and capability in LOCAL_INSTALL_PLATFORM_CAPABILITIES
+    )
+
+
 def authorize_exact_action(
     state_path: Path | str, *, capability: str, parameters: dict,
     credential_id: str, expires_seconds: int = 120,
     timeout_seconds: int = 120,
-    open_browser=None,
+    open_browser=None, allow_platform_credential: bool = False,
 ) -> ExecutionApproval:
     """Browser-mediated approval for an already enrolled local credential.
 
@@ -88,12 +110,14 @@ def authorize_exact_action(
         raise ValueError("approval TTL must be 30..900 seconds")
     if type(timeout_seconds) is not int or not 15 <= timeout_seconds <= 120:
         raise ValueError("browser ceremony timeout must be 15..120 seconds")
+    if type(allow_platform_credential) is not bool:
+        raise TypeError("allow_platform_credential must be bool")
     # This local UI is not a Debian authority bridge. The canonical owner
     # Windows SID must match before even issuing a WebAuthn challenge.
     require_owner_windows_account(state_path)
     exact = execution_fingerprint(capability, parameters)
-    protected = (
-        capability_permission_policy(capability).level >= PermissionLevel.PROTECTED
+    security_key_required = requires_security_key(
+        capability, allow_platform_credential=allow_platform_credential,
     )
     nonce = secrets.token_urlsafe(32)
     done: Queue[ExecutionApproval | Exception] = Queue(maxsize=1)
@@ -166,7 +190,7 @@ def authorize_exact_action(
                     client_data_json=assertion["client_data_json"],
                     authenticator_data=assertion["authenticator_data"],
                     signature=assertion["signature"],
-                    action_fingerprint=exact, security_key_required=protected, now=now,
+                    action_fingerprint=exact, security_key_required=security_key_required, now=now,
                 )
                 approval = ExecutionApproval(
                     approval_id=str(uuid4()), capability=capability,

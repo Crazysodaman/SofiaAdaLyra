@@ -496,9 +496,35 @@ def test_missing_owner_enrollment_is_actionable_not_generic(tmp_path):
             "capability": CODE_PUBLISH_CAPABILITY,
             "parameters": {"release_id": "test"},
         })
-    assert raised.value.code == "OWNER_ENROLLMENT_MISSING"
+    assert raised.value.code == "OWNER_WEBAUTHN_ENROLLMENT_REQUIRED"
     assert "enroll" in raised.value.detail.casefold()
+    assert "64-character" in raised.value.detail
     assert "approval_id" not in raised.value.detail
+
+
+def test_legacy_owner_secret_is_not_used_by_installer(tmp_path, monkeypatch):
+    from sofia.platform.safe import owner_secret as owner_secret_module
+    from sofia.platform.safe.owner_secret import OwnerSecretStore
+    state = bootstrap_canonical_sqlite(tmp_path / "safe.db")
+    original = owner_secret_module.require_venus_interactive_windows
+    monkeypatch.setattr(
+        owner_secret_module, "require_venus_interactive_windows",
+        lambda require_terminal=True: original(require_terminal=False),
+    )
+    OwnerSecretStore(state).enroll("ab" * 32)
+    adapter = guided.SubprocessApprovalAdapter(
+        sys.executable, state,
+        runner=lambda *a, **k: (_ for _ in ()).throw(
+            AssertionError("legacy owner secret must not launch an approval")
+        ),
+    )
+    with pytest.raises(guided.ApprovalUnavailable) as raised:
+        adapter.authorize({
+            "capability": CODE_PUBLISH_CAPABILITY,
+            "parameters": {"release_id": "test"},
+        })
+    assert raised.value.code == "OWNER_WEBAUTHN_ENROLLMENT_REQUIRED"
+    assert "64-character" in raised.value.detail
 
 
 def test_subprocess_adapter_selects_enrolled_credential_and_keeps_receipt_private(
@@ -541,6 +567,7 @@ def test_subprocess_adapter_selects_enrolled_credential_and_keeps_receipt_privat
     command, kwargs = calls[0]
     assert "--credential-id" in command
     assert credential_id in command
+    assert "--local-install-approval" in command
     assert "owner-secret" not in command
     assert kwargs["input"] == ""
     assert "stdin" not in kwargs
@@ -574,7 +601,7 @@ def test_bundled_approval_python_pipe_is_not_a_tty():
     ("returncode", "stderr", "expected"),
     (
         (2, "owner secret not enrolled; run owner_secret_cli init",
-         "OWNER_ENROLLMENT_MISSING"),
+         "OWNER_WEBAUTHN_ENROLLMENT_REQUIRED"),
         (2, "owner approval timed out", "OWNER_APPROVAL_CANCELLED"),
         (2, "could not open local WebAuthn browser",
          "OWNER_APPROVAL_UI_UNAVAILABLE"),
@@ -583,6 +610,8 @@ def test_bundled_approval_python_pipe_is_not_a_tty():
         (2, "software owner authentication unavailable",
          "OWNER_CREDENTIAL_UNAVAILABLE"),
         (2, "owner authentication denied", "OWNER_AUTHENTICATION_DENIED"),
+        (2, "security key required for protected capability",
+         "OWNER_SECURITY_KEY_REQUIRED"),
         (1, "unexpected internal failure", "OWNER_APPROVAL_SUBPROCESS_FAILED"),
     ),
 )
@@ -666,7 +695,7 @@ def test_guided_propagates_sanitized_owner_approval_code(bundle, paths):
         bundle, paths, operation="install",
         approval_adapter=_FailingApprovalAdapter(guided.ApprovalUnavailable(
             "No owner approval credential is enrolled. Run attended enrollment.",
-            code="OWNER_ENROLLMENT_MISSING",
+            code="OWNER_WEBAUTHN_ENROLLMENT_REQUIRED",
         )),
         native_backend=_fake_backend([]),
         operator_apps_path_adapter=InMemoryPathAdapter(),
@@ -674,7 +703,7 @@ def test_guided_propagates_sanitized_owner_approval_code(bundle, paths):
     )
 
     assert result["outcome"] == "DENIED"
-    assert result["error"]["code"] == "OWNER_ENROLLMENT_MISSING"
+    assert result["error"]["code"] == "OWNER_WEBAUTHN_ENROLLMENT_REQUIRED"
     assert "enrolled" in result["error"]["detail"].casefold()
     stages = {item["stage"]: item["outcome"] for item in result["stages"]}
     assert stages["code_publication"] == "REFUSED"

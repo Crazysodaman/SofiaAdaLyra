@@ -49,7 +49,7 @@ from sofia.platform.ops.platform_installer_operator_apps import (
 )
 from sofia.platform.ops.platform_release import PlatformReleaseRejected
 from sofia.platform.safe.owner_approval_ui import enrolled_owner_credentials
-from sofia.platform.safe.owner_secret import OwnerSecretStore
+from sofia.platform.safe.owner_browser import LOCAL_INSTALL_PLATFORM_CAPABILITIES
 from sofia.platform.state.artifact_file import read_artifact_file
 from sofia.platform.state.path_policy import inside_git_worktree
 from sofia.platform.state.private_file import assert_no_redirected_components
@@ -895,16 +895,7 @@ def _operator_inputs(
 
 
 def _owner_approval_credential(state_path: Path | str) -> str:
-    """Select the already-enrolled attended owner credential without minting one."""
-    try:
-        if OwnerSecretStore(state_path).enabled():
-            return "owner-secret"
-    except (OSError, PermissionError, RuntimeError, TypeError, ValueError,
-            sqlite3.Error) as error:
-        raise ApprovalUnavailable(
-            "Owner approval state is unavailable or unreadable.",
-            code="OWNER_CREDENTIAL_UNAVAILABLE",
-        ) from error
+    """Select an enrolled WebAuthn owner credential; never use the legacy code."""
     try:
         for kind in ("security_key", "platform"):
             credentials = enrolled_owner_credentials(state_path, kind=kind)
@@ -925,9 +916,10 @@ def _owner_approval_credential(state_path: Path | str) -> str:
             code="OWNER_CREDENTIAL_UNAVAILABLE",
         ) from error
     raise ApprovalUnavailable(
-        "No owner approval credential is enrolled in the installer SAFE state. "
-        "Run the attended owner enrollment ceremony on Venus first.",
-        code="OWNER_ENROLLMENT_MISSING",
+        "No Windows Hello or security-key credential is enrolled in the installer "
+        "SAFE state. Run the attended owner enrollment ceremony for the installer "
+        "SAFE state first; the legacy 64-character code is not used.",
+        code="OWNER_WEBAUTHN_ENROLLMENT_REQUIRED",
     )
 
 
@@ -935,9 +927,15 @@ def _approval_failure(stderr: object, returncode: object) -> ApprovalUnavailable
     text = str(stderr or "").casefold()
     if "owner secret not enrolled" in text or "no enrolled" in text:
         return ApprovalUnavailable(
-            "No owner approval credential is enrolled in the installer SAFE state. "
-            "Run the attended owner enrollment ceremony on Venus first.",
-            code="OWNER_ENROLLMENT_MISSING",
+            "No Windows Hello or security-key credential is enrolled in the installer "
+            "SAFE state. Run the attended owner enrollment ceremony for the installer "
+            "SAFE state first; the legacy 64-character code is not used.",
+            code="OWNER_WEBAUTHN_ENROLLMENT_REQUIRED",
+        )
+    if "security key required" in text:
+        return ApprovalUnavailable(
+            "The exact action requires an enrolled security key.",
+            code="OWNER_SECURITY_KEY_REQUIRED",
         )
     if "timed out" in text or "cancel" in text:
         return ApprovalUnavailable(
@@ -1011,6 +1009,8 @@ class SubprocessApprovalAdapter:
             "--credential-id", credential,
             "--ttl-seconds", "900",
         ]
+        if capability in LOCAL_INSTALL_PLATFORM_CAPABILITIES:
+            command.append("--local-install-approval")
         try:
             completed = self._runner(
                 command, input="", capture_output=True, text=True,

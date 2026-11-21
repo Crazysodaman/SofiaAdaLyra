@@ -31,6 +31,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--ttl-seconds", type=int, default=900)
     parser.add_argument("--approved-by", default="Sparks")
     parser.add_argument(
+        "--local-install-approval", action="store_true",
+        help="Permit the enrolled Windows Hello platform credential only for the exact local installer capabilities",
+    )
+    parser.add_argument(
         "--credential-id",
         default="owner-secret",
         help="owner-secret (default) or enrolled WebAuthn credential ID",
@@ -65,6 +69,7 @@ def main(argv: list[str] | None = None) -> int:
                 state_path, capability=args.capability, parameters=parameters,
                 credential_id=args.credential_id,
                 expires_seconds=args.ttl_seconds,
+                allow_platform_credential=args.local_install_approval,
             )
         else:
             now = datetime.now(timezone.utc)

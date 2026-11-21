@@ -41,6 +41,39 @@ does not weaken the internal release verification:
 Do not use this exception for public distribution, VENUS until approval, or any
 release whose signer identity or fingerprint is not independently verified.
 
+## Windows-bound local owner authorization
+
+Local installation approval no longer uses the legacy 64-character owner code.
+The installer uses the enrolled Windows owner SID plus an attended Windows Hello
+or FIDO2 security-key assertion. The approval remains bound to the exact action
+fingerprint, release manifest, revision, destination, and identity.
+
+The installer SAFE state is independent:
+
+```text
+D:\Aegis\safe
+```
+
+If it has no Windows Hello or security-key credential, perform the explicit
+attended enrollment on Venus:
+
+```powershell
+$env:PYTHONPATH = 'D:\SofiaDev\SofiaAdaLyra\src'
+& 'C:\Users\kenny\AppData\Local\Programs\Python\Python312\python.exe' `
+  -m sofia.platform.safe.owner_enroll_cli first-hello `
+  --state-path 'D:\Aegis\safe' `
+  --acknowledge-sole-writer
+```
+
+This must be run by the intended signed-in Windows owner. It does not auto-enroll
+the first account that launches Aegis, does not overwrite existing credentials,
+and does not delete the legacy owner-secret record. The legacy code is retained
+only as compatibility/recovery data and is not accepted by the installer.
+
+For the protected local installer capabilities, the enrolled Windows Hello
+platform credential is permitted only for this exact local installation path.
+All other protected capabilities retain the existing security-key requirement.
+
 ## Owner-private signing ceremony
 
 1. Provision the owner key on a dedicated owner-controlled host or directory.

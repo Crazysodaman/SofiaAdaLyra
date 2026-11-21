@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 import sys
 
 from sofia.platform.config import production_state_path
@@ -16,6 +17,9 @@ from sofia.platform.safe.owner_enroll_browser import (
 from sofia.platform.safe.owner_webauthn import OwnerWebAuthnVerifier
 from sofia.platform.safe.owner_registration import revoke_enrollment
 from sofia.platform.safe.owner_browser import authorize_exact_action
+from sofia.platform.state.private_file import (
+    assert_no_redirected_components, assert_owner_private_path,
+)
 
 
 def _confirm(phrase: str) -> None:
@@ -31,6 +35,10 @@ def _confirm(phrase: str) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="python -m sofia.platform.safe.owner_enroll_cli")
+    p.add_argument(
+        "--state-path", type=Path,
+        help="Explicit owner-private installer or Platform SAFE state; defaults to production state",
+    )
     sub = p.add_subparsers(dest="action", required=True)
     sub.add_parser("list", help="Review registered credentials (no host mutations)")
     first = sub.add_parser("first-hello")
@@ -57,9 +65,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = p.parse_args(argv)
     try:
-        # First trust cannot depend on an arbitrary --state-path, copied DB,
-        # environment-specified alternate writer or unattended automation.
-        state = production_state_path()
+        state = (
+            Path(args.state_path).absolute()
+            if args.state_path is not None else production_state_path()
+        )
+        if args.state_path is not None:
+            if not state.is_file():
+                raise PermissionError("explicit SAFE state is missing")
+            assert_no_redirected_components(state, include_leaf=True)
+            assert_owner_private_path(state, directory=False)
         if args.action == "list":
             from contextlib import closing
             existing = OwnerWebAuthnVerifier(

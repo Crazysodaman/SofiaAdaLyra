@@ -97,6 +97,24 @@ def test_browser_request_shows_exact_action_and_uses_signed_passkey(tmp_path, mo
     )
 
 
+def test_local_install_platform_credential_policy_is_narrow():
+    from sofia.platform.safe.owner_browser import requires_security_key
+
+    assert requires_security_key("platform.install_verified_code") is True
+    assert requires_security_key(
+        "platform.install_verified_code", allow_platform_credential=True,
+    ) is False
+    assert requires_security_key(
+        "platform.native_service.apply", allow_platform_credential=True,
+    ) is False
+    assert requires_security_key(
+        "platform.operator_apps.apply", allow_platform_credential=True,
+    ) is False
+    assert requires_security_key(
+        "fleet.enroll", allow_platform_credential=True,
+    ) is True
+
+
 def test_browser_cannot_bootstrap_an_unknown_owner_credential(tmp_path, monkeypatch):
     from sofia.platform.safe import owner_browser
     monkeypatch.setattr(
